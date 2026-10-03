@@ -70,8 +70,9 @@ persisted format with outside consumers.
     drought; graded or spread ones report 0.93–1.2.
   - An error kept out of every norm does not converge (the partition,
     `grid-dynamics.md` §13).
-- **R5, never fails** over the trait range, for residents and invaders. The lma ×2
-  invader raises on steps of 31–38 days, where its pools are unstable past 26.
+- **R5, never fails** over the trait range, for residents and invaders. On
+  episodic the lma ×2 invader raises on rule A's steps of 31–38 days, where its
+  pools are unstable past 26. A 15-day cap prevents it (phase 1c).
 - **R6, shared:** one grid per local analysis, rebuilt on big moves in θ. The
   floor's grid holds the resident's gradients over `lma` ×0.95–×1.1.
   - Where one grid's radius is shorter than the analysis, several grids or a

@@ -47,7 +47,12 @@ and `phase1c/` hold the arc's phase 1: the chain's weight and treatment, the pai
 and its fourth-order interpolant, and rule A under step caps with invaders walked.
 Each has its pre-registration, queue scripts, analysis scripts and tables, and its
 driver patches, which `harness/` carries; `phase1c/report.sh` regenerates its
-`report.log`. The field adjoint map's
+`report.log`. `grid-dynamics/member_route/` holds a route for stepping one
+invader member in the resident's recorded field from R: the field from a cubic
+Hermite interpolant of the recorded states, and the member rated through an
+invader species. `selftest.log` checks it against plant to the bit. Its
+per-member steps by method were never run, since phases 1b and 1c settled the
+question. The field adjoint map's
 spike is `field-adjoint-map.md`, with its patch, scripts and logs in
 `field-adjoint-map/`. The spread canopy's, the node rule's candidate D, is
 `canopy-spread.md`, with its patches, scripts, runs and logs in

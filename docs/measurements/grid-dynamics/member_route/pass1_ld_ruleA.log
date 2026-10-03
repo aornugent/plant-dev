@@ -1,0 +1,17 @@
+93 test starts: 36.28 1, long step 62, onset 30
+step 1000 t 1.934: 1455 accepted, 22 rejected, 9846 fields, 47828 member ratings, 13 s
+step 2000 t 3.994: 3303 accepted, 312 rejected, 23392 fields, 191500 member ratings, 33 s
+step 3000 t 5.899: 5797 accepted, 1073 rejected, 43168 fields, 495712 member ratings, 64 s
+step 4000 t 8.298: 8962 accepted, 2332 rejected, 69465 fields, 1053268 member ratings, 106 s
+step 5000 t 11.472: 12219 accepted, 3614 rejected, 96430 fields, 1833032 member ratings, 153 s
+step 6000 t 13.193: 14959 accepted, 4881 rejected, 120212 fields, 2668096 member ratings, 197 s
+step 7000 t 15.855: 17985 accepted, 5987 rejected, 144910 fields, 3698756 member ratings, 247 s
+step 8000 t 18.077: 21263 accepted, 7350 rejected, 172403 fields, 5016136 member ratings, 306 s
+step 9000 t 20.984: 26186 accepted, 10634 rejected, 219373 fields, 7589600 member ratings, 404 s
+step 10000 t 22.984: 28849 accepted, 11648 rejected, 241429 fields, 8948912 member ratings, 458 s
+step 11000 t 25.014: 32581 accepted, 13881 rejected, 275995 fields, 11257424 member ratings, 541 s
+step 12000 t 27.904: 37687 accepted, 17029 rejected, 323436 fields, 14734580 member ratings, 663 s
+step 13000 t 30.924: 42101 accepted, 19620 rejected, 363974 fields, 18027960 member ratings, 766 s
+step 14000 t 35.818: 50188 accepted, 25096 rejected, 441131 fields, 25198384 member ratings, 979 s
+step 15000 t 38.882: 54102 accepted, 26925 rejected, 474945 fields, 28717572 member ratings, 1083 s
+done: 55451 accepted, 27641 rejected, 486919 fields, 30010764 member ratings, 1121 s

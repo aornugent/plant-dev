@@ -1,0 +1,17 @@
+recording ld_ruleA : 15297 steps; nodes 1 to 108 
+step     1 (t 0.0000, 0.00 d, 1 nodes, after an introduction): re-taken end IDENTICAL to the recording (largest difference 0)
+step   396 (t 0.3704, 2.67 d, 2 nodes, after an introduction): re-taken end IDENTICAL to the recording (largest difference 0)
+step  6531 (t 14.4444, 2.64 d, 40 nodes, after an introduction): re-taken end IDENTICAL to the recording (largest difference 0)
+step 12567 (t 29.2593, 7.88 d, 80 nodes, after an introduction): re-taken end IDENTICAL to the recording (largest difference 0)
+step 14951 (t 38.7047, 22.19 d, 105 nodes): re-taken end IDENTICAL to the recording (largest difference 0)
+step 15297 (t 39.9916, 3.06 d, 108 nodes): re-taken end IDENTICAL to the recording (largest difference 0)
+constant-rain field patch: members' rates identical to the record's patch
+species route against standalone nodes: largest difference 0 
+resident node 3 at t 30.5347: invader route against the patch's own rates, largest relative difference 0
+resident node 30 at t 30.5347: invader route against the patch's own rates, largest relative difference 0
+resident node 83 at t 30.5347: invader route against the patch's own rates, largest relative difference 0
+node 50 at birth: seeded member against the resident's introduced node, relative differences 0 0 0 0 0 0 0
+y' = -y/7d, 15-day step, lowest stage / result: CK +0.01 / +0.136, DP -4.25 / +0.177, Tsit -3.39 / +0.154, SSPRK +0.11 / +0.122, RODAS +0.05 / +0.123
+y' = -y/7d, 26-day step, lowest stage / result: CK -1.51 / +0.965, DP -34.07 / +2.059, Tsit -21.92 / +1.443, SSPRK +0.01 / +0.046, RODAS -0.11 / +0.051
+members per invader: 13 13 13 13 
+ms per field 1.26, per rating of 52 members 1.50

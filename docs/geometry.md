@@ -217,14 +217,21 @@ the lowest stage on 15- and 26-day steps at τ_s = 7 days:
   - Here steps average under a day (17 684 over 40 years) against τ_s = 7 days.
   - The overshoot appears where a fast component is loosely controlled, or not
     controlled at all. That means rule A's loosened steps after the window (up
-    to 31–38 days), and an invader's walk.
+    to 31–38 days on episodic, 22 on long drought), and an invader's walk.
 - *It matters only where a rate misbehaves below zero.* For a linear rate a
   negative stage is harmless: the results of Cash–Karp, Dormand–Prince,
-  Tsitouras, RK4 and RODAS stay positive until the step turns unstable. Whether
-  TF24's storage rates raise below zero is what phases 1b and 1c now measure.
-- *Which limit triggers a raise is not yet known.* The ×2 `lma` invader raised on
-  steps of 31–38 days, past both of Cash–Karp's limits. Phase 1c's caps at 15
-  and 26 days separate them for Cash–Karp, whose stages reach −1.5 by 26 days.
+  Tsitouras, RK4 and RODAS stay positive until the step turns unstable.
+  - TF24's mortality is not linear in the pool. Its rate is 0.01 + 5.5·e^{−20r}
+    in the pool's fill r: 41 a year at r = −0.1, and 1.2e5 at r = −0.5.
+  - So a stage's harm scales with the fill at the step's start times the stage's
+    depth. A negative weight downstream can then push mortality below −50,
+    which plant refuses.
+  - This is read from the source, not measured. It fits 1b's refusals, all at
+    near-empty pools, and 1c's harmless stages at −0.78.
+- *Under Cash–Karp, stability sets the limit.* On episodic the ×2 `lma` invader
+  raised on rule A's steps of 31–38 days, past both of Cash–Karp's limits. Under
+  phase 1c's caps it runs at 15, 20 and 22 days, and raises only at 26, at the
+  stability limit.
 - *What the runs showed* (`grid-dynamics.md` §8 and §11).
   - Under Cash–Karp, invader walks need stability, not positivity. Stages down
     to −0.78 of a pool are harmless, and the one raise sits at the stability
