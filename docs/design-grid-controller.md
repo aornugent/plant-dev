@@ -426,6 +426,16 @@ pulsed record before the gate.
   - *Dormand–Prince, since dropped, would have needed about 10 days.* Its stages
     are −4.25 at 15 days and −12.5 at 20, past anything tested. A 10-day cap
     gives up 1.0% (long drought) and 9.0% (episodic) of the saving.
+- *With 1a's soil weight, a bound on every weight* (`grid-dynamics.md` §8,
+  `phase1c/combined/`).
+  - The soil ×10, rule A and the cap together save 33–37% of a gradient run on
+    three pulsed records, and every walk runs.
+  - But the soil's weight times rule A's factor reaches 1000. The error test
+    then accepts steps with a soil stage at the 1000 MPa potential ceiling, and
+    both roles' gradients are refused.
+  - plant now bounds each state's weight (`ode_weight_max`). At 100 the episodic
+    gradient is finite, for 2% more steps. The three records with walks and
+    nudges are running.
 
 **1d. Invaders refined against the resident's dense output** (R5, R3), only if
 phase 4 finds the invader's curvatures short. For R5, 1c's cap suffices.
@@ -462,7 +472,9 @@ Stacked changes on the plant and odelia forks, each with its own tests, and
 bit-identical wherever its default is off (AGENTS.md):
 1. the chain's treatment from 1a. Its mechanism, a weight per state in odelia's
    controller supplied by plant's patch, is built (`state-weights` on both
-   forks), and reproduces the driver's weighted runs bit for bit;
+   forks), and reproduces the driver's weighted runs bit for bit. Each state's
+   weight is bounded: at 1000 the soil's stages reached the potential ceiling
+   within accepted steps, and at 100 they did not (1c);
 2. the dense output from 1b: Cash–Karp's own fourth-order extension, from its
    stages and the end's rate;
 3. per-member events, in the forward and the sweep: the invader's structure is

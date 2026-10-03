@@ -47,6 +47,9 @@ and `phase1c/` hold the arc's phase 1: the chain's weight and treatment, the pai
 and its fourth-order interpolant, and rule A under step caps with invaders walked.
 Each has its pre-registration, queue scripts, analysis scripts and tables, and its
 driver patches, which `harness/` carries; `phase1c/report.sh` regenerates its
+`report.log`. `phase1c/combined/` holds the soil weight, rule A and the cap
+together in plant, with the probes that traced its refused gradients to soil
+stages at the potential ceiling (`grad_probe.R`); its `report.sh` regenerates its
 `report.log`. `grid-dynamics/member_route/` holds a route for stepping one
 invader member in the resident's recorded field from R: the field from a cubic
 Hermite interpolant of the recorded states, and the member rated through an
