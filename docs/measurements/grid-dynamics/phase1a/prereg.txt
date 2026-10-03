@@ -1,0 +1,171 @@
+Phase 1a pre-registration: the chain's weight and treatment.
+Written 2026-10-03 03:22 UTC, before any phase-1a run (the queue started 03:23:02).
+
+FIXTURE
+  Long drought, seed 31, 108 uniform nodes (the driver's defaults), tied tolerance
+  (ATOL=1e-4), CONTROL=odelia. Driver: harness/ark_prototype.R at 1af78e4, run from the
+  snapshot DEV/phase1a/harness under nice -n 10 with PLANT_LIB=DEV/lib_v12t. One heavy
+  process at a time. J* = 12.6687135 (Cash-Karp at 1e-8).
+  Baseline for rows: DEV/seed/tied_3e-5.rds (17 684 accepted, 962 505 rows, 7 063 344
+  member evaluations; identical to DEV/pi/runs/base_3e-5.rds).
+
+VARIANTS (stage 1, each at TOL 1e-4, 3e-5, 1e-5)
+  ck10     METHOD=ck  TOL_SOIL=10
+  ck100    METHOD=ck  TOL_SOIL=100
+  ark100   METHOD=ark TOL_SOIL=100
+  arkfree  METHOD=ark TOL_SOIL=1e6 TOL_ACC=1e6
+  An accumulator run (TOL_ACC = TOL_SOIL, suffix "a") is added for a variant whose
+  accumulators bind >= 2% of its accepted steps at 3e-5 (baseline 0.1%). The accumulators
+  are diagnostics never consumed by the dynamics, so weighting them cannot move J.
+
+SCORES (every run)
+  rows.R against DEV/seed/tied_3e-5.rds: accepted, rows, forward member evaluations,
+    gradient-run cost (forward + 6 rows)/7.
+  e_J = J/J* - 1.
+  Soil error: at every time common to the run's accepted steps and the tight monolithic
+    recording DEV/partition_bias/out/rec_1e-7.rds (CK, tied, 1e-7, 34 301 steps; the
+    knots and introductions are step targets in both), d = |theta_run - theta_ref| per
+    layer. Reported: max over times and layers (soil_max), and the median over common
+    times of the max over layers (soil_med).
+  Binding components of the accepted steps (the driver's "binding:" line).
+
+CONVERGENCE (R4), per variant, on e_J and on each of soil_max and soil_med:
+  (a) |x(1e-5)| <= max(|x(1e-4)| / 3, floor), and
+  (b) |x(3e-5)| <= 1.5 * max(|x(1e-4)|, floor).
+  floor: 6e-6 for e_J (the tied runs at 1e-5 and 1e-6 sit at +5.2e-6 and -6.1e-6 of J*,
+  so below that the reference cannot rank them); 0 for the soil.
+  A variant failing (a) or (b) on e_J or on soil_max is "not converging".
+
+SURVIVOR (stage 1 -> stage 2): completes all three tolerances without raising, rows at
+  3e-5 below the baseline's 962 505, and converging. If more survive than the budget
+  allows, stage 2 takes the explicit survivor with the fewest rows and the implicit
+  survivor with the fewest rows, the fewest-rows survivor first.
+
+STAGE 2 MEASUREMENTS (survivors)
+  Nudge triple: the variant at TOL 2.85e-5, 3e-5, 3.15e-5 (or x0.95, x1, x1.05 of its
+    working tolerance, stated if not 3e-5).
+  Explicit variants: harness/run_record.R with PROGRAM=<driver OUT>, PLANT_LIB=DEV/lib_guard
+    (as DEV/window/queue*.sh ran it), both roles' elasticities by reverse mode.
+  Implicit variants: frozen-step central differences on the driver, PROGRAM=<OUT>
+    METHOD=ark (same TOL_SOIL/TOL_ACC), THETA in {lma, a_dG1, a_dG2, d_I},
+    THETA_REL = +-1e-5, E = ln(J+/J-) / (log1p(u) - log1p(-u)). Resident only.
+  Baseline triple: DEV/pi/runs/base_{2.85e-5,3e-5,3.15e-5}.rds with frozen_base_* (ln J and
+    frozen lma); plant replays of the baseline programs where run.
+
+MAIN QUANTITIES AND EPS (docs/measurements/eps.csv)
+  ln J 0.0252 (both roles).
+  Resident: lma 0.0865, a_dG2 0.0190, and the pool traits a_dG1 0.0366, d_I 0.000473,
+    storage_relaxation_offset 0.0102, TF24_cost_scale 0.0196.
+  Invader: lma 0.198, a_dG2 0.0500.
+  Frozen-difference lma is the total elasticity through the trait's hyper-parameterisation
+  (not plant's partial "1.lma"); it is judged against lma's eps all the same, as the pi
+  study did.
+
+PASS (stage 2)
+  R2: for every main quantity measured, the largest |move| over the nudge triple
+    (x0.95 and x1.05 against x1) < eps/3.
+  R1: |Q(3e-5) - Q_ref| < eps for every main quantity measured. Q_ref:
+    ln J -> ln J*;
+    plant-measured elasticities -> plant's tied CK run at 1e-5 on the same 108 nodes
+      (docs/measurements/nudges/ld_1e-5.rds);
+    frozen-difference a_dG1, a_dG2, d_I (partial elasticities) -> the same ld_1e-5.rds;
+    frozen-difference lma -> the baseline triple's frozen lma (mean of the three).
+  Errors falling with the tolerance: stage 1's convergence on e_J and the soil.
+  Winner: the passing variant with the fewest rows at its working tolerance.
+  The decision: a weight in plant's control (an explicit variant wins), an implicit step
+  in odelia (an implicit variant wins and no explicit variant passes with fewer rows),
+  or neither (nothing passes, or nothing saves rows).
+
+KNOWN LIMITS, stated in advance
+  Implicit variants get no invader gradients (plant cannot replay ARK programs).
+  The frozen differences carry a noise near 5e-5 in E (TF24's leaf solve turns one ulp
+  into 1e-9 of J), a third of d_I's eps/3; d_I's moves are read with that floor.
+
+AMENDMENT 1, 03:30 UTC, before any frozen-difference run (stage 1 at its second run).
+  The driver's THETA scales the parameter in strategy_default before add_strategies, and
+  TF24's hyper-parameterisation then overwrites the derived parameters: d_I (from rho)
+  goes back from 0.011 to 0.01 (check_theta.R), so THETA=d_I would give E = 0. a_dG1 and
+  a_dG2 survive; lma's route is the total elasticity through k_l, r_l and nmass_l.
+  Change: the frozen differences use THETA_AFTER=1 (theta_after.patch, driver copy
+  harness_f/), which scales p$strategies[[1]]$pars[[THETA]] after add_strategies. Every
+  frozen E is then the partial elasticity, the quantity plant's reverse mode reports and
+  eps.csv was built from. Consequences:
+  - R1's reference for every frozen quantity, lma included, is ld_1e-5.rds (plant, CK,
+    1e-5), not the baseline's frozen (total) lma.
+  - The baseline triple in the frozen instrument is replaced by plant replays of the
+    baseline programs DEV/pi/runs/base_{2.85e-5,3.15e-5}.rds (plus the window test's
+    ld_pin_base for 3e-5), which carry the partial elasticities of both roles. The pi
+    frozen (total) lma triple is still reported as context.
+  Stage 1's runs after the first come from harness_u/ (uptake_record.patch: records each
+  accepted step's uptake per layer and each entry's; no number changes), for the optional
+  chain-error diagnostic (chain_err.R).
+
+LOG (applications of the rules above, no change to them)
+  03:36 ck100_3e-5's accumulators bound 5.7% of its accepted steps (>= 2%): ck100a
+        (TOL_SOIL=100 TOL_ACC=100) added at the three tolerances.
+  03:37 Budget rule for stage 2, from R1 as written: ln J is one of R1's quantities and
+        stage 1 measures it, so a variant whose |ln J - ln J*| >= eps (0.0252) at a
+        tolerance already fails R1 there; stage 2 is not spent on it at that tolerance.
+        arkfree at 3e-5: ln J off by 0.073 (2.9 eps).
+  03:49 ark100 at 3e-5: ln J off by 0.033 (1.3 eps). ck100a at 3e-5 has 636 222 rows
+        against ck100's 636 264 (the soil binds what the accumulators bound), so ck100a is
+        the fewest-rows explicit variant and goes first in stage 2; ck100's 1e-4 and 1e-5
+        rungs move to the end of the queue as a near-duplicate.
+  03:44 Instrument check (frozen d_I, THETA_AFTER=1, u = 1e-5, on the baseline program
+        DEV/seed/tied_3e-5.rds): E = -0.018657 against plant's reverse mode -0.019780 on the
+        same program (window/full/ld_pin_base.rds), a gap of 7.1 x d_I's eps/3. A pair at
+        u = 1e-4 is queued to tell the difference's noise floor from a real disagreement.
+
+  04:17 Stage 1 verdicts so far. arkfree: soil not converging (soil_max 3.89e-2, 3.51e-2,
+        2.96e-2 fails (a)), and ln J outside eps at all three tolerances: out. ark100:
+        converging, ln J outside eps at 1e-4 and 3e-5, inside at 1e-5 (-8.0e-4) with
+        607 150 rows (-36.9%), fewer than ck100a at 3e-5 (636 222): stage 2 for ark100 at
+        its working tolerance 1e-5 (triple 9.5e-6, 1e-5, 1.05e-5) and for ck100a at 3e-5.
+  04:22 ck100a at 1e-5 completes its ladder: e_J -1.24e-4, -9.06e-5, -5.76e-5 fails (a)
+        (5.76e-5 > 4.13e-5), soil_max 1.86e-2, 6.75e-3, 8.29e-3 fails (a): not converging,
+        so not a survivor; its stage 2 is dropped (its nudge run stopped at 1.2 min). ck10
+        converges (e_J -7.13e-5, -2.39e-5, -1.23e-5; soil_max 1.92e-3, 1.36e-3, 2.07e-4):
+        the explicit survivor, at 3e-5 (761 278 rows, -20.9%). Stage 2 order: ark100 around
+        1e-5 (fewest rows), then ck10 around 3e-5, then the baseline's plant replays.
+  04:50 The accumulator rule applied late: ark100's accumulators bound 8.6% of its steps
+        at 3e-5 (missed at 03:40). ark100a (TOL_SOIL=100 TOL_ACC=100) is added: its 1e-5
+        rung after ark100's frozen block, its 3e-5 and 1e-4 rungs after stage 3's driver
+        runs. Stage 3's driver runs are queued for both survivors (ck10 at 3e-5, ark100 at
+        1e-5) on constant and episodic, so the winner's exist whichever way stage 2 falls.
+  05:20 ark100 around 1e-5 (frozen, resident): R2 holds, worst d_I 0.695 eps/3; R1 holds,
+        worst d_I 0.096 eps. Its rows (607 150) are below ck10's at 3e-5 (761 278), so by the
+        winner rule ark100 wins unless a variant with fewer rows passes; ck10's plant
+        replays still run, for the explicit verdict.
+  05:25 ark100a at 1e-5: 605 757 rows (-0.23% of ark100's), e_J -8.07e-4 (ark100 -8.02e-4):
+        a near-duplicate, as ck100a was of ck100. Read as one variant: the diagnostic
+        accumulators weighted with the soil are free. Its 3e-5 and 1e-4 rungs and a second
+        frozen block are not run; the stage-2 verdict is ark100's.
+  05:57 ck10 around 3e-5 (plant replays, both roles, all main quantities): R2 holds, worst
+        resident d_I 0.568 eps/3 (invader worst 0.013); R1 holds, worst 0.037 eps. Both
+        survivors pass; by the winner rule ark100 at 1e-5 wins (607 150 rows against ck10's
+        761 278 at 3e-5): an implicit step in odelia, no explicit variant passing with fewer
+        rows. ark100's pass covers the resident's ln J, lma, a_dG2, a_dG1 and d_I only.
+  06:10 Wrap-up on the coordinator's request (report within 45 min). Run next: ck10 on
+        constant and episodic at 3e-5, ck10 on episodic at 1e-4 (a reading at matched J
+        error), then ark100's last five episodic frozen replays. Dropped unrun: the
+        baseline's plant replays at 2.85e-5 and 3.15e-5, ck30a (exploratory), ck100's
+        1e-4 and 1e-5 rungs.
+  06:26 Stage 3 done (score3.txt). Constant: ark100 at 1e-5 -60.3% of a gradient run
+        (e_J -1.2e-6), ck10 at 3e-5 -4.7% (+2.4e-8). Episodic: ark100 at 1e-5 -31.6%
+        (-5.1e-4), ck10 at 1e-4 -29.5% (-7.3e-5), at 3e-5 -17.4% (+6.7e-7). ark100's frozen
+        elasticities against the CK baseline's plant ones: <= 0.001 eps on constant, <= 0.049
+        eps on episodic. On constant d_I's frozen pair at u = 1e-3 raised (a pinned 3.43-day
+        step at t = 39.27 put member 111's near-empty pool below zero); its pair at 1e-4 ran.
+  05:42 EXPLORATORY, not pre-registered and not eligible to win: ck30a (METHOD=ck
+        TOL_SOIL=30 TOL_ACC=30) at the three tolerances, queued last, to locate where the
+        explicit chain stops converging between x10 (converges) and x100 (does not).
+
+AMENDMENT 2, 03:53 UTC, before any variant's frozen-difference run.
+  The u = 1e-4 pair gives E(d_I) = -0.019680 against plant's -0.019780 (0.63 of eps/3);
+  its one-sided slopes are -0.019608 and -0.019753. So the replayed J carries a noise near
+  1e-8 in ln J, and a central difference's E a noise near 1e-8 / u: 1e-3 at u = 1e-5,
+  which is 7 x d_I's eps/3 and 0.16 x a_dG2's. Change: frozen differences use
+  THETA_REL = +-1e-4 for lma, a_dG1 and a_dG2, and +-1e-3 for d_I (noise near 1e-5,
+  0.06 of its eps/3; truncation of a central difference is second order in u).
+  Plant's reverse mode agrees with the frozen difference; no change to plant-measured
+  quantities.

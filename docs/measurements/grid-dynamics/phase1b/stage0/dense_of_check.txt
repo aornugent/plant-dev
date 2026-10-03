@@ -1,0 +1,2 @@
+dp: slopes cubic 4.13, quintic 5.94, dp4 5.08; ends exact: cubic 0.0e+00/0.0e+00 dp4 0.0e+00/0.0e+00
+ck: slopes cubic 4.13, quintic 5.66, ck4 5.08; ends exact: cubic 0.0e+00/0.0e+00 ck4 0.0e+00/0.0e+00

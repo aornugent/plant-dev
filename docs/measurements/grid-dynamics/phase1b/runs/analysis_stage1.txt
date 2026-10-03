@@ -1,0 +1,31 @@
+== Stage 1: DP 5(4) against CK on the driver (long drought, seed 31, uniform 108, tied tolerance, lib_v12t)
+ method  tol accepted rejected thrown    rows forward       err  near  over
+     ck 1e-4    14845     3382     18  807929 5948875 +3.66e-05 7.30% 0.34%
+     ck 3e-5    17684     3912      4  962505 7063344 -1.26e-05 1.50% 0.01%
+     ck 1e-5    21106     4624      3 1150581 8421474 +5.20e-06 0.22% 0.00%
+     dp 1e-4    17074     4048    145  928117 6878221 +3.06e-04 6.07% 0.26%
+     dp 3e-5    20039     4457    133 1088828 7967030 +9.50e-05 1.41% 0.00%
+     dp 1e-5    23523     5039    114 1280932 9319265 +7.01e-05 0.12% 0.00%
+ near_ckbeta rej_share
+       7.30%     18.6%
+       1.50%     18.1%
+       0.22%     18.0%
+       2.30%     19.2%
+       0.15%     18.2%
+       0.01%     17.6%
+  near/over: steps starting at h|lambda_soil|/beta >= 0.8 / > 1 with the pair's own beta; near_ckbeta: DP's h|lambda| against CK's beta
+
+ DP against CK at equal tol (gradient = (forward + 6 rows) / 7, harness/rows.R):
+  1e-4: accepted +15.0%, rows +14.9%, forward +15.6%, gradient run +15.0%, rejected 4048 vs 3382; |J - J*| 3.06e-04 vs 3.66e-05
+  3e-5: accepted +13.3%, rows +13.1%, forward +12.8%, gradient run +13.1%, rejected 4457 vs 3912; |J - J*| 9.50e-05 vs 1.26e-05
+  1e-5: accepted +11.5%, rows +11.3%, forward +10.7%, gradient run +11.2%, rejected 5039 vs 4624; |J - J*| 7.01e-05 vs 5.20e-06
+
+ rows at matched |J - J*| (piecewise log-log in each method's three points):
+  error falls monotonically as rows rise: CK TRUE, DP TRUE
+  CK at 1e-5 (|err| 5.20e-06): outside DP's resolved range
+  CK at 3e-5 (|err| 1.26e-05): outside DP's resolved range
+  CK at 1e-4 (|err| 3.66e-05): outside DP's resolved range
+
+ CK through the patched driver at 1e-4: J 12.669177141; against the recording: J identical, attempts identical, steps identical
+ DP through the events driver on the probe build at 1e-4: against the recording: J identical, attempts identical, steps identical
+ DP through the events driver on the probe build at 3e-5: against the recording: J identical, attempts identical, steps identical

@@ -1,0 +1,26 @@
+--- a/harness/ark_prototype.R
++++ b/harness/ark_prototype.R
+@@ -135,12 +135,21 @@
+ p$max_patch_lifetime <- LIFETIME
+ THETA <- Sys.getenv("THETA")
+ THETA_REL <- if (nzchar(THETA)) as.numeric(Sys.getenv("THETA_REL")) else 0
+-if (nzchar(THETA) && THETA != "lma") {
++# THETA_AFTER scales the strategy's own parameter after the hyper-parameterisation has
++# set the derived ones, holding those as plant's gradient does: the partial elasticity,
++# and the only route to a derived parameter such as d_I, which add_strategies overwrites.
++THETA_AFTER <- nzchar(THETA) && Sys.getenv("THETA_AFTER") == "1"
++if (nzchar(THETA) && THETA != "lma" && !THETA_AFTER) {
+   s <- p$strategy_default; sp_pars <- s$pars
+   sp_pars[[THETA]] <- sp_pars[[THETA]] * (1 + THETA_REL)
+   s$pars <- sp_pars; p$strategy_default <- s
+ }
+-p <- add_strategies(p, trait_matrix(LMA0 * if (THETA == "lma") 1 + THETA_REL else 1, "lma"))
++p <- add_strategies(p, trait_matrix(LMA0 * if (THETA == "lma" && !THETA_AFTER) 1 + THETA_REL else 1, "lma"))
++if (THETA_AFTER) {
++  s <- p$strategies[[1]]; sp_pars <- s$pars
++  sp_pars[[THETA]] <- sp_pars[[THETA]] * (1 + THETA_REL)
++  s$pars <- sp_pars; p$strategies[[1]] <- s
++}
+ pars <- p$strategies[[1]]$pars
+ p$node_schedule_times <- list(times)
+ ct <- control()

@@ -1,0 +1,6 @@
+replayed 7511 steps: error ratio at most 1.14, above 1.1 on 6; deepest pool 5.24e-08 of capacity
+above 1.1, by the component that set the ratio: storage 6 ; h |lambda_soil| / beta on the soil's: median NA
+ark nodes 108 tol 1e-05: J 1.976171392, 0 accepted, 58 s; accepted=0 accepted_at_minimum=0 rejected_inaccurate=0 rejected_thrown=0 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0
+rate evaluations 45174, member evaluations 2458224; evaluated states past the inflow switch 0, the loss clamp 0, the floor 0
+block solves 37555: 3.57 Newton iterations each, at most 6; 0 halvings; 0 failures
+binding: soil NaN%  accumulator NaN%  member NaN%  storage NaN% ; h |lambda_soil| / beta at the start >= 0.8: NaN%  > 1: NaN% 

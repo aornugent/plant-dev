@@ -1,0 +1,10 @@
+ck: kink kernel max |K| 0.0156 at u = 0.30; mean |K| 0.0039; rms 0.0050
+   y' = -y/T at h/T = 1: stage values 1.000 0.800 0.745 0.526 0.453 0.427
+   y' = -y/T at h/T = 2: stage values 1.000 0.600 0.580 0.088 1.187 0.266
+   y' = -y/T at h/T = 3: stage values 1.000 0.400 0.505 -0.638 5.020 0.274
+   sum |a_ij| per row: 0.00 0.20 0.30 2.40 6.59 0.88
+dp: kink kernel max |K| 0.0225 at u = 0.80; mean |K| 0.0068; rms 0.0084
+   y' = -y/T at h/T = 1: stage values 1.000 0.800 0.745 0.360 0.111 0.055
+   y' = -y/T at h/T = 2: stage values 1.000 0.600 0.580 -0.600 -2.734 -3.276
+   y' = -y/T at h/T = 3: stage values 1.000 0.400 0.505 -2.840 -11.302 -15.025
+   sum |a_ij| per row: 0.00 0.20 0.30 8.27 24.66 23.06

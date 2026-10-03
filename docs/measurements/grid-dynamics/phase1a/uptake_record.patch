@@ -1,0 +1,47 @@
+--- a/harness/ark_prototype.R
++++ b/harness/ark_prototype.R
+@@ -320,7 +320,7 @@
+   at_end <- rates(y1, t + h)
+   if (is.null(at_end)) return(NULL)
+   list(y = y1, yerr = combine(0, tb$b - tb$d, k, h), rates = at_end, P = production(y1), K = klass(y1), Pst = Pst,
+-       Kst = Kst)
++       Kst = Kst, uptake = tail(patch$ode_aux, 5))
+ }
+ 
+ # The size that ends an accepted attempt `a` of size h from t0 just past the
+@@ -627,6 +627,10 @@
+ steps <- new.env()
+ steps$k <- 0L
+ steps$states <- if (nzchar(Sys.getenv("STATES"))) list() else NULL
++# Each accepted step's uptake per layer at its end, as the end evaluation left it; and
++# each entry's, at its time.
++steps$uptake <- matrix(NA_real_, 60000, 5)
++steps$entry_uptake <- matrix(NA_real_, 0, 6)
+ steps$rows <- matrix(NA_real_, 60000, 12,
+                      dimnames = list(NULL, c("time", "h", "er", "ei", "M", "x_soil",
+                                              paste0("soil_", 1:5), "cap")))
+@@ -782,6 +786,8 @@
+     steps$rows[steps$k, ] <- c(sv$t, h, ctl$ratio, ctl$index, (length(a$y) - 10) %/% 9,
+                                h * lambda_soil(sv$y, t0) / BETA, a$y[soil(a$y)], cap[2])
+     if (!is.null(steps$states)) steps$states[[steps$k]] <- a$y
++    if (steps$k > nrow(steps$uptake)) steps$uptake <- rbind(steps$uptake, steps$uptake * NA)
++    steps$uptake[steps$k, ] <- a$uptake
+     down <- sv$P > 0 & a$P < 0
+     if (any(down)) {
+       sv$zone_until <- max(sv$zone_until, t0 + h * max(sv$P[down] / (sv$P[down] - a$P[down])) + CROSS_TAIL)
+@@ -815,6 +821,7 @@
+     sv$y <- patch$ode_state
+     sv$dydt <- rates(sv$y, sv$t)
+     if (is.null(sv$dydt)) stop("an entry's rates raised DomainError")
++    steps$entry_uptake <- rbind(steps$entry_uptake, c(sv$t, tail(patch$ode_aux, 5)))
+     sv$P <- production(sv$y)
+     sv$Pdot <- c(sv$Pdot, 0)[seq_along(sv$P)]
+     sv$K <- klass(sv$y)
+@@ -933,6 +940,7 @@
+     saveRDS(list(method = method, control = CONTROL, nodes = nodes, tol = tol, J = J, attempts = att,
+                  regime = REGIME, rain = rain_record(REGIME), knots = pulses,
+                  counts = as.list(n), secs = secs, st = st, weight = WEIGHT,
++                 uptake = steps$uptake[seq_len(steps$k), , drop = FALSE], entry_uptake = steps$entry_uptake,
+                  by_node = data.frame(time = sp$node_times, weight = w[-length(w)],
+                                       fecundity = f, patch_density = pd)),
+             Sys.getenv("OUT"))

@@ -1,0 +1,105 @@
+
+==============================================================================
+Trees: number of rooted trees by order {1: 1, 2: 1, 3: 2, 4: 4, 5: 9}
+==============================================================================
+
+==============================================================================
+(b) Dormand-Prince 5(4), the coefficients as given
+==============================================================================
+row sums minus c (all zero?): True
+FSAL row 7 equals b: True
+b, order 1: 1 conditions, all exact: True
+b, order 2: 1 conditions, all exact: True
+b, order 3: 2 conditions, all exact: True
+b, order 4: 4 conditions, all exact: True
+b, order 5: 9 conditions, all exact: True
+bhat, order 1: 1 conditions, all exact: True
+bhat, order 2: 1 conditions, all exact: True
+bhat, order 3: 2 conditions, all exact: True
+bhat, order 4: 4 conditions, all exact: True
+bhat, order 5: 9 conditions, all exact: False; residuals ['-71/270000', '-71/540000', '-71/810000', '-71/90000', '-71/1080000', '37/60000', '37/120000', '37/180000', '97/120000']
+b, order 6: 11 of 20 conditions fail (so b is exactly order 5)
+error coefficient norms, order 5: bhat (the estimate's leading term) 1.1830e-03
+order 6 error coefficient norm of b (the propagated solution): 3.9908e-04
+
+contd5 dense output: order-4 continuous conditions hold identically in theta: True
+  b(0) = 0: True ; b(1) = b: True ; b'(0) = e1: True ; b'(1) = e7: True
+  order-5 conditions failing (so the extension is exactly order 4): 9 of 9
+  order-5 error norm at theta = 0.25: 8.3501e-04  (ratio to the estimate's 0.706)
+  order-5 error norm at theta = 0.50: 4.0426e-04  (ratio to the estimate's 0.342)
+  order-5 error norm at theta = 0.75: 6.0974e-04  (ratio to the estimate's 0.515)
+
+==============================================================================
+(a) Cash-Karp: simplifying assumptions
+==============================================================================
+stage 1: C(2) residual 0, C(3) residual 0
+stage 2: C(2) residual -1/50, C(3) residual -1/375
+stage 3: C(2) residual 0, C(3) residual 0
+stage 4: C(2) residual 0, C(3) residual 0
+stage 5: C(2) residual 0, C(3) residual 0
+stage 6: C(2) residual 0, C(3) residual 0
+sum_i b_i a_i2 = 0 ; sum_i d_i a_i2 = 0
+b order 1 exact: True; d order 1 exact: True
+b order 2 exact: True; d order 2 exact: True
+b order 3 exact: True; d order 3 exact: True
+b order 4 exact: True; d order 4 exact: True
+b order 5 exact: True; d order 5 exact: False
+estimate's order-5 error norm (d): 5.3907e-04
+
+==============================================================================
+(a) Cash-Karp, six stages: an order-4 continuous extension?
+==============================================================================
+rank of the 8 x 6 order-4 system: 5
+  theta^1 part solvable: True
+  theta^2 part solvable: False
+  theta^3 part solvable: False
+  theta^4 part solvable: False
+  a left null vector gives the solvability polynomial in theta: (3/40) th^2 + (-1/5) th^3 + (1/8) th^4
+  roots of poly / theta^2: ['1.000000', '0.600000']
+
+==============================================================================
+(a) Cash-Karp with k7 = f(y1): an order-4 continuous extension?
+==============================================================================
+rank of the 8 x 7 order-4 system: 6
+  theta^1 part solvable: True; null space dimension 1
+  theta^2 part solvable: True; null space dimension 1
+  theta^3 part solvable: True; null space dimension 1
+  theta^4 part solvable: True; null space dimension 1
+  null vector(s): [['-253/2304', '0', '275/576', '-4025/4608', '-253/512', '1', '0']]
+  is b - d (k7 weight 0) in the null space: True
+
+==============================================================================
+(a) Cash-Karp with k7: the C1 quartic family
+==============================================================================
+C1 quartic exists: True
+free parameters in the C1 quartic family: 1
+mu minimising the order-5 norm at theta = 1/2: -3.5308383705
+chosen mu (rational): -3492/989
+order-4 continuous conditions hold identically: True
+b(1) = b: True ; b'(0) = e1: True ; b'(1) = e7: True
+b_2(theta) identically zero: True
+  order-5 error norm at theta = 0.25: 1.2663e-03  (ratio to the estimate's 2.349)
+  order-5 error norm at theta = 0.50: 1.2862e-03  (ratio to the estimate's 2.386)
+  order-5 error norm at theta = 0.75: 6.3947e-04  (ratio to the estimate's 1.186)
+
+CK C1 quartic weights b_i(theta) = sum_k beta_k[i] theta^k (exact):
+  theta^1: ['1', '0', '0', '0', '0', '0', '0']
+  theta^2: ['-156473/57792', '0', '1159825/332304', '14725/60544', '5301/38528', '-202836/76153', '3/2']
+  theta^3: ['729889/260064', '0', '-8030425/1495368', '290425/817344', '-5301/19264', '493736/76153', '-4']
+  theta^4: ['-24797/24768', '0', '2275475/996912', '-19225/49536', '5301/38528', '-3492/989', '5/2']
+as doubles (for the driver):
+  theta^1: c(1, 0, 0, 0, 0, 0, 0)
+  theta^2: c(-2.7075200719822812, 0, 3.4902529009581587, 0.24321154862579281, 0.13758824750830564, -2.6635326251099758, 1.5)
+  theta^3: c(2.806574535498954, 0, -5.3701998437842722, 0.35532774449925614, -0.27517649501661129, 6.4834740588026731, -4)
+  theta^4: c(-1.0011708656330749, 0, 2.2825234323591248, -0.38810158268733852, 0.13758824750830564, -3.5308392315470174, 2.5)
+
+==============================================================================
+For scale: DP's contd5 and the CK quartic, order-5 error norm over theta
+==============================================================================
+  theta 0.10: DP 2.8666e-04   CK 3.7964e-04
+  theta 0.25: DP 8.3501e-04   CK 1.2663e-03
+  theta 0.50: DP 4.0426e-04   CK 1.2862e-03
+  theta 0.75: DP 6.0974e-04   CK 6.3947e-04
+  theta 0.90: DP 2.3352e-04   CK 2.0655e-04
+estimates' order-5 norms: DP bhat 1.1830e-03, CK d 5.3907e-04
+propagated solutions' order-6 norms: DP b 3.9908e-04, CK b 9.4829e-04

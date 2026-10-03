@@ -1,0 +1,3 @@
+ck nodes 108 tol 3e-05: J 12.667565946, 11637 accepted, 300 s; accepted=11637 accepted_at_minimum=0 rejected_inaccurate=3107 rejected_thrown=7 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0
+rate evaluations 88600, member evaluations 4846564; evaluated states past the inflow switch 595, the loss clamp 2234, the floor 733
+binding: soil 68.2%  accumulator 0.1%  member 31.7%  storage 13.1% ; h |lambda_soil| / beta at the start >= 0.8: 21.9%  > 1: 9.5% 

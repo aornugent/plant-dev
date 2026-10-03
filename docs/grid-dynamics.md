@@ -62,8 +62,8 @@ wet by its own value, so an onset's rising day counts as dry there.
 | 7 | the constant record rejects 16% with no knots | the soil's stability bounds its steps, and the step-size law cycles across the limit | established; the implicit soil pays there, and on the chain alone a PI law leaves 6 of 1009 rejections; coupled, PI saves 1.0% of a gradient run (§7) |
 | 8 | on the pulsed records 59–61% of member-steps come after t = 25, where at most 6.1% of `J` is still to be earned | the tolerance and the spacing weight every time and node alike | established; a rule from a 54-node pilot saves 21–28% of a forward's member evaluations and as many rows at ≤ 0.08ε on three pulsed records. A failing invader's pools are unstable on its loosened steps, and a 15-day cap protects every walk for at most 2.4% of the saving (§8) |
 | 9 | the sign-change refusal costs 3.4× | it refuses after the window too | half established: limited to the window it keeps `J` for 43% less; limited to the cohort that earns `J` it does not. Superseded by per-member events (§11) |
-| 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the members alone need about half the steps, and the chain implicit and out of the norm together is untested (§10) |
-| 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges (§11); its cost in the sweeps not measured |
+| 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the explicit chain takes a weight of ×10 (−20.7% of a gradient run, both roles) but not ×100; the implicit chain passes at `1e-5` (−36.8%, resident only) and saves 60% under constant rain; implicit and out of the norm does not converge (§10) |
+| 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges. Cash–Karp's own fourth-order extension does as well for 5.9% of a forward (§11); its cost in the sweeps not measured |
 | 12 | the partitioned step's corrected couplings stall at 1e-4 to 5e-4 | the held collar's first-order deficit in the dry spells' water budget; the drift is the coupling's error, which no norm measured, so the dry spells' steps stayed long as the tolerance tightened | the partition killed (§13), and dead for another reason: in the dry spells the coupling is an algebraic loop. With the coupling's error in the norm it converges, at 0.39–1.85 of the monolith's leaf solves |
 | 13 | the sweep costs 2.5–2.7 forwards, so a run with every gradient spends 74% in sweeps; spreading each panel's leaf area slows it 1.7–3.4× | a member taped at its recorded point costs 2.4 forward evaluations, with five implicit-function solves, and every zero-depth pulse rebinds the patch twice; the spread's slowdown is the light field's fallback path when two nodes' heights fall out of order | established (`perf-sweep.md`); three changes would halve the sweep |
 
@@ -695,6 +695,59 @@ reply's first lever). Each change was tested alone, and each alone fails:
   tolerances, and the chain's error must be estimated somewhere, if not in the
   norm then by the chain alone integrated tightly against the recorded uptake.
 
+**Tested: the chain's weight and treatment** (phase 1a; `phase1a/score_stage1.txt`,
+`stage2.txt` and `score3.txt`). The fixture is long drought on 108 nodes under the
+tied tolerance. Costs are against the baseline at `3e-5`, with a gradient run
+priced as (forward + 6 rows)/7.
+
+| variant | tolerance | gradient run | `J − J*` | converges |
+|---|---|---|---|---|
+| baseline | `3e-5` | 0 | −1.26e-5 | yes |
+| explicit, weight ×10 | `3e-5` | −20.7% | −2.39e-5 | yes |
+| explicit, weight ×100 | `3e-5` | −33.5% | −9.56e-5 | no |
+| implicit (ARK), weight ×100 | `3e-5` | −50.9% | −3.25e-2 | yes, but outside ε |
+| implicit (ARK), weight ×100 | `1e-5` | −36.8% | −8.02e-4 | yes |
+| implicit, out of the norm | `3e-5` | −61.1% | −7.03e-2 | no |
+
+- *The explicit chain takes ×10, not ×100.*
+  - Under ×10, `J`'s error falls 5.8× and the soil's 9.3× over the decade.
+  - At `3e-5` it passes R1 (0.037ε) and R2 for both roles (worst 0.568 ε/3,
+    `d_I`).
+  - Under ×100 the soil's error goes 1.9e-2, 6.8e-3 and 8.3e-3 over the decade.
+    The saturated top layer cycles at the explicit limit on 5.5–15% of steps.
+- *The implicit chain in the norm converges, but its estimate misjudges the
+  soil.*
+  - At `3e-5`, `J` is 3.25% low (1.3ε).
+  - At `1e-5` it passes R1 (0.096ε) and R2 (0.695 ε/3, `d_I`), for the
+    resident only, by frozen differences. Plant cannot replay ARK, so no
+    invader was measured.
+- *Implicit and out of the norm does not converge.*
+  - `ln J` is off by −12%, −7% and −3.9% over the decade, and the soil's error
+    goes only from 3.9e-2 to 3.0e-2.
+  - The members alone take 1657 steps on wet days, so wetting fronts go
+    unresolved. Out of the norm is out of control, as the partition showed.
+- *Where stability binds, only the implicit chain pays.*
+  - On the constant record ARK at `1e-5` saves 60.3%, and the ×10 weight 4.7%;
+    31% of the explicit chain's steps start beyond its limit.
+  - On episodic they are close: ARK at `1e-5` saves 31.6% (`J` −5.1e-4), and
+    ×10 at `1e-4` saves 29.5% (−7.3e-5). But `1e-4` was not nudge-tested, and
+    plain Cash–Karp fails R2 there.
+- *The chain alone reads the chain's error.* Integrated against the run's own
+  uptake, it tracks the measured soil error with correlation 0.84–0.96, and the
+  20 worst events to 0.84–1.17.
+- *Also found:*
+  - the driver's `THETA` could not move `d_I`, which TF24 rederives from `rho`,
+    so `THETA_AFTER` perturbs the strategy after it is built;
+  - frozen differences at `u = 1e-5` are too noisy for small elasticities;
+  - a pinned ARK step put a near-empty pool below zero on the constant record.
+- *Verdict:* by the pre-registered rule the implicit chain wins, with three weak
+  points: no invader gradients, a tolerance of `1e-5` forced by its estimate,
+  and the tightest R2 margin measured. The ×10 weight passes for both roles and
+  is the fallback.
+- *Next:* the chain alone's estimate in ARK's norm in place of its embedded one,
+  at `3e-5` (−51% if it converges); the largest weight that converges, measured
+  in plant once the weight is built; and the invader under the implicit chain.
+
 **Root cause.** Five scalar equations, the soil chain answering each rain
 change, set 93% of the steps. A monolithic step pays the members' leaf solves
 at each of them, and the chain cannot step at the members' pace, where it is
@@ -801,6 +854,50 @@ recording and the tape must hold.
 - *Locate on the step's interpolant, never on its raw stages,* which are `O(h²)`
   wrong as point values; a second location on the split solution's
   interpolant takes the crossing to `O(h³)`.
+
+**Tested: the pair, and a fourth-order interpolant** (phase 1b;
+`phase1b/runs/analysis_*.txt`, `phase1b/stage0/`). Long drought on 108 nodes,
+under the tied tolerance.
+- *Cash–Karp has a free fourth-order extension.* With the end's rate f(y₁),
+  which plant evaluates on every attempt, its order-4 weights form a
+  one-parameter family. Without f(y₁) none exists.
+  - The C¹ quartic chosen minimises the order-5 error at θ = ½ (`BCK4` in
+    `harness/ark436.R`).
+- *Dormand–Prince is worse here.*
+  - It takes 11–15% more rows at equal tolerance.
+  - Its `J` error stalls near 7e-5, where Cash–Karp reaches 5.2e-6 at `1e-5`.
+    At matched error it needs at least 59% more rows.
+  - It throws 145, 133 and 114 stage rejections at `1e-4`, `3e-5` and `1e-5`,
+    against Cash–Karp's 18, 4 and 3, every one a stage holding a negative pool.
+  - Its bias sits in the first-year cohorts, which earn 79% of `J`.
+  - The chain alone under it takes 15–18% more steps, with 3.7–4.6× the
+    moisture error.
+- *On the resident, the negative pool stages come on short steps,* at
+  near-empty late pools: h/τ_s has median 0.14 under Cash–Karp and 0.06 under
+  Dormand–Prince. They are not the long-step overshoot, since the error control
+  almost never starts a step on a pool draining fast.
+- *Events on Cash–Karp's quartic match the quintic, at the cubic's cost:*
+
+| arm, `1e-4` | `J − J*` | added cost, share of a forward |
+|---|---|---|
+| plain | +3.66e-5 | |
+| cubic | +1.65e-4 | 5.87% |
+| quintic | +3.99e-6 | 10.09% |
+| Cash–Karp's quartic | +3.41e-6 | 5.89% |
+
+  At `3e-5` the quartic's error is +9.0e-7, for 5.11%.
+- *Its spread under seven nudges matches the quintic's.* The largest move falls
+  from 1.261 to 0.262 ε/3 for `d_I`, 1.048 to 0.173 for `a_dG1`, 0.906 to 0.139
+  for `a_dG2`, and 0.477 to 0.058 for `lma`. It passes R2 on all four.
+- *Against the pre-registered criteria:*
+  - the field test (within one error weight) fails for every arm, the quintic
+    included; the exceedances are in members without a crossing;
+  - the cost test (≤ 5%) fails narrowly. Sharing the field's boundary solve
+    would bring it to about 3.3%, counted but not measured.
+- *Verdict:* keep Cash–Karp, with its own fourth-order extension for events. No
+  Dormand–Prince.
+- *Not run:* the nudge test on Dormand–Prince's interpolant, the field test's
+  exceedances by member, the reverse sweep with the split, and invaders.
 
 ## 12. What the chain alone tells the schedule
 

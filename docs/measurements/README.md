@@ -42,9 +42,12 @@ re-scores its seeds, step-size laws and window rule in rows, which the sweeps
 pay. The sweep's cost per row, by component, is `perf-sweep.md`'s, which also
 finds that the sweep no longer re-solves `perf-adjoint.md`'s first stage. `grid-dynamics/rej_class/`
 holds the spike that traced the first-day rejections to the soil chain's own
-transient, with the driver's chain guard. `grid-dynamics/phase1c/` holds phase
-1c's runs of rule A under step caps, with invaders walked on each; `report.sh`
-regenerates its `report.log`. The field adjoint map's
+transient, with the driver's chain guard. `grid-dynamics/phase1a/`, `phase1b/`
+and `phase1c/` hold the arc's phase 1: the chain's weight and treatment, the pair
+and its fourth-order interpolant, and rule A under step caps with invaders walked.
+Each has its pre-registration, queue scripts, analysis scripts and tables, and its
+driver patches, which `harness/` carries; `phase1c/report.sh` regenerates its
+`report.log`. The field adjoint map's
 spike is `field-adjoint-map.md`, with its patch, scripts and logs in
 `field-adjoint-map/`. The spread canopy's, the node rule's candidate D, is
 `canopy-spread.md`, with its patches, scripts, runs and logs in

@@ -1,0 +1,43 @@
+== (1) stage states with a member's storage below zero (stages 2-6 and the end, 7), 1e-4
+ CK: 18227 attempts; 18 stage states with a negative pool in 18 attempts (0.10% of attempts), 46 member-stages, 38 members
+    those attempts: thrown 18; h / tau_s median 0.14 (10-90%: 0.06-3.26); h median 1.00 days
+    by stage: 4:2 5:44; the member's drain over the step at its start, h (-dS/dt) / S: median 0.00 (10-90%: 0.00-0.11); its fill at the start median 0.00925
+    members' births: median 12.78 (10-90%: 4.26-27.59); attempts on dry intervals 44%; deepest stage fill -0.355
+ DP: 21122 attempts; 145 stage states with a negative pool in 145 attempts (0.69% of attempts), 981 member-stages, 106 members
+    those attempts: thrown 145; h / tau_s median 0.06 (10-90%: 0.00-0.14); h median 0.43 days
+    by stage: 4:3 5:968 6:10; the member's drain over the step at its start, h (-dS/dt) / S: median 0.03 (10-90%: 0.00-0.08); its fill at the start median 0.000448
+    members' births: median 19.63 (10-90%: 3.70-33.70); attempts on dry intervals 6%; deepest stage fill -0.405
+
+== (2) raises (a stage's rates throw) and non-finite error ratios
+ CK: 18 raises, at stage 4:2 5:16; with a negative pool at the raising stage 18, with soil outside [0, theta_s] 2; non-finite ratios 0
+    raising attempts: h / tau_s median 0.14 (10-90%: 0.06-3.26); fastest pool drain at the start median 0.05; on dry intervals 44%; t0 median 16.2
+ DP: 145 raises, at stage 4:3 5:136 6:6; with a negative pool at the raising stage 145, with soil outside [0, theta_s] 2; non-finite ratios 0
+    raising attempts: h / tau_s median 0.06 (10-90%: 0.00-0.14); fastest pool drain at the start median 0.03; on dry intervals 6%; t0 median 20.9
+
+== (3) attempts, rejections and rows by the fastest pool's drain over the step at its start, h (-dS/dt) / S
+ pair     drain interval attempts accepted rejected thrown rej_rate   rows
+   ck    < 0.25      wet    12332     9500     2822     10    23.0% 516980
+   ck    < 0.25      dry     5239     4812      423      4     8.2% 260959
+   ck 0.25-1.04      wet        0        0        0      0     NaN%      0
+   ck 0.25-1.04      dry      636      521      113      2    18.1%  29455
+   ck 1.04-2.16      wet        0        0        0      0     NaN%      0
+   ck 1.04-2.16      dry       20       12        6      2    40.0%    535
+   ck    > 2.16      wet        0        0        0      0     NaN%      0
+   ck    > 2.16      dry        0        0        0      0     NaN%      0
+   dp    < 0.25      wet    14694    11135     3422    137    24.2% 605022
+   dp    < 0.25      dry     5757     5393      364      0     6.3% 292351
+   dp 0.25-1.04      wet        0        0        0      0     NaN%      0
+   dp 0.25-1.04      dry      666      546      117      3    18.0%  30744
+   dp 1.04-2.16      wet        0        0        0      0     NaN%      0
+   dp 1.04-2.16      dry        5        0        0      5   100.0%      0
+   dp    > 2.16      wet        0        0        0      0     NaN%      0
+   dp    > 2.16      dry        0        0        0      0     NaN%      0
+  rows here = member evaluations of accepted attempts / 6 (each attempt evaluates its members six times)
+
+ by time: accepted steps and rejections per band, DP against CK
+  t  0- 3: accepted CK  1288 DP  1521 (+18.1%); rows +18.0%; rejected or thrown CK  254 DP  313; accepted steps starting with a pool draining >= 1.04: CK 0.0%, DP 0.0%
+  t  3-10: accepted CK  2359 DP  2714 (+15.0%); rows +15.2%; rejected or thrown CK  576 DP  663; accepted steps starting with a pool draining >= 1.04: CK 0.3%, DP 0.0%
+  t 10-25: accepted CK  5624 DP  6413 (+14.0%); rows +13.9%; rejected or thrown CK 1305 DP 1550; accepted steps starting with a pool draining >= 1.04: CK 0.1%, DP 0.0%
+  t 25-40: accepted CK  5574 DP  6426 (+15.3%); rows +15.3%; rejected or thrown CK 1247 DP 1522; accepted steps starting with a pool draining >= 1.04: CK 0.1%, DP 0.0%
+
+ by year (40): DP's excess accepted steps, median +14.9%; correlation with the share of CK's steps starting with a pool draining >= 1.04: 0.46; with CK's dry share: -0.42

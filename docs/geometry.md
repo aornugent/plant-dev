@@ -225,13 +225,15 @@ the lowest stage on 15- and 26-day steps at τ_s = 7 days:
 - *Which limit triggers a raise is not yet known.* The ×2 `lma` invader raised on
   steps of 31–38 days, past both of Cash–Karp's limits. Phase 1c's caps at 15
   and 26 days separate them for Cash–Karp, whose stages reach −1.5 by 26 days.
-- *This bears on the pair's decision.* Runs that host invader gradients are to
-  use Dormand–Prince for its free interpolant, and their invaders meet these
-  overshoots unguarded.
-  - If a negative stage raises, those runs need a 7-day cap or sub-steps past
-    h/τ_eff ≈ 1.
-  - An interpolant for Cash–Karp, if phase 1b finds one good enough, would avoid
-    the question.
+- *What the runs showed* (`grid-dynamics.md` §8 and §11).
+  - Under Cash–Karp, invader walks need stability, not positivity. Stages down
+    to −0.78 of a pool are harmless, and the one raise sits at the stability
+    limit.
+  - On the resident, Dormand–Prince throws 8–38× as many stage rejections, each
+    a negative pool. They come on short steps at near-empty late pools, not
+    from the long-step overshoot.
+  - Cash–Karp has its own free fourth-order extension, so the pair decision's
+    reason for Dormand–Prince is gone.
 
 ### (b) The controller as a dynamical system
 
@@ -338,8 +340,8 @@ resident's recording.
 1. *Dormand–Prince's stages overshoot early and deep:* past 1.04τ against
    Cash–Karp's 2.16τ, and to −4.25 on a 15-day step (4(a) above). Most explicit
    methods overshoot past 1–2τ; Cash–Karp is unusually mild among fifth-order
-   pairs. It bears on hosting invader gradients on Dormand–Prince, and phases
-   1b and 1c now measure whether a negative stage raises.
+   pairs. On TF24, Dormand–Prince also loses on rows and error (phase 1b), and
+   Cash–Karp walks need stability rather than positivity (phase 1c).
 2. *The 0.01 floor is conservative.* Over the box it allows 0.83 of ε/3, and over
    `lma`'s length scale 0.21.
 3. *An invader's box is several length scales wide.* So its local analysis is a

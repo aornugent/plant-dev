@@ -1,0 +1,136 @@
+--- orig_events/ark_prototype.R	2026-10-03 03:29:19.106654514 +0000
++++ events/ark_prototype.R	2026-10-03 03:30:47.766498971 +0000
+@@ -76,10 +76,12 @@
+ 
+ nodes <- as.integer(Sys.getenv("NODES", "108"))
+ tol <- as.numeric(Sys.getenv("TOL", "1e-3"))
+-method <- match.arg(Sys.getenv("METHOD", "ck"), c("ck", "held", "ark"))
++method <- match.arg(Sys.getenv("METHOD", "ck"), c("ck", "held", "ark", "dp"))
+ HELD_MARGIN <- as.numeric(Sys.getenv("HELD_MARGIN", "0.8"))
+ tb <- if (method == "ark") {
+   with(tab, list(A = AE, AI = AI, b = b, d = d, c = cc, ord = 4))
++} else if (method == "dp") {
++  with(tab, list(A = ADP, b = bDP, d = dDP, c = cDP, ord = 5))
+ } else {
+   with(tab, list(A = ACK, b = bCK, d = dCK, c = cCK, ord = 5))
+ }
+@@ -136,7 +138,7 @@
+ # close the state, ahead of the five accumulators.
+ theta_s <- 0.428; K_sat <- 163.0411; q <- 2 * 6.57 + 3; b_inf <- 8; dz <- 1.5 / 5
+ theta_res <- 0.01
+-BETA <- 3.7343596   # Cash-Karp's real stability boundary
++BETA <- if (method == "dp") 3.3065679 else 3.7343596   # the pair's real stability boundary
+ soil <- function(y) length(y) - 9:5
+ rain_at <- function(t) pmax(0, env$extrinsic_drivers_evaluate_range("rainfall", t))
+ # The stiff rates, drainage and infiltration, and their Jacobian in the layers.
+@@ -178,9 +180,12 @@
+ # against the interpolant, on the side its crossing has moved to.
+ STRUCTURE <- if (nzchar(Sys.getenv("STRUCTURE"))) readRDS(Sys.getenv("STRUCTURE")) else NULL
+ # DENSE=quintic reads the split's field from the quintic Hermite through the
+-# step's start, its midpoint and its end, the midpoint by one Cash-Karp step of
+-# half the length from the start; the default is the cubic through the ends.
+-DENSE <- match.arg(Sys.getenv("DENSE", "cubic"), c("cubic", "quintic"))
++# step's start, its midpoint and its end, the midpoint by one step of half the
++# length from the start; DENSE=dp4 (METHOD=dp) and DENSE=ck4 (METHOD=ck) from the
++# pair's order-4 dense output on its stages and the rates at the step's end; the
++# default is the cubic through the ends.
++DENSE <- match.arg(Sys.getenv("DENSE", "cubic"), c("cubic", "quintic", "dp4", "ck4"))
++stopifnot(DENSE != "dp4" || method == "dp", DENSE != "ck4" || method == "ck")
+ # The quintic's weights on (y0, h f0, y_mid, h f_mid, y1, h f1) at u.
+ quintic_weights <- local({
+   rows <- function(u) rbind(u^(0:5), c(0, (1:5) * u^(0:4)))
+@@ -207,6 +212,8 @@
+ ONSET_SPAN <- as.numeric(Sys.getenv("ONSET_SPAN", "1.5")) / 365
+ TRANSIT <- as.numeric(Sys.getenv("TRANSIT", "Inf"))
+ KINK_FIX <- nzchar(Sys.getenv("KINK_FIX"))
++# kink_fix reads Cash-Karp's stages, whose fifth sits at the step's end.
++stopifnot(!KINK_FIX || method == "ck")
+ # The knots where rain starts after a dry span.
+ wet <- if (length(pulses) > 1) rain_at((pulses[-1] + pulses[-length(pulses)]) / 2) > 0 else logical()
+ onsets <- if (length(wet) > 1) pulses[-c(1, length(pulses))][!wet[-length(wet)] & wet[-1]] else numeric()
+@@ -276,8 +283,8 @@
+ }
+ 
+ # One attempt from (t, y), whose rates are k1: the state it ends at, its error
+-# estimate and the rates there. NULL where a stage raises or a block solve fails,
+-# which the step retries smaller.
++# estimate, the rates there and the stages' rates. NULL where a stage raises or a
++# block solve fails, which the step retries smaller.
+ attempt <- function(t, y, k1, h) {
+   k <- list(k1)
+   Pst <- list(sv$P)
+@@ -304,7 +311,36 @@
+   y1 <- combine(y, tb$b, k, h)
+   at_end <- rates(y1, t + h)
+   if (is.null(at_end)) return(NULL)
+-  list(y = y1, yerr = combine(0, tb$b - tb$d, k, h), rates = at_end, P = production(y1), K = klass(y1), Pst = Pst)
++  yerr <- if (method == "dp") combine(0, c(tb$b, 0) - tb$d, c(k, list(at_end)), h) else combine(0, tb$b - tb$d, k, h)
++  list(y = y1, yerr = yerr, rates = at_end, P = production(y1), K = klass(y1), Pst = Pst, k = k)
++}
++
++# The dense output of the attempt `a` of size h from (t0, y0) with rates f0 there,
++# as a function of the fraction u of the step; NULL where the quintic's midpoint
++# raises. dp4 and ck4 read the stages' rates and the rates at the step's end.
++dense_of <- function(t0, y0, f0, a, h, kind = DENSE) {
++  y1 <- a$y; f1 <- a$rates
++  switch(kind,
++    cubic = function(u) (1 + 2 * u) * (1 - u)^2 * y0 + u * (1 - u)^2 * h * f0 +
++      u^2 * (3 - 2 * u) * y1 + u^2 * (u - 1) * h * f1,
++    quintic = {
++      mid <- attempt(t0, y0, f0, h / 2)
++      if (is.null(mid)) return(NULL)
++      ym <- mid$y; fm <- mid$rates
++      function(u) {
++        w <- quintic_weights(u)
++        w[1] * y0 + w[2] * h * f0 + w[3] * ym + w[4] * h * fm + w[5] * y1 + w[6] * h * f1
++      }
++    },
++    dp4 = {
++      r2 <- y1 - y0; r3 <- h * f0 - r2; r4 <- r2 - h * f1 - r3
++      r5 <- combine(0, tab$eDP, c(a$k, list(f1)), h)
++      function(u) y0 + u * (r2 + (1 - u) * (r3 + u * (r4 + (1 - u) * r5)))
++    },
++    ck4 = {
++      K <- do.call(cbind, c(a$k, list(f1)))
++      function(u) y0 + h * as.vector(K %*% as.vector(u^(1:4) %*% tab$BCK4))
++    })
+ }
+ 
+ # The size that ends an accepted attempt `a` of size h from t0 just past the
+@@ -369,9 +405,9 @@
+ }
+ 
+ # An accepted attempt `a` of size h from t0 with each member whose net production
+-# changed sign re-integrated on its own: one Cash-Karp step to the crossing and
+-# one after it, the rest of the state read from the step's cubic Hermite
+-# interpolant. NULL where an evaluation raises. Each member-local evaluation
++# changed sign re-integrated on its own: one step of the pair to the crossing and
++# one after it, the rest of the state read from the step's dense output (DENSE).
++# NULL where an evaluation raises. Each member-local evaluation
+ # counts one member, and the rates at the corrected end count its members.
+ # `split` names the members (with each crossing's direction at the structure's
+ # own parameters, `down`) in place of the sign changes; `row` labels the log.
+@@ -380,19 +416,10 @@
+   if (!length(f)) return(a)
+   t_in <- proc.time()[["elapsed"]]
+   y0 <- sv$y; f0 <- sv$dydt; y1 <- a$y; f1 <- a$rates
+-  interp <- function(u) (1 + 2 * u) * (1 - u)^2 * y0 + u * (1 - u)^2 * h * f0 +
+-    u^2 * (3 - 2 * u) * y1 + u^2 * (u - 1) * h * f1
+-  if (DENSE == "quintic") {
+-    s_mid <- leaf_solves()
+-    mid <- attempt(t0, y0, f0, h / 2)
+-    n$leaf_dense <- n$leaf_dense + (leaf_solves() - s_mid)
+-    if (is.null(mid)) return(NULL)
+-    ym <- mid$y; fm <- mid$rates
+-    interp <- function(u) {
+-      w <- quintic_weights(u)
+-      w[1] * y0 + w[2] * h * f0 + w[3] * ym + w[4] * h * fm + w[5] * y1 + w[6] * h * f1
+-    }
+-  }
++  s_mid <- leaf_solves()
++  interp <- dense_of(t0, y0, f0, a, h)
++  n$leaf_dense <- n$leaf_dense + (leaf_solves() - s_mid)
++  if (is.null(interp)) return(NULL)
+   full_at <- function(y, u) {
+     n$local_members_evaluated <- n$local_members_evaluated + 1
+     tryCatch(patch$derivs(y, t0 + u * h), `odelia::util::DomainError` = function(e) NULL)

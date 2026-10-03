@@ -1,0 +1,70 @@
+
+== Stage 2: per-member events on each interpolant (probe build; long drought, uniform 108, tied)
+ P1, the split's field against a same-pair step of u h, in error weights, per crossing step (max over u = 1/4, 1/2, 3/4):
+  CK grid at 1e-4:
+    kind steps over1 soil_over1 members_over1  median   q90    q99    max
+     ck4   727    46          3            43 0.03195 0.584  3.255   5.44
+   cubic   727   250         75           208 0.29546 6.164 95.950 231.91
+ quintic   727     5          0             5 0.00527 0.138  0.863   2.07
+ ratio_med
+  0.047595
+  0.553505
+  0.000633
+  DP grid at 1e-4:
+    kind steps over1 soil_over1 members_over1 median    q90    q99    max
+   cubic   633   237         91           178 0.5132 10.312 104.80 213.97
+     dp4   633    51          5            46 0.0566  0.761   3.87  26.44
+ quintic   633     8          1             7 0.0119  0.194   1.10   7.53
+ ratio_med
+   1.21804
+   0.10559
+   0.00167
+  CK grid at 3e-5:
+    kind steps over1 soil_over1 members_over1  median   q90    q99   max
+     ck4  1027    61          1            60 0.01651 0.546  2.974  36.0
+   cubic  1027   307         80           263 0.21354 5.263 55.590 583.0
+ quintic  1027     8          0             8 0.00178 0.123  0.895  11.1
+ ratio_med
+  0.021377
+  0.344236
+  0.000175
+  DP grid at 3e-5:
+    kind steps over1 soil_over1 members_over1  median    q90    q99   max
+   cubic   844   325         92           278 0.40517 11.102 80.645 351.5
+     dp4   844    77          8            71 0.03347  0.838  4.405  65.9
+ quintic   844     9          1             8 0.00552  0.172  0.996  33.5
+ ratio_med
+  0.828267
+  0.046440
+  0.000641
+
+ J, and the split's cost in leaf solves (added = split - plain; of the plain replay and of the plain adaptive forward):
+  tol pair     arm       err split add_replay add_over_fwd fwd_with_split
+ 1e-4   CK   plain +3.66e-05    NA                                       
+ 1e-4   CK   cubic +1.65e-04  9233     +7.20%       +5.87%         +5.93%
+ 1e-4   CK quintic +3.99e-06  9233    +12.37%      +10.09%        +10.20%
+ 1e-4   CK     ck4 +3.41e-06  9233     +7.21%       +5.89%         +5.90%
+ 1e-4   DP   plain +3.06e-04    NA                                       
+ 1e-4   DP     dp4 +1.77e-04  9231     +6.25%       +5.06%         +5.13%
+ 3e-5   CK   plain -1.26e-05    NA                                       
+ 3e-5   CK   cubic +9.03e-05  9235     +6.24%       +5.11%         +5.15%
+ 3e-5   CK quintic +1.04e-06  9235    +12.44%      +10.18%               
+ 3e-5   CK     ck4 +9.04e-07  9235     +6.24%       +5.11%               
+ 3e-5   DP   plain +9.50e-05    NA                                       
+ 3e-5   DP     dp4 +9.53e-05  9229     +5.42%       +4.45%               
+ locate substeps  ends dense   fwd_err
+                                      
+  1.85%    3.32% 0.70% 0.00% +1.65e-04
+  1.86%    3.32% 0.70% 4.22% +3.90e-06
+  1.87%    3.32% 0.70% 0.00% +3.32e-06
+                                      
+  1.66%    2.87% 0.53% 0.00% +1.80e-04
+                                      
+  1.47%    2.80% 0.84% 0.00% +9.13e-05
+  1.47%    2.80% 0.84% 5.07%          
+  1.47%    2.80% 0.84% 0.00%          
+                                      
+  1.35%    2.48% 0.62% 0.00%          
+  locate/substeps/ends/dense: the split's leaf solves in the replay, each over the plain adaptive forward's
+  plain adaptive forwards at 1e-4: CK 14845 accepted, 6.174e+06 leaf solves; DP 17074 accepted, 7.136e+06 leaf solves (+15.6%)
+  plain adaptive forwards at 3e-5: CK 17684 accepted, 7.329e+06 leaf solves; DP 20039 accepted, 8.265e+06 leaf solves (+12.8%)

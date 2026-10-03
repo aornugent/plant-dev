@@ -1,0 +1,4 @@
+ark nodes 108 tol 3e-05: J 11.778156642, 6776 accepted, 188 s; accepted=6776 accepted_at_minimum=0 rejected_inaccurate=1502 rejected_thrown=46 rejected_refused=0 rejected_switch=0 rejected_event=0 rejected_zone=0
+rate evaluations 49919, member evaluations 2759271; evaluated states past the inflow switch 0, the loss clamp 3, the floor 3
+block solves 41532: 3.78 Newton iterations each, at most 12; 1982 halvings; 0 failures
+binding: soil 1.4%  accumulator 0.0%  member 98.6%  storage 33.5% ; h |lambda_soil| / beta at the start >= 0.8: 24.1%  > 1: 21.5% 

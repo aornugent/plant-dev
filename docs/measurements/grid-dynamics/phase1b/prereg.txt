@@ -1,0 +1,82 @@
+Phase 1b pre-registration. Written 2026-10-03 03:31 UTC, after stage 0 (exact
+algebra and convergence tests, no driver runs) and before any stage 1 or
+stage 2 run. Long drought, seed 31, uniform 108 nodes, tied tolerance
+(ATOL=1e-4), J* = 12.6687135.
+
+What stage 0 found, which the predictions below rest on
+- DP 5(4) as given verifies exactly (order conditions, FSAL row, contd5 dense
+  output order 4 identically in theta with Hermite ends) and numerically
+  (global slope ~5, local 6; estimate 5; dense(1/2) 5). Real stability boundary
+  3.3065679 (CK 3.7343596).
+- CK has no order-4 continuous extension from its six stages (solvable only at
+  theta = 0, 0.6, 1). With k7 = f(y1) the order-4 system has rank 6 of 7: a
+  one-parameter family, null vector b - d; a C1 quartic family with one free
+  parameter, chosen (mu = -3492/989) to minimise the order-5 error norm at
+  theta = 1/2. That minimum is 2.39x CK's estimate's order-5 norm (DP's
+  contd5: 0.34x its estimate's). On test problems dense(1/2)/estimate is
+  1.8-3.0 for CK's quartic and 0.27-0.64 for DP's.
+
+Stage 1: DP against CK on the driver (1e-4, 3e-5, 1e-5)
+- Prediction: DP's estimate's order-5 norm is 2.2x CK's, its propagated
+  solution's order-6 norm 0.42x CK's. So at equal tol DP takes more steps (up
+  to ~+17% if the norms transfer) and is more accurate per step; its share of
+  steps starting at h|lambda_soil|/beta >= 0.8 (beta its own) is no smaller
+  than CK's.
+- Decision rule for the pair (rows are the scarce resource): DP is not worse
+  than CK if (a) nothing raises and it throws no more than CK, and (b) at
+  matched |J - J*| (log-log interpolation across the three tolerances, read
+  only where both errors exceed 3e-6, i.e. well above J*'s own 6e-7) its rows
+  are within +5% of CK's. If the errors are too noisy to match (sign changes,
+  non-monotone in tol), the comparison falls back to rows at equal tol plus
+  each error's size, and is stated as not decisive.
+
+Stage 2: per-member events on the order-4 interpolants (DP's contd5 on DP
+grids; CK's C1 quartic on CK grids), against the cubic and the quintic
+- P1, fields: on the crossing steps of the 1e-4 and 3e-5 grids (steps where a
+  member's P changes sign), at u = 1/4, 1/2, 3/4, the interpolant against one
+  step of the same pair of length u h from the step's start, in units of each
+  component's error weight (the controller's level at the step's end),
+  maximised over the soil layers and over every member that does not cross in
+  that step: at most 1 on every crossing step, at both tolerances. Reported
+  with the count above 1, the 99th percentile and the maximum, and the cubic's
+  and quintic's on the same steps.
+- P2, spread: the seven nudges within 5% of 1e-4, each elasticity by central
+  differences at r = 1e-3 on that run's frozen structure (the spike's method).
+  Pass if, for each trait measured, the standard deviation across the seven
+  is at most 1.5x the quintic's (0.06, 0.11, 0.05, 0.02 eps/3 for a_dG1, d_I,
+  a_dG2, lma) and the largest move from the 1e-4 run is under eps/3. Traits in
+  the order d_I, a_dG1, a_dG2, lma as time allows; a trait not measured is
+  reported as not measured, not as passed. Run first on the arm(s) passing P1,
+  DP's before CK's.
+- P3, cost: the split's added leaf solves (locating + sub-steps + corrected
+  step ends + any dense-output evaluations) under 5% of the plain adaptive
+  forward's leaf solves, read as (adaptive forward with the split - plain
+  adaptive forward) / plain adaptive forward of the same pair, at 1e-4 (and
+  3e-5 if run). The replay's share and the sweep-relevant share (sub-steps +
+  corrected ends, no locating) are reported beside it.
+- Prediction: DP's contd5 passes P1 (its constant is a third of its
+  estimate's); CK's quartic fails P1 on some steps (2-3x the step's ratio);
+  P3 fails narrowly for every free interpolant, near the cubic's +5.9% of a
+  forward, since the free interpolant removes only the quintic's midpoints.
+- Secondary, reported not scored: J - J* with each split, which should fall
+  with tol and sit within ~1e-5 of J* like the quintic's (+4.0e-6, +1.0e-6).
+
+The verdict on the pair and the interpolant's order follows from stage 1's rule
+and P1-P3 for each interpolant; refuted predictions are kept.
+
+---------------------------------------------------------------------------
+Addendum, 2026-10-03 03:59 UTC (after stage 1 and P1 at 1e-4; criteria above
+unchanged)
+- Stage 1's rule rejects DP: it throws 145/133/114 attempts against CK's
+  18/4/3, and its best |J - J*| (7.0e-5 at 1e-5) never reaches CK's worst
+  (3.7e-5 at 1e-4). The stage 1 prediction (more steps, more accurate per
+  step) is refuted on its second half.
+- P1 at 1e-4 fails for every interpolant, the quintic included (5 of 727 CK
+  crossing steps over 1, max 2.07; DP grid 8 of 633, max 7.53). CK's quartic
+  is over 1 on 46 of 727 (max 5.44), DP's contd5 on 51 of 633 (max 26.4). The
+  prediction that DP's contd5 passes P1 and CK's quartic does worse is refuted.
+- Change of run order for P2 (not of any criterion): the rule "DP's before
+  CK's" assumed DP could be the pair. With DP rejected by stage 1 and CK's
+  quartic no worse on P1, P2 runs on CK's quartic on the spike's seven CK
+  grids, paired with the plain and quintic arms measured on those grids. DP's
+  contd5 gets no P2 run unless time remains.

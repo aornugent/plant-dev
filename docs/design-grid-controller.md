@@ -170,17 +170,20 @@ local to a member.
 - The one error kept out of every norm, the partition's coupling, broke
   convergence, so the commitment's first half is what R4 asks.
 
-Survives, with phase 1a deciding whether the chain's error can be weighted and
-still converge.
+Survives. Phase 1a confirms both halves: the chain weighted ×10 in the norm
+converges, and the implicit chain out of the norm does not (`grid-dynamics.md`
+§10).
 
 **What survives deletion:**
 - the state weights, the window's and the chain's: R7 and R4;
-- the dense output: R2 and R3 through events;
+- the dense output, Cash–Karp's own fourth-order extension: R2 and R3 through
+  events;
 - per-member events, with the crossing times differentiated: R2 and R3;
 - the 15-day cap: R5. Under Cash–Karp it protects every walk for at most 2.4% of
   the window's saving (phase 1c), so invader sub-steps are deleted;
-- an implicit chain: R7, only if phase 1a finds the explicit chain cannot take
-  the weight;
+- an implicit chain: R7. The explicit chain takes ×10 but not ×100, and where
+  stability binds (constant rain) only the implicit chain pays: 60% against
+  4.7%;
 - the node rule with its companion: R4 and R8;
 - a pilot: R7, for the window.
 
@@ -329,6 +332,22 @@ pulsed record before the gate.
   tolerance. The winner is the passing variant with the fewest rows.
 - *Decides* whether the chain's treatment is a weight in plant's control, an
   implicit step in odelia, or neither.
+- *Result* (`grid-dynamics.md` §10, `phase1a/`):
+  - The explicit weight ×10 passes both tests for both roles at `3e-5`: −20.7% of
+    a gradient run.
+  - ×100 does not converge: the saturated top layer cycles at the explicit
+    limit.
+  - The implicit chain at ×100 passes at `1e-5`, for the resident only: −36.8%.
+    At `3e-5` its `J` is outside ε, because ARK's embedded estimate misjudges
+    the soil.
+  - Implicit and out of the norm does not converge.
+  - On the constant record the implicit chain saves 60.3% against the weight's
+    4.7%. On episodic the two are within 2 points.
+  - By the pre-registered rule the implicit chain wins. The weight is the
+    fallback, and is being built now.
+  - Before the implicit chain is built in odelia, two things remain. The chain
+    alone's error estimate goes into ARK's norm, to see if `3e-5` then converges
+    (about −51%). Then the invader under it.
 - *RODAS on the whole stand: assessed, not run.*
   - Selecting it is one line: odelia's solver takes its method at construction
     (`scm.h:548`).
@@ -360,6 +379,16 @@ pulsed record before the gate.
 - *Decides* the pair and the interpolant's order. If 1a picks an implicit chain,
   the dense output must come from that method's family, and 1b says what order
   it needs.
+- *Result: keep Cash–Karp, with its own fourth-order extension* (`grid-dynamics.md`
+  §11, `phase1b/`).
+  - Using the end's rate, which plant already evaluates, Cash–Karp has a free
+    order-4 extension. Events on it match the quintic in `J` and in nudge spread
+    (`d_I` 1.261 → 0.262 ε/3) for 5.9% of a forward, against the quintic's 10.1%.
+  - Dormand–Prince takes 11–15% more rows, stalls at a larger error, and throws
+    8–38× as many stage rejections.
+  - Against the pre-registered criteria: the field test fails for every arm,
+    the quintic included, and the cost test misses 5% by 0.9 points.
+  - An implicit chain's dense output needs order 4; the cubic fails.
 - *What it does not test: an invader refined against the resident's step.*
   - An invader walks the resident's recorded stages, so it must use the
     resident's pair. Cash–Karp and Dormand–Prince share only the stage times 0,
@@ -429,9 +458,8 @@ curvatures short. Under Cash–Karp, 1c's cap suffices.
 Stacked changes on the plant and odelia forks, each with its own tests, and
 bit-identical wherever its default is off (AGENTS.md):
 1. the chain's treatment from 1a;
-2. the pair and its dense output from 1b, odelia carrying both pairs as
-   first-class steppers: Cash–Karp the default, Dormand–Prince for runs that
-   host invader gradients;
+2. the dense output from 1b: Cash–Karp's own fourth-order extension, from its
+   stages and the end's rate (Dormand–Prince only if the user keeps it, below);
 3. per-member events, in the forward and the sweep: the invader's structure is
    frozen per grid, and the crossing times are differentiated;
 4. the window's weight from a pilot, and the invaders' guard from 1c;
@@ -486,6 +514,11 @@ gain, and each multiplies with the rows the arc saves.
     7.3 days.
   - Whether a negative stage raises is phases 1b and 1c's question. A Cash–Karp
     interpolant, if 1b finds one good enough, would sidestep it.
+  - *Reopened by phase 1b; the user's call.* Cash–Karp has its own free
+    fourth-order extension, which matches the quintic for 5.9% of a forward.
+    Dormand–Prince is worse on TF24 in rows, error and stage rejections. So the
+    decision's reason is gone. The recommendation is Cash–Karp everywhere,
+    invader runs included.
 - *The local analysis* is invaders over ×0.5–×2 and the resident within ±10%
   (`OBJECTIVES.md`).
 - *Elasticities' ε is at least 0.01* (`OBJECTIVES.md`).

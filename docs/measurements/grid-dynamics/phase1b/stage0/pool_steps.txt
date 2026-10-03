@@ -1,0 +1,6 @@
+h =  7.0 days (h / tau_s = 1.00):  CK lowest stage +0.43 (stage 6), step factor +0.368;  DP lowest stage +0.05 (stage 6), step factor +0.368;
+h =  7.3 days (h / tau_s = 1.04):  CK lowest stage +0.41 (stage 6), step factor +0.353;  DP lowest stage -0.01 (stage 6), step factor +0.353;
+h = 10.0 days (h / tau_s = 1.43):  CK lowest stage +0.32 (stage 6), step factor +0.241;  DP lowest stage -0.81 (stage 6), step factor +0.244;
+h = 15.0 days (h / tau_s = 2.14):  CK lowest stage +0.01 (stage 4), step factor +0.136;  DP lowest stage -4.25 (stage 6), step factor +0.177;
+h = 23.0 days (h / tau_s = 3.29):  CK lowest stage -0.94 (stage 4), step factor +0.438;  DP lowest stage -21.24 (stage 6), step factor +0.962;
+h = 26.0 days (h / tau_s = 3.71):  CK lowest stage -1.51 (stage 4), step factor +0.965;  DP lowest stage -34.07 (stage 6), step factor +2.059;

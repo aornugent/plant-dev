@@ -1,0 +1,4 @@
+arkfree_3e-5  corr 0.957 slope 0.910 | max est 3.55e-02 meas 3.51e-02 | median est 3.15e-03 meas 2.22e-03 | 20 worst: est/meas median 1.004, range 0.836-1.017
+ark100_3e-5   corr 0.835 slope 0.679 | max est 1.05e-02 meas 9.86e-03 | median est 3.91e-04 meas 3.20e-04 | 20 worst: est/meas median 1.066, range 1.000-1.172
+ark100_1e-5   corr 0.951 slope 0.893 | max est 3.03e-03 meas 3.02e-03 | median est 1.30e-04 meas 6.77e-05 | 20 worst: est/meas median 1.000, range 0.884-1.013
+ck100a_3e-5   corr 0.926 slope 0.858 | max est 6.75e-03 meas 6.75e-03 | median est 7.92e-05 meas 2.98e-05 | 20 worst: est/meas median 1.000, range 1.000-1.000

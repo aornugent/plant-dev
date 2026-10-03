@@ -1,0 +1,27 @@
+
+== constant (J* = 289.2738962)
+         run accepted   rows forward rows_rel forward_rel gradient_rel       e_J bind_soil bind_member    x1
+   base_3e-5     3951 524245 3757713    +0.0%       +0.0%        +0.0% +6.10e-09     90.6%        6.6% 23.6%
+   ck10_3e-5     3797 504312 3372195    -3.8%      -10.3%        -4.7% +2.36e-08     89.0%        7.1% 30.9%
+ ark100_1e-5     1623 208927 1459814   -60.1%      -61.2%       -60.3% -1.22e-06      0.3%       92.3% 61.1%
+   ark100_1e-5's frozen elasticities against the baseline's plant ones on constant (|difference| / eps):
+     role     q        value   value_base diff_eps
+ resident   lnJ  5.667372756  5.667373983    0.000
+ resident   lma -6.939984437 -6.939992481    0.000
+ resident a_dG1  0.003023126  0.003022559    0.000
+ resident a_dG2 -0.016080895 -0.016079879    0.000
+ resident   d_I  0.013499493  0.013498849    0.001
+
+== episodic (J* = 1.978902094)
+         run accepted   rows forward rows_rel forward_rel gradient_rel       e_J bind_soil bind_member    x1
+   base_3e-5    11022 600766 4449870    +0.0%       +0.0%        +0.0% +2.41e-05     75.5%       24.3%  1.4%
+   ck10_3e-5     9072 494752 3747996   -17.6%      -15.8%       -17.4% +6.65e-07     66.9%       31.8% 11.5%
+   ck10_1e-4     7761 422207 3185705   -29.7%      -28.4%       -29.5% -7.29e-05     70.1%       28.6% 17.8%
+ ark100_1e-5     7511 408723 3129192   -32.0%      -29.7%       -31.6% -5.14e-04     27.1%       61.5% 20.1%
+   ark100_1e-5's frozen elasticities against the baseline's plant ones on episodic (|difference| / eps):
+     role     q        value   value_base diff_eps
+ resident   lnJ  0.682028389  0.682566197    0.021
+ resident   lma -8.669706439 -8.665592597    0.048
+ resident a_dG1 -0.048769243 -0.048079354    0.019
+ resident a_dG2  1.273540525  1.272610099    0.049
+ resident   d_I -0.009358698 -0.009379668    0.044

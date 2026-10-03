@@ -1,0 +1,6 @@
+ck 1e-4: 14845 steps; h|lambda_soil| past its first negative stage (2.159): 20.02%; past CK's (2.159): 20.02%; past DP's (1.038): 56.40%; median h 0.273 days
+ck 3e-5: 17684 steps; h|lambda_soil| past its first negative stage (2.159): 12.07%; past CK's (2.159): 12.07%; past DP's (1.038): 48.87%; median h 0.231 days
+ck 1e-5: 21106 steps; h|lambda_soil| past its first negative stage (2.159): 6.24%; past CK's (2.159): 6.24%; past DP's (1.038): 40.07%; median h 0.197 days
+dp 1e-4: 17074 steps; h|lambda_soil| past its first negative stage (1.038): 50.26%; past CK's (2.159): 12.79%; past DP's (1.038): 50.26%; median h 0.217 days
+dp 3e-5: 20039 steps; h|lambda_soil| past its first negative stage (1.038): 41.59%; past CK's (2.159): 7.14%; past DP's (1.038): 41.59%; median h 0.2 days
+dp 1e-5: 23523 steps; h|lambda_soil| past its first negative stage (1.038): 32.55%; past CK's (2.159): 2.21%; past DP's (1.038): 32.55%; median h 0.174 days
