@@ -1,0 +1,72 @@
+Q3 pre-registration addendum, written before Q3's first run (the session that took
+over pf_soil after the agent stopped).
+
+DECISION 1 (from q1_report.log): Cash-Karp does not misjudge the soil. On soil-bound
+accepted steps the median rho = R_emb / R_true is 1.26 (long drought) and 0.90
+(episodic), inside [0.5, 2], with rho < 0.5 on 7.3% and 4.9% (under 25%). Q2 does
+not run.
+
+DECISION 2: Q3 runs. Flagged soil-bound steps hold 34-75% of rows across the
+candidate thresholds, and the members' headroom there is ~1e4 (step growth
+(.)^(1/5) of 4.7-7.2 in wet spells), far above 2.
+
+THRESHOLD, by the rule: the largest s* in {0.5%, 1%, 2%, 5%, 10%} with at most 5%
+of the flagged steps in dry>10d and the flagged steps' median |R_true - R_ref| /
+R_ref under 0.5, on long drought. Every candidate passes (dry>10d 0.7-1.4%;
+median deviation 7.7e-6 to 1.7e-4), so s* = 10%.
+
+IMPLEMENTATION (pf_soil/mr/harness/ark_prototype.R, MR_SHARE=0.1), as registered,
+with the accumulators taking the members' Cash-Karp stages (their rates read the
+predicted soil at each stage) rather than a separate integration, and the uptake
+extrapolated from the last accepted step's start (slope zero after an entry,
+clamped at zero). One extra full evaluation per flagged attempt (the predicted
+end). Gate: with MR_SHARE unset the copy repeats q1's steps and J bit for bit.
+
+FIRST RUNS: long drought and episodic forward (no replays). PASS so far requires
+rows <= 0.9 x bnd's and member evaluations <= bnd's on both records, and |J/J* - 1|
+no larger than max(2 x bnd's, 0.01 eps). Only if both hold: the elasticities by
+frozen-structure central differences, which need the flags and the soil sub-steps
+frozen in replays (not yet built), and the nudges.
+
+FIRST-RUN VERDICT, written 20:56 UTC after mr_ld and mr_epi (forward) and before any replay
+with THETA.
+  Rows: 331 904 vs bnd's 637 131 (long drought, -47.9%); 210 187 vs 415 759 (episodic,
+  -49.4%). Member evaluations also below bnd's on both. Cost criteria hold.
+  J against J* (12.6687135, 1.978902094): +1.72e-4 (long drought; bound max(2 x 2.19e-5,
+  0.01 eps = 2.52e-4) = 2.52e-4) holds; +2.59e-4 (episodic; bound 2.52e-4) FAILS by 2.6%.
+  So Q3 fails its pre-registered pass on J (episodic). mr's J error is 8x (ld) and 22x (epi)
+  bnd's: the coupling error reaches the members through the predicted soil their stages read,
+  and the only estimate that sees it is the soil's slot, at the soil's loosened level.
+  Identity replays (PROGRAM=mr_<rec>.rds, no THETA) reproduce J bit for bit on both records.
+
+EXPLORATORY CONTINUATION (not eligible to pass; the user asked for the data):
+  The frozen-structure elasticities still run, to learn whether the coupling error that biases
+  J also biases the gradients, which decides whether refining the coupling estimate is worth
+  it. Exactly as registered (THETA_AFTER=1, r = 1e-3, lma, a_dG1, d_I, a_dG2, omega, resident
+  role only: plant cannot replay a multirate program, so there is no invader role), for mr and
+  for bnd's driver program (DEV/pf_soil/runs/q1_<rec>.rds) alike, on both records.
+  Deviation: the soil sub-steps are not frozen in replays (flags and member steps are). The
+  chain runs at CHAIN_TOL 1e-9, so re-chosen sub-steps move ln J by ~1e-9..1e-8 and E by under
+  1e-5 at r = 1e-3 (0.001 of the floored eps). Check: d_I and lma at r = 1e-4 on mr_ld; the two
+  r must agree within 0.01 eps.
+  Read: each quantity's distance from the 1e-5 reference (ld_1e-5.rds, epi_1e-5.rds, plant
+  reverse mode) for mr and for bnd's driver differences; the method gap is bnd's driver
+  differences against bnd's plant reverse mode (bnd_<rec>.rds) on the same quantities.
+  Then, as time allows: mr forwards at 1e-4 and 1e-5 (long drought) for J's convergence, and
+  at 2.85e-5 and 3.15e-5 for the nudges' J.
+  Added 21:01, before any of them ran: driver bnd forwards (MR_SHARE unset) at 1e-4, 3e-4 and
+  1e-5 (long drought) and at 1e-4 and 3e-4 (episodic), and mr at 1e-4 (episodic), so mr and bnd
+  are compared at matched J error (OBJECTIVES: performance at matched error, not matched tol).
+
+EXPLORATORY VARIANT mrw, written 21:06 UTC before it ran (not eligible to pass Q3).
+  Mechanism read from the first runs: on a flagged step the members' stages read the
+  predictor's soil, and the only estimate of that soil's error, |theta_C - theta_P| (with the
+  defect), is judged at the soil's weight, 10 x the members' (bounded at 100). So the members
+  may read a soil ten times further off than their own error budget allows, and nothing sees it.
+  mrw = mr with that estimate judged at the members' weight instead: multiplied by
+  min(10 f, 100) / min(f, 100), f rule A's factor at the step's start (harness_w/, MR_COUPLE=member;
+  unflagged steps unchanged).
+  Hypothesis: mrw's |J/J* - 1| falls to within max(2 x bnd's, 0.01 eps) on both records, with
+  rows still <= 0.9 x bnd's. Refuted if J's error stays above 0.5 x mr's on either record (the
+  bias then lies elsewhere: the extrapolated uptake, or the stage soil itself).
+  Runs: mrw_ld, mrw_epi (forward, 3e-5); elasticities only if the hypothesis holds.

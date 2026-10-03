@@ -1,0 +1,201 @@
+--- harness/ark_prototype.R	2026-10-03 12:24:40.934227379 +0000
++++ mr/harness/ark_prototype.R	2026-10-03 20:49:27.555706305 +0000
+@@ -235,6 +235,14 @@
+ # pair's. A replay (PROGRAM) skips it, since no estimate steers a replay.
+ CHAIN_EST <- method %in% c("ark", "ck") && Sys.getenv("SOIL_EST") == "chain" && !nzchar(Sys.getenv("PROGRAM"))
+ CHAIN_TOL <- as.numeric(Sys.getenv("CHAIN_TOL", "1e-9"))
++# MR_SHARE (with METHOD=ck): a step whose uptake is under this share of the soil's budget
++# at its start is multirate. The members' and accumulators' Cash-Karp stages read the soil
++# integrated alone at CHAIN_TOL, its uptake extrapolated linear over the step from the last
++# step's; the soil is integrated again under the line to the uptake the members' end gives,
++# and its estimate is the coupling's error: the larger of the two soils' difference at the
++# end and the stage uptakes' defect against that line.
++MR_SHARE <- as.numeric(Sys.getenv("MR_SHARE", "0"))
++MR <- method == "ck" && MR_SHARE > 0 && !nzchar(Sys.getenv("PROGRAM"))
+ # WEIGHT_MAX bounds each state's weight once the soil's or accumulators' weight and the
+ # schedule's factor multiply it, as plant's ode_weight_max: the level is multiplied once by
+ # min(base x factor, WEIGHT_MAX).
+@@ -260,7 +268,7 @@
+             "accepted_at_minimum", "rejected_inaccurate", "rejected_thrown",
+             "rejected_refused", "rejected_switch", "rejected_event", "rejected_zone", "located", "located_class",
+             "locate_evaluations", "locate_members", "local_members", "local_members_evaluated", "solves", "iterations", "halvings", "failures",
+-            "guarded", "chain_substeps")) {
++            "guarded", "chain_substeps", "mr_attempts", "mr_steps")) {
+   assign(x, 0, envir = n)
+ }
+ n$most_iterations <- 0
+@@ -371,6 +379,92 @@
+ stage_log <- new.env()
+ stage_log$att <- list()
+ stage_log$neg <- list()
++# The chain alone from layers th over [ta, tb], its uptake per layer line(s).
++chain_run <- function(th, ta, tb, line) {
++  f <- function(x, s) {
++    r <- stiff_rates(x, rain_at(s)) - line(s) / dz
++    r[x <= theta_res & !(r > 0)] <- 0
++    r
++  }
++  s <- ta; hs <- tb - ta; k1 <- f(th, s)
++  while (s < tb) {
++    final <- s + hs >= tb
++    hh <- if (final) tb - s else hs
++    k <- list(k1)
++    for (i in 2:6) k[[i]] <- f(combine(th, tab$ACK[i, ], k, hh), s + tab$cCK[i] * hh)
++    y1 <- combine(th, tab$bCK, k, hh)
++    e <- combine(0, tab$bCK - tab$dCK, k, hh)
++    r <- max(abs(e) / (CHAIN_TOL * abs(y1) + 1e-4 * CHAIN_TOL))
++    if (!is.finite(r)) r <- 1e10
++    if (r > 1.1 && hh > 1e-12) { hs <- hh * max(0.2, 0.9 / r^(1 / 5)); next }
++    n$chain_substeps <- n$chain_substeps + 1
++    s <- if (final) tb else s + hh
++    th <- y1
++    k1 <- f(th, s)
++    if (!final) hs <- hh * min(5, max(0.2, 0.9 / max(r, 1e-300)^(1 / 5)))
++  }
++  th
++}
++
++# The chain alone from th at t, at each offset in cs (fractions of h), in cs's order.
++chain_at <- function(th, t, h, line, cs) {
++  out <- vector("list", length(cs))
++  s0 <- 0
++  for (j in order(cs)) {
++    if (cs[j] > s0) {
++      th <- chain_run(th, t + s0 * h, t + cs[j] * h, line)
++      s0 <- cs[j]
++    }
++    out[[j]] <- th
++  }
++  out
++}
++
++# The uptake's share of the soil's budget at a step's start, chain-wide, as soil_diag
++# reads it at the first stage.
++start_share <- function(t, y, u) {
++  th <- y[soil(y)]
++  out <- K_sat * (pmin(pmax(th, 0), theta_s) / theta_s)^q
++  inflow <- c(rain_at(t) * max(0, 1 - (th[1] / theta_s)^b_inf), out[-5])
++  sum(abs(u)) / sum(abs(inflow) + abs(out) + abs(u))
++}
++
++# One multirate attempt from (t, y), whose rates are k1 (MR_SHARE).
++attempt_mr <- function(t, y, k1, h) {
++  blk <- soil(y)
++  u0 <- sv$uptake
++  slope <- if (is.finite(sv$h_prev)) (u0 - sv$uptake_prev) / sv$h_prev else 0 * u0
++  u1p <- pmax(0, u0 + h * slope)
++  thp <- chain_at(y[blk], t, h, function(s) u0 + (u1p - u0) * (s - t) / h, c(tb$c[2:6], 1))
++  k <- list(k1)
++  up <- matrix(0, 6, 5)
++  up[1, ] <- u0
++  for (i in 2:6) {
++    Y <- combine(y, tb$A[i, ], k, h)
++    Y[blk] <- thp[[i - 1]]
++    ki <- rates(Y, t + tb$c[i] * h)
++    if (is.null(ki)) return(NULL)
++    k[[i]] <- ki
++    up[i, ] <- tail(patch$ode_aux, 5)
++  }
++  y1 <- combine(y, tb$b, k, h)
++  y1[blk] <- thp[[6]]
++  if (is.null(rates(y1, t + h))) return(NULL)
++  u1 <- tail(patch$ode_aux, 5)
++  thc <- chain_at(y[blk], t, h, function(s) u0 + (u1 - u0) * (s - t) / h, 1)[[1]]
++  y1[blk] <- thc
++  at_end <- rates(y1, t + h)
++  if (is.null(at_end)) return(NULL)
++  yerr <- combine(0, tb$b - tb$d, k, h)
++  lin <- outer(1 - tb$c, u0) + outer(tb$c, u1)
++  defect <- h * colSums(tb$b * abs(up - lin)) / dz
++  yerr[blk] <- pmax(abs(thc - thp[[6]]), defect)
++  n$mr_attempts <- n$mr_attempts + 1
++  list(y = y1, yerr = yerr, rates = at_end, P = production(y1), K = klass(y1),
++       Pst = NULL, Kst = NULL, uptake = tail(patch$ode_aux, 5),
++       soil_est = c(max(abs(yerr[blk])), NA), diag = NULL)
++}
++
+ stage_reader <- function(t, y, k1, h) {
+   pool <- pool_of(y)
+   S0 <- y[pool]
+@@ -803,6 +897,7 @@
+ # each entry's, at its time.
+ steps$uptake <- matrix(NA_real_, 60000, 5)
+ steps$entry_uptake <- matrix(NA_real_, 0, 6)
++steps$mr <- logical(60000)
+ # Each accepted step's largest soil error estimate: the pair's embedded one, and the
+ # chain alone's where SOIL_EST=chain.
+ steps$soil_est <- matrix(NA_real_, 60000, 2, dimnames = list(NULL, c("embedded", "chain")))
+@@ -941,6 +1036,7 @@
+   if (method == "held") h <- min(h, HELD_MARGIN * BETA / lambda_soil(sv$y, t0))
+   cap <- cap_at(t0, h)
+   h <- min(h, cap[1])
++  mr_here <- MR && start_share(t0, sv$y, sv$uptake) < MR_SHARE
+   if (is.finite(CHAIN_GUARD)) {
+     for (g in 1:20) {
+       he <- min(h, remaining)
+@@ -961,7 +1057,7 @@
+     final <- h > remaining
+     if (final) h <- remaining
+     members0 <- n$members
+-    a <- attempt(t0, sv$y, sv$dydt, h)
++    a <- if (mr_here) attempt_mr(t0, sv$y, sv$dydt, h) else attempt(t0, sv$y, sv$dydt, h)
+     if (is.null(a)) {
+       hn <- reject(h)
+       n$rejected_thrown <- n$rejected_thrown + 1
+@@ -1042,6 +1138,11 @@
+     if (steps$k > nrow(steps$soil_est)) steps$soil_est <- rbind(steps$soil_est, steps$soil_est * NA)
+     steps$soil_est[steps$k, ] <- a$soil_est
+     if (COUPLED_REF > 0 && steps$k %% COUPLED_REF == 0) ref_log$add(ref_row(t0, h, a))
++    sv$uptake_prev <- sv$uptake
++    sv$h_prev <- h
++    if (steps$k > length(steps$mr)) steps$mr <- c(steps$mr, logical(length(steps$mr)))
++    steps$mr[steps$k] <- mr_here
++    if (mr_here) n$mr_steps <- n$mr_steps + 1
+     sv$uptake <- a$uptake
+     down <- sv$P > 0 & a$P < 0
+     if (any(down)) {
+@@ -1061,6 +1162,11 @@
+   # are targets the steps land on.
+   t_start <- proc.time()[["elapsed"]]
+   program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))$st else NULL
++  # A multirate program's flags, replayed as they were taken.
++  program_mr <- if (!is.null(program)) {
++    m <- readRDS(Sys.getenv("PROGRAM"))$mr
++    if (is.null(m)) logical(nrow(program)) else m
++  }
+   split_rows <- if (nzchar(Sys.getenv("SPLIT_ROWS"))) unique(readRDS(Sys.getenv("SPLIT_ROWS"))$row) else integer()
+   crossings <- list()
+   classes <- list()
+@@ -1078,6 +1184,7 @@
+     if (is.null(sv$dydt)) stop("an entry's rates raised DomainError")
+     steps$entry_uptake <- rbind(steps$entry_uptake, c(sv$t, tail(patch$ode_aux, 5)))
+     sv$uptake <- tail(patch$ode_aux, 5)
++    sv$h_prev <- NA_real_
+     sv$P <- production(sv$y)
+     sv$Pdot <- c(sv$Pdot, 0)[seq_along(sv$P)]
+     sv$K <- klass(sv$y)
+@@ -1087,7 +1194,7 @@
+         n_sub <- if (i %in% split_rows) SPLIT else 1L
+         for (k in seq_len(n_sub)) {
+           h <- program$h[i] / n_sub
+-          a <- attempt(sv$t, sv$y, sv$dydt, h)
++          a <- if (program_mr[i]) attempt_mr(sv$t, sv$y, sv$dydt, h) else attempt(sv$t, sv$y, sv$dydt, h)
+           if (is.null(a)) stop(pinned_raise(sv$t, sv$y, sv$dydt, h))
+           if (LOCAL && is.null(a <- local_fix(sv$t, h, a))) {
+             stop(sprintf("a pinned step's member-local re-integration raised at t = %.17g", sv$t))
+@@ -1113,6 +1220,7 @@
+           replay$steps <- replay$steps + 1L
+           sv$t <- if (k == n_sub) program$time[i] else sv$t + h
+           sv$y <- a$y; sv$dydt <- a$rates; sv$P <- a$P; sv$K <- a$K
++          sv$uptake_prev <- sv$uptake; sv$h_prev <- h; sv$uptake <- a$uptake
+         }
+       }
+       next
+@@ -1214,6 +1322,7 @@
+                  regime = REGIME, rain = rain_record(REGIME), knots = pulses,
+                  counts = as.list(n), secs = secs, st = st, weight = WEIGHT,
+                  uptake = steps$uptake[seq_len(steps$k), , drop = FALSE], entry_uptake = steps$entry_uptake,
++                 mr = steps$mr[seq_len(steps$k)],
+                  soil_est = steps$soil_est[seq_len(steps$k), , drop = FALSE],
+                  diag = if (SOIL_DIAG) diag_log$rows(), ref = if (COUPLED_REF > 0) ref_log$rows(),
+                  by_node = data.frame(time = sp$node_times, weight = w[-length(w)],

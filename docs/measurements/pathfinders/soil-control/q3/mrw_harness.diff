@@ -1,0 +1,22 @@
+--- harness/ark_prototype.R	2026-10-03 20:49:27.555706305 +0000
++++ harness_w/ark_prototype.R	2026-10-03 21:06:14.100002803 +0000
+@@ -243,6 +243,8 @@
+ # end and the stage uptakes' defect against that line.
+ MR_SHARE <- as.numeric(Sys.getenv("MR_SHARE", "0"))
+ MR <- method == "ck" && MR_SHARE > 0 && !nzchar(Sys.getenv("PROGRAM"))
++# MR_COUPLE=member judges the coupling's error at the members' weight, not the soil's.
++MR_COUPLE_MEMBER <- Sys.getenv("MR_COUPLE") == "member"
+ # WEIGHT_MAX bounds each state's weight once the soil's or accumulators' weight and the
+ # schedule's factor multiply it, as plant's ode_weight_max: the level is multiplied once by
+ # min(base x factor, WEIGHT_MAX).
+@@ -459,6 +461,10 @@
+   lin <- outer(1 - tb$c, u0) + outer(tb$c, u1)
+   defect <- h * colSums(tb$b * abs(up - lin)) / dz
+   yerr[blk] <- pmax(abs(thc - thp[[6]]), defect)
++  if (MR_COUPLE_MEMBER) {
++    f <- if (is.null(WEIGHT)) 1 else WEIGHT$weight[findInterval(t, WEIGHT$t)]
++    yerr[blk] <- yerr[blk] * min(TOL_SOIL * f, WEIGHT_MAX) / min(f, WEIGHT_MAX)
++  }
+   n$mr_attempts <- n$mr_attempts + 1
+   list(y = y1, yerr = yerr, rates = at_end, P = production(y1), K = klass(y1),
+        Pst = NULL, Kst = NULL, uptake = tail(patch$ode_aux, 5),
