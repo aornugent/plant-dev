@@ -1,6 +1,6 @@
 # The spread of J and its gradients across rainfall records
 
-Step 1 of `docs/design-grid-controller.md`, run with `harness/run_record.R` (`ATOL=1`) on plant v12-targets (PLANT-95 + PLANT-96 + PLANT-97, before PLANT-98) at `tol = 1e-4` with the shared absolute tolerance. `lma` is the partial derivative in `lma` alone, not through the TF24 hyperparameterisation.
+Step 1 of the design's assessment (`docs/assessment.md`), run with `harness/run_record.R` (`ATOL=1`) on plant v12-targets (PLANT-95 + PLANT-96 + PLANT-97, before PLANT-98) at `tol = 1e-4` with the shared absolute tolerance. `lma` is the partial derivative in `lma` alone, not through the TF24 hyperparameterisation.
 
 Eight rainfall records of the `long-drought` spec that differ only in `seed` (31, 101, 102, 103, 104, 105, 106, 107). Everything else in the spec is kept (the drought-year multipliers, mean 3.0). Each record carries zero-depth pulses at its own active knots. TF24, lifetime 40, one species at lma = 0.32, `uniform_times(108)`, tol 1e-4 (rel = abs), birth-date density; `lib_v12t` (odelia 0.5.0, phylloptim 0.9.0, plant v12-targets). Script: `harness/run_record.R` with `ATOL=1`; ε for every quantity is in `eps.csv` beside this note.
 

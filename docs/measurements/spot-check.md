@@ -1,6 +1,6 @@
 # The step-3 spot-check
 
-The floor of `docs/design-grid-controller.md`'s step 3 on four records unlike
+The floor of the design's step 3 (`docs/assessment.md`) on four records unlike
 long drought, each with its two companions, and long drought with two
 tolerance nudges. Cash–Karp under the tied tolerance at `tol = 3e-5`, 108
 uniform nodes, each record's knots as step targets, one species at `lma = 0.32`,

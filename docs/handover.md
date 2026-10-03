@@ -101,20 +101,30 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 
 ## Progress against the design
 
-The goal is `OBJECTIVES.md`. The design is `docs/design-grid-controller.md`: an
-assessment in five steps, then heuristics only where step 4 finds headroom.
+The goal is `OBJECTIVES.md`. The design is `docs/design-grid-controller.md`:
+its search under the system-design skill, what it rests on, and the arc from
+here to finished. The assessment that led to it is `docs/assessment.md`, whose
+steps the sections below record.
 
-| step | state |
+| the arc | state |
 |---|---|
-| 1. ε | done for `ln J` (0.025), elasticities and `lma`'s curvatures (`docs/measurements/eps-spread.md`) |
-| 2. the enablers | done: (a) a setting; (b) `PLANT-98` (#98), pushed |
-| 3. the floor, checked run by run | spot-check done (`docs/measurements/spot-check.md`): it points to `1e-5` on 215 nodes for wet and dry, not yet run as one setting; small elasticities miss their ε everywhere |
-| 4. the headroom | two replies, both tested; the node error's causes found on long drought, and a node rule proposed (the spec's *After the assessment*); the runs are in `docs/measurements/creation-grid.md`. The strategy consult's reply orders the cost by rows and the sweep (`docs/oracle-response-strategy.md`) |
-| 5. local analyses | the curvature ladder at seed 31 done, under step 4's first test |
+| 1a. the chain's weight and treatment | next: the explicit chain at ×10 and ×100, the implicit chain at ×100 and out of the norm, each over three tolerances |
+| 1b. the pair and its interpolant | next: Dormand–Prince with its free fourth-order dense output, then events on it |
+| 1c. invaders under long steps | next: rule A with a 15-day cap, invaders ×0.5–×2 walked |
+| 2. the node axis | B or D is the user's call; the light field's ordering test is a fix in plant; the chosen rule's ladders off long drought not run |
+| 3. the build | waits on phases 1 and 2 |
+| 4. on the bank | the finish line |
+| after: performance | the sweep's three changes (about 2×) and the warm start, profiled, not built |
+
+The assessment's steps, done: ε (step 1); the enablers, a setting and `PLANT-98`
+(step 2); the floor spot-checked (step 3); the headroom's causes on both axes,
+with both grid replies and the strategy reply tested (step 4); the curvature
+ladder at seed 31 (step 5).
 
 **Step 1: done.** Eight daily-weather seeds of long drought, run with
 `harness/run_record.R` (`ATOL=1`) on v12t at `tol = 1e-4` with 108 uniform nodes. The table
-is `docs/measurements/eps-spread.md`, and the spec's step 1 summarises it.
+is `docs/measurements/eps-spread.md`, and `docs/assessment.md`'s step 1
+summarises it.
 - ε is 0.025 in `ln J`. For elasticities it is 0.087 (`lma`) and 0.019
   (`a_dG2`) for residents, and 0.20 and 0.050 for invaders.
 - At seed 31 the setting is inside ε for `ln J`, `lma` and `a_dG2`, by about 30×
@@ -135,15 +145,15 @@ is `docs/measurements/eps-spread.md`, and the spec's step 1 summarises it.
 Its nudges' median is +3.8e-5 with standard deviation 1.6e-5, against the
 driver's per-pool scale's −4.0e-5 and 1.2e-5. It costs about 10% more than
 the per-pool scale and needs no code. Step 3 re-checks it on the bank,
-by the spec's decision rule.
+by `docs/assessment.md`'s decision rule.
 
 **Step 2 (b), the stage guard: `PLANT-98`, aornugent/plant#98.**
 - The change deletes TF24's stage check and `storage_domain_tol`, and keeps the
   refusal of a step whose end leaves a pool below zero.
 - The three tests that expected `storage is negative` now state what happens.
-- The measurements are in the spec's *(b) as measured*: bit-identical where the
-  guard never fired, and invaders from `lma` ×0.7 to ×2 reproducing the probe
-  build's guard-off runs exactly.
+- The measurements are in `docs/assessment.md`'s *(b) as measured*:
+  bit-identical where the guard never fired, and invaders from `lma` ×0.7 to ×2
+  reproducing the probe build's guard-off runs exactly.
 - A walk commits a stage far below empty. At a zero offset on the height
   coordinate, one invader fails because its density overflows.
 - The whole-run gradient reference is recaptured, because one refused attempt set
@@ -154,11 +164,11 @@ by the spec's decision rule.
 
 **Step 4.** The consultation,
 `docs/archive/oracle-consultation-grid-controller.md`, went before M8 carried ε.
-The reply is `docs/archive/oracle-response-grid-controller.md`, and the spec's
-*The reply's tests* has what was measured, with a verdict in *Where the reply
-leaves the design*: the kink binds curvatures and the resident's nudges, both
-have a fix that needs no code, and the reply's remedy is worth at most the cost
-of the tighter tolerance.
+The reply is `docs/archive/oracle-response-grid-controller.md`, and
+`docs/assessment.md`'s *The reply's tests* has what was measured, with a verdict
+in *Where the reply leaves the design*: the kink binds curvatures and the
+resident's nudges, both have a fix that needs no code, and the reply's remedy is
+worth at most the cost of the tighter tolerance.
 - *Its claim holds:* on one grid, a curvature taken between the gradient's jumps
   is off at any tolerance. In `lma` at seed 31 it is 34% below the smooth value
   for the resident and 3% for the invader: 13ε and 1.4ε. A chord over ±1e-2, less
@@ -175,8 +185,8 @@ of the tighter tolerance.
   odelia's sweep, not a test.
 - *The floor's grid holds the resident's gradients from `lma` ×0.95 to ×1.1,*
   all 48 elasticities within ε of runs adaptive there, but not at ×0.9, where
-  two exceed ε and fifteen ε/3 (the spec's step 4(c)). `J` agrees to 7.2e-5
-  throughout.
+  two exceed ε and fifteen ε/3 (`docs/assessment.md`, step 4(c)). `J` agrees to
+  7.2e-5 throughout.
 - *Deleting the end-state refusal changes nothing here:* the one attempt per
   run it refuses, the error test rejects anyway at the same retry size, so the
   seven nudges come out bit for bit the same.
@@ -195,8 +205,8 @@ the Oracle. Its reply, the second in
 `docs/archive/oracle-response-grid-controller.md`, reads the creation axis as
 a canopy: a first-mover layer at each window's opening, the windows' edges, and
 a fate front between canopy and understory. Its experiments 1, 3 and 4 are in
-`docs/measurements/creation-grid.md`, and the spec's *Where the second reply
-leaves the design* has the verdict.
+`docs/measurements/creation-grid.md`, and `docs/assessment.md`'s *Where the
+second reply leaves the design* has the verdict.
 - *The constant record is resolved.* Creation runs past the founders' front, to
   5.20 and again from 11.11, so the reply's rule as written is 14% high. With the
   first window graded from a day, the understory represented at any spacing and
@@ -393,9 +403,9 @@ committed in `docs/measurements/spot-check/`.
   16% of the cost), as two parts of 1–3% of `J` that cancel to 0.3–0.7%. On the
   constant record the first node is all of `J`: the founders, lumped.
 
-**Step 3, the first measurement before it.** Seven tolerances within ±5% of `1e-4` on long
-drought at seed 31 (the spec's *Measured so far*). `ln J` moves by 1.6e-5, and
-the invader's elasticities by at most 0.32 of ε/3. The resident's move by more
+**Step 3, the first measurement before it.** Seven tolerances within ±5% of
+`1e-4` on long drought at seed 31 (`docs/assessment.md`, *Measured so far*).
+`ln J` moves by 1.6e-5, and the invader's elasticities by at most 0.32 of ε/3. The resident's move by more
 than ε/3 on five of 48, all of the pool's mortality and cost: `a_dG1` 1.65,
 `d_I` 1.61, the relaxation offset 1.38, `a_dG2` 1.21 and `TF24_cost_scale`
 1.17 times. So brute force at the step-2 setting fails the first test for the

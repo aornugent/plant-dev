@@ -183,8 +183,8 @@ first invasion walks that.
 
 ## 4–6, established earlier
 
-- *`J`'s time error* (`docs/archive/scope-imex-stepper.md` §7; the spec's step
-  2(a)).
+- *`J`'s time error* (`docs/archive/scope-imex-stepper.md` §7;
+  `docs/assessment.md`, step 2(a)).
   - Near-empty pools refilling after a sign change carried a survival error as
     large as the offspring part, because their tolerance weight is absolute in
     kg. The tied tolerance fixes that: `J` within 0.46·tol from `1e-3` to
@@ -193,9 +193,9 @@ first invasion walks that.
     under-reports them 4.6× (median), and every treatment tried cost 3–4×:
     refusal, split, and locate-and-step. §9 limits the refusal to the window,
     and §11 prices the split at its real cost, 10.2% of a forward.
-- *The staircase* (the spec's step 5). The kinks bind curvatures (a chord over
-  ±1e-2) and small differences (0.004–0.007 in the invader's `lma` elasticity
-  at ±1e-6).
+- *The staircase* (`docs/assessment.md`, step 5). The kinks bind curvatures (a
+  chord over ±1e-2) and small differences (0.004–0.007 in the invader's `lma`
+  elasticity at ±1e-6).
 - *The step program's path dependence.* A one-ulp change in the absolute
   tolerance (`3e-9` against `1e-4 × 3e-5`) moves `J` by 4.7e-7 at `3e-5`.
 - *The node error* (`docs/measurements/creation-grid.md`, *What sets the node
