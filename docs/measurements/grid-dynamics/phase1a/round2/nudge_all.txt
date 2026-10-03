@@ -1,0 +1,120 @@
+
+== CK baseline around 1e-5, plant's own control
+     role                         q           x1     move R2 move/(eps/3)
+ resident                       lnJ   2.53914100 1.28e-05           0.002
+ resident                       lma  -8.27935100 1.71e-03           0.059
+ resident                     a_dG2   1.05571300 1.26e-04           0.020
+ resident                     a_dG1  -0.30647880 1.19e-03           0.098
+ resident                       d_I  -0.01983589 1.77e-05           0.005
+ resident storage_relaxation_offset  -0.01622109 5.09e-05           0.015
+ resident           TF24_cost_scale  -2.48251000 3.67e-04           0.056
+  invader                       lnJ   2.53914100 1.28e-05           0.002
+  invader                       lma -27.06908000 4.87e-03           0.074
+  invader                     a_dG2   3.97034400 1.21e-05           0.001
+ R1 |x1-ref|/eps R2 at raw eps
+               0            NA
+               0            NA
+               0            NA
+               0            NA
+               0         0.112
+               0            NA
+               0            NA
+               0            NA
+               0            NA
+               0            NA
+   R2: holds, worst 0.098 (resident a_dG1); R1: holds, worst 0.000 (resident lnJ)
+
+== CK baseline around 1e-4, plant's own control
+     role                         q           x1     move R2 move/(eps/3)
+ resident                       lnJ   2.53917100 1.60e-05           0.002
+ resident                       lma  -8.26678100 1.66e-02           0.575
+ resident                     a_dG2   1.05130900 7.65e-03           1.208
+ resident                     a_dG1  -0.29237280 2.01e-02           1.648
+ resident                       d_I  -0.01962982 2.54e-04           0.076
+ resident storage_relaxation_offset  -0.01881510 4.70e-03           1.378
+ resident           TF24_cost_scale  -2.47865800 7.64e-03           1.169
+  invader                       lnJ   2.53917100 1.60e-05           0.002
+  invader                       lma -27.06531000 3.82e-04           0.006
+  invader                     a_dG2   3.97036300 1.05e-05           0.001
+ R1 |x1-ref|/eps R2 at raw eps
+           0.001            NA
+           0.145            NA
+           0.232            NA
+           0.385            NA
+           0.021         1.612
+           0.254            NA
+           0.196            NA
+           0.001            NA
+           0.019            NA
+           0.000            NA
+   R2: FAILS, worst 1.648 (resident a_dG1); R1: holds, worst 0.385 (resident a_dG1)
+
+== ck10 around 3e-5, plant replays (round one)
+     role                         q           x1     move R2 move/(eps/3)
+ resident                       lnJ   2.53911200 8.84e-06           0.001
+ resident                       lma  -8.28046400 3.77e-03           0.131
+ resident                     a_dG2   1.05532700 9.15e-04           0.145
+ resident                     a_dG1  -0.30642450 3.28e-03           0.269
+ resident                       d_I  -0.01983780 8.96e-05           0.027
+ resident storage_relaxation_offset  -0.01625881 6.36e-04           0.187
+ resident           TF24_cost_scale  -2.48324300 1.84e-03           0.282
+  invader                       lnJ   2.53911200 8.84e-06           0.001
+  invader                       lma -27.06855000 8.50e-04           0.013
+  invader                     a_dG2   3.97033600 1.03e-05           0.001
+ R1 |x1-ref|/eps R2 at raw eps
+           0.001            NA
+           0.013            NA
+           0.020            NA
+           0.001            NA
+           0.000         0.568
+           0.004            NA
+           0.037            NA
+           0.001            NA
+           0.003            NA
+           0.000            NA
+   R2: holds, worst 0.282 (resident TF24_cost_scale); R1: holds, worst 0.037 (resident TF24_cost_scale)
+
+== ark100 around 1e-5, frozen (round one)
+     role     q          x1     move R2 move/(eps/3) R1 |x1-ref|/eps
+ resident   lnJ  2.53833400 0.000131           0.016           0.032
+ resident   lma -8.28742000 0.004880           0.169           0.093
+ resident a_dG2  1.05634900 0.001500           0.238           0.033
+ resident a_dG1 -0.30471730 0.002490           0.204           0.048
+ resident   d_I -0.01988117 0.000110           0.033           0.005
+ R2 at raw eps
+            NA
+            NA
+            NA
+            NA
+         0.695
+   R2: holds, worst 0.238 (resident a_dG2); R1: holds, worst 0.093 (resident lma)
+
+== arkc around 3e-5, frozen
+     role     q          x1     move R2 move/(eps/3) R1 |x1-ref|/eps
+ resident   lnJ  2.53706700 2.09e-04           0.025           0.082
+ resident   lma -8.27796500 2.69e-03           0.093           0.016
+ resident a_dG2  1.05387000 6.45e-04           0.102           0.097
+ resident a_dG1 -0.30145020 4.03e-03           0.331           0.137
+ resident   d_I -0.01970715 6.86e-05           0.021           0.013
+ R2 at raw eps
+            NA
+            NA
+            NA
+            NA
+         0.435
+   R2: holds, worst 0.331 (resident a_dG1); R1: holds, worst 0.137 (resident a_dG1)
+
+== arkc around 1e-4, frozen
+     role     q         x1     move R2 move/(eps/3) R1 |x1-ref|/eps
+ resident   lnJ  2.5281840 0.000322           0.038           0.434
+ resident   lma -8.2839640 0.025500           0.886           0.053
+ resident a_dG2  1.0488050 0.012300           1.947           0.364
+ resident a_dG1 -0.2825237 0.042000           3.440           0.655
+ resident   d_I -0.0195207 0.000348           0.104           0.032
+ R2 at raw eps
+            NA
+            NA
+            NA
+            NA
+         2.205
+   R2: FAILS, worst 3.440 (resident a_dG1); R1: holds, worst 0.655 (resident a_dG1)

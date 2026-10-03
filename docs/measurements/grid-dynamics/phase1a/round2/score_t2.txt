@@ -1,0 +1,26 @@
+          run accepted rejected   rows forward gradient_rel       e_J lnJ_eps soil_max soil_med      bind    secs chain_substeps
+  ark100 1e-4     6364     1276 344628 2474435       -64.3% -7.69e-02   3.171 3.01e-02 1.60e-03 43/8.0/49 161.442             NA
+  ark100 3e-5     8706     2080 471216 3503955       -50.9% -3.25e-02   1.309 9.86e-03 3.20e-04 44/8.6/47 227.986             NA
+  ark100 1e-5    11191     2747 607150 4536189       -36.8% -8.02e-04   0.032 3.02e-03 6.77e-05 45/8.2/47 299.443             NA
+    arkc 1e-4     7267     1812 396321 2961855       -58.7% -1.09e-02   0.434 5.13e-03 4.49e-04 55/6.6/39 232.220         123033
+    arkc 3e-5     9792     2647 532884 4072365       -44.3% -2.07e-03   0.082 1.91e-03 9.35e-05 56/6.8/38 308.402         129921
+    arkc 1e-5    12323     3185 671778 5072565       -29.9% -5.28e-04   0.021 4.57e-04 3.39e-05 55/7.1/38 380.447         130630
+ arkc 2.85e-5     9887     2664 538150 4104618       -43.8% -1.86e-03   0.074 1.91e-03 8.98e-05 56/6.8/37 322.244         129644
+ arkc 3.15e-5     9680     2601 526579 4016832       -45.0% -2.21e-03   0.088 1.92e-03 9.74e-05 56/6.8/38 320.512         130108
+
+convergence over 1e-4, 3e-5, 1e-5 (round one's test):
+  ark100  e_J -7.69e-02 -3.25e-02 -8.02e-04 [TRUE]  soil_max 3.01e-02 9.86e-03 3.02e-03 [TRUE]  soil_med 1.60e-03 3.20e-04 6.77e-05 [TRUE]
+  arkc    e_J -1.09e-02 -2.07e-03 -5.28e-04 [TRUE]  soil_max 5.13e-03 1.91e-03 4.57e-04 [TRUE]  soil_med 4.49e-04 9.35e-05 3.39e-05 [TRUE]
+
+the two soil estimates on arkc's accepted steps (largest layer each): chain / embedded
+  arkc 1e-4    median 4.63, 10% 0.698, 90% 363; chain larger on 85.9% of steps
+  arkc 3e-5    median 4.15, 10% 0.676, 90% 533; chain larger on 85.4% of steps
+  arkc 1e-5    median 3.93, 10% 0.609, 90% 790; chain larger on 83.8% of steps
+  arkc 2.85e-5 median 4.17, 10% 0.678, 90% 551; chain larger on 85.5% of steps
+  arkc 3.15e-5 median 4.16, 10% 0.68, 90% 524; chain larger on 85.6% of steps
+
+constant record:
+  const_base_3e-5.rds    accepted  3951 rows  524245 forward  3757713 gradient run   +0.0% e_J +6.10e-09
+  const_ck10_3e-5.rds    accepted  3797 rows  504312 forward  3372195 gradient run   -4.7% e_J +2.36e-08
+  const_ark100_1e-5.rds  accepted  1623 rows  208927 forward  1459814 gradient run  -60.3% e_J -1.22e-06
+  const_arkc_3e-5.rds    accepted  1351 rows  172941 forward  1253548 gradient run  -67.0% e_J +1.86e-07

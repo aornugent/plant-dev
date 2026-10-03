@@ -228,6 +228,13 @@ stopifnot(!KINK_FIX || method == "ck")
 # the proposed size, which shrinks by the rejection law while the chain's ratio
 # exceeds CHAIN_GUARD.
 CHAIN_GUARD <- as.numeric(Sys.getenv("CHAIN_GUARD", "Inf"))
+# SOIL_EST=chain (with METHOD=ark) takes the soil layers' error estimate from the chain
+# alone instead of the pair's embedded formula: Cash-Karp at CHAIN_TOL from the step's
+# soil state over the attempt, the uptake linear in time between the step's start and
+# end, against the attempt's end. The members' and accumulators' estimates are the
+# pair's. A replay (PROGRAM) skips it, since no estimate steers a replay.
+CHAIN_EST <- method == "ark" && Sys.getenv("SOIL_EST") == "chain" && !nzchar(Sys.getenv("PROGRAM"))
+CHAIN_TOL <- as.numeric(Sys.getenv("CHAIN_TOL", "1e-9"))
 # The knots where rain starts after a dry span.
 wet <- if (length(pulses) > 1) rain_at((pulses[-1] + pulses[-length(pulses)]) / 2) > 0 else logical()
 onsets <- if (length(wet) > 1) pulses[-c(1, length(pulses))][!wet[-length(wet)] & wet[-1]] else numeric()
@@ -239,7 +246,7 @@ for (x in c("evaluations", "members", "switch", "clamp", "floor", "accepted",
             "accepted_at_minimum", "rejected_inaccurate", "rejected_thrown",
             "rejected_refused", "rejected_switch", "rejected_event", "rejected_zone", "located", "located_class",
             "locate_evaluations", "locate_members", "local_members", "local_members_evaluated", "solves", "iterations", "halvings", "failures",
-            "guarded")) {
+            "guarded", "chain_substeps")) {
   assign(x, 0, envir = n)
 }
 n$most_iterations <- 0
@@ -280,6 +287,36 @@ chain_ratio <- function(th, t, h) {
 
 # The block's stage, Y = z + hg F(Y), by Newton from z; a Newton step is halved
 # until the residual falls. NULL where it does not converge.
+# The soil chain alone from layers th at t over h, its uptake per layer linear in time
+# from a0 to a1, as TF24_Environment::compute_rates has it (a layer at its residual
+# moisture holds when its rate would take it lower).
+chain_alone <- function(th, t, h, a0, a1) {
+  f <- function(x, s) {
+    r <- stiff_rates(x, rain_at(s)) - (a0 + (a1 - a0) * (s - t) / h) / dz
+    r[x <= theta_res & !(r > 0)] <- 0
+    r
+  }
+  s <- t; hs <- h; k1 <- f(th, s)
+  t1 <- t + h
+  while (s < t1) {
+    final <- s + hs >= t1
+    hh <- if (final) t1 - s else hs
+    k <- list(k1)
+    for (i in 2:6) k[[i]] <- f(combine(th, tab$ACK[i, ], k, hh), s + tab$cCK[i] * hh)
+    y1 <- combine(th, tab$bCK, k, hh)
+    e <- combine(0, tab$bCK - tab$dCK, k, hh)
+    r <- max(abs(e) / (CHAIN_TOL * abs(y1) + 1e-4 * CHAIN_TOL))
+    if (!is.finite(r)) r <- 1e10
+    if (r > 1.1 && hh > 1e-12) { hs <- hh * max(0.2, 0.9 / r^(1 / 5)); next }
+    n$chain_substeps <- n$chain_substeps + 1
+    s <- if (final) t1 else s + hh
+    th <- y1
+    k1 <- f(th, s)
+    if (!final) hs <- hh * min(5, max(0.2, 0.9 / max(r, 1e-300)^(1 / 5)))
+  }
+  th
+}
+
 newton <- function(z, hg, rain) {
   n$solves <- n$solves + 1
   Y <- z
@@ -388,8 +425,14 @@ attempt <- function(t, y, k1, h) {
   if (is.null(at_end)) return(raised(y1, 7))
   if (STAGE_LOG) sr$close()
   yerr <- if (method == "dp") combine(0, c(tb$b, 0) - tb$d, c(k, list(at_end)), h) else combine(0, tb$b - tb$d, k, h)
+  uptake <- tail(patch$ode_aux, 5)
+  soil_est <- c(max(abs(yerr[blk])), NA)
+  if (CHAIN_EST) {
+    yerr[blk] <- y1[blk] - chain_alone(y[blk], t, h, sv$uptake, uptake)
+    soil_est[2] <- max(abs(yerr[blk]))
+  }
   list(y = y1, yerr = yerr, rates = at_end, P = production(y1), K = klass(y1), Pst = Pst,
-       Kst = Kst, uptake = tail(patch$ode_aux, 5))
+       Kst = Kst, uptake = uptake, soil_est = soil_est)
 }
 
 # The size that ends an accepted attempt `a` of size h from t0 just past the
@@ -700,6 +743,9 @@ steps$states <- if (nzchar(Sys.getenv("STATES"))) list() else NULL
 # each entry's, at its time.
 steps$uptake <- matrix(NA_real_, 60000, 5)
 steps$entry_uptake <- matrix(NA_real_, 0, 6)
+# Each accepted step's largest soil error estimate: the pair's embedded one, and the
+# chain alone's where SOIL_EST=chain.
+steps$soil_est <- matrix(NA_real_, 60000, 2, dimnames = list(NULL, c("embedded", "chain")))
 steps$rows <- matrix(NA_real_, 60000, 12,
                      dimnames = list(NULL, c("time", "h", "er", "ei", "M", "x_soil",
                                              paste0("soil_", 1:5), "cap")))
@@ -857,6 +903,9 @@ step <- function(target) {
     if (!is.null(steps$states)) steps$states[[steps$k]] <- a$y
     if (steps$k > nrow(steps$uptake)) steps$uptake <- rbind(steps$uptake, steps$uptake * NA)
     steps$uptake[steps$k, ] <- a$uptake
+    if (steps$k > nrow(steps$soil_est)) steps$soil_est <- rbind(steps$soil_est, steps$soil_est * NA)
+    steps$soil_est[steps$k, ] <- a$soil_est
+    sv$uptake <- a$uptake
     down <- sv$P > 0 & a$P < 0
     if (any(down)) {
       sv$zone_until <- max(sv$zone_until, t0 + h * max(sv$P[down] / (sv$P[down] - a$P[down])) + CROSS_TAIL)
@@ -891,6 +940,7 @@ if (sys.nframe() == 0L) {
     sv$dydt <- rates(sv$y, sv$t)
     if (is.null(sv$dydt)) stop("an entry's rates raised DomainError")
     steps$entry_uptake <- rbind(steps$entry_uptake, c(sv$t, tail(patch$ode_aux, 5)))
+    sv$uptake <- tail(patch$ode_aux, 5)
     sv$P <- production(sv$y)
     sv$Pdot <- c(sv$Pdot, 0)[seq_along(sv$P)]
     sv$K <- klass(sv$y)
@@ -983,6 +1033,7 @@ if (sys.nframe() == 0L) {
     cat(sprintf("block solves %d: %.2f Newton iterations each, at most %d; %d halvings; %d failures\n",
                 n$solves, n$iterations / max(1, n$solves - n$failures), n$most_iterations,
                 n$halvings, n$failures))
+    if (CHAIN_EST) cat(sprintf("soil estimate from the chain alone at %g: %d substeps\n", CHAIN_TOL, n$chain_substeps))
   }
   kind <- ifelse(st$ei <= 9 * st$M, NODE[(st$ei - 1) %% 9 + 1], ENV[pmax(1, st$ei - 9 * st$M)])
   pct <- function(x) sprintf("%.1f%%", 100 * mean(x, na.rm = TRUE))
@@ -1020,6 +1071,7 @@ if (sys.nframe() == 0L) {
                  regime = REGIME, rain = rain_record(REGIME), knots = pulses,
                  counts = as.list(n), secs = secs, st = st, weight = WEIGHT,
                  uptake = steps$uptake[seq_len(steps$k), , drop = FALSE], entry_uptake = steps$entry_uptake,
+                 soil_est = steps$soil_est[seq_len(steps$k), , drop = FALSE],
                  by_node = data.frame(time = sp$node_times, weight = w[-length(w)],
                                       fecundity = f, patch_density = pd)),
             Sys.getenv("OUT"))

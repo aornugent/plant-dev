@@ -62,7 +62,7 @@ wet by its own value, so an onset's rising day counts as dry there.
 | 7 | the constant record rejects 16% with no knots | the soil's stability bounds its steps, and the step-size law cycles across the limit | established; the implicit soil pays there, and on the chain alone a PI law leaves 6 of 1009 rejections; coupled, PI saves 1.0% of a gradient run (§7) |
 | 8 | on the pulsed records 59–61% of member-steps come after t = 25, where at most 6.1% of `J` is still to be earned | the tolerance and the spacing weight every time and node alike | established; a rule from a 54-node pilot saves 21–28% of a forward's member evaluations and as many rows at ≤ 0.08ε on three pulsed records. A failing invader's pools are unstable on its loosened steps, and a 15-day cap protects every walk for at most 2.4% of the saving (§8) |
 | 9 | the sign-change refusal costs 3.4× | it refuses after the window too | half established: limited to the window it keeps `J` for 43% less; limited to the cohort that earns `J` it does not. Superseded by per-member events (§11) |
-| 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the explicit chain takes a weight of ×10 (−20.7% of a gradient run, both roles) but not ×100; the implicit chain passes at `1e-5` (−36.8%, resident only) and saves 60% under constant rain; implicit and out of the norm does not converge (§10) |
+| 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the explicit chain takes a weight of ×20 at most, ×10 passing for both roles (−20.7%). The implicit chain, with the chain alone's estimate for the soil, passes at `3e-5` for the resident (−44.3%) and saves 67% under constant rain. Implicit and out of the norm does not converge (§10) |
 | 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges. Cash–Karp's own fourth-order extension does as well for 5.9% of a forward (§11); its cost in the sweeps not measured |
 | 12 | the partitioned step's corrected couplings stall at 1e-4 to 5e-4 | the held collar's first-order deficit in the dry spells' water budget; the drift is the coupling's error, which no norm measured, so the dry spells' steps stayed long as the tolerance tightened | the partition killed (§13), and dead for another reason: in the dry spells the coupling is an algebraic loop. With the coupling's error in the norm it converges, at 0.39–1.85 of the monolith's leaf solves |
 | 13 | the sweep costs 2.5–2.7 forwards, so a run with every gradient spends 74% in sweeps; spreading each panel's leaf area slows it 1.7–3.4× | a member taped at its recorded point costs 2.4 forward evaluations, with five implicit-function solves, and every zero-depth pulse rebinds the patch twice; the spread's slowdown is the light field's fallback path when two nodes' heights fall out of order | established (`perf-sweep.md`); three changes would halve the sweep |
@@ -747,6 +747,34 @@ priced as (forward + 6 rows)/7.
 - *Next:* the chain alone's estimate in ARK's norm in place of its embedded one,
   at `3e-5` (−51% if it converges); the largest weight that converges, measured
   in plant once the weight is built; and the invader under the implicit chain.
+
+**Tested, round two: the chain alone's estimate in ARK's norm, and the weight's
+ceiling** (phase 1a; `phase1a/round2/score_t1.txt`, `score_t2.txt` and
+`nudge_all.txt`). The fixture is long drought, as above.
+- *With the chain alone's estimate for the soil (arkc), the implicit chain
+  converges at every tolerance.*
+
+| run | gradient run | `J − J*` | ln J, ε | soil max / median error |
+|---|---|---|---|---|
+| arkc, `1e-4` | −58.7% | −1.09e-2 | 0.43 | 5.1e-3 / 4.5e-4 |
+| arkc, `3e-5` | −44.3% | −2.07e-3 | 0.08 | 1.9e-3 / 9.4e-5 |
+| arkc, `1e-5` | −29.9% | −5.3e-4 | 0.02 | 4.6e-4 / 3.4e-5 |
+
+  - ARK's embedded estimate under-reports the soil on 84–86% of accepted
+    steps, by a median factor of 4.
+- *At `3e-5` it passes R1 and R2 for the resident.* The worst nudge move is
+  0.331 ε/3 (`a_dG1`), and the worst error 0.137ε.
+  - On the constant record it saves 67.0%, against ARK with its embedded
+    estimate at `1e-5` (60.3%) and the explicit ×10 weight (4.7%).
+  - At `1e-4` it fails R2, as plain Cash–Karp does on the crossings. `a_dG1`
+    moves 3.44 ε/3, against Cash–Karp's 1.65.
+- *The explicit weight's ceiling is ×20.* ×30 and ×50 fail the convergence test
+  on `J`, though every `J` error stays under 0.005ε: they fail R4, not R1. ×20
+  saves 25.4% at `3e-5` against ×10's 20.7%.
+- *Not run:* arkc on episodic, and its invader gradients, which need ARK in
+  plant.
+- *Verdict:* the implicit chain with the chain alone's soil estimate, at
+  `3e-5`. The ×10 weight stays the explicit fallback.
 
 **Root cause.** Five scalar equations, the soil chain answering each rain
 change, set 93% of the steps. A monolithic step pays the members' leaf solves

@@ -1,0 +1,20 @@
+start 08:08:54 w10_3e-5 SCRIPT=run_record.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw TOL=3e-5 ATOL=1e-4 WEIGHT_SOIL=10 FORWARD=1 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1a/t1/runs/w10_3e-5.rds
+done 08:10:10 w10_3e-5 status 0
+start 08:10:10 w30_3e-5 SCRIPT=run_record.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw TOL=3e-5 ATOL=1e-4 WEIGHT_SOIL=30 FORWARD=1 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1a/t1/runs/w30_3e-5.rds
+done 08:11:17 w30_3e-5 status 0
+start 08:11:17 w50_3e-5 SCRIPT=run_record.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw TOL=3e-5 ATOL=1e-4 WEIGHT_SOIL=50 FORWARD=1 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1a/t1/runs/w50_3e-5.rds
+done 08:12:23 w50_3e-5 status 0
+start 08:12:23 w20_3e-5 SCRIPT=run_record.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw TOL=3e-5 ATOL=1e-4 WEIGHT_SOIL=20 FORWARD=1 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1a/t1/runs/w20_3e-5.rds
+done 08:13:34 w20_3e-5 status 0
+start 08:13:34 w30_1e-4 SCRIPT=run_record.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw TOL=1e-4 ATOL=1e-4 WEIGHT_SOIL=30 FORWARD=1 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1a/t1/runs/w30_1e-4.rds
+done 08:14:35 w30_1e-4 status 0
+start 08:14:35 w50_1e-4 SCRIPT=run_record.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw TOL=1e-4 ATOL=1e-4 WEIGHT_SOIL=50 FORWARD=1 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1a/t1/runs/w50_1e-4.rds
+done 08:15:31 w50_1e-4 status 0
+start 08:15:31 w20_1e-4 SCRIPT=run_record.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw TOL=1e-4 ATOL=1e-4 WEIGHT_SOIL=20 FORWARD=1 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1a/t1/runs/w20_1e-4.rds
+done 08:16:32 w20_1e-4 status 0
+start 08:16:32 w30_1e-5 SCRIPT=run_record.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw TOL=1e-5 ATOL=1e-4 WEIGHT_SOIL=30 FORWARD=1 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1a/t1/runs/w30_1e-5.rds
+done 08:17:53 w30_1e-5 status 0
+start 08:17:53 w50_1e-5 SCRIPT=run_record.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw TOL=1e-5 ATOL=1e-4 WEIGHT_SOIL=50 FORWARD=1 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1a/t1/runs/w50_1e-5.rds
+done 08:19:10 w50_1e-5 status 0
+start 08:19:10 w20_1e-5 SCRIPT=run_record.R PLANT_LIB=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw TOL=1e-5 ATOL=1e-4 WEIGHT_SOIL=20 FORWARD=1 OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1a/t1/runs/w20_1e-5.rds
+done 08:20:30 w20_1e-5 status 0

@@ -344,10 +344,15 @@ pulsed record before the gate.
   - On the constant record the implicit chain saves 60.3% against the weight's
     4.7%. On episodic the two are within 2 points.
   - By the pre-registered rule the implicit chain wins. The weight is the
-    fallback, and is being built now.
-  - Before the implicit chain is built in odelia, two things remain. The chain
-    alone's error estimate goes into ARK's norm, to see if `3e-5` then converges
-    (about −51%). Then the invader under it.
+    fallback, and is built (`state-weights`).
+  - *Round two:* with the chain alone's estimate for the soil in place of ARK's
+    embedded one, the implicit chain converges and passes R1 and R2 at `3e-5`
+    for the resident: −44.3% on long drought, −67.0% on the constant record.
+    At `1e-4` it fails R2 on the crossings.
+  - The explicit weight's ceiling is ×20 (−25.4%); ×30 and ×50 stop
+    converging.
+  - It is being built in odelia and plant (`ark-step`, `ark-soil`), with the
+    chain alone's estimate. Its invader gradients come with the build.
 - *RODAS on the whole stand: assessed, not run.*
   - Selecting it is one line: odelia's solver takes its method at construction
     (`scm.h:548`).

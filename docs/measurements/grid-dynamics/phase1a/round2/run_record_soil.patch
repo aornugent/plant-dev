@@ -1,0 +1,26 @@
+--- a/harness/run_record.R
++++ b/harness/run_record.R
+@@ -139,6 +139,14 @@
+        refusal = g$refusal[["offspring_production"]], control = g$control)
+ }
+ 
++# The soil layers at every recorded state: the environment's ten states close the
++# patch's state, the five layers ahead of the five accumulators.
++soil_record <- function(scm) {
++  rows <- scm$store_trajectory()
++  list(time = vapply(rows, `[[`, 0, "time"),
++       theta = t(vapply(rows, function(r) head(tail(r$state, 10), 5), numeric(5))))
++}
++
+ scm <- phase("stand_run", function() {
+   run_scm(p, mkenv(scen), ct, events = ev, record_trajectory = TRUE)
+ })
+@@ -146,7 +154,7 @@
+   out$stand <- list(J = sum(scm$offspring_production), times = scm$ode_times,
+                     sizes = scm$ode_step_sizes, attempts = scm$ode_step_attempts,
+                     nodes = per_node(scm), event_log = unclass(scm$event_log),
+-                    creation = creation_record(scm))
++                    creation = creation_record(scm), soil = soil_record(scm))
+   save()
+   g <- if (!forward) phase("stand_gradient", function() gradient_of(scm, p))
+   if (!is.null(g)) out$stand <- c(out$stand, g)
