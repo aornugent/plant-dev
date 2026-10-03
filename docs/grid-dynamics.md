@@ -943,9 +943,29 @@ read if the resident stepped by ARK4(3)6L[2]SA.
 - *Order 4 costs one extra stage, on crossing steps only* (about 0.9% of a
   replay). The obstruction has rank 1, but the first construction's weights
   reach 98, and its row needs tuning.
-- *The open risk.* On long implicit steps a polynomial follows the stiff soil
-  only to the implicit stages' order, 2. Phase 1b's field check on an ARK grid
-  decides; it is running.
+- *The open risk was that on long implicit steps a polynomial follows the stiff
+  soil only to the implicit stages' order, 2.* It never arises at a crossing.
+- *The field check on arkc's grids settles it* (`phase1b/ark_field/`). On each
+  crossing step, at u = ¼, ½ and ¾, each dense output is compared with an ARK
+  step of length u·h. Crossing steps exceeding one error weight:
+
+| `3e-5`, 1077 crossing steps | members | soil, base weights | soil, controller's weights |
+|---|---|---|---|
+| cubic Hermite | 251 | 76 | 10 |
+| Kennedy and Carpenter's order 3 | 258 | 62 | 7 |
+| the C¹ member fourth order on explicit trees | 73 | 9 | 0 |
+
+  - The C¹ member is as good on ARK grids as Cash–Karp's quartic on Cash–Karp
+    grids: 7% of crossing steps against 6%. It is `BARK3` in
+    `harness/ark436.R`, and needs no extra evaluation.
+  - Crossings fall on short steps (median 0.57 days at `3e-5`), where
+    h|λ_soil|/β ≤ 1. Only long quiet steps are stiff, and they hold no
+    crossings.
+  - Matching the estimate's order is not enough by itself. The cubic Hermite's
+    error constant is 4.6–5.9× the estimate's, and it exceeds one weight on
+    22–26% of crossing steps.
+  - Not measured on ARK: the nudge spread with the split, `J` with it, and its
+    cost.
 
 ## 12. What the chain alone tells the schedule
 

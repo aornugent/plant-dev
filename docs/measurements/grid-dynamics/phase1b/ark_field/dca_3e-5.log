@@ -1,0 +1,8 @@
+ark grid at tol 3e-05 (TOL_SOIL 100): 9792 steps replayed, soil states differing from the grid's 7298; 1077 crossing steps; 99 s
+crossing steps: median h 0.567 days; h |lambda_soil| / beta median 0.01, > 1 on 0%; step ratio median 0.531
+per crossing step, the max over u, in error weights (soil in the base weights; / TOL_SOIL for the controller's):
+  cubic           members: over 1 on 251 of 1077, 99% 11, max 30.9 | soil: over 1 on 76 (stiff steps 0 of 0), over TOL_SOIL on 10; 99% 56.8, max 762
+  kc3             members: over 1 on 258 of 1077, 99% 8.1, max 18.5 | soil: over 1 on 62 (stiff steps 0 of 0), over TOL_SOIL on 7; 99% 37.7, max 519
+  bark3_all       members: over 1 on 53 of 1077, 99% 3.1, max 13.3 | soil: over 1 on 23 (stiff steps 0 of 0), over TOL_SOIL on 0; 99% 3.12, max 39.8
+  bark3_explicit  members: over 1 on 73 of 1077, 99% 3.64, max 11.2 | soil: over 1 on 9 (stiff steps 0 of 0), over TOL_SOIL on 0; 99% 0.917, max 14.6
+  chain alone     soil: over 1 on 125 (stiff steps 0 of 0), over TOL_SOIL on 0; 99% 10, max 28.2
