@@ -325,6 +325,17 @@ pulsed record before the gate.
   tolerance. The winner is the passing variant with the fewest rows.
 - *Decides* whether the chain's treatment is a weight in plant's control, an
   implicit step in odelia, or neither.
+- *RODAS on the whole stand: assessed, not run.*
+  - Selecting it is one line: odelia's solver takes its method at construction
+    (`scm.h:548`).
+  - But its Jacobian comes from plant's forward tangent. There the environment
+    holds the soil as a plain double, so every soil row and column is exactly
+    zero, and RODAS would step the chain explicitly.
+  - It records nothing, so it gives forward `J` only. Its dense Jacobian and LU
+    cost about a thousand stand evaluations a step at 108 nodes.
+  - Its stages go negative past 2.45τ (`docs/geometry.md`, 4(a)). Its one gain,
+    the chain's stability limit lifted, is what the implicit chain here tests at
+    a fraction of the cost.
 
 **1b. The pair and its interpolant** (R2, R3, R7).
 - *Runs:* Dormand–Prince 5(4), with its free fourth-order dense output, against
