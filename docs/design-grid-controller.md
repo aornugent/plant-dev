@@ -24,8 +24,8 @@ error is `docs/grid-dynamics.md`.
 ## Where the arc starts
 
 - *ε is set* (`docs/measurements/eps-spread.md`): 0.025 in `ln J`; for each
-  elasticity a tenth of its spread across eight records of one climate; 1.2 and
-  4.0 for `lma`'s curvature in residents and invaders.
+  elasticity a tenth of its spread across eight records of one climate, and at
+  least 0.01; 1.2 and 4.0 for `lma`'s curvature in residents and invaders.
 - *The enablers are in plant* (`PLANT-98`): the tied tolerance,
   `ode_tol_abs = 1e-4·ode_tol_rel`, and no stage guard.
 - *The floor has been checked on four records* (`docs/measurements/spot-check.md`).
@@ -48,18 +48,20 @@ persisted format with outside consumers.
 - **R1, accurate:** every quantity within ε of the converged answer. At `3e-5` on
   108 nodes `J` is 2000× inside ε (1.26e-5). The main elasticities' node error
   reaches 1.19ε, for wet's invader `lma` on uniform 108.
-  - *Challenged upward:* elasticities below 0.1 miss their ε on every record, by
-    up to 71ε but 0.004 in absolute terms. An absolute floor of 0.01 on ε is the
-    user's call.
+  - *Challenged upward, and settled:* at a tenth of their spread, elasticities
+    below 0.1 missed their ε on every record, by up to 71ε but 0.004 in absolute
+    terms. Their ε is now at least 0.01 (`OBJECTIVES.md`). Even so, at 108 nodes
+    three quantities miss outside wet and the constant record, each by under
+    1.6×, and nine of wet's invader's.
 - **R2, reproducible:** ±5% in `tol`, or a quarter spacing in the introductions,
   moves each quantity by less than ε/3. At `1e-4` the resident fails on five
   pool traits, to 1.65 ε/3; at `1e-5` it passes. The crossings are 70–85% of the
   spread.
 - **R3, continuous in the traits:** smooth on one grid within its radius, for
-  invaders over ×0.5–×2 and the resident within ±10% (defaults not yet
-  confirmed). On one grid the gradient is a staircase as crossings slide past
-  stages. Split members with two cuts carry `J` continuously through a grazing
-  dip's disappearance (`grid-dynamics.md` §11).
+  invaders over ×0.5–×2 and the resident within ±10%. On one grid the gradient
+  is a staircase as crossings slide past stages. Split members with two cuts
+  carry `J` continuously through a grazing dip's disappearance
+  (`grid-dynamics.md` §11).
 - **R4, predictable:** each knob's error falls at its order, so a looser
   companion estimates a run's error.
   - Uniform companions report 0.41 and 0.33 of the invader's node error on long
@@ -70,6 +72,13 @@ persisted format with outside consumers.
   invader raises on steps of 31–38 days, where its pools are unstable past 26.
 - **R6, shared:** one grid per local analysis, rebuilt on big moves in θ. The
   floor's grid holds the resident's gradients over `lma` ×0.95–×1.1.
+  - Where one grid's radius is shorter than the analysis, several grids or a
+    finer one serve it, with brute force the fallback. The controller does its
+    best on every record.
+  - The invader's radius over ×0.5–×2 is measured on no record. Its slope in
+    `ln lma` changes by its own size over |g|/|g′|: about 0.18 on long drought
+    (the eight seeds' means), a quarter of ln 2, and 0.0075 under constant
+    rain.
 - **R7, performant:** the least runtime at matched error.
   - A run with both roles' gradients is about seven forwards (1 + 2.6 + 0.8 + 2.6).
   - In an optimising loop over invaders the resident's run is shared, and an
@@ -383,9 +392,12 @@ bit-identical wherever its default is off (AGENTS.md):
 
 1. *The four tests at ε* for forward runs and both roles' gradients, on every
    record of the bank, with the runtime against the floor's at matched error.
-2. *Local analyses on one grid:* invader landscapes over ×0.5–×2, the resident
-   within ±10%, the selection gradient, and curvatures. Once events make `J`
-   smooth on a grid, curvatures have three routes:
+2. *Local analyses, each on one grid within its radius:* invader landscapes
+   over ×0.5–×2, the resident within ±10%, the selection gradient, and
+   curvatures. Where a radius falls short, several grids or a finer one,
+   whichever costs less, with brute force the fallback. The invader's radius is
+   measured first, at ×0.5, 0.7, 1.4 and 2 against brute force. Once events make
+   `J` smooth on a grid, curvatures have three routes:
    - chords of gradients, about 68 forwards for five traits in both roles;
    - forward-over-reverse, about 26;
    - forward second differences, about 10.
@@ -412,39 +424,35 @@ gain, and each multiplies with the rows the arc saves.
 
 ## The user's decisions
 
-**Decided:**
 - *B or D:* evaluated at phase 2a.
 - *The pair:* Cash–Karp stays the default solver. Dormand–Prince is the default
   for runs that host invader gradients, including the resident run the invaders
   walk, since an invader steps on its resident's stages. odelia carries both as
   first-class steppers.
-- *The local analysis's defaults* stand: invaders over ×0.5–×2, the resident
-  within ±10%. `OBJECTIVES.md` still calls them unconfirmed; that wording is the
-  user's.
-
-**Open:**
-- *An absolute floor on the small elasticities' ε,* sound in principle; whether
-  it holds in practice is open.
+- *The local analysis* is invaders over ×0.5–×2 and the resident within ±10%
+  (`OBJECTIVES.md`).
+- *Elasticities' ε is at least 0.01* (`OBJECTIVES.md`).
   - An elasticity off by δe moves `ln J`'s prediction over a move Δ ln θ by
     δe·Δ.
   - Over the invader range, Δ is up to ln 2. So δe ≤ (ε/3)/ln 2 = 0.012 keeps
     every prediction inside `ln J`'s own reproducibility bar.
   - That bounds what an optimising loop loses. It does not resolve the sign of an
     elasticity under 0.01, which inference about weak selection on that trait
-    would need.
-  - Measured with a floor of 0.01: at 108 nodes three quantities still miss
-    outside wet, each by under 1.6×, and nine of wet's invader's.
-- *The constant record's invader cliff.* With nothing to thin the canopy, a
-  slightly better invader takes it and a slightly worse one is shut out: `J′` is
-  938, 289.3 and 0.0017 at `lma` e^{−0.01}, ×1 and e^{+0.01}.
+    would need: such a study runs that trait at a tighter setting.
+- *A grid serves its radius, and an analysis still covers its range*
+  (`OBJECTIVES.md`, *Shared*): with several grids, each within its radius, or
+  one finer grid, whichever costs less. The controller does its best on every
+  record, and brute force is the fallback.
+  - The case in view is the constant record's invader. With nothing to thin the
+    canopy, a slightly better invader takes it and a slightly worse one is shut
+    out: `J′` is 938, 289.3 and 0.0017 at `lma` e^{−0.01}, ×1 and e^{+0.01}.
   - The landscape is smooth once the front is resolved, and the invader's
-    elasticity at θ′ = θ meets its ε.
-  - But its own radius, |g|/|g′| = 0.0075 in `ln lma`, is a ninetieth of the
-    analysis's ×0.5–×2. One shared grid cannot cover that range: the cohorts
-    that earn `J′` end at 2.2, 0.12 and 0.012 years at ×0.5, ×0.99 and ×1.01.
-  - The choice: hold the record to the analysis range as written; let a run's
-    reported radius cap its analysis there (R8 already asks for the radius); or
-    keep it for the solver's tests and accuracy at θ only.
+    elasticity at θ′ = θ meets its ε. But the cohorts that earn `J′` end at 2.2,
+    0.12 and 0.012 years at ×0.5, ×0.99 and ×1.01, so the grid built for θ′ = θ
+    cannot be assumed to serve the range.
+  - A grid's radius is the largest move over which the four tests hold at ε
+    (`docs/assessment.md`, step 4(c)). |g|/|g′| says only how fast the
+    landscape bends, not how far a grid serves.
 
 ## Running it
 

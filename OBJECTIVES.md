@@ -20,7 +20,8 @@ invaders, on any rainfall record: constant, variable, wet, dry or episodic.
      invaders.
 - **Shared.** One grid serves each local analysis around the resident: a
   fitness landscape, a selection gradient, a curvature. Big steps in θ rebuild
-  the grid.
+  the grid. Where one grid's radius is shorter than the analysis, several grids
+  or a finer one serve it.
 - **Performant.** The least runtime at ε, compared at matched error, not at
   matched `ode_tol`. Heuristics use what the trait × climate dynamics offer.
   Where the dynamics offer nothing, the controller refines to brute force, which
@@ -31,10 +32,12 @@ invaders, on any rainfall record: constant, variable, wet, dry or episodic.
 ## Numbers
 
 - **ε,** from eight daily-weather seeds of the long-drought climate: 0.025 in
-  `ln J`. For elasticities it is a tenth of each trait's own spread. For
-  residents and invaders that is 0.087 and 0.20 for `lma`, and 0.019 and 0.050 for
-  `a_dG2`. A quantity with no spread by construction (`S_D`, `a_f3`) takes none.
-  The table is `docs/measurements/eps-spread.md`.
+  `ln J`. For elasticities it is a tenth of each trait's own spread: for
+  residents and invaders, 0.087 and 0.20 for `lma`, and 0.019 and 0.050 for
+  `a_dG2`. It is never under 0.01, since an elasticity off by 0.01 moves a
+  prediction of `ln J` across ×0.5–×2 by under ε/3; a quantity with no spread by
+  construction (`S_D`, `a_f3`) takes 0.01. The table is
+  `docs/measurements/eps-spread.md`.
 - **One local analysis:** invaders from ×0.5 to ×2 of the resident, and the
-  resident within ±10% of θ₀. These are defaults, not yet confirmed.
+  resident within ±10% of θ₀.
 - **The bank** of records is set in `docs/design-grid-controller.md`.

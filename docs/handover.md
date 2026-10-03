@@ -126,7 +126,8 @@ ladder at seed 31 (step 5).
 is `docs/measurements/eps-spread.md`, and `docs/assessment.md`'s step 1
 summarises it.
 - ε is 0.025 in `ln J`. For elasticities it is 0.087 (`lma`) and 0.019
-  (`a_dG2`) for residents, and 0.20 and 0.050 for invaders.
+  (`a_dG2`) for residents, and 0.20 and 0.050 for invaders, and never under
+  0.01 (`OBJECTIVES.md`).
 - At seed 31 the setting is inside ε for `ln J`, `lma` and `a_dG2`, by about 30×
   in time and 2.4–6× in nodes.
 - Eleven moves exceed ε, ten of them in elasticities below 0.1 in size. The
@@ -214,7 +215,8 @@ second reply leaves the design* has the verdict.
   resident's `lma` elasticity at −6.94 and the invader's at −186.2. The schedule
   is `harness/graded_times.R`'s `const_Gbf16`.
 - *The invader's cliff there is the model's, and smooth* once the front is
-  resolved: `(ln J′)″ ≈ −2.5e4`, a radius of 0.0075 in `ln lma`.
+  resolved: `(ln J′)″ ≈ −2.5e4`, so its slope changes by its own size over
+  |g|/|g′| = 0.0075 in `ln lma`.
 - *On long drought uniform nodes are on the square law from 108,* for `J`
   (ratio 4.3) and for the resident's gradients. The 54-node rung was what fit no
   power law. The 215-node companion estimates the 108-node error to 1.18 times
@@ -458,9 +460,17 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   and gradients are artefacts. The resolved schedule exists now, `const_Gbf16`
   (150 nodes, step 4's second reply); what remains is its tolerance companion.
   - What remains there is the model's: the invader's landscape is a smooth cliff
-    at θ′ = θ, `J′` 938, 289.3 and 0.0017 at `lma` e^{−0.01}, ×1 and e^{+0.01}, with a
-    radius of 0.0075. Whether ε and the continuity test apply to such a record is
-    the user's call.
+    at θ′ = θ, `J′` 938, 289.3 and 0.0017 at `lma` e^{−0.01}, ×1 and e^{+0.01},
+    with |g|/|g′| = 0.0075. ε and the continuity test apply there as everywhere.
+    A grid serves its radius, so an analysis whose range is wider takes several
+    grids or a finer one, with brute force the fallback (`OBJECTIVES.md`,
+    *Shared*).
+- **The invader's grid radius over ×0.5–×2 is measured on no record,** only the
+  resident's (×0.95–×1.1 on the floor's grid, `docs/assessment.md` step 4(c)).
+  On long drought the invader's slope in `ln lma` changes by its own size over
+  about 0.18 (`|g|/|g′|` from the eight seeds' means), a quarter of ln 2. Phase
+  4 measures it first; the optimising loop's cost depends on how many resident
+  runs an analysis takes.
 - **The node rule, B, is measured on long drought only.** Its constants (an
   opening of 0.03 growing by 1.11, a cap of 0.37) need no pilot there, but wet's
   graded `J` reaches the square law only past 494 nodes, and wet's, dry's and
@@ -485,13 +495,12 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   pulsed records do not. Here the front came from a pilot, where neighbours'
   mortality integrals at the end differ 70-fold across it; how early a run shows
   it is not measured.
-- **The small elasticities' ε, the user's call in `OBJECTIVES.md`.** At a
-  tenth of their spread, `a_st3`, `a_d0`, `omega` and `a_l1` miss on every
-  record, though no small elasticity's 108-node error exceeds 0.012. With ε at
-  least 0.01, three quantities miss outside wet, each by under 1.6×
-  (`docs/measurements/spot-check.md`).
-- **Unconfirmed defaults:** one local analysis spans invaders ×0.5–×2 and the
-  resident ±10% (`OBJECTIVES.md`).
+- **The small elasticities' misses at 108 nodes.** Elasticities' ε is now at
+  least 0.01 (`OBJECTIVES.md`). At a tenth of their spread, `a_st3`, `a_d0`,
+  `omega` and `a_l1` missed on every record, though no small elasticity's
+  108-node error exceeds 0.012. With the 0.01, three quantities still miss
+  outside wet and the constant record, each by under 1.6×, and nine of wet's
+  invader's (`docs/measurements/spot-check.md`).
 - **Clean-up,** each fixed in the branch that owns it, then `git rebase
   --update-refs` and a `--force-with-lease` push of every moved branch:
   - odelia's `test-implicit-value.R` has 5 errors: its snippet passes a braced

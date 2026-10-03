@@ -25,7 +25,7 @@ The invader has the resident's own traits (theta' = theta) and walks the residen
 
 ## Spread and eps
 
-ln J' = ln J on every record, so the ln J row serves both. Rows marked * are the same on every record to rounding (sd/|mean| < 1e-10): J is proportional to S_D, and J's a_f3 elasticity is -a_f3 / (omega + a_f3) = -0.75, as it would be if seed output went as 1 / (omega + a_f3). They have no spread, so this measurement sets no eps for them. An sd from eight records is itself uncertain: with 7 degrees of freedom its 90% interval runs from 0.71 to 1.80 times the estimate.
+ln J' = ln J on every record, so the ln J row serves both. Rows marked * are the same on every record to rounding (sd/|mean| < 1e-10): J is proportional to S_D, and J's a_f3 elasticity is -a_f3 / (omega + a_f3) = -0.75, as it would be if seed output went as 1 / (omega + a_f3). They have no spread, so this measurement sets no eps for them. `OBJECTIVES.md` sets each elasticity's eps at the larger of this table's and 0.01, so these two take 0.01. An sd from eight records is itself uncertain: with 7 degrees of freedom its 90% interval runs from 0.71 to 1.80 times the estimate.
 
 | quantity | unit | res mean | res sd | res eps | inv mean | inv sd | inv eps |
 |---|---|---|---|---|---|---|---|
