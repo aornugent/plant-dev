@@ -6,6 +6,7 @@
 #
 #   PLANT_LIB=... [REGIME=long-drought] [SEED=...] [TOL=1e-4] [ATOL=1e-4] \
 #     [NODES=108] [SHIFT=0] [TIMES=times.rds] [FORWARD=1] [PROGRAM=driver.rds] \
+#     [WEIGHT_SOIL=10] [WEIGHT_ACC=10] [WEIGHT=weight.rds] [HMAX=15] \
 #     OUT=run.rds Rscript harness/run_record.R
 #
 # ATOL is the absolute tolerance over the relative one: 1e-4 ties it as step 2
@@ -17,6 +18,10 @@
 # introductions, each at the size the driver accepted, in place of plant's control.
 # INVADERS walks more invaders after the stand's own, each trait=factor (comma-
 # separated) on the stand's introductions, and keeps each one's J and nodes.
+# WEIGHT_SOIL and WEIGHT_ACC multiply the soil layers' and the accumulators'
+# error levels, WEIGHT is a table of t and weight multiplying every state's from
+# t on (harness/ark_prototype.R's), and HMAX caps every step at that many days.
+# They need a plant with the error weights (state-weights).
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -54,6 +59,14 @@ ct <- control()
 ct$ode_tol_rel <- tol
 ct$ode_tol_abs <- atol * tol
 ct$node_density_in_birth_date <- TRUE
+if (nzchar(Sys.getenv("WEIGHT_SOIL"))) ct$ode_weight_soil <- as.numeric(Sys.getenv("WEIGHT_SOIL"))
+if (nzchar(Sys.getenv("WEIGHT_ACC"))) ct$ode_weight_accumulator <- as.numeric(Sys.getenv("WEIGHT_ACC"))
+if (nzchar(Sys.getenv("WEIGHT"))) {
+  w <- readRDS(Sys.getenv("WEIGHT"))
+  ct$ode_weight_times <- w$t
+  ct$ode_weight_factors <- w$weight
+}
+if (nzchar(Sys.getenv("HMAX"))) ct$ode_step_size_max <- as.numeric(Sys.getenv("HMAX")) / 365
 ev <- events(events_default(p), pulse_rows(sort(unique(knots))))
 
 clock <- function() proc.time()[["elapsed"]]
