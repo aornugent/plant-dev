@@ -5,7 +5,9 @@
 #   held  Cash-Karp, each step started at h |lambda_soil| <= HELD_MARGIN beta
 #         (default 0.8);
 #   ark   ARK4(3)6L[2]SA (harness/ark436.R), the soil's drainage and
-#         infiltration solved at each stage by a damped Newton.
+#         infiltration solved at each stage by a damped Newton;
+#   dp    Dormand-Prince 5(4), whose error estimate also weighs the rates at
+#         the step's end, the next step's first stage.
 #
 #   PLANT_LIB=... NODES=108 TOL=1e-3 METHOD=ark [OUT=run.rds] [REF=u108.rds] \
 #     [STATES=states.rds] [SWITCH_DAYS=0.05 [SWITCH_AT=0] [SWITCH_BORN=3.6] [SWITCH_UNTIL=25]] \
@@ -102,7 +104,7 @@ sys.source(file.path(here, "ark436.R"), envir = tab)
 
 nodes <- as.integer(Sys.getenv("NODES", "108"))
 tol <- as.numeric(Sys.getenv("TOL", "1e-3"))
-method <- match.arg(Sys.getenv("METHOD", "ck"), c("ck", "held", "ark"))
+method <- match.arg(Sys.getenv("METHOD", "ck"), c("ck", "held", "ark", "dp"))
 HELD_MARGIN <- as.numeric(Sys.getenv("HELD_MARGIN", "0.8"))
 CONTROL <- match.arg(Sys.getenv("CONTROL", "odelia"), c("odelia", "shrink", "pi"))
 PI_BETA <- as.numeric(Sys.getenv("PI_BETA", "0.04"))
@@ -110,6 +112,8 @@ PI_ALPHA <- as.numeric(Sys.getenv("PI_ALPHA", NA))
 PI_SAFETY <- as.numeric(Sys.getenv("PI_SAFETY", "0.9"))
 tb <- if (method == "ark") {
   with(tab, list(A = AE, AI = AI, b = b, d = d, c = cc, ord = 4))
+} else if (method == "dp") {
+  with(tab, list(A = ADP, b = bDP, d = dDP, c = cDP, ord = 5))
 } else {
   with(tab, list(A = ACK, b = bCK, d = dCK, c = cCK, ord = 5))
 }
@@ -137,12 +141,21 @@ p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
 THETA <- Sys.getenv("THETA")
 THETA_REL <- if (nzchar(THETA)) as.numeric(Sys.getenv("THETA_REL")) else 0
-if (nzchar(THETA) && THETA != "lma") {
+# THETA_AFTER scales the strategy's own parameter after the hyper-parameterisation has
+# set the derived ones, holding those as plant's gradient does: the partial elasticity,
+# and the only route to a derived parameter such as d_I, which add_strategies overwrites.
+THETA_AFTER <- nzchar(THETA) && Sys.getenv("THETA_AFTER") == "1"
+if (nzchar(THETA) && THETA != "lma" && !THETA_AFTER) {
   s <- p$strategy_default; sp_pars <- s$pars
   sp_pars[[THETA]] <- sp_pars[[THETA]] * (1 + THETA_REL)
   s$pars <- sp_pars; p$strategy_default <- s
 }
-p <- add_strategies(p, trait_matrix(LMA0 * if (THETA == "lma") 1 + THETA_REL else 1, "lma"))
+p <- add_strategies(p, trait_matrix(LMA0 * if (THETA == "lma" && !THETA_AFTER) 1 + THETA_REL else 1, "lma"))
+if (THETA_AFTER) {
+  s <- p$strategies[[1]]; sp_pars <- s$pars
+  sp_pars[[THETA]] <- sp_pars[[THETA]] * (1 + THETA_REL)
+  s$pars <- sp_pars; p$strategies[[1]] <- s
+}
 pars <- p$strategies[[1]]$pars
 p$node_schedule_times <- list(times)
 ct <- control()
@@ -157,7 +170,7 @@ patch <- plant:::Patch("TF24", "TF24_Env")(p, env, ct)
 # close the state, ahead of the five accumulators.
 theta_s <- 0.428; K_sat <- 163.0411; q <- 2 * 6.57 + 3; b_inf <- 8; dz <- 1.5 / 5
 theta_res <- 0.01
-BETA <- 3.7343596   # Cash-Karp's real stability boundary
+BETA <- if (method == "dp") 3.3065679 else 3.7343596   # the pair's real stability boundary
 soil <- function(y) length(y) - 9:5
 rain_at <- function(t) pmax(0, env$extrinsic_drivers_evaluate_range("rainfall", t))
 # The stiff rates, drainage and infiltration, and their Jacobian in the layers.
@@ -209,6 +222,8 @@ ONSET_CAP <- as.numeric(Sys.getenv("ONSET_CAP", "Inf")) / 365
 ONSET_SPAN <- as.numeric(Sys.getenv("ONSET_SPAN", "1.5")) / 365
 TRANSIT <- as.numeric(Sys.getenv("TRANSIT", "Inf"))
 KINK_FIX <- nzchar(Sys.getenv("KINK_FIX"))
+# kink_fix reads Cash-Karp's stages, whose fifth sits at the step's end.
+stopifnot(!KINK_FIX || method == "ck")
 # Before a step's first attempt, the soil chain alone steps from the soil state at
 # the proposed size, which shrinks by the rejection law while the chain's ratio
 # exceeds CHAIN_GUARD.
@@ -257,7 +272,9 @@ chain_ratio <- function(th, t, h) {
   k <- list(stiff_rates(th, rain_at(t)))
   for (i in 2:6) k[[i]] <- stiff_rates(combine(th, tb$A[i, ], k, h), rain_at(t + tb$c[i] * h))
   y1 <- combine(th, tb$b, k, h)
-  e <- combine(0, tb$b - tb$d, k, h)
+  e <- if (method == "dp") {
+    combine(0, c(tb$b, 0) - tb$d, c(k, list(stiff_rates(y1, rain_at(t + h)))), h)
+  } else combine(0, tb$b - tb$d, k, h)
   max(abs(e) / ((ct$ode_tol_rel * ct$ode_a_y * abs(y1) + ct$ode_tol_abs) * TOL_SOIL))
 }
 
@@ -291,6 +308,44 @@ newton <- function(z, hg, rain) {
   NULL
 }
 
+# With STAGE_LOG, every attempt's stage states are read for storage below zero:
+# one row per attempt (its start, size, the fastest pool's drain over the step
+# at its start, h (-dS/dt) / S, whether its interval is wet, how many of its
+# stage states hold a negative pool, the lowest pool fill they reach, and the
+# stage that raised, if one did), and one row per member and stage state whose
+# pool is negative. Stage 7 is the step's end. TAU_S is the pool's relaxation
+# time, 7 days.
+STAGE_LOG <- nzchar(Sys.getenv("STAGE_LOG"))
+TAU_S <- 7 / 365
+stage_log <- new.env()
+stage_log$att <- list()
+stage_log$neg <- list()
+stage_reader <- function(t, y, k1, h) {
+  pool <- pool_of(y)
+  S0 <- y[pool]
+  drain <- h * pmax(0, -k1[pool]) / S0
+  drain[S0 <= 0] <- Inf
+  st <- new.env()
+  st$stages <- 0L; st$members <- 0L; st$fill <- Inf
+  st$read <- function(Y, i) {
+    fill <- Y[pool] / capacity(Y)
+    st$fill <- min(st$fill, fill)
+    neg <- which(Y[pool] < 0)
+    if (length(neg)) {
+      st$stages <- st$stages + 1L; st$members <- st$members + length(neg)
+      stage_log$neg[[length(stage_log$neg) + 1]] <- cbind(t0 = t, h = h, stage = i, member = neg, birth = times[neg],
+        fill = fill[neg], fill_start = S0[neg] / capacity(y)[neg], drain_start = drain[neg])
+    }
+  }
+  st$close <- function(raised_at = NA, raised_neg = NA, raised_soil = NA) {
+    stage_log$att[[length(stage_log$att) + 1]] <- c(t0 = t, h = h, h_tau = h / TAU_S,
+      drain_max = if (any(is.finite(drain))) max(drain[is.finite(drain)]) else 0, empty_start = sum(S0 <= 0),
+      wet = as.numeric(rain_at(t + h / 2) > 0), neg_stages = st$stages, neg_members = st$members,
+      fill_min = st$fill, raised_at = raised_at, raised_neg = raised_neg, raised_soil = raised_soil)
+  }
+  st
+}
+
 # One attempt from (t, y), whose rates are k1: the state it ends at, its error
 # estimate and the rates there. NULL where a stage raises or a block solve fails,
 # which the step retries smaller.
@@ -299,6 +354,13 @@ attempt <- function(t, y, k1, h) {
   Pst <- list(sv$P)
   Kst <- list(sv$K)
   blk <- soil(y)
+  if (STAGE_LOG) sr <- stage_reader(t, y, k1, h)
+  # Where a stage raises: the stage, and whether its state held a negative pool
+  # or a soil layer outside [0, theta_s].
+  raised <- function(Y, i) {
+    if (STAGE_LOG) sr$close(i, as.numeric(any(Y[pool_of(Y)] < 0)), as.numeric(any(Y[soil(Y)] < 0 | Y[soil(Y)] > theta_s)))
+    NULL
+  }
   if (method == "ark") {
     rain <- rain_at(t + tb$c * h)
     kI <- list(stiff_rates(y[blk], rain[1]))
@@ -309,21 +371,25 @@ attempt <- function(t, y, k1, h) {
       z <- Y[blk]
       for (j in seq_len(i - 1)) z <- z + h * (tb$AI[i, j] - tb$A[i, j]) * kI[[j]]
       Yb <- newton(z, h * tb$AI[i, i], rain[i])
-      if (is.null(Yb)) return(NULL)
+      if (is.null(Yb)) return(raised(Y, i))
       Y[blk] <- Yb
     }
+    if (STAGE_LOG) sr$read(Y, i)
     ki <- rates(Y, t + tb$c[i] * h)
-    if (is.null(ki)) return(NULL)
+    if (is.null(ki)) return(raised(Y, i))
     k[[i]] <- ki
     Pst[[i]] <- production(Y)
     Kst[[i]] <- klass(Y)
     if (method == "ark") kI[[i]] <- stiff_rates(Y[blk], rain[i])
   }
   y1 <- combine(y, tb$b, k, h)
+  if (STAGE_LOG) sr$read(y1, 7)
   at_end <- rates(y1, t + h)
-  if (is.null(at_end)) return(NULL)
-  list(y = y1, yerr = combine(0, tb$b - tb$d, k, h), rates = at_end, P = production(y1), K = klass(y1), Pst = Pst,
-       Kst = Kst)
+  if (is.null(at_end)) return(raised(y1, 7))
+  if (STAGE_LOG) sr$close()
+  yerr <- if (method == "dp") combine(0, c(tb$b, 0) - tb$d, c(k, list(at_end)), h) else combine(0, tb$b - tb$d, k, h)
+  list(y = y1, yerr = yerr, rates = at_end, P = production(y1), K = klass(y1), Pst = Pst,
+       Kst = Kst, uptake = tail(patch$ode_aux, 5))
 }
 
 # The size that ends an accepted attempt `a` of size h from t0 just past the
@@ -630,6 +696,10 @@ sv <- new.env()
 steps <- new.env()
 steps$k <- 0L
 steps$states <- if (nzchar(Sys.getenv("STATES"))) list() else NULL
+# Each accepted step's uptake per layer at its end, as the end evaluation left it; and
+# each entry's, at its time.
+steps$uptake <- matrix(NA_real_, 60000, 5)
+steps$entry_uptake <- matrix(NA_real_, 0, 6)
 steps$rows <- matrix(NA_real_, 60000, 12,
                      dimnames = list(NULL, c("time", "h", "er", "ei", "M", "x_soil",
                                              paste0("soil_", 1:5), "cap")))
@@ -785,6 +855,8 @@ step <- function(target) {
     steps$rows[steps$k, ] <- c(sv$t, h, ctl$ratio, ctl$index, (length(a$y) - 10) %/% 9,
                                h * lambda_soil(sv$y, t0) / BETA, a$y[soil(a$y)], cap[2])
     if (!is.null(steps$states)) steps$states[[steps$k]] <- a$y
+    if (steps$k > nrow(steps$uptake)) steps$uptake <- rbind(steps$uptake, steps$uptake * NA)
+    steps$uptake[steps$k, ] <- a$uptake
     down <- sv$P > 0 & a$P < 0
     if (any(down)) {
       sv$zone_until <- max(sv$zone_until, t0 + h * max(sv$P[down] / (sv$P[down] - a$P[down])) + CROSS_TAIL)
@@ -818,6 +890,7 @@ if (sys.nframe() == 0L) {
     sv$y <- patch$ode_state
     sv$dydt <- rates(sv$y, sv$t)
     if (is.null(sv$dydt)) stop("an entry's rates raised DomainError")
+    steps$entry_uptake <- rbind(steps$entry_uptake, c(sv$t, tail(patch$ode_aux, 5)))
     sv$P <- production(sv$y)
     sv$Pdot <- c(sv$Pdot, 0)[seq_along(sv$P)]
     sv$K <- klass(sv$y)
@@ -930,12 +1003,23 @@ if (sys.nframe() == 0L) {
                 if (same) "identical" else "differ"))
   }
   if (nzchar(Sys.getenv("ATTEMPT_LOG"))) saveRDS(as.data.frame(attempt_log$rows[seq_len(attempt_log$k), , drop = FALSE]), Sys.getenv("ATTEMPT_LOG"))
+  if (STAGE_LOG) {
+    att <- as.data.frame(do.call(rbind, stage_log$att))
+    neg <- as.data.frame(do.call(rbind, stage_log$neg))
+    stopifnot(nrow(att) == attempt_log$k)
+    saveRDS(list(att = att, neg = neg), Sys.getenv("STAGE_LOG"))
+    cat(sprintf("stage states with a negative pool: %d in %d attempts (%d member-stages); raised at stage %s; of the raises, %d with a negative pool, %d with soil outside [0, theta_s]\n",
+                sum(att$neg_stages), sum(att$neg_stages > 0), sum(att$neg_members),
+                paste(names(table(att$raised_at)), table(att$raised_at), sep = ":", collapse = " "),
+                sum(att$raised_neg, na.rm = TRUE), sum(att$raised_soil, na.rm = TRUE)))
+  }
   if (nzchar(Sys.getenv("CLASS_SIDE"))) saveRDS(as.data.frame(do.call(rbind, attempt_log$side)), Sys.getenv("CLASS_SIDE"))
   if (!is.null(steps$states)) saveRDS(steps$states, Sys.getenv("STATES"), compress = FALSE)
   if (nzchar(Sys.getenv("OUT"))) {
     saveRDS(list(method = method, control = CONTROL, nodes = nodes, tol = tol, J = J, attempts = att,
                  regime = REGIME, rain = rain_record(REGIME), knots = pulses,
                  counts = as.list(n), secs = secs, st = st, weight = WEIGHT,
+                 uptake = steps$uptake[seq_len(steps$k), , drop = FALSE], entry_uptake = steps$entry_uptake,
                  by_node = data.frame(time = sp$node_times, weight = w[-length(w)],
                                       fecundity = f, patch_density = pd)),
             Sys.getenv("OUT"))

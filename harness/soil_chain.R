@@ -6,7 +6,10 @@
 # linearly in time. The error is measured in theta either way.
 #
 #   PLANT_LIB=... [REGIME=long-drought] [TOL=3e-5] [VAR=theta] [CONTROL=odelia] \
-#     [REF=chain.rds] [OUT=chain.rds] Rscript harness/soil_chain.R
+#     [METHOD=ck|dp] [REF=chain.rds] [OUT=chain.rds] Rscript harness/soil_chain.R
+#
+# METHOD=dp steps by Dormand-Prince 5(4), whose estimate weighs the rates at the
+# step's end.
 #
 # CONTROL picks the step-size law after an accepted step: odelia's (below);
 # shrink, the same factor floored at 0.2 instead of 1; or pi, shrink with the
@@ -24,6 +27,9 @@ tol <- as.numeric(Sys.getenv("TOL", "3e-5"))
 atol <- 1e-4 * tol
 VAR <- match.arg(Sys.getenv("VAR", "theta"), c("theta", "u"))
 CONTROL <- match.arg(Sys.getenv("CONTROL", "odelia"), c("odelia", "shrink", "pi"))
+METHOD <- match.arg(Sys.getenv("METHOD", "ck"), c("ck", "dp"))
+tb <- with(tab, if (METHOD == "dp") list(A = ADP, b = bDP, d = dDP, c = cDP, beta = 3.3065679) else
+  list(A = ACK, b = bCK, d = dCK, c = cCK, beta = 3.7343596))
 env <- mkenv(regime)
 knots <- sort(unique(active_knots(regime)))
 rain_at <- function(t) max(0, env$extrinsic_drivers_evaluate_range("rainfall", t))
@@ -44,15 +50,16 @@ step <- function(y, t, h, k1) {
   k[[1]] <- k1
   for (i in 2:6) {
     yi <- y
-    for (j in 1:(i - 1)) if (tab$ACK[i, j] != 0) yi <- yi + h * tab$ACK[i, j] * k[[j]]
-    k[[i]] <- rates(yi, t + tab$cCK[i] * h)
+    for (j in 1:(i - 1)) if (tb$A[i, j] != 0) yi <- yi + h * tb$A[i, j] * k[[j]]
+    k[[i]] <- rates(yi, t + tb$c[i] * h)
   }
   y1 <- y
   e <- 0
   for (i in 1:6) {
-    y1 <- y1 + h * tab$bCK[i] * k[[i]]
-    e <- e + h * (tab$bCK[i] - tab$dCK[i]) * k[[i]]
+    y1 <- y1 + h * tb$b[i] * k[[i]]
+    e <- e + h * (tb$b[i] - tb$d[i]) * k[[i]]
   }
+  if (METHOD == "dp") e <- e - h * tb$d[7] * rates(y1, t + h)
   list(y = y1, e = e)
 }
 
@@ -104,7 +111,7 @@ wet <- vapply(rows[, "t0"] + rows[, "h"] / 2, rain_at, 0) > 0
 th <- pmin(pmax(rows[, paste0("theta_", 1:5), drop = FALSE], 0), theta_s)
 diag <- K_sat * q * th^(q - 1) / theta_s^q / dz
 diag[, 1] <- diag[, 1] + vapply(rows[, "t0"], rain_at, 0) * b_inf * th[, 1]^(b_inf - 1) / theta_s^b_inf / dz
-stiff <- rows[, "h"] * apply(diag, 1, max) / 3.7343596
+stiff <- rows[, "h"] * apply(diag, 1, max) / tb$beta
 cat(sprintf("%s, %s, tol %g: %d accepted, %d rejected (%.1f%%) | on rain intervals %d, dry %d | binding layer 1-5: %s | final theta %s%s\n",
             regime, VAR, tol, nrow(rows), n_rej, 100 * n_rej / (nrow(rows) + n_rej), sum(wet), sum(!wet),
             paste(tabulate(rows[, "layer"], 5), collapse = "/"), paste(signif(to_theta(y), 4), collapse = " "),

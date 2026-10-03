@@ -3,8 +3,9 @@
 # the step's result. For each method it reports where a stage first turns
 # negative, where the result does, where the step loses stability, and the lowest
 # stage on given step lengths at the pool's relaxation time of 7 days. The
-# explicit methods are tableaux; SSPRK(10,4) runs its low-storage form, and RODAS
-# its stages with the exact Jacobian. Each method's order is read off its step's
+# explicit methods are tableaux, Cash-Karp's, Dormand-Prince's and the ARK's from
+# harness/ark436.R; SSPRK(10,4) runs its low-storage form, and RODAS its stages
+# with the exact Jacobian. Each method's order is read off its step's
 # factor against exp(z) near z = 0, which checks the coefficients.
 #
 #   [DAYS=15,26] Rscript harness/stability.R
@@ -78,12 +79,7 @@ methods <- list(
                                        c(-8/27, 2, -3544/2565, 1859/4104, -11/40))),
                             c(25/216, 0, 1408/2565, 2197/4104, -1/5, 0), 6),
   "Cash-Karp 5(4)" = tableau(ark$ACK, ark$bCK, 6),
-  "Dormand-Prince 5(4)" = tableau(lower(list(0, 1/5, c(3/40, 9/40),
-                                             c(44/45, -56/15, 32/9),
-                                             c(19372/6561, -25360/2187, 64448/6561, -212/729),
-                                             c(9017/3168, -355/33, 46732/5247, 49/176, -5103/18656),
-                                             c(35/384, 0, 500/1113, 125/192, -2187/6784, 11/84))),
-                                  c(35/384, 0, 500/1113, 125/192, -2187/6784, 11/84, 0), 6),
+  "Dormand-Prince 5(4)" = tableau(ark$ADP, ark$bDP, 6),
   "Tsitouras 5(4)" = tableau(lower(list(0, 0.161,
                                         c(-0.008480655492356989, 0.335480655492357),
                                         c(2.897153057105493, -6.359448489975075, 4.3622954328695815),
