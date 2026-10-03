@@ -2,7 +2,8 @@
 # Every number of the combined-gains reports:  bash report.sh
 #   report.log          the combined setting as first run (refused gradients);
 #   report_bounded.log  the combined setting with each state's weight at most 100;
-#   report_ark.log      the implicit soil chain (lib_ark), arms A and B.
+#   report_ark.log      the implicit soil chain (lib_ark), arms A and B;
+#   report_ark_weights.log  ARK's arm B at soil weights 10-100, and the pick.
 C=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/phase1c/combined
 cd $C || exit 1
 {
@@ -30,4 +31,9 @@ cd $C || exit 1
   echo; echo "######## Every walk of the bounded and ARK runs: J', or RAISED"; Rscript walks_compact.R
   echo; echo "######## Where each arm stopped, if it did"; grep -E "stop arm|queue7 lane" queue.out || echo "neither arm stopped"
 } > report_ark.log 2>&1
-cat report_bounded.log report_ark.log
+{
+  echo "######## ARK's arm B at soil weights 10, 30, 50 and 100: cost, accuracy, the pick, and C3 for the pick"
+  Rscript ark_weights.R
+  echo; echo "######## Where a weight stopped, if one did"; grep -E "stop weight|queue8 lane|queue9" queue.out || echo "no weight stopped"
+} > report_ark_weights.log 2>&1
+cat report_bounded.log report_ark.log report_ark_weights.log

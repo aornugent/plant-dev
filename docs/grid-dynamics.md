@@ -881,10 +881,30 @@ long-wet and episodic, with both roles' gradients and the eight walks.
   - On long-wet the resident's largest is 0.055ε.
   - Long drought's ±5% nudges pass: the resident moves at most 0.730 ε/3 and the
     invader 0.531 ε/3.
-- *Hypothesis: the soil's weight of 100, not ARK.* The error is broad, largest
-  where the soil matters most, and `J`'s error carries the weight's factor.
-  Being tested: arm B with the soil at 10, 30 and 50 on long drought and
-  episodic, for the largest weight that meets the bar.
+- *Refuted: the soil's weight sets ARK's accuracy* (`report_ark_weights.log`).
+  Arm B with the soil at 10, 30, 50 and 100: lowering the weight cuts `J`'s
+  error 4–7×, but the resident's largest distance from `1e-5` does not follow
+  it.
+
+  | soil weight | 10 | 30 | 50 | 100 |
+  |---|---|---|---|---|
+  | long drought: gradient run against bounded Cash–Karp | −13.5% | −20.3% | −22.7% | −25.5% |
+  | long drought: `J/J* − 1` | −2.9e-4 | −5.3e-4 | −9.5e-4 | −2.1e-3 |
+  | long drought: resident's largest, ε | 0.348 | 0.431 | 0.260 | 0.357 |
+  | episodic: gradient run against bounded Cash–Karp | −18.8% | −24.8% | −27.0% | −29.2% |
+  | episodic: resident's largest, ε | 0.324 | 0.550 | 0.116 | 0.392 |
+
+  - The invader's largest falls only at ×10: from 0.22 to 0.10ε on long drought
+    and from 0.25 to 0.09ε on episodic.
+  - So the resident's error moves with the program, by about as much as the ±5%
+    nudges moved it at ×100 (0.73 ε/3, about 0.24ε). No weight meets the bar on
+    both records: ×50 meets it on episodic only.
+- *Two explanations remain.* One is the crossings' kinks: ARK's steps are longer
+  than bounded Cash–Karp's, and a gradient's error at a crossing follows h (§11).
+  The other is ARK's lower order, 4 against Cash–Karp's 5, which leaves a smooth
+  bias at the same tolerance. Tightening to `1e-5` shrinks a smooth error about
+  3× but a kink's only about 1.25×. ARK at `1e-5`, the comparison at matched
+  error, is running.
 
 **Root cause.** Five scalar equations, the soil chain answering each rain
 change, set 93% of the steps. A monolithic step pays the members' leaf solves

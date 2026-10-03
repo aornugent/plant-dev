@@ -69,3 +69,43 @@ Results, 11:26 UTC (report_ark.log). Neither arm stopped.
 - Gradient run against unweighted Cash-Karp / against bounded combined: arm A
   -44.4 / -16.2% (long drought), -50.4 / -25.9% (long-wet), -41.6 / -15.8%
   (episodic); arm B -50.6 / -25.5%, -54.9 / -32.7%, -50.9 / -29.2%.
+
+Addendum, 11:35 UTC: the soil weight at which ARK meets the accuracy bar.
+Written before any of these runs.
+- Hypothesis: ARK's distance from 1e-5 comes from the soil's weight of 100, not
+  from ARK itself (J's error is 100x Cash-Karp's, the error is broad, and
+  long-wet, where the soil matters least, nearly passed).
+- Test: arm B (METHOD=ark, rule A's WEIGHT, WEIGHT_MAX=100, HMAX=15, 3e-5,
+  ATOL=1e-4, uniform 108, knots) at WEIGHT_SOIL = 10, 30 and 50, on long drought
+  and episodic, both roles' gradients, no walks, no nudges; from plant-dev
+  d4e0535's harness (snap4, clamp tallies built in), lib_ark. The weight-100
+  point is arm B's existing runs (arkB_ld, arkB_epi). The hypothesis holds if
+  the largest distance from 1e-5 falls with the weight, per record and role.
+- Two accuracy readings per run and role, against the same 1e-5 references:
+  (i) C2 as defined: median and largest no larger than unweighted Cash-Karp's,
+      and the largest under eps/3;
+  (ii) the budget reading: the largest distance under eps/3 and the median
+      under 0.02 eps.
+- Costs: the gradient run (forward + 6 rows)/7 against unweighted Cash-Karp
+  (spot-check ld_3e-5, epi_base) and against bounded Cash-Karp (bnd_ld, bnd_epi).
+- The pick: the largest weight that meets (ii) on both records and both roles;
+  if none does, that is the finding. Then, for the pick only, long drought's
+  +-5% tolerance nudges with both roles' gradients (C3).
+- Stop rule: a weight whose run refuses a gradient or raises stops there (its
+  other record is not run); its refusal and tallies are reported.
+
+Results of the soil-weight test, 11:52 UTC (report_ark_weights.log).
+- Every run finished: gradients finite in both roles, every soil clamp tally 0
+  on both sweeps, nothing raised.
+- The hypothesis is refuted as stated. J's error falls with the weight (long
+  drought -2.05e-3, -9.5e-4, -5.3e-4, -2.9e-4 at x100, 50, 30, 10; episodic
+  -8.2e-4, -5.5e-4, -4.9e-4, -3.2e-4), but the largest distance from 1e-5 does
+  not: the resident's is 0.357, 0.260, 0.431, 0.348 eps on long drought and
+  0.392, 0.116, 0.550, 0.324 on episodic at x100, 50, 30, 10. The invader's
+  falls only at the lowest weights (long drought 0.221 to 0.104, episodic 0.254
+  to 0.087).
+- Reading (ii) is met only by x50 on episodic (resident 0.013 / 0.116, invader
+  0.013 / 0.273). No weight meets it on long drought, where the resident's
+  median stays at 0.039-0.105 eps (unweighted Cash-Karp's is 0.023, and it misses
+  (ii) too). Reading (i), C2, fails everywhere except x50 episodic's resident.
+- The pick: none. So the pick's nudges (C3) are not run.

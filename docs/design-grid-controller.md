@@ -358,7 +358,9 @@ pulsed record before the gate.
   - On three records with the walks, arkc at `3e-5` saves 42–55% of a gradient
     run and never fails. But it misses the accuracy bar on long drought and
     episodic, where the resident's largest distance from `1e-5` is 0.36–0.40ε.
-    The soil's weight is being swept for the largest that meets it.
+    The soil's weight does not set that error: at 10, 30 and 50 it moves with
+    the program instead. ARK at `1e-5`, the comparison at matched error, is
+    running.
 - *RODAS on the whole stand: assessed, not run.*
   - Selecting it is one line: odelia's solver takes its method at construction
     (`scm.h:548`).
