@@ -109,3 +109,53 @@ Results of the soil-weight test, 11:52 UTC (report_ark_weights.log).
   median stays at 0.039-0.105 eps (unweighted Cash-Karp's is 0.023, and it misses
   (ii) too). Reading (i), C2, fails everywhere except x50 episodic's resident.
 - The pick: none. So the pick's nudges (C3) are not run.
+
+Addendum, 11:58 UTC: ARK at 1e-5, the comparison at matched error, and the
+resident's error. Written before any of these runs.
+- Runs: lib_ark, snap4, TOL=1e-5, ATOL=1e-4, uniform 108, knots, HMAX=15,
+  METHOD=ark, WEIGHT_SOIL=100, long drought and episodic, both roles' gradients,
+  no walks. Arm A as written; arm B adds rule A's WEIGHT and WEIGHT_MAX=100.
+  Their 3e-5 counterparts are arkA_{ld,epi} and arkB_{ld,epi}.
+- Two explanations of the resident's error at 3e-5:
+  (H1) crossing kinks: ARK's steps are longer than bounded Cash-Karp's, so the
+       gradient's error at the crossings, which follows h, is larger and moves
+       erratically with the program;
+  (H2) ARK's lower order: order 4 against Cash-Karp's 5 gives a smooth bias at
+       the same tolerance.
+- The reading: 3e-5 to 1e-5 shrinks a smooth error about 3x (H2) and a kink
+  error about 3^0.2 = 1.25x (H1). Per arm and role, the ratio of the 3e-5
+  distance to the 1e-5 distance, for the largest and the median: near 3 or more
+  supports H2, near 1.25 or less supports H1, and in between, a mix. The nudges
+  separate them too: under H1 the +-5% nudges move the resident about as far as
+  its distance from 1e-5.
+- Caveat fixed now: the references are Cash-Karp at 1e-5, whose own +-5% nudges
+  move long drought's resident by a median 0.004-0.015 and at most 0.03-0.06
+  eps. A distance at that level cannot shrink further, so a ratio taken from it
+  understates an H2 shrinkage. Such cases are flagged, not read.
+- Readings per run and role, as before: (i) C2 against unweighted Cash-Karp at
+  3e-5; (ii) the budget, the largest distance under eps/3 and the median under
+  0.02 eps.
+- Costs: the gradient run against unweighted Cash-Karp and bounded Cash-Karp,
+  both at 3e-5.
+- Then, for an arm that meets (ii) on both records, long drought's +-5% nudges
+  (9.5e-6, 1.05e-5) with both roles' gradients, and C3.
+- Stop rule: a run that refuses a gradient or raises stops its arm.
+
+Results at 1e-5, 12:06 UTC (report_ark_1e-5.log). No run refused or raised;
+every sweep's soil clamps 0.
+- Long drought, arms A / B: resident median 0.021 / 0.021, largest 0.117 /
+  0.114 eps (omega); invader 0.004 / 0.005, 0.025 / 0.024. Reading (ii) fails on
+  the resident's median by a hair (0.0207, 0.0213 against 0.02), inside the
+  reference's own spread (median 0.015).
+- Episodic, arms A / B: resident median 0.034 / 0.038, largest 0.199 / 0.209
+  (a_l1); invader 0.005 / 0.005, 0.048 / 0.047. (ii) fails on the resident's
+  median; (i) fails on the resident's largest (over Cash-Karp's 0.181).
+- So no arm meets (ii) on both records, and no nudges are run.
+- Ratios 3e-5 to 1e-5: long drought's resident largest 3.07 / 3.12 (H2); its
+  median 3.2 / 3.1, but at the reference's spread, so not read. Episodic's
+  resident largest 2.01 / 1.88 (mixed), median 1.34 / 1.04 (H1 by the rule, but
+  episodic's reference spread is unmeasured). The invaders fall 5-16x (H2, or the
+  reference's floor on long drought).
+- Cost: arm A -29.9 / -25.5% against unweighted Cash-Karp and +5.7 / +7.4%
+  against bounded Cash-Karp (long drought / episodic); arm B -37.9 / -38.2% and
+  -6.4 / -10.9%.

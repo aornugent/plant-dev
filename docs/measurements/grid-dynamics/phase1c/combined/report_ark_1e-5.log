@@ -1,0 +1,38 @@
+######## ARK at 1e-5 against ARK at 3e-5, arms A and B: cost, accuracy, the 3e-5 to 1e-5 ratios, and C3
+
+== long-drought (distances from ld_1e-5.rds, in eps; sweep clamps moisture floor/potential ceiling/positivity, stand then invader)
+run                     vs CK   vs bnd   J/J* - 1 | resident: median, largest (quantity)     | invader: median, largest (quantity)      | sweeps      | (i) C2, (ii) budget
+unweighted CK 3e-5      +0.0%   +50.8%  -1.26e-05 | 0.0232, 0.1874 (a_dG1           ) | 0.0036, 0.0295 (root_c          ) | - -         | 
+bounded CK 3e-5        -33.7%    +0.0%  -2.19e-05 | 0.0172, 0.0558 (a_dG1           ) | 0.0017, 0.0196 (root_P50        ) | 0/0/0 0/0/0 | 
+ARK arm A 3e-5         -44.4%   -16.2%  -2.06e-03 | 0.0662, 0.3596 (d_I             ) | 0.0623, 0.2239 (a_d0            ) | 0/0/0 0/0/0 | (i) FAIL/FAIL (ii) FAIL/FAIL
+ARK arm A 1e-5         -29.9%    +5.7%  -5.34e-04 | 0.0207, 0.1172 (omega           ) | 0.0040, 0.0247 (root_P50        ) | 0/0/0 0/0/0 | (i) pass/FAIL (ii) FAIL/pass
+ARK arm B 3e-5         -50.6%   -25.5%  -2.05e-03 | 0.0656, 0.3571 (d_I             ) | 0.0620, 0.2205 (a_d0            ) | 0/0/0 0/0/0 | (i) FAIL/FAIL (ii) FAIL/FAIL
+ARK arm B 1e-5         -37.9%    -6.4%  -5.32e-04 | 0.0213, 0.1144 (omega           ) | 0.0047, 0.0238 (root_P50        ) | 0/0/0 0/0/0 | (i) pass/FAIL (ii) FAIL/pass
+
+== episodic (distances from epi_1e-5.rds, in eps; sweep clamps moisture floor/potential ceiling/positivity, stand then invader)
+run                     vs CK   vs bnd   J/J* - 1 | resident: median, largest (quantity)     | invader: median, largest (quantity)      | sweeps      | (i) C2, (ii) budget
+unweighted CK 3e-5      +0.0%   +44.1%  +2.58e-05 | 0.0618, 0.1808 (a_dG1           ) | 0.0077, 0.0713 (root_c          ) | - -         | 
+bounded CK 3e-5        -30.6%    +0.0%  +1.15e-05 | 0.0142, 0.0781 (omega           ) | 0.0029, 0.0212 (stem_c          ) | 0/0/0 0/0/0 | 
+ARK arm A 3e-5         -41.6%   -15.8%  -8.12e-04 | 0.0448, 0.3998 (omega           ) | 0.0262, 0.2530 (a_d0            ) | 0/0/0 0/0/0 | (i) FAIL/FAIL (ii) FAIL/FAIL
+ARK arm A 1e-5         -25.5%    +7.4%  -3.84e-04 | 0.0335, 0.1986 (a_l1            ) | 0.0053, 0.0481 (a_d0            ) | 0/0/0 0/0/0 | (i) FAIL/pass (ii) FAIL/pass
+ARK arm B 3e-5         -50.9%   -29.2%  -8.24e-04 | 0.0390, 0.3918 (omega           ) | 0.0265, 0.2538 (a_d0            ) | 0/0/0 0/0/0 | (i) FAIL/FAIL (ii) FAIL/FAIL
+ARK arm B 1e-5         -38.2%   -10.9%  -3.93e-04 | 0.0376, 0.2087 (a_l1            ) | 0.0047, 0.0471 (a_d0            ) | 0/0/0 0/0/0 | (i) FAIL/pass (ii) FAIL/pass
+
+== The 3e-5 to 1e-5 ratio of each role's distance from 1e-5 (H2, a smooth order-4 bias: ~3; H1, crossing kinks: ~1.25)
+   long drought's 1e-5 reference spread under its own +-5% nudges: resident median 0.0146, largest 0.0561; invader median 0.0171, largest 0.0430
+   long-drought arm A resident largest 0.3596 -> 0.1172 (ratio 3.07, H2); median 0.0662 -> 0.0207 (ratio 3.20, at the reference's spread: not read)
+   long-drought arm A invader  largest 0.2239 -> 0.0247 (ratio 9.08, at the reference's spread: not read); median 0.0623 -> 0.0040 (ratio 15.70, at the reference's spread: not read)
+   long-drought arm B resident largest 0.3571 -> 0.1144 (ratio 3.12, H2); median 0.0656 -> 0.0213 (ratio 3.08, at the reference's spread: not read)
+   long-drought arm B invader  largest 0.2205 -> 0.0238 (ratio 9.27, at the reference's spread: not read); median 0.0620 -> 0.0047 (ratio 13.18, at the reference's spread: not read)
+   episodic     arm A resident largest 0.3998 -> 0.1986 (ratio 2.01, mixed); median 0.0448 -> 0.0335 (ratio 1.34, H1)
+   episodic     arm A invader  largest 0.2530 -> 0.0481 (ratio 5.26, H2); median 0.0262 -> 0.0053 (ratio 4.98, H2)
+   episodic     arm B resident largest 0.3918 -> 0.2087 (ratio 1.88, mixed); median 0.0390 -> 0.0376 (ratio 1.04, H1)
+   episodic     arm B invader  largest 0.2538 -> 0.0471 (ratio 5.38, H2); median 0.0265 -> 0.0047 (ratio 5.62, H2)
+
+== Arms meeting the budget reading (ii) at 1e-5 on both records, and C3 for them on long drought
+   arm A: long drought misses, episodic misses -> not nudged
+   arm B: long drought misses, episodic misses -> not nudged
+
+######## Where an arm stopped, if one did
+queue9 lane B finished 12:02:53
+queue9 lane A finished 12:04:21

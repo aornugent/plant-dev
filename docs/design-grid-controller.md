@@ -359,8 +359,11 @@ pulsed record before the gate.
     run and never fails. But it misses the accuracy bar on long drought and
     episodic, where the resident's largest distance from `1e-5` is 0.36–0.40ε.
     The soil's weight does not set that error: at 10, 30 and 50 it moves with
-    the program instead. ARK at `1e-5`, the comparison at matched error, is
-    running.
+    the program instead. At `1e-5` the long-drought error falls 3.1×, a smooth
+    bias from ARK's fourth order, and ARK with rule A is still 2.0–2.7× farther
+    from `1e-5` than bounded Cash–Karp at `3e-5` for 6–11% less. So at matched
+    error bounded Cash–Karp wins on the pulsed records, and the implicit chain
+    earns its place under constant rain, where stability binds.
 - *RODAS on the whole stand: assessed, not run.*
   - Selecting it is one line: odelia's solver takes its method at construction
     (`scm.h:548`).

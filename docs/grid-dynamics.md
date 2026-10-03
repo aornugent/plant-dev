@@ -899,12 +899,27 @@ long-wet and episodic, with both roles' gradients and the eight walks.
   - So the resident's error moves with the program, by about as much as the ±5%
     nudges moved it at ×100 (0.73 ε/3, about 0.24ε). No weight meets the bar on
     both records: ×50 meets it on episodic only.
-- *Two explanations remain.* One is the crossings' kinks: ARK's steps are longer
-  than bounded Cash–Karp's, and a gradient's error at a crossing follows h (§11).
-  The other is ARK's lower order, 4 against Cash–Karp's 5, which leaves a smooth
-  bias at the same tolerance. Tightening to `1e-5` shrinks a smooth error about
-  3× but a kink's only about 1.25×. ARK at `1e-5`, the comparison at matched
-  error, is running.
+- *Two explanations were left.* One was the crossings' kinks: ARK's steps are
+  longer than bounded Cash–Karp's, and a gradient's error at a crossing follows
+  h (§11). The other was ARK's lower order, 4 against Cash–Karp's 5, which
+  leaves a smooth bias at the same tolerance. Tightening to `1e-5` shrinks a
+  smooth error about 3× but a kink's only about 1.25×.
+- *At `1e-5`, the order* (`report_ark_1e-5.log`).
+  - On long drought the resident's largest distance falls 3.1×, to 0.114–0.117ε:
+    a smooth fourth-order bias.
+  - On episodic it falls 1.9–2.0×, to 0.20–0.21ε, with the median barely moving.
+    That is part bias and part something that barely shrinks, but episodic's
+    reference has no measured nudge spread to read it against.
+- *At matched error bounded Cash–Karp wins on the pulsed records.* ARK with rule
+  A at `1e-5` costs 6.4% and 10.9% less than bounded Cash–Karp at `3e-5` on long
+  drought and episodic. It is still 2.0–2.7× farther from `1e-5` in the
+  resident's largest quantity (0.114 against 0.056ε, 0.209 against 0.078ε).
+  Without rule A it costs 6–7% more. Matching would take a tighter tolerance and
+  erase the saving.
+- *So the implicit chain earns its place where stability binds:* under constant
+  rain, where it saves 67% (above). On the pulsed records its gain came from the
+  soil's weight and longer steps, and its order gives that back. Events would
+  not change this, since the long-drought error is smooth.
 
 **Root cause.** Five scalar equations, the soil chain answering each rain
 change, set 93% of the steps. A monolithic step pays the members' leaf solves
