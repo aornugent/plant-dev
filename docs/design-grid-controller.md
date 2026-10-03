@@ -466,20 +466,22 @@ phase 4 finds the invader's curvatures short. For R5, 1c's cap suffices.
   passes the nudge test (largest move 0.32 of ε/3), and its gradient's jumps are
   3e-5 of itself, since its sweep holds the resident's field fixed.
 
-**1e. The soil stepped alone where the plants draw little** (a pathfinder;
-`grid-dynamics.md` §15). Not in the arc as first written; whether it joins
-phase 3 is the user's call.
-- *Mechanism:* a step whose uptake is under 10% of the soil's budget at its
-  start integrates the soil alone under an extrapolated uptake, with a
-  corrector, and puts the coupling's error in the norm at the members' weight.
-- *On the driver:* rows −41% and −45% against bounded Cash–Karp on long drought
-  and episodic, and 41% and 29% at its `J` error; every elasticity of five traits
-  within 0.11ε of the reference. Judged at the soil's weight instead, the
-  coupling's error biased `J` by up to 22× bounded Cash–Karp's.
-- *What a build needs:* the sub-steps frozen in the replay, so that reverse mode
-  runs through the chain; a flag that yields as the tolerance tightens, since
-  its `J` error stops falling below `3e-5`; and the invader's role measured,
-  which the driver cannot do.
+**1e. The soil stepped on its own where the plants draw little** (a pathfinder;
+`grid-dynamics.md` §15). It was not in the arc as first written, and whether it
+joins phase 3 is the user's call.
+- *How it works:* when the uptake at a step's start is under 10% of the soil's
+  water budget, the soil is integrated on its own under an uptake extrapolated
+  from the last step, a corrector pass follows, and the coupling's error enters
+  the error norm at the members' weight.
+- *What it gave on the driver:* against bounded Cash–Karp, rows fell 41% on long
+  drought and 45% on episodic, and 41% and 29% at bounded Cash–Karp's error in
+  `J`. Every elasticity of five traits stayed within 0.11ε of the reference.
+  When the coupling's error was judged at the soil's weight instead, the error
+  in `J` grew to 22 times bounded Cash–Karp's.
+- *What a build needs:* the soil's inner steps held fixed in the replay, so that
+  reverse mode can run through them; a threshold that tightens with the
+  tolerance, because its error in `J` stops falling below `3e-5`; and the
+  invader's gradients measured, which the driver cannot do.
 
 ### Phase 2: the node axis
 

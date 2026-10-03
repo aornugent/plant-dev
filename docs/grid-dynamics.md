@@ -1388,85 +1388,111 @@ to 8.9e-16. Under bounded Cash–Karp, for the stand's invader and eight invader
   run, at ≤ 0.17ε in `ln J′`.* Parked until the schedule rules are built
   (phase 3, item 5), where the invader's rule belongs beside the resident's.
 
-## 15. The soil stepped alone where the plants draw little
+## 15. The soil stepped on its own where the plants draw little
 
-**Hypothesis: where the uptake is a small share of the soil's water budget, the
-soil can be integrated alone inside a member step, and the members can take
-their own longer steps.** §13's partition held the collar across the step and
-failed in the dry spells, where the coupling is an algebraic loop. The strategy
-reply put the gain in the rain intervals instead, where the draw is about 1% of
-the budget. ARK took that regime with an implicit chain and lost at matched
-error on the pulsed records (§10). Q1 of the soil pathfinder found the weak
-coupling in the same place: steps whose uptake is under 1% of the soil's budget
-hold 48–64% of rows, 91–97% of them soil-bound, and there the members could step
+**The idea.** When the plants take up only a small share of the water moving
+through the soil, the soil's equations barely depend on the plants over one
+step. The soil can then be integrated on its own, with short steps of its own,
+while the plant members take one longer step that reads the soil from that
+inner integration. This is a multirate step. §13's partitioned step tried the
+same split everywhere and failed in the dry spells, because there the plants'
+draw is most of the soil's budget and the two form a tight loop. The strategy
+reply argued that the gain lay in the rain intervals instead, where the draw is
+about 1% of the budget. ARK's implicit soil went after that gain and lost to
+bounded Cash–Karp at matched error on the pulsed records (§10). The soil
+pathfinder's first question located the weak coupling: steps whose uptake is
+under 1% of the soil's budget hold 48–64% of a run's rows, nearly all of those
+steps are limited by the soil's error, and on them the members alone could step
 4.7–7.2 times longer.
 
-**Test** (pre-registered; `measurements/pathfinders/soil-control/q3/`). On the
-driver, at bounded Cash–Karp's setting (bnd), 108 uniform nodes, long drought
-and episodic. A step is flagged when the uptake at its start is under 10% of
-the soil's budget, the largest threshold the pre-registered rule from Q1
-allowed; 62–67% of steps are flagged. A flagged step:
-- integrates the soil alone by Cash–Karp at `1e-9`, under the uptake
-  extrapolated linearly from the last step, landing on the member stages, where
-  the members read it;
-- evaluates the members' end once against that soil, and integrates the soil
-  again under the line to the uptake found there;
-- puts the coupling's error in the soil's slot of the norm: the larger of the
-  two soils' difference at the end and the stage uptakes' defect against the
-  line.
+**The test** (pre-registered; `measurements/pathfinders/soil-control/q3/`). The
+R driver runs bounded Cash–Karp's setting with 108 uniform introductions, on
+long drought and episodic. At the start of each step the driver computes the
+uptake's share of the soil's water budget. When the share is under 10%, the
+largest threshold that the pre-registered rule from the first question allowed,
+the step is taken as a multirate step; 62–67% of steps qualify. A multirate
+step runs in three parts:
+- The soil is integrated on its own by Cash–Karp at a tolerance of `1e-9`,
+  under an uptake extrapolated linearly from the previous step. The inner
+  integration stops at each of the members' stage times, and the members read
+  the soil there.
+- The members are evaluated once at the step's end against that soil, which
+  gives the uptake at the end. The soil is then integrated again under a
+  straight line from the starting uptake to that end uptake, and the step keeps
+  this corrected soil.
+- The coupling's error takes the soil's place in the step's error norm. It is
+  the larger of two gaps: between the two soil integrations at the step's end,
+  and between the uptake each member stage drew and the straight line.
 
-The other steps are bnd's. The registered step (mr) judges the coupling's error
-at the soil's weight. An exploratory variant (mrw), registered after mr's first
-runs, judges it at the members' weight. Elasticities (resident, five traits)
-are frozen-structure central differences at r = 1e-3 on the driver, for these
-runs and for bnd's alike, and bnd's plant reverse mode checks the method (gap
-under 0.03ε).
+Every other step is an ordinary step of bounded Cash–Karp. Two versions of the
+coupling's error test were run. The registered version judges that error at the
+soil's weight, which is ten times looser than the members' weight. The second
+version judges it at the members' weight; it was added after the first results
+and pre-registered before it ran. The resident's elasticities in five traits
+come from central differences, with relative perturbations of `1e-3`, on
+replays that hold each run's steps fixed. They are computed the same way for
+the multirate runs and for bounded Cash–Karp, and plant's reverse-mode
+gradients of bounded Cash–Karp agree with that method within 0.03ε.
 
-**Result** (`q3_report.log`):
+**Results** (`q3_report.log`):
 
 | | long drought | episodic |
 |---|---|---|
-| rows against bnd's, mr / mrw | −47.9% / −41.4% | −49.4% / −44.8% |
-| member evaluations, mr / mrw | −45.4% / −37.3% | −45.5% / −40.1% |
-| `J/J* − 1`, bnd / mr / mrw | −2.2e-5 / +1.7e-4 / +2.6e-5 | +1.2e-5 / +2.6e-4 / +7.1e-5 |
-| largest elasticity distance from `1e-5`, bnd / mr / mrw | 0.055 / 0.048 / 0.106ε | 0.041 / 0.028 / 0.036ε |
-| rows saved at bnd's `J` error, mrw | 41% (bnd at `3e-5`) | 29% (bnd at `3e-4`) |
+| rows saved against bounded Cash–Karp: registered / members' weight | 47.9% / 41.4% | 49.4% / 44.8% |
+| member evaluations saved: registered / members' weight | 45.4% / 37.3% | 45.5% / 40.1% |
+| relative error in `J`: bounded Cash–Karp / registered / members' weight | −2.2e-5 / +1.7e-4 / +2.6e-5 | +1.2e-5 / +2.6e-4 / +7.1e-5 |
+| largest elasticity error against the `1e-5` reference: bounded Cash–Karp / registered / members' weight | 0.055ε / 0.048ε / 0.106ε | 0.041ε / 0.028ε / 0.036ε |
+| rows saved by the members' weight at bounded Cash–Karp's error in `J` | 41%, against `3e-5` | 29%, against `3e-4` |
 
-- *mr fails its registered pass on `J`, narrowly.* Episodic's error is 2.6% over
-  the bound max(2× bnd's, 0.01ε), 22× bnd's, and barely moves with the tolerance
-  (+2.9e-4 at `1e-4`). Its gradients are unaffected: every elasticity lies
-  within 0.048ε of the reference, and within 0.065ε of bnd's measured the same
-  way.
-- *The bias was the coupling's estimate at the soil's weight.* The members'
-  stages read the predictor's soil, and the only estimate that sees that soil's
-  error was judged ten times looser than their own. Judged at the members'
-  weight, `J`'s error falls to 0.15 and 0.27 of mr's, level with bnd's on long
-  drought, for 5–7 points of the saving.
-- *mrw passes every criterion of the follow-up on both records:* rows and member
-  evaluations, `J`, each elasticity under ε/3 and within bnd's + 0.1ε, the ±5%
-  nudges (±0.0002ε in `ln J`), and R4 on `J` over `1e-4`, `3e-5`, `1e-5`.
-- *The saving is structural.* Loosening bnd's tolerance tenfold buys 21% of rows
-  on long drought and 23% on episodic. On long drought mrw saves 36–45% at
-  each of three tolerances.
-- *Below `3e-5` mrw's `J` error stops falling:* +2.6e-5 at `3e-5`, +2.7e-5 at
-  `1e-5`, about 0.001ε. The flag does not depend on the tolerance, and part of
-  the coupling's error does not shrink with it. The refinement to brute force
-  needs the flag to yield as the tolerance tightens.
-- *mrw moves some gradients more than mr does:* `a_dG2` on long drought is
-  −0.106ε from the reference against mr's −0.037ε, and −0.063ε from bnd's. The
-  replays are smooth (one-sided slopes give `lma`'s curvature as −43 against
-  mr's −44), so this is the multirate map's own bias, not noise.
-- *The replays carry a noise floor from the adaptive sub-steps.* The chain's step
-  sequence changes with θ, and its global error moves `ln J` by about 2.5e-7
-  where the perturbation moves the uptake (`lma`): 0.003ε in `lma`'s elasticity
-  at r = 1e-3, and at most 0.03ε for the floored traits. Reverse mode through a
-  frozen chain would carry none of it.
-- *Not measured:* the invader's role (plant cannot replay a multirate program),
-  traits beyond these five, other records, and the build's cost per sub-step.
-- *Verdict: a lever of 29–41% of rows at matched `J` error on the pulsed
-  records, in the regime ARK did not win, with gradients within 0.11ε of the
-  reference.* It needs the coupling at the members' weight, sub-steps frozen in
-  the replay, and a flag that yields as the tolerance tightens.
+- *The registered version fails its pre-registered pass on `J`, narrowly.* On
+  episodic its error is 2.6% over the bound, which was twice bounded
+  Cash–Karp's error or a hundredth of ε, whichever is larger. That error is 22
+  times bounded Cash–Karp's, and loosening the tolerance to `1e-4` hardly moves
+  it (+2.9e-4), so the tolerance was not controlling it. The gradients are
+  unaffected: every elasticity lies within 0.048ε of the reference, and within
+  0.065ε of bounded Cash–Karp's own when both are measured the same way.
+- *The bias came from judging the coupling's error at the soil's weight.* The
+  members' stages read the soil from the first, extrapolated integration, and
+  the only estimate that sees that soil's error was held ten times looser than
+  the members' own error. Judged at the members' weight instead, the error in
+  `J` falls to 0.15 and 0.27 of the registered version's, level with bounded
+  Cash–Karp's on long drought, for 5–7 points of the saving.
+- *The members'-weight version passes every criterion of its pre-registered
+  follow-up on both records.* Rows and member evaluations fall, `J` stays inside
+  the bound, and each elasticity stays under ε/3 and within bounded Cash–Karp's
+  own distance plus 0.1ε. The ±5% tolerance nudges move `ln J` by ±0.0002ε, and
+  `J` passes phase 1a's convergence rule over `1e-4`, `3e-5` and `1e-5`.
+- *The saving comes from the structure of the step, not from a looser
+  tolerance in disguise.* Loosening bounded Cash–Karp's tolerance tenfold saves
+  only 21% of rows on long drought and 23% on episodic. On long drought the
+  members'-weight version saves 36–45% at each of three tolerances.
+- *Below `3e-5` its error in `J` stops falling:* +2.6e-5 at `3e-5` and +2.7e-5
+  at `1e-5`, about 0.001ε. The threshold that decides which steps go multirate
+  does not depend on the tolerance, so part of the coupling's error stays fixed
+  as the tolerance tightens. For the controller to refine towards brute force,
+  that threshold has to tighten with the tolerance.
+- *The members'-weight version moves some gradients further than the
+  registered version does.* On long drought `a_dG2`'s elasticity is 0.106ε from
+  the reference, against 0.037ε for the registered version, and 0.063ε from
+  bounded Cash–Karp's. The replays behind it are smooth: their two one-sided
+  slopes give `lma`'s curvature as −43, against the registered version's −44.
+  So the shift is a real bias of the multirate step, not noise.
+- *The replays carry a small noise floor from the soil's adaptive inner steps.*
+  When a trait moves the uptake, the inner integration picks a different
+  sequence of steps, and its global error shifts `ln J` by about 2.5e-7. At a
+  perturbation of `1e-3` that adds 0.003ε to `lma`'s elasticity, and at most
+  0.03ε to the traits whose ε sits at the 0.01 floor. Reverse mode through
+  replays that hold the inner steps fixed would carry none of it.
+- *Not measured:* the invader's gradients, because plant cannot replay a
+  multirate step; traits beyond these five; other records; and an inner step's
+  cost in a compiled build.
+
+**Verdict.** On the two pulsed records the multirate step saves 29–41% of rows
+at bounded Cash–Karp's error in `J`, in the regime where ARK did not win, and
+every measured elasticity stays within 0.11ε of the reference. Before a build
+it needs three things: the coupling's error judged at the members' weight, the
+inner steps held fixed in replays so that reverse mode can run through them,
+and a threshold that tightens with the tolerance.
 
 ## 16. The node axis on long-wet: graded, spread, and both
 
@@ -1592,11 +1618,12 @@ most, and each rule's answer is scored against their median
   rain intervals, where an implicit chain takes it. The stall was the
   coupling's error, which no norm measured; measured, it converges and costs
   more.
-- *Supported on two pulsed records: the soil stepped alone where the plants draw
-  little,* with the coupling's error in the norm at the members' weight. It
-  saves 29–41% of rows at bnd's `J` error, with every elasticity of five traits
-  within 0.11ε of the reference (§15). Its `J` error stops falling below `3e-5`,
-  so its flag must yield as the tolerance tightens.
+- *Supported on two pulsed records: the soil stepped on its own where the
+  plants draw little,* with the coupling's error in the norm at the members'
+  weight. It saves 29–41% of rows at bounded Cash–Karp's error in `J`, and every
+  elasticity of five traits stays within 0.11ε of the reference (§15). Its error
+  in `J` stops falling below `3e-5`, so the threshold that picks its steps must
+  tighten with the tolerance.
 - *Partly supported: the constant record's rejections are the step-size law's.*
   On the chain alone PI leaves 6 of 1009; coupled, it removes 69%, cycles where
   the chain alone settles, and saves 1.0% of a gradient run (§7).
