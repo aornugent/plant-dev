@@ -1,0 +1,213 @@
+######## lib_ark's arkc on long drought, forward and uncapped, against the driver's arkc
+lib lib_ark: J 12.6425450956, 9786 accepted (accepted=9786 accepted_at_minimum=0 rejected_inaccurate=2652 rejected_thrown=0 rejected_refused=0)
+matches the driver's arkc (9786 accepted, J 12.6425450956 to 10 decimals): TRUE
+
+######## The implicit soil chain: arm A (arkc, 15 d) and arm B (A + rule A, each weight at most 100)
+
+== long-drought
+unweighted Cash-Karp         rows   962470  forward   1175342  accepted 17683  rejected 3911  longest  19.5 d | J/J* - 1 -1.26e-05
+bounded combined Cash-Karp   rows   637131  forward    789413  accepted 12560  rejected 3002  longest  15.0 d | J/J* - 1 -2.19e-05
+arm A (arkc, 15 d)           rows   532179  forward    675667  accepted  9784  rejected 2638  longest  15.0 d | J/J* - 1 -2.06e-03
+   against unweighted Cash-Karp: rows -44.7%, forward -42.5%, gradient run -44.4%
+   against bounded combined Cash-Karp: rows -16.5%, forward -14.4%, gradient run -16.2%
+   soil clamps: forward moisture_floor 0, potential_ceiling 0, positivity 0 | stand's sweep moisture_floor 0, potential_ceiling 0, positivity 0 | invader's sweep moisture_floor 0, potential_ceiling 0, positivity 0
+   gradient, stand   finite 50 of 50; refusal: none
+   gradient, invader finite 50 of 50; refusal: none
+   moves against the unweighted run (over 0.08: 30, over eps/3: 0):
+      resident 49 quantities: median 0.0709, largest 0.2706 (recruitment_decay), main largest 0.0812 (ln J)
+      invader  49 quantities: median 0.0598, largest 0.2281 (a_d0), main largest 0.0976 (stem_P50) 
+   distance from 1e-5 (ld_1e-5.rds):
+      unweighted CK  resident 49 quantities: median 0.0232, largest 0.1874 (a_dG1), main largest 0.1006 (a_dG2)
+      unweighted CK  invader  49 quantities: median 0.0036, largest 0.0295 (root_c), main largest 0.0112 (stem_P50) 
+      bounded CK     resident 49 quantities: median 0.0172, largest 0.0558 (a_dG1), main largest 0.0443 (a_dG2)
+      bounded CK     invader  49 quantities: median 0.0017, largest 0.0196 (root_P50), main largest 0.0064 (stem_P50) 
+      arm A          resident 49 quantities: median 0.0662, largest 0.3596 (d_I), main largest 0.1674 (a_dG2)
+      arm A          invader  49 quantities: median 0.0623, largest 0.2239 (a_d0), main largest 0.1088 (stem_P50) 
+      resident arm A farther than the unweighted CK on 45 of 49; C2: FAIL (median 0.0662 vs 0.0232, largest 0.3596 vs 0.1874)
+      invader  arm A farther than the unweighted CK on 47 of 49; C2: FAIL (median 0.0623 vs 0.0036, largest 0.2239 vs 0.0295)
+   failures: none
+      identical invader J' 12.642621 (stand J 12.642621)
+      lma=2     J' 2.04447e-21  ln J' moves 0.0011 eps against the unweighted walk
+      lma=0.5   J' 1874.83      ln J' moves 0.0436 eps against the unweighted walk
+      hmat=2    J' 2.07342e-08  ln J' moves 0.2377 eps against the unweighted walk
+      hmat=0.5  J' 164.269      ln J' moves 0.0242 eps against the unweighted walk
+      lma=1.4   J' 2.00602e-05 
+      lma=0.7   J' 450.185     
+      hmat=1.4  J' 0.0185745   
+      hmat=0.7  J' 75.1503     
+   phase seconds: stand_run 50, stand_gradient 154, invader_run 39, invader_gradient 137, lma=2 45, lma=0.5 38, hmat=2 40, hmat=0.5 41, lma=1.4 40, lma=0.7 39, hmat=1.4 40, hmat=0.7 38
+arm B (A + rule A, max 100)  rows   473839  forward    596205  accepted  9127  rejected 2357  longest  15.0 d | J/J* - 1 -2.05e-03
+   against unweighted Cash-Karp: rows -50.8%, forward -49.3%, gradient run -50.6%
+   against bounded combined Cash-Karp: rows -25.6%, forward -24.5%, gradient run -25.5%
+   soil clamps: forward moisture_floor 0, potential_ceiling 0, positivity 0 | stand's sweep moisture_floor 0, potential_ceiling 0, positivity 0 | invader's sweep moisture_floor 0, potential_ceiling 0, positivity 0
+   gradient, stand   finite 50 of 50; refusal: none
+   gradient, invader finite 50 of 50; refusal: none
+   moves against the unweighted run (over 0.08: 30, over eps/3: 0):
+      resident 49 quantities: median 0.0722, largest 0.2693 (recruitment_decay), main largest 0.0806 (ln J)
+      invader  49 quantities: median 0.0595, largest 0.2247 (a_d0), main largest 0.0977 (stem_P50) 
+   distance from 1e-5 (ld_1e-5.rds):
+      arm B          resident 49 quantities: median 0.0656, largest 0.3571 (d_I), main largest 0.1700 (a_dG2)
+      arm B          invader  49 quantities: median 0.0620, largest 0.2205 (a_d0), main largest 0.1090 (stem_P50) 
+      resident arm B farther than the unweighted CK on 46 of 49; C2: FAIL (median 0.0656 vs 0.0232, largest 0.3571 vs 0.1874)
+      invader  arm B farther than the unweighted CK on 47 of 49; C2: FAIL (median 0.0620 vs 0.0036, largest 0.2205 vs 0.0295)
+   failures: none
+      identical invader J' 12.642796 (stand J 12.642796)
+      lma=2     J' 2.04447e-21  ln J' moves 0.0011 eps against the unweighted walk
+      lma=0.5   J' 1874.84      ln J' moves 0.0434 eps against the unweighted walk
+      hmat=2    J' 2.073e-08    ln J' moves 0.2456 eps against the unweighted walk
+      hmat=0.5  J' 164.269      ln J' moves 0.0241 eps against the unweighted walk
+      lma=1.4   J' 2.00267e-05 
+      lma=0.7   J' 450.187     
+      hmat=1.4  J' 0.0185703   
+      hmat=0.7  J' 75.1506     
+   phase seconds: stand_run 45, stand_gradient 141, invader_run 36, invader_gradient 126, lma=2 41, lma=0.5 34, hmat=2 37, hmat=0.5 36, lma=1.4 38, lma=0.7 36, hmat=1.4 37, hmat=0.7 36
+
+== long-wet
+unweighted Cash-Karp         rows  1192455  forward   1452585  accepted 21921  rejected 4782  longest  18.3 d | J/J* - 1 -7.85e-06
+bounded combined Cash-Karp   rows   795397  forward    992679  accepted 15603  rejected 3870  longest  15.0 d | J/J* - 1 -6.10e-06
+arm A (arkc, 15 d)           rows   587187  forward    755461  accepted 10779  rejected 3089  longest  15.0 d | J/J* - 1 -1.03e-03
+   against unweighted Cash-Karp: rows -50.8%, forward -48.0%, gradient run -50.4%
+   against bounded combined Cash-Karp: rows -26.2%, forward -23.9%, gradient run -25.9%
+   soil clamps: forward moisture_floor 0, potential_ceiling 0, positivity 0 | stand's sweep moisture_floor 0, potential_ceiling 0, positivity 0 | invader's sweep moisture_floor 0, potential_ceiling 0, positivity 0
+   gradient, stand   finite 50 of 50; refusal: none
+   gradient, invader finite 50 of 50; refusal: none
+   moves against the unweighted run (over 0.08: 4, over eps/3: 0):
+      resident 49 quantities: median 0.0320, largest 0.1314 (omega), main largest 0.0485 (a_dG2)
+      invader  49 quantities: median 0.0150, largest 0.1183 (a_d0), main largest 0.0406 (ln J) 
+   distance from 1e-5 (wet_1e-5.rds):
+      unweighted CK  resident 49 quantities: median 0.0221, largest 0.0924 (a_dG1), main largest 0.0300 (a_dG2)
+      unweighted CK  invader  49 quantities: median 0.0073, largest 0.0496 (a_d0), main largest 0.0187 (stem_P50) 
+      bounded CK     resident 49 quantities: median 0.0146, largest 0.0623 (a_d0), main largest 0.0219 (a_dG2)
+      bounded CK     invader  49 quantities: median 0.0079, largest 0.0302 (a_f1), main largest 0.0157 (stem_P50) 
+      arm A          resident 49 quantities: median 0.0231, largest 0.0547 (vcmax_25), main largest 0.0414 (ln J)
+      arm A          invader  49 quantities: median 0.0132, largest 0.0687 (a_d0), main largest 0.0414 (ln J) 
+      resident arm A farther than the unweighted CK on 26 of 49; C2: FAIL (median 0.0231 vs 0.0221, largest 0.0547 vs 0.0924)
+      invader  arm A farther than the unweighted CK on 30 of 49; C2: FAIL (median 0.0132 vs 0.0073, largest 0.0687 vs 0.0496)
+   failures: none
+      identical invader J' 18.383226 (stand J 18.383226)
+      lma=2     J' 2.15714e-21  ln J' moves 0.0098 eps against the unweighted walk
+      lma=0.5   J' 2679.03      ln J' moves 0.0419 eps against the unweighted walk
+      hmat=2    J' 6.34624e-08  ln J' moves 0.1311 eps against the unweighted walk
+      hmat=0.5  J' 197.945      ln J' moves 0.0148 eps against the unweighted walk
+      lma=1.4   J' 1.45194e-05 
+      lma=0.7   J' 657.358     
+      hmat=1.4  J' 0.0587319   
+      hmat=0.7  J' 98.9665     
+   phase seconds: stand_run 56, stand_gradient 172, invader_run 44, invader_gradient 155, lma=2 49, lma=0.5 43, hmat=2 44, hmat=0.5 46, lma=1.4 47, lma=0.7 44, hmat=1.4 42, hmat=0.7 44
+arm B (A + rule A, max 100)  rows   533793  forward    682418  accepted 10182  rejected 2835  longest  15.0 d | J/J* - 1 -1.03e-03
+   against unweighted Cash-Karp: rows -55.2%, forward -53.0%, gradient run -54.9%
+   against bounded combined Cash-Karp: rows -32.9%, forward -31.3%, gradient run -32.7%
+   soil clamps: forward moisture_floor 0, potential_ceiling 0, positivity 0 | stand's sweep moisture_floor 0, potential_ceiling 0, positivity 0 | invader's sweep moisture_floor 0, potential_ceiling 0, positivity 0
+   gradient, stand   finite 50 of 50; refusal: none
+   gradient, invader finite 50 of 50; refusal: none
+   moves against the unweighted run (over 0.08: 4, over eps/3: 0):
+      resident 49 quantities: median 0.0324, largest 0.1311 (omega), main largest 0.0458 (a_dG2)
+      invader  49 quantities: median 0.0150, largest 0.1170 (a_d0), main largest 0.0404 (ln J) 
+   distance from 1e-5 (wet_1e-5.rds):
+      arm B          resident 49 quantities: median 0.0237, largest 0.0540 (vcmax_25), main largest 0.0412 (ln J)
+      arm B          invader  49 quantities: median 0.0127, largest 0.0674 (a_d0), main largest 0.0412 (ln J) 
+      resident arm B farther than the unweighted CK on 26 of 49; C2: FAIL (median 0.0237 vs 0.0221, largest 0.0540 vs 0.0924)
+      invader  arm B farther than the unweighted CK on 30 of 49; C2: FAIL (median 0.0127 vs 0.0073, largest 0.0674 vs 0.0496)
+   failures: none
+      identical invader J' 18.383299 (stand J 18.383299)
+      lma=2     J' 2.15714e-21  ln J' moves 0.0098 eps against the unweighted walk
+      lma=0.5   J' 2679.04      ln J' moves 0.0418 eps against the unweighted walk
+      hmat=2    J' 6.3442e-08   ln J' moves 0.1438 eps against the unweighted walk
+      hmat=0.5  J' 197.945      ln J' moves 0.0148 eps against the unweighted walk
+      lma=1.4   J' 1.45201e-05 
+      lma=0.7   J' 657.362     
+      hmat=1.4  J' 0.0587242   
+      hmat=0.7  J' 98.9667     
+   phase seconds: stand_run 54, stand_gradient 156, invader_run 40, invader_gradient 143, lma=2 48, lma=0.5 40, hmat=2 42, hmat=0.5 43, lma=1.4 43, lma=0.7 42, hmat=1.4 42, hmat=0.7 42
+
+== episodic
+unweighted Cash-Karp         rows   601180  forward    739792  accepted 11025  rejected 2542  longest  22.1 d | J/J* - 1 +2.58e-05
+bounded combined Cash-Karp   rows   415759  forward    523674  accepted  8210  rejected 2131  longest  15.0 d | J/J* - 1 +1.15e-05
+arm A (arkc, 15 d)           rows   348584  forward    451513  accepted  6394  rejected 1888  longest  15.0 d | J/J* - 1 -8.12e-04
+   against unweighted Cash-Karp: rows -42.0%, forward -39.0%, gradient run -41.6%
+   against bounded combined Cash-Karp: rows -16.2%, forward -13.8%, gradient run -15.8%
+   soil clamps: forward moisture_floor 0, potential_ceiling 0, positivity 0 | stand's sweep moisture_floor 0, potential_ceiling 0, positivity 0 | invader's sweep moisture_floor 0, potential_ceiling 0, positivity 0
+   gradient, stand   finite 50 of 50; refusal: none
+   gradient, invader finite 50 of 50; refusal: none
+   moves against the unweighted run (over 0.08: 9, over eps/3: 0):
+      resident 49 quantities: median 0.0278, largest 0.2795 (omega), main largest 0.0465 (rho)
+      invader  49 quantities: median 0.0214, largest 0.2848 (a_d0), main largest 0.0339 (stem_P50) 
+   distance from 1e-5 (epi_1e-5.rds):
+      unweighted CK  resident 49 quantities: median 0.0618, largest 0.1808 (a_dG1), main largest 0.1344 (a_dG2)
+      unweighted CK  invader  49 quantities: median 0.0077, largest 0.0713 (root_c), main largest 0.0204 (stem_P50) 
+      bounded CK     resident 49 quantities: median 0.0142, largest 0.0781 (omega), main largest 0.0237 (lma)
+      bounded CK     invader  49 quantities: median 0.0029, largest 0.0212 (stem_c), main largest 0.0089 (stem_P50) 
+      arm A          resident 49 quantities: median 0.0448, largest 0.3998 (omega), main largest 0.1579 (a_dG2)
+      arm A          invader  49 quantities: median 0.0262, largest 0.2530 (a_d0), main largest 0.0544 (stem_P50) 
+      resident arm A farther than the unweighted CK on 17 of 49; C2: FAIL (median 0.0448 vs 0.0618, largest 0.3998 vs 0.1808)
+      invader  arm A farther than the unweighted CK on 46 of 49; C2: FAIL (median 0.0262 vs 0.0077, largest 0.2530 vs 0.0713)
+   failures: none
+      identical invader J' 1.9772954 (stand J 1.9772954)
+      lma=2     J' 9.74818e-20  ln J' moves 0.0202 eps against the unweighted walk
+      lma=0.5   J' 540.874      ln J' moves 0.0150 eps against the unweighted walk
+      hmat=2    J' 1.04593e-09  ln J' moves 0.0789 eps against the unweighted walk
+      hmat=0.5  J' 68.2977      ln J' moves 0.0071 eps against the unweighted walk
+      lma=1.4   J' 2.51462e-05 
+      lma=0.7   J' 95.0351     
+      hmat=1.4  J' 0.000742713 
+      hmat=0.7  J' 24.5934     
+   phase seconds: stand_run 32, stand_gradient 90, invader_run 25, invader_gradient 82, lma=2 26, lma=0.5 23, hmat=2 24, hmat=0.5 24, lma=1.4 24, lma=0.7 23, hmat=1.4 24, hmat=0.7 23
+arm B (A + rule A, max 100)  rows   293394  forward    378452  accepted  5788  rejected 1678  longest  15.0 d | J/J* - 1 -8.24e-04
+   against unweighted Cash-Karp: rows -51.2%, forward -48.8%, gradient run -50.9%
+   against bounded combined Cash-Karp: rows -29.4%, forward -27.7%, gradient run -29.2%
+   soil clamps: forward moisture_floor 0, potential_ceiling 0, positivity 0 | stand's sweep moisture_floor 0, potential_ceiling 0, positivity 0 | invader's sweep moisture_floor 0, potential_ceiling 0, positivity 0
+   gradient, stand   finite 50 of 50; refusal: none
+   gradient, invader finite 50 of 50; refusal: none
+   moves against the unweighted run (over 0.08: 9, over eps/3: 0):
+      resident 49 quantities: median 0.0330, largest 0.2715 (omega), main largest 0.0488 (rho)
+      invader  49 quantities: median 0.0221, largest 0.2855 (a_d0), main largest 0.0340 (stem_P50) 
+   distance from 1e-5 (epi_1e-5.rds):
+      arm B          resident 49 quantities: median 0.0390, largest 0.3918 (omega), main largest 0.1598 (a_dG2)
+      arm B          invader  49 quantities: median 0.0265, largest 0.2538 (a_d0), main largest 0.0545 (stem_P50) 
+      resident arm B farther than the unweighted CK on 17 of 49; C2: FAIL (median 0.0390 vs 0.0618, largest 0.3918 vs 0.1808)
+      invader  arm B farther than the unweighted CK on 45 of 49; C2: FAIL (median 0.0265 vs 0.0077, largest 0.2538 vs 0.0713)
+   failures: none
+      identical invader J' 1.9772715 (stand J 1.9772715)
+      lma=2     J' 9.75006e-20  ln J' moves 0.0279 eps against the unweighted walk
+      lma=0.5   J' 540.871      ln J' moves 0.0152 eps against the unweighted walk
+      hmat=2    J' 1.04582e-09  ln J' moves 0.0830 eps against the unweighted walk
+      hmat=0.5  J' 68.2976      ln J' moves 0.0072 eps against the unweighted walk
+      lma=1.4   J' 2.51423e-05 
+      lma=0.7   J' 95.0344     
+      hmat=1.4  J' 0.000742572 
+      hmat=0.7  J' 24.5933     
+   phase seconds: stand_run 26, stand_gradient 78, invader_run 21, invader_gradient 71, lma=2 22, lma=0.5 20, hmat=2 21, hmat=0.5 21, lma=1.4 21, lma=0.7 20, hmat=1.4 20, hmat=0.7 21
+
+== C3 on long drought: arm A's +-5% tolerance nudges, each quantity's larger move, in eps/3
+unweighted CK ld_2.85e-5.rds         J 12.668667454 | soil clamps on the stand's sweep: not read | gradient finite 50 of 50
+unweighted CK ld_3.15e-5.rds         J 12.668848837 | soil clamps on the stand's sweep: not read | gradient finite 50 of 50
+unweighted CK resident 49 quantities: median 0.189, largest 0.715 (a_dG1), 0.494 (d_I), 0.476 (storage_relaxation_offset); over 1: 0 -> C3 pass
+unweighted CK invader  49 quantities: median 0.078, largest 0.173 (root_c), 0.120 (TF24_cost_scale), 0.110 (stem_P50); over 1: 0 -> C3 pass
+arm A         arkA_ld_2.85e-5.rds    J 12.644834924 | soil clamps on the stand's sweep: moisture_floor 0, potential_ceiling 0, positivity 0 | gradient finite 50 of 50
+arm A         arkA_ld_3.15e-5.rds    J 12.640467271 | soil clamps on the stand's sweep: moisture_floor 0, potential_ceiling 0, positivity 0 | gradient finite 50 of 50
+arm A         resident 49 quantities: median 0.080, largest 0.730 (a_dG1), 0.705 (a_d0), 0.394 (storage_relaxation_offset); over 1: 0 -> C3 pass
+arm A         invader  49 quantities: median 0.121, largest 0.531 (a_d0), 0.285 (root_c), 0.271 (root_P50); over 1: 0 -> C3 pass
+
+######## Every walk of the bounded and ARK runs: J', or RAISED
+         bnd_ld    arkA_ld   arkB_ld   bnd_wet   arkA_wet  arkB_wet  bnd_epi  
+lma=0.5  1877      1875      1875      2682      2679      2679      541.1    
+lma=0.7  450.8     450.2     450.2     658.1     657.4     657.4     95.08    
+lma=1.4  2.009e-05 2.006e-05 2.003e-05 1.448e-05 1.452e-05 1.452e-05 2.521e-05
+lma=2    2.044e-21 2.044e-21 2.044e-21 2.159e-21 2.157e-21 2.157e-21 9.745e-20
+hmat=0.5 164.4     164.3     164.3     198       197.9     197.9     68.31    
+hmat=0.7 75.23     75.15     75.15     99.02     98.97     98.97     24.6     
+hmat=1.4 0.01869   0.01857   0.01857   0.05892   0.05873   0.05872   0.0007446
+hmat=2   2.085e-08 2.073e-08 2.073e-08 6.367e-08 6.346e-08 6.344e-08 1.048e-09
+         arkA_epi  arkB_epi 
+lma=0.5  540.9     540.9    
+lma=0.7  95.04     95.03    
+lma=1.4  2.515e-05 2.514e-05
+lma=2    9.748e-20 9.75e-20 
+hmat=0.5 68.3      68.3     
+hmat=0.7 24.59     24.59    
+hmat=1.4 0.0007427 0.0007426
+hmat=2   1.046e-09 1.046e-09
+
+######## Where each arm stopped, if it did
+queue7 lane B finished 11:08:08
+queue7 lane A finished 11:23:43

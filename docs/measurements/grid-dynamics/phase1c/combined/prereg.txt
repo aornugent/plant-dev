@@ -76,3 +76,42 @@ Addendum, 09:17 UTC, the probes (episodic, lib_sw, stand gradient):
   quantity left); the combined nudges on long drought keep both roles'
   gradients, to show whether the refusal holds at +-5%. C2 and C3 are scored on
   ln J only, and reported as unmeasurable for the elasticities.
+
+Addendum, 10:00 UTC, before any run of the bounded setting.
+- New setting: the combined one plus WEIGHT_MAX=100 (plant state-weights
+  4555ea13's Control$ode_weight_max, applied in Patch::error_weights as
+  min(weight x factor, max); lib_sw rebuilt, bit-identical with it unset). Runs
+  go from a fresh snapshot of plant-dev 4bb85f5's harness (combined/snap2).
+- Root cause of the refusals, confirmed by the coordinator with grad_probe.R:
+  (psi/b)^c = 2863022.99 is (1000/root_b)^root_c, a soil layer at plant's 1000
+  MPa potential ceiling within an accepted step. The sweep's clamp tallies:
+  89 ceiling clamps under soil x10 + rule A + 15 d, 0 under rule A + 15 d, 0
+  with the bound at 100; episodic's stand gradient with the bound is finite in
+  50 of 50 columns.
+- Runs: long drought, long-wet and episodic with both roles' gradients and the
+  eight walks; long drought's +-5% tolerance nudges (2.85e-5, 3.15e-5) with both
+  roles' gradients and no walks; long-wet's 1e-5 reference with gradients (its
+  forward-only one gives ln J alone).
+- Criteria C1-C3 unchanged. Costs against the same unweighted baselines, and
+  against rule A + 15 d alone (phase1c's ld_h15, wet_h15, epi_h15: replays of
+  the driver's programs, their forward priced with the driver's attempts),
+  since the bound makes the late soil weight rule A's.
+- Reported with each run: the soil's clamp tallies on the sweep (moisture
+  floor, potential ceiling, positivity); a nonzero ceiling count means the
+  bound is too loose on that record.
+- If a record still refuses, its refusal and tallies are reported and no other
+  bound is tried.
+
+Results of the bounded setting, 10:40 UTC (report_bounded.log):
+- The rebuilt lib_sw with WEIGHT_MAX unset repeats epi_base bit for bit.
+- C1 passes: no phase raises; all 24 walks run; every gradient is finite (50 of
+  50, both roles, three records and both nudges); the soil's clamp tallies on
+  every sweep are 0 / 0 / 0 (the forward runs clamp 286-707 times).
+- C2: passes for both roles on long drought and episodic, and for long-wet's
+  resident. Long-wet's invader fails it by the letter: median distance 0.0079
+  against the unweighted run's 0.0073 eps; its largest is 0.030 against 0.050.
+- C3 passes: on long drought the +-5% nudges move the resident by at most 0.605
+  eps/3 (d_I) and the invader by 0.078 eps/3; the unweighted run's own nudges
+  move 0.715 and 0.173.
+- Costs, gradient run against unweighted / against rule A + 15 d: long drought
+  -33.7% / -14.2%, long-wet -33.1% / -15.1%, episodic -30.6% / -12.7%.

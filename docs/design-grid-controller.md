@@ -355,6 +355,10 @@ pulsed record before the gate.
     alone's estimate, and repeats the driver's arkc bit for bit at `1e-4`,
     `3e-5` and `1e-5`. Both roles' gradients are finite on the stand
     (`grid-dynamics.md` §10).
+  - On three records with the walks, arkc at `3e-5` saves 42–55% of a gradient
+    run and never fails. But it misses the accuracy bar on long drought and
+    episodic, where the resident's largest distance from `1e-5` is 0.36–0.40ε.
+    The soil's weight is being swept for the largest that meets it.
 - *RODAS on the whole stand: assessed, not run.*
   - Selecting it is one line: odelia's solver takes its method at construction
     (`scm.h:548`).
@@ -435,9 +439,10 @@ pulsed record before the gate.
   - But the soil's weight times rule A's factor reaches 1000. The error test
     then accepts steps with a soil stage at the 1000 MPa potential ceiling, and
     both roles' gradients are refused.
-  - plant now bounds each state's weight (`ode_weight_max`). At 100 the episodic
-    gradient is finite, for 2% more steps. The three records with walks and
-    nudges are running.
+  - plant now bounds each state's weight (`ode_weight_max`). At 100 every
+    gradient is finite on the three records and every walk runs. The setting
+    saves 31–34% of a gradient run and passes the accuracy and nudge tests:
+    Cash–Karp's setting.
 
 **1d. Invaders refined against the resident's dense output** (R5, R3), only if
 phase 4 finds the invader's curvatures short. For R5, 1c's cap suffices.

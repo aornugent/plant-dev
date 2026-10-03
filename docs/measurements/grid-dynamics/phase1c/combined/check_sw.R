@@ -1,9 +1,11 @@
 # lib_sw with no weights against lib_guard's own episodic run (spot-check
 # epi_base, 3e-5 tied, uniform 108): the stand's J, step times, sizes and attempts.
+# The run to check is the first argument, chk_epi_forward.rds by default.
 D <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev"
 WT <- "/home/user/plant-dev/.claude/worktrees/agent-a12cdeaf09a1e3e8a"
 a <- readRDS(file.path(WT, "docs/measurements/spot-check/epi_base.rds"))$stand
-b <- readRDS(file.path(D, "phase1c/combined/full/chk_epi_forward.rds"))
+args <- commandArgs(TRUE)
+b <- readRDS(if (length(args)) args[1] else file.path(D, "phase1c/combined/full/chk_epi_forward.rds"))
 cat("lib:", b$versions$lib, "plant", b$versions$plant, "odelia", b$versions$odelia, "\n")
 b <- b$stand
 for (k in c("J", "times", "sizes", "attempts"))

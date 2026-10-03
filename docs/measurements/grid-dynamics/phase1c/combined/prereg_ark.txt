@@ -1,0 +1,71 @@
+The implicit soil chain (ARK) in plant, three records: pre-registration
+Written 2026-10-03 ~10:45 UTC, before any run of this test.
+
+Setting
+- DEV/lib_ark: odelia ark-step f11e753, phylloptim 378b083, plant ark-soil
+  4dc59a40 (on state-weights 4555ea13, so WEIGHT_MAX works). Runs go from a
+  fresh snapshot of plant-dev 1ffb6ab's harness (combined/snap3), with the soil
+  clamp tallies of combined/run_record_clamps.patch applied to run_record.R.
+- Plant's own adaptive runs at 3e-5, ATOL=1e-4, the 108 uniform introductions,
+  the active knots as zero pulses, HMAX=15.
+- Arm A: METHOD=ark, WEIGHT_SOIL=100 (arkc: the soil judged by the chain
+  alone's estimate, at weight 100).
+- Arm B: arm A plus rule A's WEIGHT (window/rule_A/weight_<record>.rds) and
+  WEIGHT_MAX=100; the bound holds the soil at 100, so rule A acts on the members.
+- Records: long drought, long-wet, episodic, each with both roles' gradients and
+  the eight walks (lma and hmat at x0.5, x0.7, x1.4, x2); arm A also runs long
+  drought's +-5% tolerance nudges (2.85e-5, 3.15e-5) with both roles' gradients
+  and no walks.
+
+Check, first and forward only: METHOD=ark WEIGHT_SOIL=100 on long drought at
+3e-5, no cap, reproduces the driver's arkc bit for bit: 9786 accepted steps,
+J 12.6425450956. If it does not, stop and report.
+
+Criteria (as before)
+- C1, never fails: no phase and no walk raises, and both roles' gradients are
+  finite, on every record.
+- C2, accuracy: per record and role, the distance from the same 1e-5 references
+  (nudges/ld_1e-5.rds, combined/full/wet_1e-5.rds, phase1c/full/epi_1e-5.rds;
+  median and largest over the 49 quantities, in eps) is no larger than plant's
+  unweighted Cash-Karp run's, and the largest stays under eps/3.
+- C3, reproducible (arm A, long drought): the +-5% nudges move every quantity of
+  both roles by less than eps/3.
+
+Reported, not pass/fail: costs (rows, forward, gradient run) against plant's
+unweighted Cash-Karp runs (spot-check ld_3e-5, wet_base, epi_base) and against
+the bounded combined Cash-Karp runs (combined/full/bnd_*); J's error against J*;
+both roles' moves against the unweighted run; the soil's clamp tallies on each
+sweep; anything that throws.
+
+Stop rule: if a record refuses its gradient or a walk raises, that arm stops; the
+refusal and its tallies are reported and no fix is tried. Each arm runs its
+records cheapest first (episodic, long drought, long-wet).
+
+Addendum, 10:48 UTC.
+- The check passed: lib_ark's arkc on long drought (forward, uncapped) has 9786
+  accepted steps and J 12.6425450956, the driver's.
+- Seen, episodic: both arms finite in both roles (50 of 50), every soil clamp
+  tally 0 (forward and sweeps), all eight walks run; J/J* - 1 = -8.1e-4 (A) and
+  -8.2e-4 (B). C2 fails for both arms and both roles: the resident's largest
+  distance from 1e-5 is 0.400 eps (A, omega) and 0.392 (B) against unweighted
+  Cash-Karp's 0.181; the invader's median 0.026 against 0.008. A C2 failure is
+  not a stop condition, so both arms carry on.
+
+Results, 11:26 UTC (report_ark.log). Neither arm stopped.
+- C1 passes for both arms on all three records: every gradient finite (50 of
+  50, both roles, and both nudges), every soil clamp tally 0 on the forward runs
+  and on every sweep, and all 48 walks run.
+- C2 fails for both arms on every record and both roles, by the letter. Against
+  1e-5 the largest distances are long drought resident 0.360 / 0.357 eps (d_I,
+  arms A / B, over eps/3) against unweighted Cash-Karp's 0.187; episodic resident
+  0.400 / 0.392 (omega, over eps/3) against 0.181; long-wet resident 0.055 /
+  0.054 against 0.092 (its medians 0.023 / 0.024 against 0.022 fail it). The
+  invader's medians are 2-17 times Cash-Karp's on every record.
+- C3 passes for arm A on long drought: the +-5% nudges move the resident by at
+  most 0.730 eps/3 (a_dG1) and the invader by 0.531 (a_d0), against the
+  unweighted Cash-Karp run's 0.715 and 0.173.
+- J/J* - 1: long drought -2.06e-3 / -2.05e-3, long-wet -1.03e-3 / -1.03e-3,
+  episodic -8.1e-4 / -8.2e-4 (Cash-Karp's are 1e-5 to 3e-5).
+- Gradient run against unweighted Cash-Karp / against bounded combined: arm A
+  -44.4 / -16.2% (long drought), -50.4 / -25.9% (long-wet), -41.6 / -15.8%
+  (episodic); arm B -50.6 / -25.5%, -54.9 / -32.7%, -50.9 / -29.2%.

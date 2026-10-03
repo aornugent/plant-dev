@@ -1,0 +1,126 @@
+######## The rebuilt lib_sw with WEIGHT_MAX unset against lib_guard's episodic run
+lib: /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_sw plant 2.0.0.9002 odelia 0.5.0 
+J         identical
+times     identical
+sizes     identical
+attempts  identical
+J 1.97895313198793 vs 1.97895313198793; 11026 vs 11026 steps
+
+######## The episodic probes with the soil clamp tallies (the coordinator's grad_probe.R runs)
+soil clamps, forward: soil_moisture_floor 240 soil_potential_ceiling 255 soil_positivity 5; sweep: soil_moisture_floor 0 soil_potential_ceiling 0 soil_positivity 0
+episodic soil 1 weight rule A max - hmax 15: J 1.978945209, 9662 steps (longest 15.0 d, first over 15 d at t = -); gradient finite 50 of 50; refusal: none; 44 + 121 s
+soil clamps, forward: soil_moisture_floor 519 soil_potential_ceiling 588 soil_positivity 8; sweep: soil_moisture_floor 60 soil_potential_ceiling 89 soil_positivity 0
+episodic soil 10 weight rule A max - hmax 15: J 1.978923510, 8044 steps (longest 15.0 d, first over 15 d at t = -); gradient finite 0 of 50; refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.605170), where the series does not hold | 1; 36 + 107 s
+soil clamps, forward: soil_moisture_floor 286 soil_potential_ceiling 310 soil_positivity 6; sweep: soil_moisture_floor 0 soil_potential_ceiling 0 soil_positivity 0
+episodic soil 10 weight rule A max 100 hmax 15: J 1.978924870, 8211 steps (longest 15.0 d, first over 15 d at t = -); gradient finite 50 of 50; refusal: none; 38 + 108 s
+
+######## The bounded setting against plant's own unweighted runs and rule A with the 15-day cap
+
+== long-drought
+unweighted         rows   962470  forward   1175342  accepted 17683  rejected 3911  longest  19.5 d | J/J* - 1 -1.26e-05
+rule A, 15 d       rows   744121  forward    907130  accepted 15297  rejected 3351  longest  15.0 d | J/J* - 1 -1.53e-05 | against unweighted: rows -22.7%, forward -22.8%, gradient run -22.7%
+bounded            rows   637131  forward    789413  accepted 12560  rejected 3002  longest  15.0 d | J/J* - 1 -2.19e-05
+   against unweighted: rows -33.8%, forward -32.8%, gradient run -33.7%
+   against rule A, 15 d: rows -14.4%, forward -13.0%, gradient run -14.2%
+soil clamps: forward moisture_floor 474, potential_ceiling 512, positivity 19 | stand's sweep moisture_floor 0, potential_ceiling 0, positivity 0 | invader's sweep moisture_floor 0, potential_ceiling 0, positivity 0
+gradient, stand   finite 50 of 50; refusal: none
+gradient, invader finite 50 of 50; refusal: none
+moves against the unweighted run (over 0.08: 1, over eps/3: 0):
+   resident 49 quantities: median 0.0202, largest 0.1316 (a_dG1), main largest 0.0563 (a_dG2)
+   invader  49 quantities: median 0.0067, largest 0.0261 (root_P50), main largest 0.0176 (stem_P50) 
+distance from 1e-5 (ld_1e-5.rds):
+   unweighted   resident 49 quantities: median 0.0232, largest 0.1874 (a_dG1), main largest 0.1006 (a_dG2)
+   unweighted   invader  49 quantities: median 0.0036, largest 0.0295 (root_c), main largest 0.0112 (stem_P50) 
+   rule A, 15 d resident 49 quantities: median 0.0142, largest 0.1088 (d_I), main largest 0.0626 (a_dG2)
+   rule A, 15 d invader  49 quantities: median 0.0013, largest 0.0144 (root_P50), main largest 0.0035 (stem_P50) 
+   bounded      resident 49 quantities: median 0.0172, largest 0.0558 (a_dG1), main largest 0.0443 (a_dG2)
+   bounded      invader  49 quantities: median 0.0017, largest 0.0196 (root_P50), main largest 0.0064 (stem_P50) 
+   resident bounded farther than the unweighted on 21 of 49; C2 (median and largest no larger, largest under eps/3): pass
+   invader  bounded farther than the unweighted on 9 of 49; C2 (median and largest no larger, largest under eps/3): pass
+failures: none
+   identical invader J' 12.668436 (stand J 12.668436)
+   lma=2     J' 2.04446e-21  ln J' moves 0.0008 eps against the unweighted walk
+   lma=0.5   J' 1876.8       ln J' moves 0.0019 eps against the unweighted walk
+   hmat=2    J' 2.08519e-08  ln J' moves 0.0134 eps against the unweighted walk
+   hmat=0.5  J' 164.366      ln J' moves 0.0007 eps against the unweighted walk
+   lma=1.4   J' 2.00906e-05 
+   lma=0.7   J' 450.817     
+   hmat=1.4  J' 0.0186863   
+   hmat=0.7  J' 75.2333     
+phase seconds: stand_run 64, stand_gradient 183, invader_run 50, invader_gradient 161, lma=2 55, lma=0.5 49, hmat=2 51, hmat=0.5 51, lma=1.4 51, lma=0.7 51, hmat=1.4 52, hmat=0.7 51
+
+== long-wet
+unweighted         rows  1192455  forward   1452585  accepted 21921  rejected 4782  longest  18.3 d | J/J* - 1 -7.85e-06
+rule A, 15 d       rows   940073  forward   1150346  accepted 19166  rejected 4287  longest  15.0 d | J/J* - 1 -6.22e-06 | against unweighted: rows -21.2%, forward -20.8%, gradient run -21.1%
+bounded            rows   795397  forward    992679  accepted 15603  rejected 3870  longest  15.0 d | J/J* - 1 -6.10e-06
+   against unweighted: rows -33.3%, forward -31.7%, gradient run -33.1%
+   against rule A, 15 d: rows -15.4%, forward -13.7%, gradient run -15.1%
+soil clamps: forward moisture_floor 654, potential_ceiling 707, positivity 12 | stand's sweep moisture_floor 0, potential_ceiling 0, positivity 0 | invader's sweep moisture_floor 0, potential_ceiling 0, positivity 0
+gradient, stand   finite 50 of 50; refusal: none
+gradient, invader finite 50 of 50; refusal: none
+moves against the unweighted run (over 0.08: 1, over eps/3: 0):
+   resident 49 quantities: median 0.0148, largest 0.1046 (a_dG1), main largest 0.0519 (a_dG2)
+   invader  49 quantities: median 0.0051, largest 0.0513 (a_d0), main largest 0.0088 (lma) 
+distance from 1e-5 (wet_1e-5.rds):
+   unweighted   resident 49 quantities: median 0.0221, largest 0.0924 (a_dG1), main largest 0.0300 (a_dG2)
+   unweighted   invader  49 quantities: median 0.0073, largest 0.0496 (a_d0), main largest 0.0187 (stem_P50) 
+   rule A, 15 d resident 49 quantities: median 0.0296, largest 0.0949 (a_l1), main largest 0.0419 (lma)
+   rule A, 15 d invader  49 quantities: median 0.0094, largest 0.0584 (a_d0), main largest 0.0220 (stem_P50) 
+   bounded      resident 49 quantities: median 0.0146, largest 0.0623 (a_d0), main largest 0.0219 (a_dG2)
+   bounded      invader  49 quantities: median 0.0079, largest 0.0302 (a_f1), main largest 0.0157 (stem_P50) 
+   resident bounded farther than the unweighted on 18 of 49; C2 (median and largest no larger, largest under eps/3): pass
+   invader  bounded farther than the unweighted on 22 of 49; C2 (median and largest no larger, largest under eps/3): FAIL (median 0.0079 vs 0.0073, largest 0.0302 vs 0.0496)
+failures: none
+   identical invader J' 18.402092 (stand J 18.402092)
+   lma=2     J' 2.15886e-21  ln J' moves 0.0219 eps against the unweighted walk
+   lma=0.5   J' 2681.91      ln J' moves 0.0007 eps against the unweighted walk
+   hmat=2    J' 6.36722e-08  ln J' moves 0.0003 eps against the unweighted walk
+   hmat=0.5  J' 198.017      ln J' moves 0.0003 eps against the unweighted walk
+   lma=1.4   J' 1.4477e-05  
+   lma=0.7   J' 658.079     
+   hmat=1.4  J' 0.0589245   
+   hmat=0.7  J' 99.0152     
+phase seconds: stand_run 78, stand_gradient 226, invader_run 61, invader_gradient 202, lma=2 71, lma=0.5 60, hmat=2 62, hmat=0.5 64, lma=1.4 67, lma=0.7 58, hmat=1.4 61, hmat=0.7 63
+
+== episodic
+unweighted         rows   601180  forward    739792  accepted 11025  rejected 2542  longest  22.1 d | J/J* - 1 +2.58e-05
+rule A, 15 d       rows   477475  forward    589227  accepted  9669  rejected 2263  longest  15.0 d | J/J* - 1 +1.79e-05 | against unweighted: rows -20.6%, forward -20.4%, gradient run -20.5%
+bounded            rows   415759  forward    523674  accepted  8210  rejected 2131  longest  15.0 d | J/J* - 1 +1.15e-05
+   against unweighted: rows -30.8%, forward -29.2%, gradient run -30.6%
+   against rule A, 15 d: rows -12.9%, forward -11.1%, gradient run -12.7%
+soil clamps: forward moisture_floor 286, potential_ceiling 310, positivity 6 | stand's sweep moisture_floor 0, potential_ceiling 0, positivity 0 | invader's sweep moisture_floor 0, potential_ceiling 0, positivity 0
+gradient, stand   finite 50 of 50; refusal: none
+gradient, invader finite 50 of 50; refusal: none
+moves against the unweighted run (over 0.08: 26, over eps/3: 0):
+   resident 49 quantities: median 0.0850, largest 0.2045 (d_I), main largest 0.1215 (a_dG2)
+   invader  49 quantities: median 0.0048, largest 0.0520 (root_c), main largest 0.0115 (stem_P50) 
+distance from 1e-5 (epi_1e-5.rds):
+   unweighted   resident 49 quantities: median 0.0618, largest 0.1808 (a_dG1), main largest 0.1344 (a_dG2)
+   unweighted   invader  49 quantities: median 0.0077, largest 0.0713 (root_c), main largest 0.0204 (stem_P50) 
+   rule A, 15 d resident 49 quantities: median 0.0220, largest 0.0743 (root_P50), main largest 0.0272 (lma)
+   rule A, 15 d invader  49 quantities: median 0.0034, largest 0.0489 (root_P50), main largest 0.0140 (stem_P50) 
+   bounded      resident 49 quantities: median 0.0142, largest 0.0781 (omega), main largest 0.0237 (lma)
+   bounded      invader  49 quantities: median 0.0029, largest 0.0212 (stem_c), main largest 0.0089 (stem_P50) 
+   resident bounded farther than the unweighted on 9 of 49; C2 (median and largest no larger, largest under eps/3): pass
+   invader  bounded farther than the unweighted on 7 of 49; C2 (median and largest no larger, largest under eps/3): pass
+failures: none
+   identical invader J' 1.9789249 (stand J 1.9789249)
+   lma=2     J' 9.74535e-20  ln J' moves 0.0087 eps against the unweighted walk
+   lma=0.5   J' 541.064      ln J' moves 0.0011 eps against the unweighted walk
+   hmat=2    J' 1.04814e-09  ln J' moves 0.0048 eps against the unweighted walk
+   hmat=0.5  J' 68.3098      ln J' moves 0.0001 eps against the unweighted walk
+   lma=1.4   J' 2.5207e-05  
+   lma=0.7   J' 95.0824     
+   hmat=1.4  J' 0.00074463  
+   hmat=0.7  J' 24.6024     
+phase seconds: stand_run 38, stand_gradient 109, invader_run 31, invader_gradient 96, lma=2 34, lma=0.5 29, hmat=2 29, hmat=0.5 31, lma=1.4 31, lma=0.7 30, hmat=1.4 31, hmat=0.7 30
+
+== C3 on long drought: the +-5% tolerance nudges, each quantity's larger move, in eps/3
+unweighted ld_2.85e-5.rds         soil clamps on the stand's sweep: not read | gradient finite 50 of 50
+unweighted ld_3.15e-5.rds         soil clamps on the stand's sweep: not read | gradient finite 50 of 50
+unweighted resident 49 quantities: median 0.189, largest 0.715 (a_dG1), 0.494 (d_I), 0.476 (storage_relaxation_offset); over 1: 0 -> C3 pass
+unweighted invader  49 quantities: median 0.078, largest 0.173 (root_c), 0.120 (TF24_cost_scale), 0.110 (stem_P50); over 1: 0 -> C3 pass
+bounded    bnd_ld_2.85e-5.rds     soil clamps on the stand's sweep: moisture_floor 0, potential_ceiling 0, positivity 0 | gradient finite 50 of 50
+bounded    bnd_ld_3.15e-5.rds     soil clamps on the stand's sweep: moisture_floor 0, potential_ceiling 0, positivity 0 | gradient finite 50 of 50
+bounded    resident 49 quantities: median 0.145, largest 0.605 (d_I), 0.518 (a_l1), 0.359 (recruitment_decay); over 1: 0 -> C3 pass
+bounded    invader  49 quantities: median 0.024, largest 0.078 (root_c), 0.075 (root_P50), 0.067 (stem_c); over 1: 0 -> C3 pass

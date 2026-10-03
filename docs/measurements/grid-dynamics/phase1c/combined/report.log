@@ -54,7 +54,13 @@ gradient, invader finite 0 of 50; refusal: TF24 gradient: [phylloptim:infeasible
 moves against the unweighted run, 2 quantities (over 0.08: 0, over eps/3: 0):
    resident median 0.0001, largest 0.0001 (ln J), main largest 0.0001 (ln J)
    invader  median 0.0001, largest 0.0001 (ln J), main largest 0.0001 (ln J) 
-distance from 1e-5 (wet_1e-5_forward.rds, forward only): ln J unweighted 0.0008, combined 0.0007 eps
+distance from 1e-5 (wet_1e-5.rds):
+   unweighted resident median 0.0008, largest 0.0008 (ln J), main largest 0.0008 (ln J)
+   unweighted invader  median 0.0008, largest 0.0008 (ln J), main largest 0.0008 (ln J) 
+   combined   resident median 0.0007, largest 0.0007 (ln J), main largest 0.0007 (ln J)
+   combined   invader  median 0.0007, largest 0.0007 (ln J), main largest 0.0007 (ln J) 
+   resident combined farther than the unweighted on 0 of 1; largest over eps/3: no
+   invader  combined farther than the unweighted on 0 of 1; largest over eps/3: no
 failures: none
    identical invader J' 18.402122 (stand J 18.402122)
    lma=2     J' 2.15886e-21  ln J' moves 0.0219 eps against the unweighted walk
@@ -126,9 +132,12 @@ ck10_3.15e-5.rds       invader finite 50 of 50 | value 12.668524 | refusal: none
 
 ######## The episodic probes: which part refuses
 probe_epi_ruleA_h15.rds    J 1.978945209,  9662 steps, longest 15.0 d | gradient finite 50 of 50 | refusal: none
+probe_epi_ruleA_h15_clamps.rds J 1.978945209,  9662 steps, longest 15.0 d | gradient finite 50 of 50 | refusal: none
 probe_epi_soil10.rds       J 1.978902765,  9077 steps, longest 22.1 d | gradient finite 50 of 50 | refusal: none
 probe_epi_soil10_h15.rds   J 1.978926495,  9092 steps, longest 15.0 d | gradient finite 50 of 50 | refusal: none
 probe_epi_soil10_ruleA.rds J 1.978906956,  7996 steps, longest 49.6 d | gradient finite  0 of 50 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.60
+probe_epi_soil10_ruleA_h15.rds J 1.978923510,  8044 steps, longest 15.0 d | gradient finite  0 of 50 | refusal: TF24 gradient: [phylloptim:infeasible:stem_curve_domain] cumulative_vulnerability_integral_derivatives_at: (psi/b)^c = 2863022.993706 is past the vulnerability curve's domain (4.60
+probe_epi_soil10_ruleA_h15_max100.rds J 1.978924870,  8211 steps, longest 15.0 d | gradient finite 50 of 50 | refusal: none
 
 ######## lib_sw's soil x10 and rule-A-capped runs against the driver's programs
 driver: J 12.668411238865, 13937 accepted | replay: J 12.668411602843, 13938 steps | lib_sw adaptive: J 12.668413444285, 13941 steps
