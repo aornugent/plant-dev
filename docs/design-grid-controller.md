@@ -19,7 +19,9 @@ enough for cheap probes to find and refine the solver's errors.
 This document is the design, and the arc from here to finished. The assessment
 that led here (ε, the enablers, the floor, the headroom, local analyses) is
 recorded in `docs/assessment.md`. The debugging record of the grid's cost and
-error is `docs/grid-dynamics.md`.
+error is `docs/grid-dynamics.md`. `docs/geometry.md` sets all three in one
+picture: the triangle the run lives on, its mesh, the metrics, the error and
+stability.
 
 ## Where the arc starts
 
@@ -328,6 +330,11 @@ pulsed record before the gate.
 - *Runs:* Dormand–Prince 5(4), with its free fourth-order dense output, against
   Cash–Karp in rows and error. Then per-member events on that interpolant, in
   cost and spread, against §11's quintic.
+- *Also each pair's negative stages on the pools,* and any raise. On a pool's
+  test equation Dormand–Prince's sixth stage turns negative past 1.04τ, against
+  Cash–Karp's fourth past 2.16τ. On a 15-day step at τ_s its lowest stage is
+  −4.25, where Cash–Karp's stay positive (`harness/stability.R`,
+  `docs/geometry.md`, 4(a)).
 - *Pass:* the split members' fields within one error weight, the spread cut as
   far as with the quintic, for under 5% of a forward.
 - *Decides* the pair and the interpolant's order. If 1a picks an implicit chain,
@@ -346,6 +353,10 @@ pulsed record before the gate.
 - *Runs:* rule A's weight with every step capped at 15 days (2.16τ_s), on the
   bank's pulsed records, with invaders over `lma` and `hmat` ×0.5–×2 walked on
   each.
+- *Also which limit raises.* A cap at 26 days breaks Cash–Karp's positivity
+  (2.16τ_s) but keeps its stability (3.73τ_s). If invaders raise there, a negative
+  stage raises. Then Dormand–Prince runs, whose stages turn negative past 1.04τ_s
+  (7.3 days), need a 7-day cap or sub-steps past `h/τ_eff ≈ 1`.
 - *Pass:* nothing raises. The cap stays if it gives up less than a fifth of the
   window's 21–28%. Otherwise the invaders' members sub-step where `h/τ_eff > 2`,
   frozen per grid.
@@ -429,6 +440,12 @@ gain, and each multiplies with the rows the arc saves.
   for runs that host invader gradients, including the resident run the invaders
   walk, since an invader steps on its resident's stages. odelia carries both as
   first-class steppers.
+  - *A caveat found since:* Dormand–Prince's stages turn negative on a pool past
+    1.04τ, half Cash–Karp's 2.16τ (`docs/geometry.md`, 4(a)). An invader walks
+    with no error control, so its pools meet that overshoot on any step past
+    7.3 days.
+  - Whether a negative stage raises is phases 1b and 1c's question. A Cash–Karp
+    interpolant, if 1b finds one good enough, would sidestep it.
 - *The local analysis* is invaders over ×0.5–×2 and the resident within ±10%
   (`OBJECTIVES.md`).
 - *Elasticities' ε is at least 0.01* (`OBJECTIVES.md`).
@@ -522,6 +539,8 @@ done
   the curvatures of steps 1, 4 and 5.
 - `rows.R` scores the driver's runs in rows, and `attempts.R` reads their
   attempt logs.
+- `stability.R` gives each pair's stability and positivity limits on a pool's
+  test equation.
 - `v12_steps.R`, `error_channels.R`, `j_error_trace.R` and `soil_bound.R`
   record and decompose a run's steps and errors.
 

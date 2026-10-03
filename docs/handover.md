@@ -104,7 +104,8 @@ The tell that you skipped this is a new feature that grows an existing if/else c
 The goal is `OBJECTIVES.md`. The design is `docs/design-grid-controller.md`:
 its search under the system-design skill, what it rests on, and the arc from
 here to finished. The assessment that led to it is `docs/assessment.md`, whose
-steps the sections below record.
+steps the sections below record. `docs/geometry.md` puts the problem in one
+picture: spaces, metrics, error and stability.
 
 | the arc | state |
 |---|---|
