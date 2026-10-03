@@ -1,0 +1,30 @@
+== early_sld_1e-4: J 0.000000000, 127 steps to t = 1.1111
+  t 0.3704 node 1: height +3.60e-06  mortality -1.48e-06  fecundity +1.92e-05  storage +1.63e-05  offspring +1.92e-05  I +3.41e-08  N +2.04e-08
+  t 0.3704 soil: -3.60e-08 -2.18e-08 -1.25e-08 -1.35e-08 -2.53e-08
+  t 0.7407 node 1: height +5.68e-06  mortality +2.38e-07  fecundity +3.34e-05  storage +3.26e-05  offspring +3.34e-05  I +3.41e-08  N +2.04e-08
+  t 0.7407 node 2: height +2.01e-06  mortality +1.26e-05  fecundity +1.38e-05  storage +4.45e-05  offspring +1.37e-05  I +2.58e-08  N +2.86e-08
+  t 0.7407 soil: -4.88e-07 -9.80e-07 -1.59e-06 -6.63e-07 -2.38e-07
+  t 1.1111 node 1: height +5.91e-06  mortality +4.64e-07  fecundity +4.14e-05  storage +3.09e-05  offspring +4.14e-05  I +3.41e-08  N +2.04e-08
+  t 1.1111 node 2: height +3.03e-06  mortality +6.91e-06  fecundity +1.83e-05  storage +2.89e-05  offspring +1.83e-05  I +2.58e-08  N +2.86e-08
+  t 1.1111 node 3: height -1.61e-06  mortality +6.15e-05  fecundity -5.79e-06  storage +7.12e-05  offspring -6.04e-06  I +1.30e-08  N +1.63e-08
+  t 1.1111 soil: -6.67e-06 +1.09e-06 +1.35e-07 -1.11e-06 -2.52e-06
+== early_sld_1e-5: J 0.000000000, 138 steps to t = 1.1111
+  t 0.3704 node 1: height +3.04e-06  mortality +4.20e-07  fecundity +1.61e-05  storage +1.35e-05  offspring +1.61e-05  I +2.95e-08  N +1.60e-08
+  t 0.3704 soil: -3.60e-08 -2.18e-08 -1.25e-08 -1.35e-08 -2.53e-08
+  t 0.7407 node 1: height +3.42e-06  mortality +4.72e-07  fecundity +1.98e-05  storage +1.78e-05  offspring +1.98e-05  I +2.95e-08  N +1.60e-08
+  t 0.7407 node 2: height +7.26e-07  mortality +2.50e-06  fecundity +4.59e-06  storage +1.98e-05  offspring +4.58e-06  I +7.87e-09  N +9.46e-09
+  t 0.7407 soil: -4.18e-07 -6.31e-07 -1.04e-06 -3.98e-07 -1.45e-07
+  t 1.1111 node 1: height +3.51e-06  mortality +3.74e-07  fecundity +2.45e-05  storage +1.57e-05  offspring +2.45e-05  I +2.95e-08  N +1.60e-08
+  t 1.1111 node 2: height +1.38e-06  mortality +1.25e-06  fecundity +8.19e-06  storage +8.75e-06  offspring +8.18e-06  I +7.87e-09  N +9.46e-09
+  t 1.1111 node 3: height +7.33e-07  mortality +1.12e-06  fecundity +4.37e-06  storage +2.00e-05  offspring +4.36e-06  I +7.09e-09  N +1.15e-08
+  t 1.1111 soil: -6.65e-06 +1.13e-06 +2.46e-07 -8.05e-07 -1.91e-06
+== early_sld_1e-6: J 0.000000000, 158 steps to t = 1.1111
+  t 0.3704 node 1: height +2.26e-06  mortality +6.47e-07  fecundity +1.19e-05  storage +1.02e-05  offspring +1.19e-05  I +2.31e-08  N +8.91e-09
+  t 0.3704 soil: -3.59e-08 -2.18e-08 -1.25e-08 -1.35e-08 -2.53e-08
+  t 0.7407 node 1: height +2.03e-06  mortality +3.65e-07  fecundity +1.16e-05  storage +8.75e-06  offspring +1.16e-05  I +2.31e-08  N +8.91e-09
+  t 0.7407 node 2: height +7.11e-08  mortality +5.34e-07  fecundity +4.68e-07  storage +1.63e-06  offspring +4.65e-07  I +7.19e-10  N +1.45e-09
+  t 0.7407 soil: -3.42e-07 -3.35e-07 -6.82e-07 -2.83e-07 -1.37e-07
+  t 1.1111 node 1: height +1.93e-06  mortality +2.76e-07  fecundity +1.34e-05  storage +8.25e-06  offspring +1.34e-05  I +2.31e-08  N +8.91e-09
+  t 1.1111 node 2: height +3.11e-07  mortality +2.87e-07  fecundity +1.90e-06  storage +1.94e-06  offspring +1.89e-06  I +7.19e-10  N +1.45e-09
+  t 1.1111 node 3: height +3.08e-07  mortality +2.10e-08  fecundity +1.78e-06  storage +5.09e-06  offspring +1.77e-06  I +2.57e-09  N +5.51e-09
+  t 1.1111 soil: -4.02e-06 -1.19e-07 +1.86e-08 -6.47e-07 -1.57e-06

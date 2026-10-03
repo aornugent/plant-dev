@@ -1,0 +1,15 @@
+       t              uptake    uptake_rel      soil    identical_up
+ Min.   :0.0000   Min.   :0   Min.   :0    Min.   :0   Min.   :1    
+ 1st Qu.:0.1214   1st Qu.:0   1st Qu.:0    1st Qu.:0   1st Qu.:1    
+ Median :0.2622   Median :0   Median :0    Median :0   Median :1    
+ Mean   :0.3874   Mean   :0   Mean   :0    Mean   :0   Mean   :1    
+ 3rd Qu.:0.6236   3rd Qu.:0   3rd Qu.:0    3rd Qu.:0   3rd Qu.:1    
+ Max.   :1.1089   Max.   :0   Max.   :0    Max.   :0   Max.   :1    
+ identical_soil
+ Min.   :1     
+ 1st Qu.:1     
+ Median :1     
+ Mean   :1     
+ 3rd Qu.:1     
+ Max.   :1     
+checked 619 states: uptake identical at 619, soil rates identical at 619; max |du| 0 (rel 0), max |dsoil| 0

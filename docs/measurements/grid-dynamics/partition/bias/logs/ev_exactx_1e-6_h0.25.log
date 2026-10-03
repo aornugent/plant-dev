@@ -1,0 +1,3 @@
+split exactx nodes 108 tol 1e-06 soil_tol 3e-05: J 0.000000000 (J - J* -1 relative), 5563 accepted, 64 s; accepted=5563 accepted_at_minimum=0 rejected_inaccurate=1 rejected_thrown=0 rejected_refused=0 rejected_switch=0
+member evaluations 184375 (rate evaluations 33394) + 1097532 in the soil's exact coupling; uptake_at 0 in 0 uptake sweeps; soil-chain rates 165576; soil sub-steps 27586 accepted, 10 rejected, 0 thrown; holds 5574
+accumulators at the end: rainfall 13.8698356 infiltration 8.48767691 drainage 8.26351654 uptake 0.212090481 runoff 0; soil 0.127199 0.223657 0.244254 0.254287 0.260835

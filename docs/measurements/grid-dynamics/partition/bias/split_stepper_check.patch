@@ -1,0 +1,10 @@
+--- partition/split_stepper.R
++++ split_stepper_check.R
+@@ -517,6 +517,7 @@
+         cat(sprintf("checked %d states: uptake identical at %d, soil rates identical at %d; max |du| %.3g (rel %.3g), max |dsoil| %.3g\n",
+                     nrow(ck), sum(ck[, "identical_up"]), sum(ck[, "identical_soil"]),
+                     max(ck[, "uptake"]), max(ck[, "uptake_rel"]), max(ck[, "soil"])))
++        if (nzchar(Sys.getenv("CHECK_OUT"))) saveRDS(ck, Sys.getenv("CHECK_OUT"))
+         quit(save = "no")
+       }
+       next

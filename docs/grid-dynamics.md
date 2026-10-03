@@ -64,7 +64,7 @@ wet by its own value, so an onset's rising day counts as dry there.
 | 9 | the sign-change refusal costs 3.4× | it refuses after the window too | half established: limited to the window it keeps `J` for 43% less; limited to the cohort that earns `J` it does not. Superseded by per-member events (§11) |
 | 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the members alone need about half the steps, and the chain implicit and out of the norm together is untested (§10) |
 | 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges (§11); its cost in the sweeps not measured |
-| 12 | the partitioned step's corrected couplings stall at 1e-4 to 5e-4 | the held collar's first-order deficit in the dry spells' water budget; the drift toward a fixed bias as the members' tolerance tightens is not traced | the partition killed (§13), and dead for another reason: in the dry spells the coupling is an algebraic loop; the drift likely a defect in the corrections, not traced |
+| 12 | the partitioned step's corrected couplings stall at 1e-4 to 5e-4 | the held collar's first-order deficit in the dry spells' water budget; the drift is the coupling's error, which no norm measured, so the dry spells' steps stayed long as the tolerance tightened | the partition killed (§13), and dead for another reason: in the dry spells the coupling is an algebraic loop. With the coupling's error in the norm it converges, at 0.39–1.85 of the monolith's leaf solves |
 | 13 | the sweep costs 2.5–2.7 forwards, so a run with every gradient spends 74% in sweeps; spreading each panel's leaf area slows it 1.7–3.4× | a member taped at its recorded point costs 2.4 forward evaluations, with five implicit-function solves, and every zero-depth pulse rebinds the patch twice; the spread's slowdown is the light field's fallback path when two nodes' heights fall out of order | established (`perf-sweep.md`); three changes would halve the sweep |
 
 ## 1. The steps
@@ -645,6 +645,11 @@ reply's first lever). Each change was tested alone, and each alone fails:
   17 684, less ARK's lower order. The reply prices it at 1.6–1.9× on everything
   that walks rows. The chain's error would then be checked against one tight
   run, since ARK's embedded estimate misjudges it (§7).
+- *Out of the norm means out of control.* The partition's drift was an error no
+  norm measured: the steps did not shrink where it was made as the tolerance
+  tightened (§13). So the test must show `J` and the gradients converging over
+  tolerances, and the chain's error must be estimated somewhere, if not in the
+  norm then by the chain alone integrated tightly against the recorded uptake.
 
 **Root cause.** Five scalar equations, the soil chain answering each rain
 change, set 93% of the steps. A monolithic step pays the members' leaf solves
@@ -898,34 +903,86 @@ crossing refusal. Where the residual is large (`|ΔJ| ≥ 1e-4`), 93–114% of i
 in the members born before 0.5, the first two nodes' output 2–12e-4 low; the
 two-pass corrector's sits in those born 0.5–3.6 (97%).
 
-**Likely a defect in the corrections, not traced.** As the members' steps
-shrink, each corrected coupling tends to the coupled step, so an error that
-stops falling is an inconsistency, not an order. The strategy reply's two
-suspects:
-- *Stage six read late:* Cash–Karp's sixth stage sits at 7/8 of the step,
-  before the fifth at its end. Not in the stepper: every coupling lands the soil
-  on 7/8 and on the end in time order and hands each stage its own soil
-  (`split_stepper.R`, `STAGE_BY_TIME`).
-- *The nodes' weights held:* the newest nodes' quadrature weights change with
-  time, and a hold freezes them across the soil's sub-steps. Untested.
-- *`exact`, carried, is no witness,* though the reply counts it as biased: its
-  error falls 1.36-fold for 1.17 times the steps, about second order.
-- *Two runs would decide:* the member steps and the soil's sub-steps both forced
-  onto the coupled run's steps, where the scheme must reproduce it to the
-  exchange's small error; and the soil's draw read from the coupled run's
-  recording while the members keep long steps. The first isolates the
-  mechanics, the second the side. Being root-caused, since a scheme that does
-  not converge as its steps shrink has a defect until shown otherwise.
+**Root cause of the drift: the error control never measured the coupling's
+error** (`partition/bias/`, a systematic-debugging spike). Each corrected
+coupling is consistent; what does not shrink is its error in the dry spells,
+because nothing estimates it:
+- *What the stepper controlled:* the members' norm leaves out the soil and the
+  accumulators; the soil's sub-cycle controls its own integration of whatever
+  uptake the coupling hands it; and the defect correction is applied but never
+  measured.
+- *So the dry spells' steps stay long:* the members are smooth there. A dry step's
+  median and 90th centile are 3.70 and 9.09 days at `1e-4`, still 1.33 and 4.40
+  at `1e-6`. Over them every corrected coupling over-draws the top layer, the
+  pools empty earlier, and the mortality that follows leaves a deficit on every
+  node then alive.
+- *The first such event:* the dry spell of t = 3.38–3.70 under `stagelin +
+  defect` at `1e-6`. The top layer is 6.0e-4 too dry before net production
+  changes sign at about 3.55. Node 1's pool is −3.0e-3 by 3.70, and nodes 1–4's
+  mortality +5.2e-4 to +6.0e-4; node 1's gap grows to +1.75e-3 by t = 39.6.
+  Nodes 1–2 carry 64% of `J`, hence the 93–114% there.
+- *Why it looked fixed:* in other phases the same uncontrolled error is positive
+  (nodes 3–6 +2.3e-3 at `1e-4`). That part fades faster with the tolerance, so the
+  total drifts through zero toward the dry spells' negative part.
+
+**The runs that decided it:**
+- *Lockstep:* one soil step per member step on the same tableau, soil stage i
+  reading member stage i's true uptake, replaying a monolithic run. `J`, every
+  node's fecundity and the soil at every step's end are bit-identical, on the
+  `3e-5` run's 17 684 steps and the `1e-7` run's 34 301. `held + defect` in
+  lockstep errs +7.28e-3 and then +2.29e-3: the exchange's own error, falling
+  with the step.
+- *The soil's draw read from the `1e-7` recording,* the members on their own long
+  steps: `J − J*` +6.4e-5, −8.0e-5, −1.6e-4 and −6.8e-5 at `1e-4`, `3e-5`, `1e-5`
+  and `1e-6`, spread over every node. The −1.6e-4 is the soil sub-cycle's tolerance
+  (−1.3e-5 with the soil at `1e-6`), and with no sub-cycle it is +1.8e-5. So the
+  members' side and the mechanics are exact to about 2e-5.
+- *The member step capped:* `stagelin + defect` at `1e-6` gives −4.92e-4 uncapped,
+  −8.82e-5 at a day and −3.90e-5 at half a day, first order. `pc + defect` capped
+  at a day gives +5.1e-7. Node 1's mortality error in the first event halves with
+  each halving of the cap, with no floor.
+
+**Refuted:**
+- *stage six read late:* the lockstep is bit-identical with stage six at 7/8;
+  handed the soil at the step's end instead, node 1's offspring is off by
+  −2.0e-3;
+- *the nodes' weights held:* once there are ten nodes, the newest and boundary
+  nodes draw 3e-5 to 5e-4 of the stand's water, and the capped runs have no floor;
+- *the true and held uptake as different quantities:* bit-identical at all
+  17 684 accepted states;
+- *an `O(1)` error per event:* the lockstep is exact through every introduction
+  and knot;
+- *the members' own long-step error:* +1.8e-5 with the recorded soil.
+
+**The coupling's error in the members' norm** (`CNORM`,
+`partition/bias/split_stepper_fix.patch`): each layer's error is the size of the
+correction the defect applies, `h Σ b_i |defect_i| / dz`, with soil-bound steps
+adjusted at second order.
+
+| member tol | `J − J*`, coupling in the norm | without | leaf solves, of the monolith's at `3e-5` |
+|---|---|---|---|
+| `1e-4` | −2.94e-4 | +5.6e-4 | 0.39 |
+| `3e-5` | −1.97e-4 | +1.1e-4 | 0.54 |
+| `1e-5` | −1.22e-4 | −2.4e-4 | 0.77 |
+| `1e-6` | −3.99e-5 | −4.9e-4 | 1.85 |
+
+- *The error now falls with the tolerance,* node 1's from −4.7e-4 to −3.3e-5, and
+  the dry steps shrink with it (median 2.91 days at `1e-4`, 0.46 at `1e-6`).
+- *It restores the convergence, not the cost:* the monolith at `1e-4` takes 0.84
+  of its leaf solves for +3.7e-5.
+- *A side defect:* a step capped by `HMAX` can land within 2e-16 of a knot without
+  clipping to it, and the next attempt has zero length.
+  `split_stepper_cap.patch` lands on the target.
 
 **What it costs:** `uptake_at` is 1/140 of a leaf solve (734 instructions against
 104 640), not the 1/1000 assumed; `held`'s calls add about 5% to the leaf solves.
 The stepper sources the driver as it was at 2ad8059, from the spike's checkout.
 
-**Root cause.** In dry spells the soil dries by the members' own uptake, through
-a collar the leaf moves to keep drawing. Holding either side across a member
-step leaves a first-order error in the water budget, which `J` amplifies. A
-partition would have to move both the collar and the members within the step
-to high order, which is the coupled step.
+**Root cause of the held collar's error.** In dry spells the soil dries by the
+members' own uptake, through a collar the leaf moves to keep drawing. Holding
+either side across a member step leaves a first-order error in the water
+budget, which `J` amplifies. A partition would have to move both the collar and
+the members within the step to high order, which is the coupled step.
 
 **The verdict, re-read.**
 - *The bar was 2000 times inside ε.* At errors near 5e-4 in `J`, 0.02ε,
@@ -988,7 +1045,9 @@ to high order, which is the coupled step.
   leaves a first-order error in the dry spells' water budget, and the
   corrections stall at 1e-4 to 5e-4 (§13). At a bar of ε they might have
   passed, but there the coupling is an algebraic loop, and the gain was in the
-  rain intervals, where an implicit chain takes it.
+  rain intervals, where an implicit chain takes it. The stall was the
+  coupling's error, which no norm measured; measured, it converges and costs
+  more.
 - *Partly supported: the constant record's rejections are the step-size law's.*
   On the chain alone PI leaves 6 of 1009; coupled, it removes 69%, cycles where
   the chain alone settles, and saves 1.0% of a gradient run (§7).
@@ -1026,12 +1085,10 @@ design against, not a result).
 
 ## Next probes, each one variable
 
-Running:
-- the partition's drift root-caused (§13).
-
 Rows first:
 - the chain implicit and out of the norm together, scored in rows and in the
-  gradients' spread under nudges (§10);
+  gradients' spread under nudges, over three tolerances to show convergence
+  (§10, §13);
 - goal-oriented rows: the window's weight per component and time from the
   pilot's sweep, and the understory tiered against the canopy's exact step
   (§8);

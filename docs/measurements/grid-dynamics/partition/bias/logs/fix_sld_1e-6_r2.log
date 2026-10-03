@@ -1,0 +1,3 @@
+split stagelin nodes 108 tol 1e-06 soil_tol 3e-05: J 12.668208398 (J - J* -3.99e-05 relative), 35566 accepted, 514 s; accepted=35566 accepted_at_minimum=0 rejected_inaccurate=3789 rejected_thrown=0 rejected_refused=0 rejected_switch=0
+member evaluations 13078734 (rate evaluations 236238) + 0 in the soil's exact coupling; uptake_at 80621004 in 1432500 uptake sweeps; soil-chain rates 1196370; soil sub-steps 198887 accepted, 508 rejected, 0 thrown; holds 157528
+accumulators at the end: rainfall 120.266849 infiltration 75.2018807 drainage 62.4629081 uptake 12.6179754 runoff 0; soil 0.263717 0.290257 0.300555 0.307063 0.311733

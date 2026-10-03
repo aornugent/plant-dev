@@ -1,0 +1,33 @@
+--- partition/split_stepper.R
++++ split_stepper_fix.R
+@@ -41,6 +41,7 @@
+ SOIL_ATOL <- as.numeric(Sys.getenv("ATOL", "1")) * SOIL_TOL
+ COUPLING <- match.arg(Sys.getenv("COUPLING", "held"), c("held", "exact", "exactx", "stage", "defect", "stagelin", "pc"))
+ DEFECT <- COUPLING == "defect" || Sys.getenv("DEFECT") == "1"
++CNORM <- Sys.getenv("CNORM") == "1"
+ PC_ITER <- as.integer(Sys.getenv("PC_ITER", "1"))
+ SUB_ACC <- Sys.getenv("SUB_ACC", "1") == "1"
+ STEP_LOG <- nzchar(Sys.getenv("STEP_LOG"))
+@@ -390,6 +391,11 @@
+   cnt$holds <- cnt$holds + 1
+   yerr <- combine(0, tb$b - tb$d, k, h)
+   yerr[s_idx] <- 0
++  # CNORM: the coupling's error in the members' norm, as each layer's error: the
++  # stages' quadrature of how far the uptake they evaluated was from the uptake
++  # the soil was given (the size of the correction DEFECT applies, without
++  # cancellation between stages; for exact couplings, the members' own move).
++  if (CNORM) yerr[soil(y1)] <- h * colSums(tb$b * abs(defect)) / e_dz
+   list(y = y1, yerr = yerr, rates = at_end, P = production(y1), K = klass(y1),
+        held = hold_end, h_sub = cyc$h, sub_acc = cyc$accepted, sub_rej = cyc$rejected,
+        defect = defect, true_up = true_up, a_end = a_end, plans = plans)
+@@ -410,7 +416,9 @@
+       hn <- reject(h)
+       n$rejected_thrown <- n$rejected_thrown + 1
+     } else {
+-      hn <- adjust(h, a$y, a$yerr, a$rates)
++      # The coupling's error is second order locally, so a soil-bound step
++      # adjusts at order two (the driver's kink rule).
++      hn <- adjust(h, a$y, a$yerr, a$rates, if (CNORM) soil(a$y) else integer())
+       if (!patch$ode_state_valid(a$y)) {
+         hn <- reject(h)
+         n$rejected_refused <- n$rejected_refused + 1

@@ -324,12 +324,13 @@ on disk and a few driver probes:
   measured: the reply counts it under 2% on a free fourth-order interpolant,
   against +10–20% with the midpoint.
 - *The partitioned step is killed* (§13). Holding the collar across a member
-  step under-draws the dry spells' water budget at first order, and the
-  corrections drift to a bias of about −5e-4 as the members' tolerance
-  tightens, likely a defect in the corrections, not traced. The bar was 2000
-  times inside ε, but the scheme is dead for another reason: in the dry spells
-  the coupling is an algebraic loop, and the gain was in the rain intervals,
-  where an implicit chain takes it.
+  step under-draws the dry spells' water budget at first order. The corrections'
+  drift to about −5e-4 was root-caused: they are consistent, but no norm
+  measured the coupling's error, so the dry spells' steps stayed long (a median
+  of 1.33 days at `1e-6`) as the tolerance tightened. With that error in the
+  members' norm the scheme converges, at 0.39–1.85 of the monolith's leaf
+  solves, so it stays dead: in the dry spells the coupling is an algebraic loop,
+  and the gain was in the rain intervals, where an implicit chain takes it.
 - *Open:* grid-dynamics' *Next probes*, ordered by the cost above.
 
 **The strategy consult and its reply** (`docs/oracle-consultation-strategy.md`,
@@ -346,13 +347,14 @@ its addenda, and `docs/oracle-response-strategy.md`). What it changed:
   first-day rejections as class switches, is refuted: they are the chain's own
   drainage switching on (`grid-dynamics.md` §7).
 - *A scheme that does not converge is a defect until shown otherwise:* the
-  partition's drift.
+  partition's drift was one, in its error control rather than its corrections.
+  The same blind spot awaits the chain out of the norm, so that test must show
+  convergence over tolerances.
 - *One object serves events, invaders and long steps:* a continuous extension of
   the global step, of its order (grid-dynamics, *Where the results point*).
 - *Reframings:* the inner solve warm-started as an index-1 algebraic variable;
   bias against noise across records; the Hessian's cost, about 68 forwards by
   chords for five traits in both roles.
-- *Running* (a subagent): the partition's drift root-caused.
 - *Next, with the user:* a design for the controller, and the chain implicit
   and out of the norm on the driver, scored in rows and the gradients' spread.
 

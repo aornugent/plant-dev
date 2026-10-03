@@ -1,0 +1,51 @@
+--- partition/split_stepper.R
++++ split_stepper_lock.R
+@@ -39,7 +39,13 @@
+ 
+ SOIL_TOL <- as.numeric(Sys.getenv("SOIL_TOL", Sys.getenv("TOL", "1e-3")))
+ SOIL_ATOL <- as.numeric(Sys.getenv("ATOL", "1")) * SOIL_TOL
+-COUPLING <- match.arg(Sys.getenv("COUPLING", "held"), c("held", "exact", "exactx", "stage", "defect", "stagelin", "pc"))
++COUPLING <- match.arg(Sys.getenv("COUPLING", "held"), c("held", "exact", "exactx", "stage", "defect", "stagelin", "pc", "lock"))
++# lock (decisive run (a)): one soil step per member step on the same tableau, the
++# soil's stage i its own Cash-Karp stage, read by member stage i. LOCK_UP picks
++# the soil's uptake at stage i: "true" (the member stage's own, which is the
++# coupled step) or "held" (the hold at t, at the soil's stage moisture); DEFECT
++# corrects the soil's end as for the other couplings.
++LOCK_UP <- Sys.getenv("LOCK_UP", "true")
+ DEFECT <- COUPLING == "defect" || Sys.getenv("DEFECT") == "1"
+ PC_ITER <- as.integer(Sys.getenv("PC_ITER", "1"))
+ SUB_ACC <- Sys.getenv("SUB_ACC", "1") == "1"
+@@ -283,6 +289,23 @@
+       if (is.null(a_h)) return(NULL)
+       defect[i, ] <- e$a - a_h
+     }
++  } else if (COUPLING == "lock") {
++    ksl <- list(ks)
++    hu <- held_uptake(held, nn)
++    for (i in 2:6) {
++      Ys <- combine(y[s_idx], tb$A[i, ], ksl, h)
++      soil_at[[i]] <- Ys
++      e <- stage_rates(i, Ys)
++      if (is.null(e)) return(NULL)
++      k[[i]] <- e$k
++      true_up[i, ] <- e$a
++      a_h <- hu(Ys[1:5], stage_t[i])
++      if (is.null(a_h)) return(NULL)
++      defect[i, ] <- e$a - a_h
++      ksl[[i]] <- soil_rates(Ys, stage_t[i], if (LOCK_UP == "true") e$a else a_h)
++    }
++    soil_at[[5]] <- combine(y[s_idx], tb$b, ksl, h)
++    cyc <- list(h = hsub, accepted = 1, rejected = 0)
+   } else if (COUPLING == "pc") {
+     # Predictor: the held soil, and the member stages on it, each stage's hold
+     # kept. Corrector (PC_ITER passes): the soil again, its uptake interpolated
+@@ -540,7 +563,9 @@
+         sv$t_prev <- sv$t
+         sv$t <- program$time[i]
+         sv$y <- a$y; sv$dydt <- a$rates; sv$P <- a$P; sv$K <- a$K; sv$held <- a$held
++        if (!is.null(steps$states)) steps$states[[steps$k]] <- a$y
+       }
++      if (k == LEGS) break
+       next
+     }
+     for (target in c(pulses[pulses > sv$t & pulses < t_end], t_end)) {

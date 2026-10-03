@@ -1,0 +1,77 @@
+--- partition/split_stepper.R
++++ split_stepper_rec.R
+@@ -39,7 +39,29 @@
+ 
+ SOIL_TOL <- as.numeric(Sys.getenv("SOIL_TOL", Sys.getenv("TOL", "1e-3")))
+ SOIL_ATOL <- as.numeric(Sys.getenv("ATOL", "1")) * SOIL_TOL
+-COUPLING <- match.arg(Sys.getenv("COUPLING", "held"), c("held", "exact", "exactx", "stage", "defect", "stagelin", "pc"))
++COUPLING <- match.arg(Sys.getenv("COUPLING", "held"), c("held", "exact", "exactx", "stage", "defect", "stagelin", "pc", "rec", "recsoil"))
++# rec: the soil's draw read from a recording of the tol 1e-7 monolithic run (REC,
++# from record_uptake.R), whatever soil the sub-cycle holds; recsoil: no soil
++# sub-cycle, the member stages read the recorded soil itself. The recorded soil
++# is each step's cubic Hermite interpolant, and the recorded draw the one that
++# interpolant implies through the soil's balance.
++if (COUPLING %in% c("rec", "recsoil")) {
++  rec <- readRDS(Sys.getenv("REC"))
++  rec_t <- c(0, rec$time)
++  rec_s <- rbind(rec$init$soil, rec$soil)
++  rec_r <- rbind(rec$init$rate, rec$rate)
++}
++rec_soil_at <- function(tt) {
++  j <- findInterval(tt, rec_t, rightmost.closed = TRUE)
++  j <- min(max(j, 1L), length(rec_t) - 1L)
++  h <- rec_t[j + 1] - rec_t[j]
++  u <- (tt - rec_t[j]) / h
++  th <- (1 + 2 * u) * (1 - u)^2 * rec_s[j, ] + u * (1 - u)^2 * h * rec_r[j, ] +
++    u^2 * (3 - 2 * u) * rec_s[j + 1, ] + u^2 * (u - 1) * h * rec_r[j + 1, ]
++  dth <- (6 * u^2 - 6 * u) / h * rec_s[j, ] + (1 - 4 * u + 3 * u^2) * rec_r[j, ] +
++    (6 * u - 6 * u^2) / h * rec_s[j + 1, ] + (3 * u^2 - 2 * u) * rec_r[j + 1, ]
++  list(theta = th, rate = dth)
++}
+ DEFECT <- COUPLING == "defect" || Sys.getenv("DEFECT") == "1"
+ PC_ITER <- as.integer(Sys.getenv("PC_ITER", "1"))
+ SUB_ACC <- Sys.getenv("SUB_ACC", "1") == "1"
+@@ -82,6 +104,17 @@
+   c(r, rain, infil, K[5], tot, 0)
+ }
+ 
++# The draw the recorded soil implies at time tt: inflow less drainage less dz
++# times the interpolant's slope, layer by layer.
++rec_uptake <- function(th, tt) {
++  r <- rec_soil_at(tt)
++  s <- r$theta
++  rain <- max(0, env$extrinsic_drivers_evaluate("rainfall", tt))
++  infil <- rain * max(0, 1 - e_a_inf * (s[1] / e_theta_s)^e_b_inf)
++  K <- e_K_sat * (pmin(pmax(s, 0), e_theta_s) / e_theta_s)^e_q
++  c(infil, K[1:4]) - K - e_dz * r$rate
++}
++
+ cnt <- new.env()
+ for (x in c("uptake_calls", "uptake_at", "soil_rates", "sub_accepted", "sub_rejected",
+             "sub_thrown", "sub_members", "holds", "macro_attempts")) assign(x, 0, envir = cnt)
+@@ -223,6 +256,8 @@
+   up0 <- switch(COUPLING,
+                 exact = exact_uptake(y, t),
+                 exactx = exact_uptake(y, t, k1),
++                rec = rec_uptake,
++                recsoil = rec_uptake,
+                 held_uptake(held, nn))
+   a_t <- up0(y[soil(y)], t)
+   if (is.null(a_t)) return(NULL)
+@@ -362,9 +397,15 @@
+     if (is.null(cyc)) return(NULL)
+     plans[[1]] <- cyc$plan
+     for (j in seq_along(STAGE_BY_TIME)) soil_at[[STAGE_BY_TIME[j]]] <- cyc$at[[j]]
++    if (COUPLING == "recsoil") {
++      for (i in 2:6) soil_at[[i]][1:5] <- rec_soil_at(stage_t[i])$theta
++    }
++    # LATE6=1, a positive control: stage six (c = 7/8) handed the soil at the
++    # step's end instead of its own.
++    if (Sys.getenv("LATE6") == "1") soil_at[[6]] <- soil_at[[5]]
+     # For exact, the defect is the members' own move over the step: the stage's
+     # uptake less the uptake with the members held at t, at the stage's moisture.
+-    held_up <- if (COUPLING %in% c("exact", "exactx")) up0 else held_uptake(held, nn)
++    held_up <- if (COUPLING %in% c("exact", "exactx", "rec", "recsoil")) up0 else held_uptake(held, nn)
+     for (i in 2:6) {
+       e <- stage_rates(i, soil_at[[i]])
+       if (is.null(e)) return(NULL)

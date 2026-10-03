@@ -1,0 +1,2 @@
+lock_true_ref1e-7: J identical TRUE (relative 0); per-node fecundity identical TRUE (max rel 0); soil at every step end identical TRUE (max rel 0)
+lock_helddef_ref1e-7: J identical FALSE (relative 0.00229); per-node fecundity identical FALSE (max rel 0.00898); soil at every step end identical FALSE (max rel 0.00152)

@@ -1,0 +1,110 @@
+=== check_3legs start 22:51:33 load 2.06 :: split_stepper_orig.R TOL=3e-5 CHECK=1 CHECK_LEGS=3
+=== check_3legs end 22:51:39 status 0
+=== check_full start 22:57:09 load 1.67 :: split_stepper_check.R TOL=3e-5 CHECK=1 CHECK_LEGS=108 CHECK_OUT=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/check_full_ck.rds
+=== check_full end 23:02:32 status 0
+=== early_sld_1e-4 start 23:02:45 load 3.06 :: split_stepper_orig.R TOL=1e-4 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=3 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/early_sld_1e-4_states.rds
+=== early_sld_1e-4 end 23:02:48 status 0
+=== early_sld_1e-5 start 23:02:48 load 3.06 :: split_stepper_orig.R TOL=1e-5 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=3 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/early_sld_1e-5_states.rds
+=== early_sld_1e-5 end 23:02:50 status 0
+=== early_sld_1e-6 start 23:02:50 load 3.06 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=3 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/early_sld_1e-6_states.rds
+=== early_sld_1e-6 end 23:02:53 status 0
+=== full_sld_1e-6 start 23:03:14 load 2.75 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/full_sld_1e-6_states.rds
+=== full_sld_1e-6 killed by the container restart at about 23:04 (empty log, no rds); re-run as full_sld_1e-6_r2
+=== full_sld_1e-6_r2 start 23:05:45 load 0.52 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/full_sld_1e-6_r2_states.rds
+=== full_sld_1e-6_r2 end 23:08:57 status 0
+=== record_uptake start 23:13:08
+=== record_uptake end 23:13:43 status 0
+=== ev_sld_1e-4 start 23:14:05 load 1.63 :: split_stepper_orig.R TOL=1e-4 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=10 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_sld_1e-4_states.rds
+=== ev_sld_1e-4 end 23:14:09 status 0
+=== ev_rec_1e-4 start 23:14:09 load 1.63 :: split_stepper_rec.R TOL=1e-4 SOIL_TOL=3e-5 COUPLING=rec REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds LEGS=10 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_rec_1e-4_states.rds
+=== ev_rec_1e-4 end 23:14:14 status 0
+=== ev_recsoil_1e-4 start 23:14:14 load 1.69 :: split_stepper_rec.R TOL=1e-4 SOIL_TOL=3e-5 COUPLING=recsoil REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds LEGS=10 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_recsoil_1e-4_states.rds
+=== ev_recsoil_1e-4 end 23:14:20 status 0
+=== ev_sld_1e-6 start 23:14:20 load 1.71 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=10 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_sld_1e-6_states.rds
+=== ev_sld_1e-6 end 23:14:25 status 0
+=== ev_rec_1e-6 start 23:14:25 load 1.74 :: split_stepper_rec.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=rec REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds LEGS=10 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_rec_1e-6_states.rds
+=== ev_rec_1e-6 end 23:14:32 status 0
+=== ev_recsoil_1e-6 start 23:14:32 load 1.76 :: split_stepper_rec.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=recsoil REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds LEGS=10 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_recsoil_1e-6_states.rds
+=== ev_recsoil_1e-6 end 23:14:40 status 0
+=== ev_sld_1e-6_h2 start 23:15:10 load 1.55 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=10 HMAX=2 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_sld_1e-6_h2_states.rds
+=== ev_sld_1e-6_h2 end 23:15:12 status 1
+=== ev_sld_1e-6_h1 start 23:15:12 load 1.55 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=10 HMAX=1 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_sld_1e-6_h1_states.rds
+=== ev_sld_1e-6_h1 end 23:15:13 status 1
+=== ev_sld_1e-6_h0.5 start 23:15:13 load 1.55 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=10 HMAX=0.5 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_sld_1e-6_h0.5_states.rds
+=== ev_sld_1e-6_h0.5 end 23:15:14 status 1
+=== ev_sld_1e-6_h0.25 start 23:15:14 load 1.59 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=10 HMAX=0.25 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_sld_1e-6_h0.25_states.rds
+=== ev_sld_1e-6_h0.25 end 23:15:16 status 1
+=== ev_exactx_1e-6_hInf start 23:15:16 load 1.59 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=exactx LEGS=10 HMAX=Inf STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_exactx_1e-6_hInf_states.rds
+=== ev_exactx_1e-6_hInf end 23:15:24 status 0
+=== ev_exactx_1e-6_h1 start 23:15:24 load 1.62 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=exactx LEGS=10 HMAX=1 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_exactx_1e-6_h1_states.rds
+=== ev_exactx_1e-6_h1 end 23:15:43 status 0
+=== ev_exactx_1e-6_h0.25 start 23:15:43 load 2.07 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=exactx LEGS=10 HMAX=0.25 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_exactx_1e-6_h0.25_states.rds
+=== ev_exactx_1e-6_h0.25 end 23:16:48 status 0
+=== ev_pc1d_1e-6_hInf start 23:16:48 load 2.77 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=pc PC_ITER=1 DEFECT=1 LEGS=10 HMAX=Inf STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_pc1d_1e-6_hInf_states.rds
+=== ev_pc1d_1e-6_hInf end 23:16:58 status 0
+=== ev_pc1d_1e-6_h1 start 23:16:58 load 2.88 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=pc PC_ITER=1 DEFECT=1 LEGS=10 HMAX=1 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_pc1d_1e-6_h1_states.rds
+=== ev_pc1d_1e-6_h1 end 23:17:00 status 1
+=== ev_pc1d_1e-6_h0.25 start 23:17:00 load 2.89 :: split_stepper_orig.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=pc PC_ITER=1 DEFECT=1 LEGS=10 HMAX=0.25 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_pc1d_1e-6_h0.25_states.rds
+=== ev_pc1d_1e-6_h0.25 end 23:17:02 status 1
+=== dbg_sld_1e-6_h2 start 23:17:46 load 2.61 :: split_stepper_dbg.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=10 HMAX=2 DBG_FROM=0.31
+=== dbg_sld_1e-6_h2 end 23:17:48 status 1
+=== evc_sld_1e-6_h2 start 23:18:23 load 2.34 :: split_stepper_cap.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=10 HMAX=2 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/evc_sld_1e-6_h2_states.rds
+=== evc_sld_1e-6_h2 end 23:18:30 status 0
+=== evc_sld_1e-6_h1 start 23:18:30 load 2.44 :: split_stepper_cap.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=10 HMAX=1 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/evc_sld_1e-6_h1_states.rds
+=== evc_sld_1e-6_h1 end 23:18:40 status 0
+=== evc_sld_1e-6_h0.5 start 23:18:40 load 2.53 :: split_stepper_cap.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=10 HMAX=0.5 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/evc_sld_1e-6_h0.5_states.rds
+=== evc_sld_1e-6_h0.5 end 23:18:58 status 0
+=== evc_sld_1e-6_h0.25 start 23:18:58 load 2.63 :: split_stepper_cap.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 LEGS=10 HMAX=0.25 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/evc_sld_1e-6_h0.25_states.rds
+=== evc_sld_1e-6_h0.25 end 23:19:36 status 0
+=== evc_pc1d_1e-6_h1 start 23:19:36 load 2.81 :: split_stepper_cap.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=pc PC_ITER=1 DEFECT=1 LEGS=10 HMAX=1 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/evc_pc1d_1e-6_h1_states.rds
+=== evc_pc1d_1e-6_h1 end 23:19:53 status 0
+=== evc_pc1d_1e-6_h0.25 start 23:19:53 load 2.93 :: split_stepper_cap.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=pc PC_ITER=1 DEFECT=1 LEGS=10 HMAX=0.25 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/evc_pc1d_1e-6_h0.25_states.rds
+=== evc_pc1d_1e-6_h0.25 end 23:21:01 status 0
+=== fullc_sld_1e-6_h1 start 23:22:10 load 1.50 :: split_stepper_cap.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 HMAX=1
+=== fullc_sld_1e-6_h1 end 23:26:37 status 0
+=== fullc_sld_1e-6_h0.5 start 23:26:37 load 2.05 :: split_stepper_cap.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 HMAX=0.5
+=== fullc_sld_1e-6_h0.5 end 23:33:51 status 0
+=== fullc_pc1d_1e-6_h1 start 23:33:51 load 2.02 :: split_stepper_cap.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=pc PC_ITER=1 DEFECT=1 HMAX=1
+=== fullc_pc1d_1e-6_h1 end 23:41:34 status 0
+=== ev_rec_late6_1e-6 start 23:42:06 load 0.95 :: split_stepper_rec.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=rec REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds LATE6=1 LEGS=10 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_rec_late6_1e-6_states.rds
+=== ev_rec_late6_1e-6 end 23:42:14 status 0
+=== ev_fix_sld_1e-4 start 23:42:14 load 1.12 :: split_stepper_fix.R TOL=1e-4 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 CNORM=1 LEGS=10 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_fix_sld_1e-4_states.rds
+=== ev_fix_sld_1e-4 end 23:42:18 status 0
+=== ev_fix_sld_1e-5 start 23:42:18 load 1.11 :: split_stepper_fix.R TOL=1e-5 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 CNORM=1 LEGS=10 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_fix_sld_1e-5_states.rds
+=== ev_fix_sld_1e-5 end 23:42:24 status 0
+=== ev_fix_sld_1e-6 start 23:42:24 load 1.10 :: split_stepper_fix.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 CNORM=1 LEGS=10 STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/ev_fix_sld_1e-6_states.rds
+=== ev_fix_sld_1e-6 end 23:42:35 status 0
+=== fix_sld_1e-4 start 23:42:56 load 1.17 :: split_stepper_fix.R TOL=1e-4 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 CNORM=1
+=== fix_sld_1e-4 end 23:44:34 status 0
+=== fix_sld_1e-5 start 23:44:34 load 1.83 :: split_stepper_fix.R TOL=1e-5 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 CNORM=1
+=== fix_sld_1e-5 end 23:47:45 status 0
+=== fix_sld_1e-6 start 23:47:45 load 2.03 :: split_stepper_fix.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 CNORM=1
+=== fix_sld_1e-6 killed by the container restart at about 23:53 (empty log, no rds); re-run as fix_sld_1e-6_r2; q_fix_full.sh's rec runs never started
+=== fix_sld_3e-5 start 23:55:14 load 0.11 :: split_stepper_fix.R TOL=3e-5 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 CNORM=1
+=== fix_sld_3e-5 end 23:57:44 status 0
+=== full_rec_1e-4 start 23:57:44 load 1.88 :: split_stepper_rec.R TOL=1e-4 SOIL_TOL=3e-5 COUPLING=rec REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds
+=== full_rec_1e-4 end 23:59:07 status 0
+=== full_rec_1e-5 start 23:59:07 load 2.01 :: split_stepper_rec.R TOL=1e-5 SOIL_TOL=3e-5 COUPLING=rec REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds
+=== full_rec_1e-5 end 00:01:02 status 0
+=== lock_true_mono3e-5 start 00:01:02 load 2.00 :: split_stepper_lock.R TOL=3e-5 SOIL_TOL=3e-5 COUPLING=lock LOCK_UP=true PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/split/out/mono_3e-5.rds
+=== lock_true_mono3e-5 end 00:03:47 status 0
+=== fix_sld_1e-6_r2 start 00:03:47 load 2.00 :: split_stepper_fix.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=stagelin DEFECT=1 CNORM=1
+=== fix_sld_1e-6_r2 end 00:12:21 status 0
+=== lock_helddef_mono3e-5 start 00:12:21 load 1.06 :: split_stepper_lock.R TOL=3e-5 SOIL_TOL=3e-5 COUPLING=lock LOCK_UP=held DEFECT=1 PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/split/out/mono_3e-5.rds
+=== lock_helddef_mono3e-5 end 00:15:06 status 0
+=== full_rec_1e-6 start 00:15:10 load 1.16 :: split_stepper_rec.R TOL=1e-6 SOIL_TOL=3e-5 COUPLING=rec REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds
+=== full_rec_1e-6 end 00:18:03 status 0
+=== full_rec_3e-5 start 00:18:03 load 1.01 :: split_stepper_rec.R TOL=3e-5 SOIL_TOL=3e-5 COUPLING=rec REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds
+=== full_rec_3e-5 end 00:19:44 status 0
+=== full_rec_1e-5_st start 00:19:44 load 1.00 :: split_stepper_rec.R TOL=1e-5 SOIL_TOL=3e-5 COUPLING=rec REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds STATES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/full_rec_1e-5_st_states.rds
+=== full_rec_1e-5_st end 00:21:36 status 0
+=== full_recsoil_1e-5 start 00:21:46 load 0.95 :: split_stepper_rec.R TOL=1e-5 SOIL_TOL=3e-5 COUPLING=recsoil REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds
+=== full_recsoil_1e-5 end 00:23:43 status 0
+=== full_rec_1e-5_s1e-6 start 00:23:43 load 1.08 :: split_stepper_rec.R TOL=1e-5 SOIL_TOL=1e-6 COUPLING=rec REC=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/partition_bias/out/rec_1e-7.rds
+=== full_rec_1e-5_s1e-6 end 00:25:47 status 0
+=== lock_helddef_ref1e-7 start 00:25:52 load 0.93 :: split_stepper_lock.R TOL=3e-5 SOIL_TOL=3e-5 COUPLING=lock LOCK_UP=held DEFECT=1 PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/ark/ck_u108_1e-7.rds
+=== lock_helddef_ref1e-7 end 00:31:03 status 0
+=== lock_true_ref1e-7 start 00:31:03 load 1.01 :: split_stepper_lock.R TOL=3e-5 SOIL_TOL=3e-5 COUPLING=lock LOCK_UP=true PROGRAM=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/ark/ck_u108_1e-7.rds
+=== lock_true_ref1e-7 end 00:36:14 status 0
+=== fix_sld_1e-6_s1e-6 start 00:36:20 load 0.92 :: split_stepper_fix.R TOL=1e-6 SOIL_TOL=1e-6 COUPLING=stagelin DEFECT=1 CNORM=1
+=== fix_sld_1e-6_s1e-6 end 00:44:53 status 0

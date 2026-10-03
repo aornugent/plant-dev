@@ -1,0 +1,2 @@
+lock_true_mono3e-5: J identical TRUE (J - J_mono 0, relative 0); per-node fecundity identical TRUE (max rel 0); soil at every step end identical TRUE (max rel 0)
+lock_helddef_mono3e-5: J identical FALSE (J - J_mono 0.0924, relative 0.0073); per-node fecundity identical FALSE (max rel 0.0308); soil at every step end identical FALSE (max rel 0.00673)

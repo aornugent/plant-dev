@@ -1,0 +1,15 @@
+--- partition/split_stepper.R
++++ split_stepper_cap.R
+@@ -401,6 +401,12 @@
+ p_step <- function(target) {
+   t0 <- sv$t
+   remaining <- target - t0
++  # A capped step can end within rounding of its target without being clipped
++  # to it; the step left would be zero-length, so land on the target instead.
++  if (remaining < 1e-12) {
++    sv$t <- target
++    return(invisible())
++  }
+   h <- min(sv$h_last, HMAX)
+   repeat {
+     final <- h > remaining

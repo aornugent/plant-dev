@@ -1,0 +1,4 @@
+attempt t0 0.3150684932 h 2 d ratio 4.827e-05 index 2 (mortality) hn 9.433 d shrank FALSE
+Error in p_step(target) : 
+  Cannot achieve the desired accuracy at t = 0.32054794520547925
+Execution halted

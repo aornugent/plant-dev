@@ -1,0 +1,13 @@
+--- partition/split_stepper.R
++++ split_stepper_dbg.R
+@@ -411,6 +411,10 @@
+       n$rejected_thrown <- n$rejected_thrown + 1
+     } else {
+       hn <- adjust(h, a$y, a$yerr, a$rates)
++      if (t0 >= as.numeric(Sys.getenv("DBG_FROM", "Inf"))) {
++        message(sprintf("attempt t0 %.10f h %.4g d ratio %.4g index %s (%s) hn %.4g d shrank %s",
++                        t0, h * 365, ctl$ratio, ctl$index, component(ctl$index, a$y), hn * 365, ctl$shrank))
++      }
+       if (!patch$ode_state_valid(a$y)) {
+         hn <- reject(h)
+         n$rejected_refused <- n$rejected_refused + 1

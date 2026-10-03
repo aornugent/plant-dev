@@ -1,0 +1,9 @@
+t 0.200 (1 nodes): stand draw 1.87e-05 5.59e-08 0 0 0; newest node 7.20e-01 and boundary node 2.80e-01 of it; their weights 0.0998 0.0998
+t 1.000 (3 nodes): stand draw 0.000932 3.14e-05 6.26e-06 9.86e-07 0; newest node 5.70e-02 and boundary node 6.96e-03 of it; their weights 0.314 0.129
+t 3.502 (10 nodes): stand draw 0.257 0.0168 0.00513 0.00189 0.000528; newest node 8.38e-05 and boundary node 1.31e-05 of it; their weights 0.269 0.0838
+t 3.598 (10 nodes): stand draw 0.0193 0.037 0.0115 0.00424 0.00118; newest node 9.22e-05 and boundary node 1.20e-05 of it; their weights 0.313 0.0928
+t 8.501 (23 nodes): stand draw 0.122 0.01 0.00308 0.00114 0.000318; newest node 4.95e-04 and boundary node 5.65e-05 of it; their weights 0.357 0.176
+t 9.497 (26 nodes): stand draw 0.21 0.0106 0.00322 0.00118 0.000331; newest node 1.80e-04 and boundary node 2.56e-05 of it; their weights 0.304 0.119
+t 20.502 (56 nodes): stand draw 0.0487 0.0581 0.0179 0.00662 0.00185; newest node 4.17e-05 and boundary node 5.18e-06 of it; their weights 0.247 0.0426
+t 33.002 (90 nodes): stand draw 0.309 0.0155 0.00471 0.00173 0.000485; newest node 2.86e-05 and boundary node 2.74e-06 of it; their weights 0.172 0.0194
+t 39.505 (107 nodes): stand draw 6.29e-05 0.0513 0.016 0.00594 0.00166; newest node 3.33e-05 and boundary node 2.99e-06 of it; their weights 0.273 0.0273
