@@ -128,11 +128,19 @@ if (length(refs) >= 2) {
   }
 }
 
-# Each rule's reported answer against the common reference (D's finest extrapolation),
-# with its error estimate |Q_n - Q_2n| / 3 and the share of quantities it covers.
-if (!is.null(refs[["D"]])) {
-  cat("\n-- the rules' answers against D's finest extrapolation\n")
-  ref <- refs[["D"]]
+# Each rule's reported answer against the common reference, the median of the finest
+# extrapolations of B, D and B+D (L's coarse ladder left out), with its error estimate
+# |Q_n - Q_2n| / 3 and the share of quantities it covers.
+arms_ref <- intersect(c("B", "D", "B+D"), names(refs))
+if (length(arms_ref) >= 2) {
+  k <- Reduce(intersect, lapply(refs[arms_ref], names))
+  ref <- apply(do.call(cbind, lapply(refs[arms_ref], function(r) r[k])), 1, median)
+  cat(sprintf("\n-- the rules' answers against the median of %s's finest extrapolations\n",
+              paste(arms_ref, collapse = ", ")))
+  for (a in names(refs)) {
+    kk <- intersect(names(refs[[a]]), k)
+    cat(sprintf("   %-26s %8s rows: %s\n", paste(a, "finest extrapolation"), "", spread(refs[[a]][kk] - ref[kk])))
+  }
   answer <- function(arm, a, b, extrapolate) {
     qs <- qs_all[[arm]]
     if (is.null(qs[[a]]) || is.null(qs[[b]])) return(invisible())

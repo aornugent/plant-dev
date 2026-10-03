@@ -1,0 +1,67 @@
+== wet_D_u108 (108 nodes, 795142 rows)
+   stand_run         double builds    119885: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    double builds      6118: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    active builds     96689: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   largest inversion: node 0 m, boundary 0.000627 m; out of order from t = 34.5 to 34.5; most pairs in one build 0
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 0 0 0 0 0 | boundary 0 0 0 0 1 0 0 0 
+   cpu s: forward 99 (0.125 ms per row), stand sweep 294, invader walk 76, invader sweep 233
+== wet_D_u215 (215 nodes, 1619354 rows)
+   stand_run         double builds    123134: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    double builds      6328: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    active builds     99170: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   largest inversion: node 0 m, boundary 0 m; out of order from t = Inf to -Inf; most pairs in one build 0
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 0 0 0 0 0 | boundary 0 0 0 0 0 0 0 0 
+   cpu s: forward 189 (0.117 ms per row), stand sweep 538, invader walk 152, invader sweep 464
+== wet_D_u429 (429 nodes, 3326629 rows)
+   stand_run         double builds    127542: ordered  79.6%, node pairs out 20.37%, boundary out  0.00%, sorted 20.37%, walked  0.00%
+   stand_gradient    double builds      6756: ordered  74.3%, node pairs out 25.73%, boundary out  0.00%, sorted 25.73%, walked  0.00%
+   stand_gradient    active builds    102558: ordered  79.5%, node pairs out 20.49%, boundary out  0.00%, sorted 20.49%, walked  0.00%
+   largest inversion: node 0.00112 m, boundary 0 m; out of order from t = 29.7 to 40; most pairs in one build 2
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 8 9357 18351 0 0 | boundary 0 0 0 0 0 0 0 0 
+   cpu s: forward 380 (0.114 ms per row), stand sweep 1117, invader walk 307, invader sweep 915
+== wet_BD_G1 (125 nodes, 1053888 rows)
+   stand_run         double builds    120310: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    double builds      6152: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    active builds     96994: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   largest inversion: node 0 m, boundary 0.000627 m; out of order from t = 34.5 to 34.5; most pairs in one build 0
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 0 0 0 0 0 | boundary 0 0 0 0 1 0 0 0 
+   cpu s: forward 124 (0.118 ms per row), stand sweep 358, invader walk 100, invader sweep 318
+== wet_BD_G2 (248 nodes, 2134510 rows)
+   stand_run         double builds    123473: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    double builds      6394: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    active builds     99467: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   largest inversion: node 0 m, boundary 0 m; out of order from t = Inf to -Inf; most pairs in one build 0
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 0 0 0 0 0 | boundary 0 0 0 0 0 0 0 0 
+   cpu s: forward 253 (0.118 ms per row), stand sweep 691, invader walk 196, invader sweep 609
+== wet_BD_G3 (494 nodes, 4378241 rows)
+   stand_run         double builds    127811: ordered  79.7%, node pairs out 20.31%, boundary out  0.00%, sorted 20.31%, walked  0.00%
+   stand_gradient    double builds      6886: ordered  74.8%, node pairs out 25.24%, boundary out  0.00%, sorted 25.24%, walked  0.00%
+   stand_gradient    active builds    102953: ordered  79.6%, node pairs out 20.41%, boundary out  0.00%, sorted 20.41%, walked  0.00%
+   largest inversion: node 0.00112 m, boundary 0 m; out of order from t = 29.7 to 40; most pairs in one build 2
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 8 9357 18333 0 0 | boundary 0 0 0 0 0 0 0 0 
+   cpu s: forward 489 (0.112 ms per row), stand sweep 1389, invader walk 393, invader sweep 1174
+== ld_D_u108 (108 nodes, 637478 rows)
+   stand_run         double builds     96555: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    double builds      6078: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    active builds     78459: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   largest inversion: node 0 m, boundary 0 m; out of order from t = Inf to -Inf; most pairs in one build 0
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 0 0 0 0 0 | boundary 0 0 0 0 0 0 0 0 
+   cpu s: forward 74 (0.116 ms per row), stand sweep 224, invader walk 59, invader sweep 188
+
+== forward only: walk (0) and tolerance (1) against the ladder's sort (2)
+   D u215 o1: cpu 188 s against 189 (-0.7%), per row -0.7%; J/J_sort - 1 = +0.00e+00; steps 16002 against 16002
+   stand_run         double builds    123134: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   largest inversion: node 0 m, boundary 0 m; out of order from t = Inf to -Inf; most pairs in one build 0
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 0 0 0 0 0 | boundary 0 0 0 0 0 0 0 0 
+   D u215 o0: cpu 186 s against 189 (-1.4%), per row -1.4%; J/J_sort - 1 = +0.00e+00; steps 16002 against 16002
+   stand_run         double builds    123134: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   largest inversion: node 0 m, boundary 0 m; out of order from t = Inf to -Inf; most pairs in one build 0
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 0 0 0 0 0 | boundary 0 0 0 0 0 0 0 0 
+   D u429 o1: cpu 381 s against 380 (+0.4%), per row +0.4%; J/J_sort - 1 = +0.00e+00; steps 16531 against 16531
+   stand_run         double builds    127542: ordered  79.6%, node pairs out 20.37%, boundary out  0.00%, sorted 20.37%, walked  0.00%
+   largest inversion: node 0.00112 m, boundary 0 m; out of order from t = 29.7 to 40; most pairs in one build 2
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 8 8787 17183 0 0 | boundary 0 0 0 0 0 0 0 0 
+   D u429 o0: cpu 466 s against 380 (+22.8%), per row +22.8%; J/J_sort - 1 = +1.54e-11; steps 16531 against 16531
+   stand_run         double builds    127542: ordered  79.6%, node pairs out 20.37%, boundary out  0.00%, sorted  0.00%, walked 20.37%
+   largest inversion: node 0.00112 m, boundary 0 m; out of order from t = 29.7 to 40; most pairs in one build 2
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 8 8787 17183 0 0 | boundary 0 0 0 0 0 0 0 0 

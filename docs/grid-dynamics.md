@@ -1468,6 +1468,75 @@ under 0.03ε).
   reference.* It needs the coupling at the members' weight, sub-steps frozen in
   the replay, and a flag that yields as the tolerance tightens.
 
+## 16. The node axis on long-wet: graded, spread, and both
+
+**The question** (phase 2a; a pre-registered pathfinder,
+`measurements/pathfinders/node-axis/`). Which node rule reports its own error
+off long drought? B grades the first window and refines by halving; D spreads
+each panel's leaf area over its members' heights on uniform nodes; B+D does
+both. Long-wet was the open case: at plain `3e-5` B's `J` reached the square law
+only past 494 nodes, and D had not been run past u215 (`canopy-spread.md`).
+
+**Test.** Bounded Cash–Karp at `3e-5`, the stand with both roles' gradients:
+`ln J` and the 49 elasticities of each role, in ε (each floored at 0.01). Four
+arms: L, lumped uniform (u54, u108, u215); B (G1, G2, G3: 125, 248, 494 nodes);
+D (u54 to u429); B+D (G1 to G3). The probe build reproduces bounded
+Cash–Karp's long-wet run bit for bit when lumped, and the plain spread run on
+long drought (V1, V2). Every ladder run sorts the light field before its prefix
+pass (below). The finest extrapolations of B, D and B+D agree to 0.033ε at
+most, and each rule's answer is scored against their median
+(`ladder_wet.log`).
+
+**Results:**
+
+| arm | ratio of successive moves, median (groups) | companion at the middle rung |
+|---|---|---|
+| L, u54/u108/u215 | 8.5, 18 of 63 negative; both resident groups negative | 1.91; resident −1.1 and −0.5 |
+| B, G1/G2/G3 | 2.76 (2.75–3.23) | 0.71 |
+| D, u108/u215/u429 | 3.78 (3.72–4.42), none negative | 0.95 (0.93–1.10) |
+| B+D, G1/G2/G3 | 2.84 (2.61–3.38), 70 of 98 unresolved | 0.65 |
+
+| the rule's answer | rows | median / largest error | its estimate covers |
+|---|---|---|---|
+| D, u108 + u215 extrapolated | 2.41M | 0.013 / 0.090ε | 93% |
+| B, G1 + G2 extrapolated | 3.19M | 0.013 / 0.114ε | 78% |
+| B, G2 with G1 as companion | 3.19M | 0.038 / 0.231ε | 27% |
+| B+D, G2 with G1 as companion | 3.19M | 0.022 / 0.247ε | 30% |
+| B+D, G1 alone | 1.05M | 0.068 / 0.670ε | — |
+| L, u108 + u215 extrapolated | 2.42M | 0.048 / 1.102ε | 31% |
+| L, u108 alone | 0.80M | 0.110 / 1.288ε | — |
+| D, u108 alone | 0.80M | 0.498 / 3.314ε | — |
+
+- *D reports its own error on long-wet, as on long drought* (H2 holds). Every
+  group is on the square law over u108–u215–u429, and its companions report
+  0.93–1.10 of the error. Its coarse end is not yet asymptotic: 5.8 over
+  u54–u108–u215.
+- *B does not* (H1 holds). Its ratio stays at 2.76 to G3, and its companion
+  under-reports by 29%. Graded spacing places the nodes; it does not make the
+  error's order show.
+- *The spread changes little on graded nodes.* B+D's ratio (2.84) and companion
+  (0.65) are B's, its moves G2 → G3 mostly fall under three nudges, and its
+  single rungs are no closer than B's. Its G1 is the closest single run at about
+  1M rows, but with no estimate (H3 stands as registered).
+- *At the bar, D's two-rung extrapolation is the cheapest answer with an honest
+  estimate:* 2.41M rows for 0.090ε, where B's extrapolation takes 3.19M rows
+  for 0.114ε and covers 78%.
+- *Thinning after b = 10 fails under the spread as lumped* (H5 holds). The
+  field part on the cohort born before 10 is 1.84% of `J` spread against 1.66%
+  lumped, and 61 of 98 quantities move over ε/3 in either. That field part is
+  the soil's, which the spread does not touch (`q2_thin_wet.log`).
+- *The spread costs 2–6% of the resident's sweep per row at matched nodes, and
+  nothing in the forward or the walk* (µs per row: 332 against 312 at u215, 324
+  against 317 at G2, 317 against 306 at G3; `cost_wet.log`). The first spike's
+  sweeps, 1.7–3.4× slower, are not seen with the sort.
+- *The light field's ordering breaks only at u429 on long-wet* (H6 holds;
+  `order_wet.log`). There 20% of the forward's builds have a node pair out of
+  order, by at most 1.1 mm, from t = 29.7 to 40. The sort takes them at no
+  measurable cost (0.114 ms per row against 0.117 at u215), and a 1 cm tolerance
+  repeats its `J` bit for bit. Walking every node instead costs 23% of the
+  forward.
+- *Not yet run:* the long-drought ladders (H4).
+
 ## What the record supports, and what it does not
 
 - *Supported: a gradient run's cost is its rows and its sweeps.* The walk and
@@ -1509,10 +1578,13 @@ under 0.03ε).
   fall with the tolerance,* for 10.2% of a forward's leaf solves on a quintic
   interpolant (§11). Their cost in the sweeps is not measured; on a free
   fourth-order interpolant the reply counts it under 2%.
-- *Supported on long drought: with each panel's leaf area spread over its
-  members' heights, uniform halving reports its own node error* (median ratios
-  3.6–3.9, companions 0.93–1.09; `canopy-spread.md`). Not on the constant
-  record, whose front still needs nodes. Its sweep runs 1.7–3.4× slower.
+- *Supported on long drought and long-wet: with each panel's leaf area spread
+  over its members' heights, uniform halving reports its own node error*
+  (median ratios 3.6–3.9 and 3.72–4.42, companions 0.93–1.09 and 0.93–1.10;
+  `canopy-spread.md`, §16). Graded nodes do not, spread or lumped (ratios 2.76
+  and 2.84 on long-wet). Not on the constant record, whose front still needs
+  nodes. With the light field sorted, the spread costs 2–6% of the resident's
+  sweep per row.
 - *Not supported: a partitioned step.* Holding the collar across a member step
   leaves a first-order error in the dry spells' water budget, and the
   corrections stall at 1e-4 to 5e-4 (§13). At a bar of ε they might have

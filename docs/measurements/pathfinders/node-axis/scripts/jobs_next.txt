@@ -1,0 +1,19 @@
+# taken 22:02:08 wet_BD_G3 long-wet t_wet_G3 8
+# taken 22:05:23 wet_L_u108_thin10 long-wet t_u108_thin10 0
+# taken 22:12:27 wet_D_u108_thin10 long-wet t_u108_thin10 8
+# taken 22:23:45 wet_D_u215_o1 long-wet t_u215 8 PLANT_PROBE_ORDER=1 PLANT_PROBE_ORDER_TOL=1e-2 FORWARD=1
+# taken 22:25:12 wet_D_u215_o0 long-wet t_u215 8 PLANT_PROBE_ORDER=0 FORWARD=1
+# taken 22:27:01 wet_D_u429_o1 long-wet t_u429 8 PLANT_PROBE_ORDER=1 PLANT_PROBE_ORDER_TOL=1e-2 FORWARD=1
+# taken 22:28:24 wet_D_u429_o0 long-wet t_u429 8 PLANT_PROBE_ORDER=0 FORWARD=1
+# taken 22:45:58 ld_D_u108 long-drought t_u108 8
+# taken 22:55:24 ld_D_u215 long-drought t_u215 8
+# taken 23:01:12 ld_D_u429 long-drought t_u429 8
+# taken 23:01:28 ld_B_G1 long-drought t_ld_G1 0
+# taken 23:05:09 ld_B_G2 long-drought t_ld_G2 0
+ld_BD_G1 long-drought t_ld_G1 8
+ld_BD_G2 long-drought t_ld_G2 8
+ld_L_u215 long-drought t_u215 0
+ld_L_u54 long-drought t_u54 0
+ld_D_u54 long-drought t_u54 8
+ld_B_G3 long-drought t_ld_G3 0
+ld_BD_G3 long-drought t_ld_G3 8

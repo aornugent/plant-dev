@@ -1,0 +1,8 @@
+== L: thin10 (48 nodes) -> u108 (108 nodes); J 18.107325 -> 18.402092, ln J moves 0.640 eps
+   J's move by birth band, fractions of thin10's J: field [0,10) +1.66e-02, [10,20) +4.26e-04, [20,40) +3.54e-07, [40,Inf) NA 
+   quadrature [0,10) +0.00e+00, [10,20) -7.72e-04, [20,40) -3.90e-07, [40,Inf) NA 
+   quantities moving over eps/3: 61 of 98; largest 1.100 eps (resident recruitment_decay); median 0.443
+== D: thin10 (48 nodes) -> u108 (108 nodes); J 18.365952 -> 18.692721, ln J moves 0.699 eps
+   J's move by birth band, fractions of thin10's J: field [0,10) +1.84e-02, [10,20) +1.90e-04, [20,40) +3.79e-07, [40,Inf) NA 
+   quadrature [0,10) +0.00e+00, [10,20) -7.67e-04, [20,40) -3.73e-07, [40,Inf) NA 
+   quantities moving over eps/3: 61 of 98; largest 1.216 eps (resident TF24_cost_scale); median 0.453

@@ -101,3 +101,21 @@ Q3: THE ORDERING (2b)
   times more wherever the order breaks.
 
 NOT DONE HERE: commits to plant-dev, pushes, edits to sw_plant.
+
+VERDICTS ON LONG-WET, written 23:07 UTC from ladder_wet.log, q2_thin_wet.log, order_wet.log.
+  V1 and V2 held bit for bit. Ladder runs sorted the field (ORDER=2), as registered.
+  H1 holds: B's ratio over G1-G2-G3 is 2.76 (groups 2.75-3.23), companion 0.71.
+  H2 holds: D over u108-u215-u429, median 3.78, every group 3.72-4.42 (none negative), companions
+    at u215 0.93-1.10. Over u54-u108-u215 it is 5.8: the coarse end is not asymptotic.
+  H3 stands as registered: B+D's G2 -> G3 moves are unresolved on 70 of 98 quantities (ratio
+    2.84, companion 0.65), and the refutation clause is not met, since D's u108+u215
+    extrapolation takes more rows (2.41M) than B+D's G1 (1.05M). But B+D's single rungs are
+    closest only near 1M rows; at 2.1-2.4M rows D's extrapolation (largest 0.090 eps) beats
+    B+D's G2 (0.247 eps). Against the median of B's, D's and B+D's finest extrapolations, which
+    agree to 0.033 eps.
+  H5 holds: the field part on the cohort born before 10 is 1.84% of J spread against 1.66%
+    lumped; 61 of 98 quantities move over eps/3 in either. No twofold or later thinning run.
+  H6 holds: the sort's forward CPU per row is within 0.4% of the 1 cm tolerance's, with J bit
+    for bit; the walk costs +23% of the forward at u429, where 20% of builds are out of order
+    (at most 1.1 mm); at u215 nothing is out of order. ORDER=0's sweep not run.
+  H4 (long drought): running.

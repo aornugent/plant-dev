@@ -485,8 +485,19 @@ phase 3 is the user's call.
 
 - **2a. B or D,** the user's decision. D changes plant's birth-date competition
   sum and every reference, and its cost objection is gone.
+  - *Long-wet, measured* (`grid-dynamics.md` §16): D is on the square law over
+    u108–u215–u429 with companions 0.93–1.10, as on long drought. B and B+D are
+    not (ratios 2.76 and 2.84, companions 0.71 and 0.65). D's u108 + u215
+    extrapolation reaches 0.090ε at 2.41M rows with an estimate that covers 93%;
+    B's G1 + G2 takes 3.19M rows for 0.114ε, covering 78%.
+  - The spread costs 2–6% of the resident's sweep per row, with the field sorted.
+  - Long drought's ladders under the bounded setting (H4) are running.
 - **2b. The light field's ordering test,** given a tolerance or replaced by a sort
   before the prefix pass, in plant. Either rule needs it at 215 nodes and more.
+  - *Measured on long-wet:* the order breaks only at u429 (20% of builds, by at
+    most 1.1 mm). The sort costs nothing measurable and a 1 cm tolerance repeats
+    its `J` bit for bit; walking every node costs 23% of a forward. The sort
+    needs no tolerance to choose.
 - **2c. The chosen rule's ladders** on wet, dry and episodic (D's to u429), and
   the constant record with its front nodes, with the introductions also moved by
   a quarter spacing (R2's other knob). *Pass:* square-law ratios near 4,

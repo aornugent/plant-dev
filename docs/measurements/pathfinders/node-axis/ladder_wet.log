@@ -1,0 +1,66 @@
+== long-wet: the node axis's ladders (bounded Cash-Karp, 3e-5), in eps
+
+-- L: L_u54 (54 nodes, 390989 rows, 370 cpu s); L_u108 (108 nodes, 795397 rows, NA cpu s); L_u215 (215 nodes, 1619748 rows, 1303 cpu s)
+   L_u54   from the finest extrapolation: median 0.589, largest 16.495 (invader a_l1)
+   L_u108  from the finest extrapolation: median 0.138, largest 2.390 (invader a_l1)
+   L_u215  from the finest extrapolation: median 0.034, largest 0.598 (invader a_l1)
+   L_u54+L_u108 extrapolated, from it: median 0.267, largest 2.311 (invader a_l1)
+   companion at L_u108: estimate/error median 1.91 over 67 resolved of 98; resident main -1.10 (3), resident other -0.49 (16), invader main 0.62 (6), invader other 2.17 (42)
+   ratio L_u54/L_u108/L_u215: resolved 63 of 98, median 8.47, negative 18
+     resident main -4.39 (3); resident other -2.25 (12); invader main 2.46 (6); invader other 8.67 (42)
+
+-- B: B_G1 (125 nodes, 1053512 rows, 868 cpu s); B_G2 (248 nodes, 2134761 rows, 1694 cpu s); B_G3 (494 nodes, 4377507 rows, 3416 cpu s)
+   B_G1    from the finest extrapolation: median 0.120, largest 0.602 (resident a_l1)
+   B_G2    from the finest extrapolation: median 0.038, largest 0.227 (resident a_l1)
+   B_G3    from the finest extrapolation: median 0.009, largest 0.057 (resident a_l1)
+   B_G1+B_G2 extrapolated, from it: median 0.012, largest 0.110 (resident rooting_depth_max)
+   companion at B_G2: estimate/error median 0.71 over 49 resolved of 98; resident main 0.73 (2), resident other 0.81 (9), invader main 0.69 (5), invader other 0.71 (33)
+   ratio B_G1/B_G2/B_G3: resolved 44 of 98, median 2.76, negative 1
+     resident main 2.91 (2); resident other 3.23 (9); invader main 2.75 (5); invader other 2.75 (28)
+
+-- D: D_u54 (54 nodes, 390936 rows, 374 cpu s); D_u108 (108 nodes, 795142 rows, 702 cpu s); D_u215 (215 nodes, 1619354 rows, 1343 cpu s); D_u429 (429 nodes, 3326629 rows, 2718 cpu s)
+   D_u54   from the finest extrapolation: median 2.648, largest 16.266 (invader a)
+   D_u108  from the finest extrapolation: median 0.492, largest 3.313 (invader a)
+   D_u215  from the finest extrapolation: median 0.114, largest 0.882 (invader a)
+   D_u429  from the finest extrapolation: median 0.029, largest 0.220 (invader a)
+   D_u54+D_u108 extrapolated, from it: median 0.260, largest 1.772 (invader a_l1)
+   D_u108+D_u215 extrapolated, from it: median 0.014, largest 0.091 (resident a)
+   companion at D_u108: estimate/error median 1.44 over 89 resolved of 98; resident main 1.61 (5), resident other 0.98 (35), invader main 1.67 (6), invader other 1.49 (43)
+   companion at D_u215: estimate/error median 0.95 over 72 resolved of 98; resident main 1.10 (3), resident other 0.93 (21), invader main 0.95 (6), invader other 0.94 (42)
+   ratio D_u54/D_u108/D_u215: resolved 88 of 98, median 5.78, negative 8
+     resident main 6.26 (5); resident other 3.79 (34); invader main 6.61 (6); invader other 6.06 (43)
+   ratio D_u108/D_u215/D_u429: resolved 67 of 98, median 3.78, negative 0
+     resident main 4.42 (3, square law); resident other 3.72 (17, square law); invader main 3.80 (6, square law); invader other 3.77 (41, square law)
+
+-- B+D: BD_G1 (125 nodes, 1053888 rows, 900 cpu s); BD_G2 (248 nodes, 2134510 rows, 1749 cpu s); BD_G3 (494 nodes, 4378241 rows, 3446 cpu s)
+   BD_G1   from the finest extrapolation: median 0.068, largest 0.670 (resident a_l1)
+   BD_G2   from the finest extrapolation: median 0.022, largest 0.247 (resident a_l1)
+   BD_G3   from the finest extrapolation: median 0.006, largest 0.062 (resident a_l1)
+   BD_G1+BD_G2 extrapolated, from it: median 0.013, largest 0.131 (resident a_dG1)
+   companion at BD_G2: estimate/error median 0.65 over 36 resolved of 98; resident main 0.72 (2), resident other 0.85 (9), invader main 0.66 (5), invader other 0.48 (20)
+   ratio BD_G1/BD_G2/BD_G3: resolved 28 of 98, median 2.84, negative 1
+     resident main 2.88 (2); resident other 3.38 (9); invader main 2.96 (3); invader other 2.61 (14)
+
+-- the arms' finest extrapolations against one another
+   L vs B: median 0.045, largest 1.102 (invader a_l1)
+   L vs D: median 0.052, largest 1.100 (invader a_l1)
+   L vs B+D: median 0.048, largest 1.103 (invader a_l1)
+   B vs D: median 0.002, largest 0.033 (resident TF24_cost_scale)
+   B vs B+D: median 0.002, largest 0.021 (resident a_dG1)
+   D vs B+D: median 0.001, largest 0.013 (resident recruitment_decay)
+
+-- the rules' answers against the median of B, D, B+D's finest extrapolations
+   L finest extrapolation              rows: median 0.048, largest 1.102 (invader a_l1)
+   B finest extrapolation              rows: median 0.001, largest 0.021 (resident TF24_cost_scale)
+   D finest extrapolation              rows: median 0.000, largest 0.013 (resident recruitment_decay)
+   B+D finest extrapolation            rows: median 0.000, largest 0.009 (resident a_dG1)
+   B+D BD_G1 alone             1053888 rows: median 0.068, largest 0.670 (resident a_l1); no estimate
+   D D_u108 alone               795142 rows: median 0.498, largest 3.314 (invader a); no estimate
+   L L_u108 alone               795397 rows: median 0.110, largest 1.288 (invader a_l1); no estimate
+   B B_G1 companion of B_G2    3188273 rows: median 0.038, largest 0.231 (resident a_l1); estimate covers 27%
+   B B_G1+B_G2                 3188273 rows: median 0.013, largest 0.114 (resident a_dG1); estimate covers 78%
+   D D_u108+D_u215             2414496 rows: median 0.013, largest 0.090 (resident a_dG1); estimate covers 93%
+   D D_u215+D_u429             4945983 rows: median 0.000, largest 0.013 (resident recruitment_decay); estimate covers 98%
+   B+D BD_G1 companion of BD_G2  3188398 rows: median 0.022, largest 0.247 (resident a_l1); estimate covers 30%
+   B+D BD_G2 companion of BD_G3  6512751 rows: median 0.006, largest 0.062 (resident a_l1); estimate covers 43%
+   L L_u108+L_u215             2415145 rows: median 0.048, largest 1.102 (invader a_l1); estimate covers 31%

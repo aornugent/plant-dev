@@ -1,9 +1,10 @@
-# Pathfinders for the next stage, interrupted
+# Pathfinders for the next stage
 
 Five pathfinders started together, each a new lever or a discarded approach
-whose reason no longer holds. A session limit stopped them part way. What
-survived is here; the runs (`.rds`), libraries and probe worktrees stay in the
-session's scratch `dev/pf_*`.
+whose reason no longer holds. A session limit stopped them part way; what
+survived was rescued, and the soil and node-axis runs were finished after. The
+runs (`.rds`), libraries and probe worktrees stay in the session's scratch
+`dev/pf_*`.
 
 **Invader thinning** (`invader-thinning/`): an invader's members dropped by
 their own share of `J′`. A rare invader moves no field, so the field part that
@@ -56,12 +57,21 @@ weak (the partition, revisited).
     yield as the tolerance tightens. The replays' unfrozen sub-steps add up to
     0.03ε of noise to finite-difference elasticities.
 
-**The node axis** (`node-axis/`): B, D and B+D on long-wet and long drought, D
-against the thinning the field part refuted, and the light field's ordering.
-- *Done:* the spread canopy ported onto `state-weights` and built
-  (`src/spread_port.diff`), with an ordering probe; schedules made
-  (`schedules.txt`).
-- *Not run:* any ladder.
+**The node axis** (`node-axis/`, recorded in `grid-dynamics.md` §16): B, D and
+B+D on long-wet and long drought, D against the thinning the field part
+refuted, and the light field's ordering. The probe build is `src/probe_build.diff`.
+- *Long-wet done* (`ladder_wet.log`, `q2_thin_wet.log`, `order_wet.log`,
+  `cost_wet.log`):
+  - D is on the square law over u108–u215–u429 (ratios 3.72–4.42, companions
+    0.93–1.10). B and B+D are not (2.76 and 2.84, companions 0.71 and 0.65).
+    The finest extrapolations of B, D and B+D agree to 0.033ε.
+  - D's u108 + u215 extrapolation is the cheapest answer with an honest
+    estimate: 2.41M rows for 0.090ε, its estimate covering 93%.
+  - Thinning after b = 10 fails spread as lumped: the field part is the soil's.
+  - The ordering breaks only at u429 (20% of builds, by at most 1.1 mm). The
+    sort costs nothing measurable; walking every node costs 23% of a forward.
+  - The spread costs 2–6% of the resident's sweep per row.
+- *Running:* the long-drought ladders (H4).
 
 **The events build's design:** not started.
 
