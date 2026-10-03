@@ -1,0 +1,11 @@
+start 2026-10-02T22:39:41Z smoke_T2_guard lib=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard spread=- script=sp_time.R T=2
+load 0.13 0.14 0.09 1/101 2909
+lib /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard, spread unset, plant .so 2026-09-30 11:11:36 
+config: T 2, 22 nodes, 176 stops, tol 0.001
+rep 1 plain forward: user 1.11 s  J 4.33029296e-21  accepted 640  attempts 783  leaf solves 60335  peak 127 MB
+rep 1 recorded forward: user 1.01 s  J 4.33029296e-21  accepted 640  attempts 783  rows 6588  leaf solves 60331  rss 127 -> 127 MB
+rep 1 sweep: user 3.79 s  rss 127 -> 128 MB, peak 133 MB  leaf solves in sweep 4950  refused FALSE  dJ/dlma column -1.84597e-19
+rep 1 per row: recorded forward 153.01 us, sweep 574.98 us; sweep / recorded forward 3.758, sweep / plain forward 3.403
+SPTIME DONE
+load 0.26 0.17 0.10 1/101 2946
+exit 0 2026-10-02T22:39:49Z

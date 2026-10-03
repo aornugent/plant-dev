@@ -1,0 +1,11 @@
+start 2026-10-02T22:44:58Z tape_T2_guard_test lib=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard spread=- script=sp_tape.R T=2 SP_ODELIA_SO=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard/odelia/libs/odelia.so SP_TAPESTATS=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/sweep_profile/out/tape_T2_guard_test.tsv LD_PRELOAD=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/sweep_profile/tapestats.so
+load 1.81 0.95 0.44 3/113 4013
+lib /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard, spread unset, plant .so 2026-09-30 11:11:36 
+config: T 2, 22 nodes, 176 stops, tol 0.001; tapestats /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/sweep_profile/out/tape_T2_guard_test.tsv
+recorded forward: user 1.13 s  J 4.33029296e-21  accepted 640  attempts 783  rows 6588
+sweep: user 4.06 s  wall 4.15 s  peak 137 MB
+row fields: time,step_size,introduction,error_index,error_ratio,state 
+recording: 839 rows, 0 insertions, widths 10..208
+SPTAPE DONE
+load 1.90 0.98 0.45 3/113 4079
+exit 0 2026-10-02T22:45:05Z

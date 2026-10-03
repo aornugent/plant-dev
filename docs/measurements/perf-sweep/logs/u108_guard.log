@@ -1,0 +1,14 @@
+start 2026-10-02T23:20:16Z u108_guard lib=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard spread=- script=sp_time.R T=0 NODES=108 SP_ODELIA_SO=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard/odelia/libs/odelia.so LD_PRELOAD=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/sweep_profile/tapestats.so SP_TAPESTATS=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/sweep_profile/out/u108_guard.tsv
+load 2.87 2.40 1.52 3/112 3759
+harness /home/user/plant-dev/harness/long_drought.R md5 8f286ba2f521120ccae01b65aeafa9b1
+lib /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard, spread unset, plant .so 2026-09-30 11:11:36 
+config: T 40, 108 nodes, 2931 stops, tol 0.001
+rep 1 plain forward: user 50.78 s  J 12.6621945  accepted 9266  attempts 11299  leaf solves 3994273  peak 132 MB
+rep 1 recorded forward: user 48.88 s  J 12.6621945  accepted 9266  attempts 11299  rows 503874  leaf solves 3994269  rss 129 -> 230 MB
+rep 1 sweep: user 137.26 s  rss 231 -> 240 MB, peak 266 MB  leaf solves in sweep 344138  refused TRUE  dJ/dlma column NaN
+rep 1 per row: recorded forward 97.01 us, sweep 272.40 us; sweep / recorded forward 2.808, sweep / plain forward 2.703
+rep 1 final-state rate transpose: 108 nodes at t 40.000, 9.500 ms each (cpu), recording 3819840 bytes
+rep 1 ordering at 12305 recorded states: heights decreasing 1.0000, newborn below youngest 1.0000, both 1.0000
+SPTIME DONE
+load 1.94 2.06 1.59 2/109 4261
+exit 0 2026-10-02T23:24:22Z

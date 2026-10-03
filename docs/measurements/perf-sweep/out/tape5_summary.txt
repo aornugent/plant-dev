@@ -1,0 +1,30 @@
+== out/tape5_guard.tsv
+sweep tape: wall 13.42 s, process cpu 12.91 s; 1496 step recordings (40073 rows), 463 insertion recordings; census seeds 58375 statements, 0.006 s
+wall seconds by phase (share of the sweep tape's wall):
+        step_rec step_sweep step_local ins_rec ins_sweep clear
+seconds   8.6705     1.0287     0.1494  0.4685    0.0115 0.014
+share     0.6459     0.0766     0.0111  0.0349    0.0009 0.001
+        gap_at_insertions gap_between_steps
+seconds            3.2000            0.0224
+share              0.2384            0.0017
+unaccounted (between phases, outside tape calls): 0.007 s
+step recording per row: 7077 statements, 12118 operations; slope per node per step 5591 statements, 9740 operations (intercept 39804, 63678)
+per member evaluation (slope / 6): 932 statements, 1623 operations, 32.28 us recording, 3.79 us reverse; local sweeps 4.95 of 11.7 statements each
+per step fixed (intercept): 608 us recording, 78 us reverse
+largest recording 11.4 MB at 54 nodes; bytes per node per step 197132
+per insertion row: 1.01 ms recording, 6.91 ms around it (rebinds, be_at_step)
+== out/tape5_spread.tsv
+sweep tape: wall 14.57 s, process cpu 13.96 s; 1496 step recordings (40073 rows), 463 insertion recordings; census seeds 66809 statements, 0.004 s
+wall seconds by phase (share of the sweep tape's wall):
+        step_rec step_sweep step_local ins_rec ins_sweep  clear
+seconds   9.5108     1.2140     0.1436  0.5132    0.0149 0.0176
+share     0.6527     0.0833     0.0099  0.0352    0.0010 0.0012
+        gap_at_insertions gap_between_steps
+seconds            3.2727            0.0200
+share              0.2246            0.0014
+unaccounted (between phases, outside tape calls): 0.008 s
+step recording per row: 8525 statements, 14645 operations; slope per node per step 5712 statements, 9926 operations (intercept 75346, 126393)
+per member evaluation (slope / 6): 952 statements, 1654 operations, 30.24 us recording, 3.37 us reverse; local sweeps 4.95 of 11.7 statements each
+per step fixed (intercept): 1497 us recording, 269 us reverse
+largest recording 13.1 MB at 54 nodes; bytes per node per step 201988
+per insertion row: 1.11 ms recording, 7.07 ms around it (rebinds, be_at_step)

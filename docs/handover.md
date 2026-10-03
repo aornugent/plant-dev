@@ -259,6 +259,12 @@ on disk and a few driver probes:
   run so. Most results below were first scored on the forward and on `J`, whose
   error is 2000 times inside ε; the gradients' spread under nudges is what
   binds.
+- *The sweep's cost per row is its tape* (`docs/measurements/perf-sweep.md`). It
+  does no searches, and its inner derivatives are one implicit-function solve
+  per root, but a member taped at its recorded point costs 2.4 forward
+  evaluations. Three changes would halve it: not splitting the descent at the
+  zero-depth pulses (19%), the crown's light quadrature off the tape (20–24%)
+  and the collar's slope stored (8.5%).
 - *The steps are the soil's accuracy through each rain-rate change.* That
   accuracy reaches `J` in proportion: a soil weight ×10 looser saves about 5%
   at a matched error. With the chain explicit the record predicts the cost but
@@ -346,8 +352,7 @@ its addenda, and `docs/oracle-response-strategy.md`). What it changed:
 - *Reframings:* the inner solve warm-started as an index-1 algebraic variable;
   bias against noise across records; the Hessian's cost, about 68 forwards by
   chords for five traits in both roles.
-- *Running* (subagents): the sweep profiled, and the partition's drift
-  root-caused.
+- *Running* (a subagent): the partition's drift root-caused.
 - *Next, with the user:* a design for the controller, and the chain implicit
   and out of the norm on the driver, scored in rows and the gradients' spread.
 
@@ -455,8 +460,11 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   ratios 3.6–3.9 and companions 0.93–1.09 over 49 quantities, and the invader's
   `lma` on two more seeds. Single spread rungs are coarse, so the rule reports
   the two-rung extrapolation. Wet and dry are not run to u429, the constant
-  record still needs front nodes, and the resident's sweep ran 1.7–3.4× slower,
-  being profiled. Whether to change plant's birth-date competition sum for it is
+  record still needs front nodes. The resident's sweep ran 1.7–3.4× slower:
+  in CPU the spread costs 3–8%, and the rest was load and, at u429, the light
+  field's fallback path when two nodes' heights fall out of order by a
+  millimetre, which the lumped build takes too at a sixteenth of the cost
+  (`docs/measurements/perf-sweep.md`). Whether to change plant's birth-date competition sum for it is
   the user's call.
 - **De2's and Gn2's invader phases were lost to a restart;** their coarse rungs
   settle the edges, so they were not rerun.
@@ -485,6 +493,10 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   - `NodeSchedule` keeps the pinned steps and their R interface (#95, *Kept*).
   - TF24's `scientific_version` log is history by design; whether it stays is
     the user's call.
+- **A refused gradient:** at u108 with `ode_tol_rel = ode_tol_abs = 1e-3`, both
+  `lib_guard` and the spread build refuse `J`'s gradient (`NaN`), though the
+  sweep runs to its end. The reason was not read
+  (`docs/measurements/perf-sweep.md`).
 - **A replayed step program is not exact.** Setting a run's own `p$ode_times` and
   `p$ode_step_sizes` reproduces `J` only to +5.1e-8 (long drought, seed 31, `tol =
   1e-4`, v12t), where `run_scm`'s documentation says the replay is exact. Not yet

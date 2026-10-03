@@ -1,0 +1,24 @@
+==905== Callgrind, a call-graph generating cache profiler
+==905== Copyright (C) 2002-2017, and GNU GPL'd, by Josef Weidendorfer et al.
+==905== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==905== Command: /usr/lib/R/bin/exec/R --vanilla --no-echo -f /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/sweep_profile/sp_cg.R
+==905== 
+==905== For interactive control, run 'callgrind_control -h'.
+==905== brk segment overflow in thread #1: can't grow to 0x4845000
+==905== (see section Limitations in user manual)
+==905== NOTE: further instances of this message will not be shown
+harness /home/user/plant-dev/harness/long_drought.R md5 8f286ba2f521120ccae01b65aeafa9b1
+lib /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/lib3, spread 8, plant .so 2026-10-02 02:44:16 
+cut: lifetime 5, 54 nodes, 410 stops; J 1.65910729e-14 accepted 1495 attempts 1834 rows 40073 leaf solves 331293
+pid 905
+READY
+SWEEPEND
+sweep: leaf solves 26542 (unsolved=0,interior=26098,boundary-soil=0,boundary-crit=444,boundary-root-crit=0,determined=0,hydraulic-shutdown=0,shade-death=0,prescribed=0,solver-refused=0,non-finite-gradient=0); refused FALSE; dJ/dlma column -1.46608917e-12
+recording: 1960 rows, 0 insertions; row fields time,step_size,introduction,error_index,error_ratio,state
+SPCG DONE
+==905== 
+==905== Events    : Ir
+==905== Collected : 123306906489
+==905== 
+==905== I   refs:      123,306,906,489
+CGDRIVER EXIT 0 2026-10-02T23:20:16Z

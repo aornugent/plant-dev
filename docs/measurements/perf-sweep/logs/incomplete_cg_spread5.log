@@ -1,0 +1,32 @@
+==7351== Callgrind, a call-graph generating cache profiler
+==7351== Copyright (C) 2002-2017, and GNU GPL'd, by Josef Weidendorfer et al.
+==7351== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==7351== Command: /usr/lib/R/bin/exec/R --vanilla --no-echo -f /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/sweep_profile/sp_cg.R
+==7351== 
+==7351== For interactive control, run 'callgrind_control -h'.
+==7351== brk segment overflow in thread #1: can't grow to 0x4845000
+==7351== (see section Limitations in user manual)
+==7351== NOTE: further instances of this message will not be shown
+lib /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/lib3, spread 8, plant .so 2026-10-02 02:44:16 
+cut: lifetime 5, 54 nodes, 410 stops; J 1.65910729e-14 accepted 1495 attempts 1834 rows 40073 leaf solves 331293
+pid 7351
+READY
+==7351== 
+==7351== Process terminating with default action of signal 15 (SIGTERM)
+==7351==    at 0x4FA964C: pow@@GLIBC_2.29 (w_pow_template.c:33)
+==7351==    by 0xF32EC07: plant::TF24_Strategy<xad::AReal<double, 1ul> >::net_mass_production_dt(plant::TF24_Environment<xad::AReal<double, 1ul> > const&, xad::AReal<double, 1ul> const&, xad::AReal<double, 1ul> const&, xad::AReal<double, 1ul> const&) (BinaryMathFunctors.hpp:37)
+==7351==    by 0xF2D77F2: plant::TF24_Strategy<xad::AReal<double, 1ul> >::compute_rates(plant::TF24_Environment<xad::AReal<double, 1ul> > const&, plant::Internals<xad::AReal<double, 1ul> >&) (tf24_strategy.h:1936)
+==7351==    by 0xF2F0536: plant::Species<plant::TF24_Strategy<xad::AReal<double, 1ul> >, plant::TF24_Environment<xad::AReal<double, 1ul> > >::compute_rates(plant::TF24_Environment<xad::AReal<double, 1ul> > const&, double, double) (individual.h:116)
+==7351==    by 0xF2F092A: plant::Patch<plant::TF24_Strategy<xad::AReal<double, 1ul> >, plant::TF24_Environment<xad::AReal<double, 1ul> > >::compute_rates() (patch.h:1087)
+==7351==    by 0xF2F13DE: __gnu_cxx::__normal_iterator<xad::AReal<double, 1ul>*, std::vector<xad::AReal<double, 1ul>, std::allocator<xad::AReal<double, 1ul> > > > plant::Patch<plant::TF24_Strategy<xad::AReal<double, 1ul> >, plant::TF24_Environment<xad::AReal<double, 1ul> > >::ode_rates<__gnu_cxx::__normal_iterator<xad::AReal<double, 1ul>*, std::vector<xad::AReal<double, 1ul>, std::allocator<xad::AReal<double, 1ul> > > > >(__gnu_cxx::__normal_iterator<xad::AReal<double, 1ul>*, std::vector<xad::AReal<double, 1ul>, std::allocator<xad::AReal<double, 1ul> > > >) (patch.h:1397)
+==7351==    by 0xF303E76: void odelia::ode::derivs<plant::Patch<plant::TF24_Strategy<xad::AReal<double, 1ul> >, plant::TF24_Environment<xad::AReal<double, 1ul> > >, std::vector<xad::AReal<double, 1ul>, std::allocator<xad::AReal<double, 1ul> > >, plant::patch_solved_values<std::vector<plant::leaf_solved_point, std::allocator<plant::leaf_solved_point> > > const>(plant::Patch<plant::TF24_Strategy<xad::AReal<double, 1ul> >, plant::TF24_Environment<xad::AReal<double, 1ul> > >&, std::vector<xad::AReal<double, 1ul>, std::allocator<xad::AReal<double, 1ul> > > const&, std::vector<xad::AReal<double, 1ul>, std::allocator<xad::AReal<double, 1ul> > >&, double, plant::patch_solved_values<std::vector<plant::leaf_solved_point, std::allocator<plant::leaf_solved_point> > > const&) (ode_interface.hpp:474)
+==7351==    by 0xF30669A: void odelia::ode::Step<plant::Patch<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > >::step_adjoint(odelia::ode::active_system<plant::Patch<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > >&, plant::patch_solved_values<std::vector<plant::leaf_solved_point, std::allocator<plant::leaf_solved_point> > > const&, double, odelia::ode::solved_row<plant::patch_solved_values<std::vector<plant::leaf_solved_point, std::allocator<plant::leaf_solved_point> > > > const&, double, double, std::vector<double, std::allocator<double> > const&, odelia::ode::adjoint_rows const&, odelia::ode::adjoint_rows&, odelia::ode::adjoint_rows&)::{lambda(auto:1&, __gnu_cxx::__normal_iterator<xad::AReal<double, 1ul> const*, std::vector<xad::AReal<double, 1ul>, std::allocator<xad::AReal<double, 1ul> > > >, std::vector<xad::AReal<double, 1ul>, std::allocator<xad::AReal<double, 1ul> > >&)#1}::operator()<plant::Patch<plant::TF24_Strategy<xad::AReal<double, 1ul> >, plant::TF24_Environment<xad::AReal<double, 1ul> > > >(plant::Patch<plant::TF24_Strategy<xad::AReal<double, 1ul> >, plant::TF24_Environment<xad::AReal<double, 1ul> > >&, __gnu_cxx::__normal_iterator<xad::AReal<double, 1ul> const*, std::vector<xad::AReal<double, 1ul>, std::allocator<xad::AReal<double, 1ul> > > >, std::vector<xad::AReal<double, 1ul>, std::allocator<xad::AReal<double, 1ul> > >&) const (ode_step.hpp:253)
+==7351==    by 0xF30733B: odelia::ode::Solver<plant::Patch<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > >::sweep_range(xad::Tape<double, 1ul>&, std::span<odelia::ode::step_record<plant::Patch<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > const, 18446744073709551615ul>, odelia::ode::adjoint_rows&, odelia::ode::adjoint_rows&, unsigned long, unsigned long) (adjoint.hpp:432)
+==7351==    by 0xF30900D: odelia::ode::Solver<plant::Patch<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > >::solve_adjoint(odelia::ode::adjoint_rows&, odelia::ode::adjoint_rows&, unsigned long, unsigned long, std::vector<unsigned long, std::allocator<unsigned long> > const&) (ode_solver.hpp:390)
+==7351==    by 0xF31FE11: plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> >::census_trait_gradient(std::vector<unsigned long, std::allocator<unsigned long> > const&, std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) (ode_solver.hpp:448)
+==7351==    by 0xF27F54E: census_trait_gradient_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > >, Rcpp::Nullable<Rcpp::Vector<16, Rcpp::PreserveStorage> >) (census_gradient.cpp:94)
+==7351== 
+==7351== Events    : Ir
+==7351== Collected : 45578456047
+==7351== 
+==7351== I   refs:      45,578,456,047

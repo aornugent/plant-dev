@@ -1,0 +1,34 @@
+total collected 112.514 G Ir over 40073 rows: 2.808 M Ir per row; native sweep 12.90 s -> 8.72 G Ir/s, 321.9 us per row
+component                                                          Ir   share     Ir/row      us/row     calls
+-- active rate evaluations (step stages, insertions, census): 85.849 G over 9435 evaluations
+   members: 252779 member evaluations; strategy calls 273507 (boundary newborns 20728)
+(a) leaf re-solve at the active scalar (searches)             0.000 G   0.00%      0.0 k      0.0 us          
+(b1) member placement at double (set_physiology+replay)       5.485 G   4.87%    136.9 k     15.7 us          
+(b2) member taped arithmetic, crown light QK21 reads         19.237 G  17.10%    480.0 k     55.0 us          
+(b3) member taped arithmetic, rest of the strategy            5.035 G   4.48%    125.7 k     14.4 us          
+(d1) curvature dM/dp by central difference, double            8.689 G   7.72%    216.8 k     24.9 us          
+(d2) collar IFT: residual M taped (+sigma, ci IFTs)          17.546 G  15.59%    437.8 k     50.2 us          
+(d3) profit at the held collar (+sigma, ci IFTs)              7.442 G   6.61%    185.7 k     21.3 us          
+(d4) supply draw on the tape (5 layers)                       6.122 G   5.44%    152.8 k     17.5 us          
+(d5) carry rows, root network, rest of the leaf               2.056 G   1.83%     51.3 k      5.9 us          
+(e1) light field build on the tape (65 knots)                 6.810 G   6.05%    170.0 k     19.5 us          
+(e2) boundary newborn, 2 per evaluation                       5.700 G   5.07%    142.3 k     16.3 us     20728
+(e3) soil: uptake sums and soil rates                         1.261 G   1.12%     31.5 k      3.6 us          
+(f1) state scatter, node rates, checks                        0.465 G   0.41%     11.6 k      1.3 us          
+-- around the evaluations
+(b4) Cash-Karp tableau on the tape                            0.941 G   0.84%     23.5 k      2.7 us      1495
+(c) outer reverse interpretation (incl. adjoint zeroing)     14.412 G  12.81%    359.6 k     41.2 us      1960
+(g1) active-system rebinds at range starts                   10.295 G   9.15%    256.9 k     29.5 us       929
+(g2) be_at_step double evaluations                            0.781 G   0.69%     19.5 k      2.2 us       930
+(g3) active_system release and destructors                    0.135 G   0.12%      3.4 k      0.4 us          
+(g4) remainder (insertion maps, census seeds, R)              0.101 G   0.09%      2.5 k      0.3 us          
+sum of rows                                                 112.514 G
+-- cross-cuts (already inside the rows above)
+   of (g1): phylloptim::Leaf() constructors (tables)          6.954 G   6.18%    173.5 k     19.9 us          
+   IFT local sweeps (computeAdjointsTo from implicit_value)    1.053 G   0.94%     26.3 k      3.0 us   1360029
+   IFT input-slot bookkeeping (Tape::derivative calls)        5.384 G   4.79%    134.4 k     15.4 us  69439033
+   operator new                                               1.036 G   0.92%     25.9 k      3.0 us  13450331
+   operator delete                                            1.335 G   1.19%     33.3 k      3.8 us  13450331
+   memset                                                     1.861 G   1.65%     46.4 k      5.3 us   3273891
+   memcpy/memmove                                             1.587 G   1.41%     39.6 k      4.5 us   7778373
+   libm pow/exp/log                                           9.619 G   8.55%    240.0 k     27.5 us 100039232

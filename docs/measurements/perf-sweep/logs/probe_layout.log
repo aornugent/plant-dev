@@ -1,0 +1,10 @@
+start 2026-10-02T23:10:10Z probe_layout lib=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard spread=- script=probe_layout.R 
+load 2.41 1.68 0.75 3/117 1620
+harness /home/user/plant-dev/harness/long_drought.R md5 8f286ba2f521120ccae01b65aeafa9b1
+node ode_names: height,mortality,fecundity,area_heartwood,mass_heartwood,storage,offspring_produced_survival_weighted,interval_establishment,interval_establishment_moment 
+species size 11  species ode_state length 99  patch ode_state 109 
+new_node height: 0.3122526 
+node heights: 1.126 1.021 0.9201 0.826 0.7386 0.658 0.5839 0.5162 0.455 0.3996 0.3494 
+first 20 of patch state: 1.126 0.01047 6.518e-20 6.472e-08 3.093e-05 3.51e-05 9.384e-22 0.0924 0.004278 1.021 0.009494 3.49e-20 4.515e-08 1.959e-05 2.326e-05 5.201e-22 0.0924 0.004278 0.9201 0.008526 
+load 2.41 1.68 0.75 4/117 1634
+exit 0 2026-10-02T23:10:11Z

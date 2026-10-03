@@ -1,0 +1,11 @@
+start 2026-10-02T23:55:23Z order_u429_spread_t3e5 lib=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/lib3 spread=8 script=sp_order.R T=0 NODES=429 TOL=3e-5 TOL_ABS=3e-9
+load 0.33 0.11 0.04 4/110 533
+harness /home/user/plant-dev/harness/long_drought.R md5 8f286ba2f521120ccae01b65aeafa9b1
+lib /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/lib3, spread 8, plant .so 2026-10-02 02:44:16 
+config: T 40, 429 nodes, 2931 stops, tol 3e-05 abs 3e-09
+J 12.7468306, 22017 recorded states with 2+ nodes; seed height 0.312253
+heights tallest first at 18.77%; newborn below the youngest at 100.00%; both at 18.77%
+broken from t = 6.8958 to 40.0000; nodes 75..429; first rise at node 74; largest rise 0.00118 m; youngest height 0.312253..0.467522; nodes within 1 mm of the seed height 0..1
+SPORDER DONE
+load 2.06 1.72 0.93 2/114 1128
+exit 0 2026-10-03T00:04:10Z

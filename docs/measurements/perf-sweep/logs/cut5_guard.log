@@ -1,0 +1,15 @@
+start 2026-10-02T22:40:42Z cut5_guard lib=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard spread=- script=sp_time.R T=5 REPS=2
+load 0.19 0.17 0.10 3/103 3020
+lib /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard, spread unset, plant .so 2026-09-30 11:11:36 
+config: T 5, 54 nodes, 410 stops, tol 0.001
+rep 1 plain forward: user 5.57 s  J 1.65513158e-14  accepted 1495  attempts 1834  leaf solves 331293  peak 127 MB
+rep 1 recorded forward: user 5.46 s  J 1.65513158e-14  accepted 1495  attempts 1834  rows 40073  leaf solves 331289  rss 127 -> 127 MB
+rep 1 sweep: user 17.02 s  rss 127 -> 128 MB, peak 140 MB  leaf solves in sweep 26542  refused FALSE  dJ/dlma column -1.46225e-12
+rep 1 per row: recorded forward 136.23 us, sweep 424.80 us; sweep / recorded forward 3.118, sweep / plain forward 3.054
+rep 2 plain forward: user 5.59 s  J 1.65513158e-14  accepted 1495  attempts 1834  leaf solves 331293  peak 128 MB
+rep 2 recorded forward: user 5.60 s  J 1.65513158e-14  accepted 1495  attempts 1834  rows 40073  leaf solves 331289  rss 128 -> 128 MB
+rep 2 sweep: user 16.22 s  rss 128 -> 128 MB, peak 140 MB  leaf solves in sweep 26542  refused FALSE  dJ/dlma column -1.46225e-12
+rep 2 per row: recorded forward 139.84 us, sweep 404.79 us; sweep / recorded forward 2.895, sweep / plain forward 2.901
+SPTIME DONE
+load 0.87 0.37 0.18 1/102 3151
+exit 0 2026-10-02T22:41:41Z

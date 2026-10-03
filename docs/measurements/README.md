@@ -39,7 +39,8 @@ The debugging record of the grid's cost and error across the system, the solver
 and the controller is `docs/grid-dynamics.md`, with its driver logs and the
 every-node runs behind its window in `grid-dynamics/`. `grid-dynamics/rows.log`
 re-scores its seeds, step-size laws and window rule in rows, which the sweeps
-pay. The sweep's own cost is `perf-adjoint.md`'s. `grid-dynamics/rej_class/`
+pay. The sweep's cost per row, by component, is `perf-sweep.md`'s, which also
+finds that the sweep no longer re-solves `perf-adjoint.md`'s first stage. `grid-dynamics/rej_class/`
 holds the spike that traced the first-day rejections to the soil chain's own
 transient, with the driver's chain guard. The field adjoint map's
 spike is `field-adjoint-map.md`, with its patch, scripts and logs in

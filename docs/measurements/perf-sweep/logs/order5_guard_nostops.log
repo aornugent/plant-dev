@@ -1,0 +1,11 @@
+start 2026-10-02T23:30:37Z order5_guard_nostops lib=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard spread=- script=sp_order.R T=5 NOSTOPS=1
+load 2.00 2.04 1.76 3/115 4857
+harness /home/user/plant-dev/harness/long_drought.R md5 8f286ba2f521120ccae01b65aeafa9b1
+lib /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard, spread unset, plant .so 2026-09-30 11:11:36 
+config: T 5, 54 nodes, 0 stops, tol 0.001 abs 0.001
+J 1.44598033e-14, 1261 recorded states with 2+ nodes; seed height 0.312253
+heights tallest first at 68.60%; newborn below the youngest at 100.00%; both at 68.60%
+broken from t = 3.8092 to 5.0000; nodes 42..54; first rise at node 41; largest rise 0.00143 m; youngest height 0.312253..0.355929; nodes within 1 mm of the seed height 0..1
+SPORDER DONE
+load 2.08 2.06 1.76 3/112 4871
+exit 0 2026-10-02T23:30:43Z

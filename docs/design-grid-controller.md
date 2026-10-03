@@ -926,11 +926,11 @@ node axis to uniform halving; or a record whose graded rungs give no ratio near
     two-rung extrapolation;
   - wet's and dry's spread ladders are not run to u429;
   - the constant record still needs its front nodes;
-  - the resident's sweep ran 1.7–3.4× slower spread, being profiled. The
-    strategy reply reads it as a sweep bound by its tape, whose field assembly
-    grew sixteenfold, and proposes the panel's kernel integrated over its
-    height interval, with its adjoint written by hand, at the lumped tape's
-    size;
+  - the resident's sweep ran 1.7–3.4× slower spread. In CPU the spread costs
+    3–8% of a sweep; the rest was load and, at u429, the light field's
+    fallback path when two nodes' heights fall out of order, which the lumped
+    build takes too at a sixteenth of the cost
+    (`docs/measurements/perf-sweep.md`);
   - it changes plant's birth-date competition sum and every reference.
 - *At matched error,* for the invader's `lma`, each with a companion that
   reports its error: spread uniform u108 + u215 costs 2.93e6 member-steps for

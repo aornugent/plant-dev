@@ -1,0 +1,12 @@
+start 2026-10-02T23:06:45Z tape5_spread lib=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/lib3 spread=8 script=sp_tape.R T=5 SP_ODELIA_SO=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/lib_guard/odelia/libs/odelia.so LD_PRELOAD=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/sweep_profile/tapestats.so SP_TAPESTATS=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/sweep_profile/out/tape5_spread.tsv
+load 1.71 0.58 0.21 3/109 830
+harness /home/user/plant-dev/harness/long_drought.R md5 8f286ba2f521120ccae01b65aeafa9b1
+lib /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/comb/lib3, spread 8, plant .so 2026-10-02 02:44:16 
+config: T 5, 54 nodes, 410 stops, tol 0.001; tapestats /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/sweep_profile/out/tape5_spread.tsv
+recorded forward: user 4.80 s  J 1.65910732e-14  accepted 1495  attempts 1834  rows 40073
+sweep: user 13.93 s  wall 14.59 s  peak 148 MB
+row fields: time,step_size,introduction,error_index,error_ratio,state 
+recording: 1960 rows, 464 insertions, widths 10..496
+SPTAPE DONE
+load 2.08 0.74 0.28 3/112 898
+exit 0 2026-10-02T23:07:07Z

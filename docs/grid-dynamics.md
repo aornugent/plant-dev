@@ -17,6 +17,10 @@ cost per member evaluation are paid once.
 - *So a change is scored by rows first,* then the sweep's cost per row, the
   forward's cost per row, and rejections last. `harness/rows.R` scores a driver
   run against a baseline as `(forward + 6 rows) / 7`.
+- *The sweep's cost per row is its tape* (`perf-sweep.md`). It does no
+  searches, but a member taped at its recorded point costs 2.4 forward
+  evaluations. Not splitting it at the zero-depth pulses, the crown's light
+  quadrature off the tape and the collar's slope stored would take about half.
 - *A bar sits at ε, on the quantity that binds:* the gradients' spread under
   tolerance nudges. `J`'s error at `3e-5` is 2000 times inside ε.
 - Most tests below were scored on the forward and on `J`, before this was
@@ -61,7 +65,7 @@ wet by its own value, so an onset's rising day counts as dry there.
 | 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the members alone need about half the steps, and the chain implicit and out of the norm together is untested (§10) |
 | 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges (§11); its cost in the sweeps not measured |
 | 12 | the partitioned step's corrected couplings stall at 1e-4 to 5e-4 | the held collar's first-order deficit in the dry spells' water budget; the drift toward a fixed bias as the members' tolerance tightens is not traced | the partition killed (§13), and dead for another reason: in the dry spells the coupling is an algebraic loop; the drift likely a defect in the corrections, not traced |
-| 13 | the sweep costs 2.5–2.7 forwards, so a run with every gradient spends 74% in sweeps; spreading each panel's leaf area slows it 1.7–3.4× | not profiled | open; being profiled |
+| 13 | the sweep costs 2.5–2.7 forwards, so a run with every gradient spends 74% in sweeps; spreading each panel's leaf area slows it 1.7–3.4× | a member taped at its recorded point costs 2.4 forward evaluations, with five implicit-function solves, and every zero-depth pulse rebinds the patch twice; the spread's slowdown is the light field's fallback path when two nodes' heights fall out of order | established (`perf-sweep.md`); three changes would halve the sweep |
 
 ## 1. The steps
 
@@ -941,6 +945,9 @@ to high order, which is the coupled step.
   the sweeps are six of its seven forwards, and they pay rows. Scored so, PI
   with the seeds costs a gradient run 5.8% more, while the window rule saves as
   many rows as forward evaluations (§7, §8).
+- *Supported: the sweep's cost per row is its tape, not its solves.* It repeats
+  no search; taping a member costs 2.4 forward evaluations, and the zero-depth
+  pulses' rebinds take a fifth of it (`perf-sweep.md`).
 - *Supported: the record predicts the cost.* Steps per rain day follow its depth,
   dry intervals their length, and nodes and tolerance move it little.
 - *Supported: the forcing sets which bound holds on the soil.* Pulsed rain keeps
@@ -1020,8 +1027,6 @@ design against, not a result).
 ## Next probes, each one variable
 
 Running:
-- the sweep profiled: its cost per row by component, and the spread leaf area's
-  slowdown (symptom 13);
 - the partition's drift root-caused (§13).
 
 Rows first:
@@ -1036,11 +1041,15 @@ Rows first:
   sweeps (§11).
 
 Then the cost per row:
+- the sweep halved (`perf-sweep.md` §4): the descent not split at identity
+  insertion rows, the crown's light quadrature off the tape, and the collar's
+  slope stored with the recorded collar;
+- the light field's ordering test given a tolerance, or a sort before the
+  prefix pass, which removes the cliff at u429 in both builds;
 - the inner solve warm-started as an index-1 algebraic variable: each attempt's
   first stage from the last accepted step's end, later stages from the stage
   before, and the three nested roots as one Newton system. It cuts the
-  forward's cost per row, and the sweep's if its implicit-function solve is the
-  same system.
+  forward's cost per row only; the sweep does no searches.
 
 Then the rest:
 - the Hessian's cost: chords of gradients (about 68 forwards for five traits,
