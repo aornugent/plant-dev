@@ -187,21 +187,44 @@ for every eigenvalue μ of the stiff parts.
     So R5 for invaders is a condition on every step of the resident's grid, for
     every θ′ in the box: h/τ_eff must stay inside the region.
 
-On the test equation y′ = −y/τ (`harness/stability.R`):
+On the test equation y′ = −y/τ (`harness/stability.R`), in multiples of τ, and
+the lowest stage on 15- and 26-day steps at τ_s = 7 days:
 
-| | a stage turns negative past | the step is unstable past | lowest stage on a 15-day step | 26-day step: lowest stage, factor per step |
-|---|---|---|---|---|
-| Cash–Karp | 2.16τ (stage 4): 15.1 days at τ_s | 3.73τ: 26.1 days | +0.01 | −1.51, 0.965 |
-| Dormand–Prince | 1.04τ (stage 6): 7.3 days | 3.31τ: 23.1 days | −4.25 | −34.1, 2.06 |
+| method | order | evaluations | a stage turns negative past | per evaluation | unstable past | lowest stage, 15 days | 26 days |
+|---|---|---|---|---|---|---|---|
+| forward Euler | 1 | 1 | 1.00 (its result) | 1.00 | 2.00 | +1.00 | +1.00 |
+| Heun | 2 | 2 | 1.00 | 0.50 | 2.00 | −1.14 | −2.71 |
+| SSPRK(3,3) | 3 | 3 | 1.00 | 0.33 | 2.51 | −1.14 | −2.71 |
+| Bogacki–Shampine 3(2) | 3 | 3 | 1.60 | 0.53 | 2.51 | −0.49 | −4.36 |
+| classic RK4 | 4 | 4 | 1.30 | 0.32 | 2.79 | −1.31 | −8.63 |
+| Fehlberg 4(5) | 4 | 6 | 1.02 | 0.17 | 3.02 | −3.96 | −26.3 |
+| **Cash–Karp 5(4)** | 5 | 6 | 2.16 | 0.36 | 3.73 | +0.01 | −1.51 |
+| **Dormand–Prince 5(4)** | 5 | 6 | 1.04 | 0.17 | 3.31 | −4.25 | −34.1 |
+| Tsitouras 5(4) | 5 | 6 | 1.05 | 0.18 | 3.51 | −3.39 | −21.9 |
+| ARK4(3)6L, explicit part | 4 | 6 | 2.00 | 0.33 | 4.23 | −0.07 | −1.04 |
+| SSPRK(10,4) | 4 | 10 | 6.00 | 0.60 | 13.9 | +0.11 | +0.01 |
+| RODAS, implicit | 4 | 6 | 2.45 | 0.41 | never | +0.05 | −0.11 |
 
-- *Dormand–Prince's stages swing much further.* On a 15-day step its sixth stage
-  evaluates the pool at −4.25 times its start, where Cash–Karp's stages stay
-  positive. On a 26-day step it is unstable.
+- *Every method's stages overshoot a decaying pool once the step passes one to
+  two relaxation times.* The exceptions are made so: SSPRK(10,4) keeps its stages
+  positive to 6τ, at ten evaluations a step. Even the implicit RODAS has a
+  negative stage past 2.45τ.
+- *What differs is how deep.* The pairs tuned for a small error per step,
+  Dormand–Prince, Tsitouras and Fehlberg, reach −3.4 to −4.25 on a 15-day step.
+  Cash–Karp, the ARK's explicit part and RODAS stay near zero there.
+- *Why most users of Dormand–Prince never see it.* Error control normally keeps
+  h·|μ| well under one for every component that matters at the tolerance.
+  - Here steps average under a day (17 684 over 40 years) against τ_s = 7 days.
+  - The overshoot appears where a fast component is loosely controlled, or not
+    controlled at all. That means rule A's loosened steps after the window (up
+    to 31–38 days), and an invader's walk.
+- *It matters only where a rate misbehaves below zero.* For a linear rate a
+  negative stage is harmless: the results of Cash–Karp, Dormand–Prince,
+  Tsitouras, RK4 and RODAS stay positive until the step turns unstable. Whether
+  TF24's storage rates raise below zero is what phases 1b and 1c now measure.
 - *Which limit triggers a raise is not yet known.* The ×2 `lma` invader raised on
-  steps of 31–38 days, past both of Cash–Karp's limits.
-  - Phase 1c's caps at 15 and 26 days separate the two for Cash–Karp, whose
-    stages reach −1.5 by 26 days.
-  - Dormand–Prince's stages reach −4.25 by 15 days.
+  steps of 31–38 days, past both of Cash–Karp's limits. Phase 1c's caps at 15
+  and 26 days separate them for Cash–Karp, whose stages reach −1.5 by 26 days.
 - *This bears on the pair's decision.* Runs that host invader gradients are to
   use Dormand–Prince for its free interpolant, and their invaders meet these
   overshoots unguarded.
@@ -209,7 +232,6 @@ On the test equation y′ = −y/τ (`harness/stability.R`):
     h/τ_eff ≈ 1.
   - An interpolant for Cash–Karp, if phase 1b finds one good enough, would avoid
     the question.
-  - Phases 1b and 1c now measure it.
 
 ### (b) The controller as a dynamical system
 
@@ -313,8 +335,10 @@ resident's recording.
 
 ## 7. What the picture adds
 
-1. *Dormand–Prince's positivity region is half Cash–Karp's,* 1.04τ against 2.16τ
-   (4(a) above). It bears on hosting invader gradients on Dormand–Prince. Phases
+1. *Dormand–Prince's stages overshoot early and deep:* past 1.04τ against
+   Cash–Karp's 2.16τ, and to −4.25 on a 15-day step (4(a) above). Most explicit
+   methods overshoot past 1–2τ; Cash–Karp is unusually mild among fifth-order
+   pairs. It bears on hosting invader gradients on Dormand–Prince, and phases
    1b and 1c now measure whether a negative stage raises.
 2. *The 0.01 floor is conservative.* Over the box it allows 0.83 of ε/3, and over
    `lma`'s length scale 0.21.

@@ -330,6 +330,11 @@ pulsed record before the gate.
 - *Runs:* Dormand–Prince 5(4), with its free fourth-order dense output, against
   Cash–Karp in rows and error. Then per-member events on that interpolant, in
   cost and spread, against §11's quintic.
+- *A reference implementation:* dust2's continuous solver (`mrc-ide/dust2`,
+  `inst/include/dust2/continuous/`). It is Dormand–Prince with Shampine's free
+  fourth-order dense output, stored per step as five coefficient vectors for
+  only the variables read later, with events found on it by a bracketing root
+  finder.
 - *Also each pair's negative stages on the pools,* and any raise. On a pool's
   test equation Dormand–Prince's sixth stage turns negative past 1.04τ, against
   Cash–Karp's fourth past 2.16τ. On a 15-day step at τ_s its lowest stage is
@@ -368,6 +373,12 @@ pulsed record before the gate.
   crossing.
 - *Pass:* `J′ = J` at θ′ = θ, nothing raises over ×0.5–×2, and a continuous
   `J′(θ′)` on the frozen refinements.
+- *The trigger can be read rather than derived.* In Dormand–Prince the sixth and
+  seventh stages share t + h, so h·‖Δf‖/‖Δy‖ between them estimates h·|μ| for
+  free on the step's stiffest direction. This is dopri5's stiffness test; dust2
+  keeps its storage but not the test. Cash–Karp's fifth stage and the next
+  step's first evaluation share t + h likewise. Per member, it reads h/τ_eff
+  without the model's formula, and catches fast parts no formula names.
 - Invader events matter less than the resident's. At `1e-4` the invader already
   passes the nudge test (largest move 0.32 of ε/3), and its gradient's jumps are
   3e-5 of itself, since its sweep holds the resident's field fixed.
