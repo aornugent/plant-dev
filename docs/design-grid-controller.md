@@ -458,12 +458,15 @@ curvatures short. Under Cash–Karp, 1c's cap suffices.
 
 Stacked changes on the plant and odelia forks, each with its own tests, and
 bit-identical wherever its default is off (AGENTS.md):
-1. the chain's treatment from 1a;
+1. the chain's treatment from 1a. Its mechanism, a weight per state in odelia's
+   controller supplied by plant's patch, is built (`state-weights` on both
+   forks), and reproduces the driver's weighted runs bit for bit;
 2. the dense output from 1b: Cash–Karp's own fourth-order extension, from its
    stages and the end's rate (Dormand–Prince only if the user keeps it, below);
 3. per-member events, in the forward and the sweep: the invader's structure is
    frozen per grid, and the crossing times are differentiated;
-4. the window's weight from a pilot, and the invaders' guard from 1c;
+4. the window's weight from a pilot, through the same mechanism's schedule, and
+   the 15-day cap from 1c, which is plant's `ode_step_size_max`;
 5. the node rule from phase 2, with its companion;
 6. the diagnostics R8 asks for: the companions' estimate, θ's distance from θ₀
    against the radius, the failures, and the chain's error.

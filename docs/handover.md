@@ -112,7 +112,7 @@ picture: spaces, metrics, error and stability.
 | 1a. the chain's weight and treatment | done: the ×10 weight passes for both roles (−20.7%); the implicit chain passes at `1e-5` for the resident (−36.8%), and saves 60% under constant rain; next, the chain alone's estimate in ARK's norm (`grid-dynamics.md` §10) |
 | 1b. the pair and its interpolant | done: keep Cash–Karp, with its own free fourth-order extension for events (5.9% of a forward); Dormand–Prince is worse on TF24, and the pair decision is reopened (`grid-dynamics.md` §11) |
 | 1c. invaders under long steps | done: keep the 15-day cap, on the floor too; no invader sub-steps under Cash–Karp; the cap under Dormand–Prince is open (`grid-dynamics.md` §8) |
-| 3, brought forward | running: a weight per state in odelia's controller and plant's patch, the mechanism of the chain's weight and the window's |
+| 3, brought forward | done: a weight per state in odelia's controller and plant's patch, the mechanism of the chain's weight and the window's (`state-weights` on both forks); plant reproduces the driver's weighted runs bit for bit |
 | 2. the node axis | B or D is the user's call; the light field's ordering test is a fix in plant; the chosen rule's ladders off long drought not run |
 | 3. the build | waits on phases 1 and 2 |
 | 4. on the bank | the finish line |
@@ -430,9 +430,17 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 | `PLANT-97` (#97) | `b4b5febf` | the pool's relaxation offset, TF24 v12; 1 commit | `PLANT-95` | `a05f5c2` |
 | `PLANT-98` (#98) | `7dbd87c3` | the pool's stage guard out; 1 commit | `PLANT-97` | `a05f5c2` |
 | `PLANT-99` (#99) | `457f08bb` | the first invasion walks a recorded run without repeating it; 1 commit | `PLANT-98` | `a05f5c2` |
+| `state-weights` (no issue yet) | `f8baf843` | the soil's, the accumulators' and a schedule's weights in the step-size control; 1 commit | `PLANT-99` | odelia `state-weights`, `a62e97c` |
 
 - odelia 0.5.0 is `claude/trusting-curie-4i9n3l` and phylloptim 0.9.0 is
   `378b083`, both unreleased. A branch builds only against its own odelia.
+- odelia's `state-weights` (`a62e97c`, on `a05f5c2`) lets a System weigh each
+  component's error level, through a concept; plant's `state-weights` needs it.
+  - The control fields are `ode_weight_soil`, `ode_weight_accumulator`,
+    `ode_weight_times` and `ode_weight_factors`. Their defaults reproduce every
+    run bit for bit.
+  - The private library `$DEV/lib_sw` holds both.
+  - The branches await issues and PRs, the user's call.
 - No PR is open for `offspring-adjoint` or `PLANT-95` to `PLANT-99`; opening them
   is the user's call. #96 is independent of #97 and #98, and all three edit the
   top of `NEWS.md`.
