@@ -1,0 +1,11 @@
+--- a/inst/include/plant/models/tf24_strategy.h
++++ b/inst/include/plant/models/tf24_strategy.h
+@@ -1300,7 +1300,7 @@
+   // differentiable. storage_prod_eps smooths the positive-part of net production
+   // (replacing the old hard net>0 growth cutoff) for AD-readiness.
+   double storage_gate_width = 0.1;
+-  double storage_prod_eps   = 1e-4;
++  double storage_prod_eps   = 1e-5;
+ 
+   // The clamp sites this strategy reaches; the list itself is shared with the
+   // environment, which reaches the others.

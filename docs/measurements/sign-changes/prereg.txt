@@ -310,3 +310,13 @@ Result of the sixth extension (band.log, band_fit.log): B1 fails as
   tenfold growth. The residue at 1e-3 less 1e-2 is -0.14 at width 1e-3.
   Timed alone, plain's replay takes 69 and 67 s on the tight build against 62
   and 62 s on the split build, 1.10 times.
+
+Seventh extension: how close the positive part's width is to a sharp cutoff
+(2026-10-04, written before the run; eps01.sh, eps01_plant.patch)
+  Widening storage_prod_eps from 1e-4 to 1e-3 moved ln J by -0.228 on the
+  split's pinned program. One replay of that program at lma, on the tight build
+  with storage_prod_eps 1e-5, reads how far 1e-4 sits from the sharp cutoff.
+  W1, 1e-4 is close enough: ln J at 1e-5 lies within eps/10 (0.0025) of ln J at
+  1e-4. If it differs by eps/3 (0.0083) or more, the width is a modelling
+  choice that moves the answer by a third of eps or more and needs the user's
+  decision. Between, it is reported as a modelling sensitivity.
