@@ -568,8 +568,10 @@ after the events reply):
      `1e-4` costs 0.77 of plain at `1e-5`.
    - *The residue* (`grid-dynamics.md` §18, as revised). Every replay on a
      pinned grid carries noise of about 1.9e-8 in `ln J`, plain too, under a
-     change of the trait as small as 1e-12; its source is not traced, and the
-     leaf solve is the first suspect. No split choice was seen to move `J` by
+     change of the trait as small as 1e-12. It is the leaf solve's stopping
+     tolerances: stopped at adjacent floats, plant's own root-finds with it,
+     the noise falls to 1.1e-14 and `ln J` moves by −1.5e-6 (`tight.log`). No
+     split choice was seen to move `J` by
      more than that: the bisected passage and pairs lie inside it. Over 6.25e-5
      in r `ln J` also wanders from a smooth curve by 6.5e-8, the same in the
      split and in its correction at a step's end (correlation 0.78), so the

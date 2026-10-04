@@ -1,0 +1,9 @@
+split build: ln J at k = 0 2.539170868131
+  neighbouring changes less the smooth one: -1.6e-08 +2.6e-08 -9.5e-09 +1.5e-08 +1.8e-09 -5.7e-08
+  rms 2.72e-08
+tight build: ln J at k = 0 2.539169356461
+  neighbouring changes less the smooth one: -1.7e-15 +1.1e-14 +1.9e-14 +7.2e-15 -2.2e-15 +1.6e-14
+  rms 1.14e-14
+  seconds a replay: 67 71 68 72 71 72 71
+
+tight over split: 4.2e-07; T1 (at most 0.1) holds, fails at 0.5 or more

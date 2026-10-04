@@ -1845,9 +1845,13 @@ jumps for the choices' own, and the residue for their sum. Neither holds.
 - *Every replay carries noise of about 1.9e-8 in `ln J`.* Neighbouring replays
   of the bisections, 1e-9 to 6e-8 apart in r, mostly with no change of choice
   between them, differ from the smooth change by 2.6e-8 rms and up to 7.2e-8.
-  At `lma` itself a change of 1e-12 moves plain by +1.5e-8 and +1.0e-8. Its
-  source is not traced; the leaf solve, which turns an ulp upstream into 1e-9,
-  is the first suspect.
+  At `lma` itself a change of 1e-12 moves plain by +1.5e-8 and +1.0e-8. It is
+  the stopping tolerances (`tight.R`, `tight.log`, pre-registered as the fourth
+  extension): with every root-find and search in the leaf solve, and plant's own
+  for the newborn's height, stopping only at adjacent floats, plain's changes
+  between `lma (1 + k 1e-12)`, k = −3..3, fall from 2.7e-8 rms to 1.1e-14, and
+  `ln J` moves by −1.5e-6. Its replays took 67–72 s, against 62–66 s for the
+  default build's beside the compile, not timed alone.
 - *So no single choice was resolved.* The passage's −0.85e-8 and the lost pairs'
   +0.74e-8 and −4.6e-8 lie inside that noise.
 - *What wanders is common to the split and its correction.* Over 6.25e-5 in r,
@@ -1869,8 +1873,7 @@ jumps for the choices' own, and the residue for their sum. Neither holds.
   Plain's residue at `1e-3` has the other sign and is 6 times larger.
 - *What the split leaves uncut:* the class switches, a C⁰ kink in each node's
   leaf solution a median 0.26 days before its upward sign change; the soil's
-  floor and saturation. Untested as the residue's carrier, as is the noise's
-  source.
+  floor and saturation. Untested as the residue's carrier.
 
 ## What the record supports, and what it does not
 

@@ -244,3 +244,25 @@ the replays; tight.sh, tight.R, tight_phylloptim.patch, tight_plant.patch)
      tolerances carry part of it.
   Reported, not judged: ln J at k = 0 on each build, which is what the
   tightening moves J by, and each replay's time.
+
+Result of the fourth extension (tight.log): T1 holds. Plain's changes between
+  neighbouring k fall from 2.7e-8 rms on the split build to 1.1e-14 on the
+  tight build, a ratio of 4e-7; ln J at k = 0 moves by -1.5e-6.
+
+Fifth extension: the residue without the noise (2026-10-04, written before the
+replays; tight_residue.sh, tight_residue.R)
+  The noise gone, does the split's residue below r = 1e-2 stay, and does the
+  slower departure on the fine grid? On the tight build, the split's and
+  plain's programs (program_split.rds, program_plain.rds) are replayed at
+  lma (1 + r), r = +-1e-3, +-3e-3, +-1e-2, +-3e-2, and the split's at
+  r = k/32 1e-3, k = 0, 2, ..., 32. The split build gains plain and the split at
+  +-3e-3, so both builds have all four r. Second differences are taken against
+  each arm's own replay at r = 0, as jumps.R takes them.
+  R1, the residue was the tolerances': on the tight build the split's value at
+     1e-3 less its value at 1e-2 lies within +-0.1. R1 fails if it is +0.4 or
+     more, as on the split build (+0.57).
+  R2, the slower departure was the tolerances': the tight build's fine grid
+     departs from a smooth curve by at most 1e-8 (sd over the 16 intervals).
+     R2 fails at 4e-8 or more (6.5e-8 on the split build).
+  Reported, not judged: plain's residue on both builds, each arm's values at
+  3e-3, and the tight build's values at 1e-2 and 3e-2 against -43.45.
