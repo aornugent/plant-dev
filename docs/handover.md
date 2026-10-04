@@ -426,6 +426,69 @@ Where the record disagrees with the reply:
   in several input rates, so the balance moves toward the resident, as the user
   expects. Forward-only invader walks, at 0.8 of a forward, move it further.
 
+The reply's own test (`grid-dynamics.md` §17). With splits at crossings found
+again on each replay, forward second differences give `lma`'s curvature
+reproducibly from a perturbation of `1e-2` up: 0.05ε under the ±5% nudges at
+`1e-2`, and 0.002ε at `3e-2`. Without splits they fail at `1e-2` (0.56ε) and
+pass at `3e-2` (0.10ε). So events stay in the resident's build for the
+curvatures as well as for predictability.
+
+Three checks the user asked for after the reply:
+- *Class switches are not the soil's instability.* The soil instability the
+  record found is the chain's own transient. The 798 soil-bound rejections in
+  the first day after a knot, which the strategy reply had read as class
+  switches, are the drainage power law switching on as a rain onset fills the
+  top layers; 1 of 793 held a class switch (`grid-dynamics.md` §7).
+  - Class switches are something else: a member's leaf optimisation leaves the
+    interior of its search interval for its lower end, where `P < 0` in 99.8% of
+    member-states. Each is a kink in that member's inner solution, and so in its
+    draw on the soil, its net production and its pool's rate. They appear in
+    23–34% of the members' own rejections.
+  - In the curvature scan they are the leading candidate for the split's
+    residue below a perturbation of `1e-2`, since the soil's clamps are never
+    met on accepted steps. That residue fades by `1e-2`.
+  - So splits at class switches are not needed for the curvature route. They
+    stay an option for smaller perturbations, or for a pointwise second-order
+    sweep, which would carry every unlocated kink's bias.
+- *Per-member splits with the spread rule (D).*
+  - *Consistent by construction.* The driver evaluates a split member with
+    plant's own field construction, from the interpolated state of every member
+    (`patch_node_rates_tf24`). So the spread and the height sort reach a split
+    member's field reads as they reach any evaluation, once one plant build
+    carries both.
+  - *A cost to measure.* Each split member's evaluation rebuilds the whole
+    field, set against a single member's inner solve. Under D the field holds
+    16 point crowns per introduction, so at 429 introductions a rebuild may cost
+    several inner solves. The split's 4.1% of a forward, measured lumped at 108,
+    could then grow, and so could the field's fan-out in the sweep. One field
+    shared per sub-stage time, or field values interpolated from the step's
+    ends, would bound it.
+  - *A gain.* Splits make `J`'s time error fall with `tol`, so D's two-rung
+    estimate of the node error stays clean as `tol` loosens. Moving the error
+    budget toward nodes (`geometry.md` §6) needs exactly that.
+  - *Not yet run together.* The split's single-member evaluation and the spread
+    with the sort live in separate plant probe builds. One build with both,
+    running the curvature scan and the nudges at 108 and 215 introductions,
+    would test the consistency and the cost.
+- *"Events" is taken, twice over.*
+  - plant already has `Events` and `EventLog` (`plant/events.h`, `#632`):
+    discrete actions at a time (resource pulses, climate extremes, harvest,
+    node introduction) that stop the integrator, change the patch and are
+    logged. Their names are a stable R-facing API.
+  - dust2's events (`mrc-ide/dust2`, `inst/include/dust2/continuous/events.hpp`)
+    are the same kind, triggered by the state. A test function's root is found
+    on the step's interpolant, the whole step is cut short there, and an action
+    changes the state, as in its bouncing ball. Even its events with no action
+    stop the step and are recorded.
+  - Per-member splits do none of that: no action, no jump in the state or the
+    adjoint, no stop for the global step, one member at a time, thousands per
+    run. So the build should not call them events.
+  - Proposed, for the user: a *crossing* is the located time where a member's
+    net production changes sign, and a *split* re-integrates that member on
+    sub-steps either side of it. Our docs also use *thinning* for dropping node
+    introductions, which in forestry is a harvest; *sparser introductions*
+    would avoid that clash.
+
 **The strategy consult and its reply** (`docs/oracle-consultation-strategy.md`,
 its addenda, and `docs/oracle-response-strategy.md`). What it changed:
 - *The forward was being optimised* while the sweeps are 74% of a gradient run,

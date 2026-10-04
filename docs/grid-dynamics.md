@@ -1612,6 +1612,74 @@ bounds:
   more CPU, while walking every node instead, the committed path, costs 23% of
   a forward. So the sort is the fix, and it needs no tolerance to choose.
 
+## 17. Curvatures by second differences, with and without the split
+
+**The question** (the events reply, `oracle-response-events.md` §2; a
+pre-registered test, `measurements/grid-dynamics/events/prereg_uscan.txt`). The
+reply recommends taking the resident's curvatures by forward second differences
+of `ln J` on a frozen grid with per-member splits, at a perturbation near
+`1e-2`. It predicts they are flat in the perturbation within ε/10 and stable
+under tolerance nudges. The record already had the plain run's second
+difference within 0.29ε of the adaptive value at `1e-2` (§11's chord table;
+`assessment.md`, step 5). So the test asks two things: whether the split's
+second difference is stable, and whether the plain run's is stable enough to
+need no split.
+
+**The test.** The events spike's driver and setting: long drought, 108 uniform
+introductions, and Cash–Karp under the tied tolerance at `1e-4` and at its ±5%
+nudges, each on its own recorded program. Second differences of `ln J` in
+`ln lma` come from runs at `lma (1 ± r)`, with r from `3e-4` to `3e-2`, on three
+arms:
+- *plain:* the program replayed with no split;
+- *split, crossings found again:* on each replay, every member whose net
+  production changes sign inside a step is split there, on the quintic through
+  the half-step midpoint. This is the reply's model, in which the set of splits
+  changes as crossings pass from step to step;
+- *split on `lma`'s frozen structure:* the (step, member) pairs split at `lma`
+  itself, as in §11's chord table. A crossing that moves to another step is
+  integrated unsplit there.
+
+Each second difference is in units of ε for `lma`'s curvature in the resident
+role, 1.17. The adaptive reference is −43.7, uncertain by about 0.3 (0.26ε).
+
+**Results** (`uscan.log`):
+
+| r | `3e-4` | `1e-3` | `3e-3` | `1e-2` | `3e-2` |
+|---|---|---|---|---|---|
+| plain, at `1e-4` | −49.06 | −47.28 | −44.31 | −44.04 | −43.62 |
+| split, crossings found again, at `1e-4` | | −42.89 | −43.33 | −43.44 | −43.47 |
+| split on the frozen structure, at `1e-4` | −44.63 | −42.79 | −43.10 | −43.58 | −43.49 |
+| plain: spread over the three tolerances | | | 2.59ε | 0.56ε | 0.10ε |
+| split found again: spread over the three tolerances | | | 0.23ε | 0.05ε | 0.002ε |
+
+- *With the split, the second difference is stable from r = `1e-2` up.* Under
+  the ±5% nudges it moves 0.05ε at `1e-2` and 0.002ε at `3e-2`, and from `1e-2`
+  to `3e-2` it moves 0.02ε. Across the reply's range, `3e-3` to `3e-2`, it spans
+  0.115ε, just over the predicted ε/10, all of it from the `3e-3` point.
+- *Without the split it is stable only at `3e-2`.* There it moves 0.10ε under
+  the nudges and sits 0.07ε from the reference. At `1e-2` it moves 0.56ε, and
+  at `3e-3` 2.6ε. So the record's −44.04 at `1e-2` was one draw from a spread
+  of 0.65.
+- *The split's residue below `1e-2` is not the crossings changing step.* At
+  `1e-3` its value sits 0.55 (0.47ε) above its value at `1e-2`, against about
+  0.04 that the crossings changing step can cause. It fades as r grows, as the
+  plain arm's much larger kink error does, rather than staying as a constant
+  offset. The kinks left unlocated in the members' rates are the class switches.
+  The soil's clamps are not met on accepted steps (§8), so they do not shape
+  the frozen map.
+- *The frozen structure departs from the found-again split by up to 0.2ε at
+  `3e-3`,* and agrees with it at `3e-2` (−0.02ε). The departure does not grow
+  with r, as the pre-registration expected; it is largest in between.
+- *Against the reference,* the split's value at `1e-2` and `3e-2` sits 0.20–0.22ε
+  above −43.7, inside the reference's own uncertainty.
+
+**Verdict.** The reply's route holds with the split: forward second
+differences at r between `1e-2` and `3e-2` give `lma`'s curvature reproducibly,
+within 0.002–0.05ε under the nudges, for two forwards each and no sweep. Without
+the split the same route fails at `1e-2`, and at `3e-2` it passes but is fifty
+times less reproducible (0.10ε against 0.002ε). Splits at class switches are
+not needed from r = `1e-2` up.
+
 ## What the record supports, and what it does not
 
 - *Supported: a gradient run's cost is its rows and its sweeps.* The walk and

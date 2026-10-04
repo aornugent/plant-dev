@@ -39,7 +39,8 @@ base_tag <- function(arm, T) {
 base <- function(arm, T) J_of(base_tag(arm, T))
 
 arms <- c(rp = "plain", sq = "split, re-detected", fq = "split, frozen structure")
-TOLS <- c("1e-4", "9.5e-5", "1.05e-4", "3e-5")
+NUDGES <- c("1e-4", "9.5e-5", "1.05e-4")
+TOLS <- c(NUDGES, "3e-5")
 RS <- c("3e-4", "1e-3", "3e-3", "1e-2", "3e-2")
 out <- NULL
 for (a in names(arms)) for (T in TOLS) for (r in RS) {
@@ -65,13 +66,17 @@ spread <- function(v) if (all(is.finite(v))) (max(v) - min(v)) / eps else NA
 cat("\nP1 (the reply): the re-detected split across r in {3e-3, 1e-2, 3e-2} at 1e-4 moves",
     sprintf("%.3f eps (bar 0.1);", spread(sapply(c(3e-3, 1e-2, 3e-2), function(r) pick("sq", "1e-4", r)))),
     "under the nudges at r = 1e-2 it moves",
-    sprintf("%.3f eps (bar 1/3)\n", spread(sapply(TOLS, function(T) pick("sq", T, 1e-2)))))
+    sprintf("%.3f eps (bar 1/3)\n", spread(sapply(NUDGES, function(T) pick("sq", T, 1e-2)))))
 cat("P2 (the reply): the re-detected split's distance from the reference, in eps, at r = 3e-3, 1e-2, 3e-2:",
     paste(sprintf("%+.3f", (sapply(c(3e-3, 1e-2, 3e-2), function(r) pick("sq", "1e-4", r)) - REF) / eps), collapse = ", "), "\n")
 cat("P3 (ours): the plain arm's distance from the reference, in eps, at r = 1e-2 and 3e-2:",
     paste(sprintf("%+.3f", (sapply(c(1e-2, 3e-2), function(r) pick("rp", "1e-4", r)) - REF) / eps), collapse = ", "),
     sprintf("(bar 1/3); under the nudges at r = 1e-2 it moves %.3f eps and at 3e-2 %.3f eps (bar 1/3)\n",
-            spread(sapply(TOLS, function(T) pick("rp", T, 1e-2))), spread(sapply(TOLS, function(T) pick("rp", T, 3e-2)))))
+            spread(sapply(NUDGES, function(T) pick("rp", T, 1e-2))), spread(sapply(NUDGES, function(T) pick("rp", T, 3e-2)))))
+cat("Under the nudges, each arm's spread in eps at r = 3e-3, 1e-2, 3e-2: plain",
+    paste(sprintf("%.3f", sapply(c(3e-3, 1e-2, 3e-2), function(r) spread(sapply(NUDGES, function(T) pick("rp", T, r))))), collapse = ", "),
+    "; split, re-detected",
+    paste(sprintf("%.3f", sapply(c(3e-3, 1e-2, 3e-2), function(r) spread(sapply(NUDGES, function(T) pick("sq", T, r))))), collapse = ", "), "\n")
 cat("P4 (ours): the frozen structure less the re-detected split at 1e-4, in eps, at r = 1e-3, 3e-3, 1e-2, 3e-2:",
     paste(sprintf("%+.3f", sapply(c(1e-3, 3e-3, 1e-2, 3e-2), function(r) pick("fq", "1e-4", r) - pick("sq", "1e-4", r)) / eps), collapse = ", "), "\n")
 cat("P5 (extension): the re-detected split's H, 3e-5 less 1e-4, in eps, at r = 1e-2 and 3e-2:",
