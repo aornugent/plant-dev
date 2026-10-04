@@ -558,6 +558,16 @@ after the events reply):
      continuous; the forward costs at most 6% more; and halving only the split
      steps shrinks the split nodes' error at the pair's order, which is
      unmeasured for the quartic.
+   - *Built* on `sign-changes` (odelia `6a6ce45`, plant `abcfcc22`), and
+     *measured* on long drought (`grid-dynamics.md` §18). It repeats the
+     driver's split: `J` 10× nearer the reference than plain at `1e-4`, and the
+     curvature within 0.015ε of −43.45 at r = `1e-2` and `3e-2`. Three gates are
+     missed as registered: below `3e-5` an error both arms share stops `J`'s
+     error falling; the forward costs 6.9% more; and from r = `1e-2` to `1e-3`
+     the curvature still moves 0.49ε. Passages carry part of that residue: a
+     correction that makes a cut at a step's end change nothing halves it, but
+     gives back the split's accuracy in `J`. At matched stability the split at
+     `1e-4` costs 0.77 of plain at `1e-5`.
 3. *Splits in the sweep.* Each part is a row of its own for its node's
    components, and the field values it read are fixed linear maps of the
    recorded stages. Each split time enters the tape by one implicit-function
@@ -569,26 +579,30 @@ after the events reply):
    sweep costs at most 6% more.
    *The design of items 2 and 3.* One commitment: odelia does the arithmetic and
    plant names the parts.
-   - *odelia.* A System that satisfies a concept supplies three things: the
-     sign value of each part after an evaluation (for TF24, each node's net
-     production), the components each part holds, and one part's rates and sign
-     value at a time, given the state its field is built from and the part's own
-     state.
-   - One private function of the solver runs after an accepted step and after a
-     walk's pinned step, before the end rate is handed on and the row recorded.
-     It compares each part's sign value at the step's ends and at its five
-     stages, locates each sign change on the step's dense output, integrates the
+   - *odelia.* A System that satisfies `SplitsSignChanges` supplies three
+     things: the sign value of each part after an evaluation (for TF24, each
+     node's net production), the width of a part, whose parts open the state,
+     and one part's rates and sign value at a given state. Only a double System
+     splits.
+   - The solver splits each step its error estimate keeps, and every pinned
+     step, before the end rate is handed on and the row recorded. It compares
+     each part's sign value at the step's ends and at its five stages, locates
+     each sign change on the step's dense output by regula falsi, integrates the
      part's components over the pieces between them with the step's own tableau,
-     writes the end state, and evaluates the rates there again. A control field,
-     off by default, turns it on, so every run without it repeats bit for bit.
+     writes the end state, and evaluates the rates there again. A part's stage
+     that throws rejects the step, and the validity check reads the corrected
+     end. A System that names no parts runs bit for bit as before.
    - `Step` gains the dense output, from the six stage rates and the end's rate
      it already holds, and its stage and end combinations take their length from
      the vectors rather than the full state, so a part reuses them.
-   - *plant.* The patch satisfies the concept where its strategy has a net
-     production to change sign (TF24): a node's components are where
-     `ode_state` writes them, its sign value is its net production, and a part's
-     rates build the field from the interpolated state of every node and rate
-     that node alone at its part's state.
+   - *plant.* The patch satisfies the concept where its strategy names the
+     auxiliary its rates change form at (TF24's net production), and names its
+     nodes as parts when `ode_split_sign_changes` is on: a node's components are
+     where `ode_state` writes them, and a part's rates are that node's alone, in
+     the field the dense output's state builds with the part's own components
+     spliced in. An evaluation in a recorded field names none, so invasions stay
+     unsplit. `ode_splits` counts the node steps a run split, and the sweep and
+     the tangent walks refuse a run that split until item 3.
    - *Recorded:* nothing new for item 2, since replays split again and
      arrive at the same numbers. Item 3 records each part's evaluations, so the
      sweep tapes them at the solutions found.

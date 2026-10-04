@@ -1,0 +1,53 @@
+run	tol	split	lma_rel	program	J	steps	splits	secs	attempts	lib
+cost_plain_1	1e-04	FALSE	0		12.6691621750	14839	0	70.3	14838/0/3386/0/1	lib_sc
+cost_plain_1e-5_1	1e-05	FALSE	0		12.6687793358	21107	0	98.7	21106/0/4624/0/0	lib_sc
+cost_plain_1e-5_2	1e-05	FALSE	0		12.6687793358	21107	0	98.5	21106/0/4624/0/0	lib_sc
+cost_plain_2	1e-04	FALSE	0		12.6691621750	14839	0	71.3	14838/0/3386/0/1	lib_sc
+cost_split_1	1e-04	TRUE	0		12.6687559767	14844	9239	73.7	14843/0/3390/0/1	lib_sc
+cost_split_2	1e-04	TRUE	0		12.6687559767	14844	9239	77.6	14843/0/3390/0/1	lib_sc
+diff_1e-4	1e-04	TRUE	0		12.6690048061	14845	9239	76.1	14844/0/3390/0/1	lib_diff
+diff_lma_-1e-2	1e-04	TRUE	-0.01	program_diff.rds	13.7389802796	14845	9301	68.6	0/0/0/0/0	lib_diff
+diff_lma_-1e-3	1e-04	TRUE	-0.001	program_diff.rds	12.7740879839	14845	9248	69.2	0/0/0/0/0	lib_diff
+diff_lma_-3e-2	1e-04	TRUE	-0.03	program_diff.rds	16.0081993302	14845	9460	64.5	0/0/0/0/0	lib_diff
+diff_lma_1e-2	1e-04	TRUE	0.01	program_diff.rds	11.6413586329	14845	9190	70.4	0/0/0/0/0	lib_diff
+diff_lma_1e-3	1e-04	TRUE	0.001	program_diff.rds	12.5643472489	14845	9237	70	0/0/0/0/0	lib_diff
+diff_lma_3e-2	1e-04	TRUE	0.03	program_diff.rds	9.7140024355	14845	9124	66.7	0/0/0/0/0	lib_diff
+plain_1e-3	0.001	FALSE	0		12.6660304111	11003	0	60.3	11002/0/2406/0/7	lib_sc
+plain_1e-4	1e-04	FALSE	0		12.6691621750	14839	0	90.7	14838/0/3386/0/1	lib_sc
+plain_1e-5	1e-05	FALSE	0		12.6687793358	21107	0	100	21106/0/4624/0/0	lib_sc
+plain_1e-7	1e-07	FALSE	0		12.6687157681	47651	0	265.8	47650/0/12532/0/0	lib_sc
+plain_3e-4	3e-04	FALSE	0		12.6694402178	12751	0	74	12750/0/2852/0/4	lib_sc
+plain_3e-5	3e-05	FALSE	0		12.6685543721	17684	0	90.9	17683/0/3911/0/0	lib_sc
+rp_lma_-1e-2	1e-04	FALSE	-0.01	program_plain.rds	13.7388679085	14839	0	59.9	0/0/0/0/0	lib_sc
+rp_lma_-1e-3	1e-04	FALSE	-0.001	program_plain.rds	12.7741198235	14839	0	59.5	0/0/0/0/0	lib_sc
+rp_lma_-3e-2	1e-04	FALSE	-0.03	program_plain.rds	16.0076694439	14839	0	60	0/0/0/0/0	lib_sc
+rp_lma_1e-2	1e-04	FALSE	0.01	program_plain.rds	11.6410856261	14839	0	60.5	0/0/0/0/0	lib_sc
+rp_lma_1e-3	1e-04	FALSE	0.001	program_plain.rds	12.5645780548	14839	0	59.7	0/0/0/0/0	lib_sc
+rp_lma_3e-2	1e-04	FALSE	0.03	program_plain.rds	9.7132799914	14839	0	60.8	0/0/0/0/0	lib_sc
+rs_lma_-1e-2	1e-04	TRUE	-0.01	program_split.rds	13.7387193012	14844	9301	67.3	0/0/0/0/0	lib_sc
+rs_lma_-1e-3	1e-04	TRUE	-0.001	program_split.rds	12.7738364341	14844	9248	67.1	0/0/0/0/0	lib_sc
+rs_lma_-3e-2	1e-04	TRUE	-0.03	program_split.rds	16.0079019401	14844	9460	68	0/0/0/0/0	lib_sc
+rs_lma_0	1e-04	TRUE	0	program_split.rds	12.6687560225	14844	9239	66.6	0/0/0/0/0	lib_sc
+rs_lma_1e-2	1e-04	TRUE	0.01	program_split.rds	11.6411232659	14844	9190	66.2	0/0/0/0/0	lib_sc
+rs_lma_1e-3	1e-04	TRUE	0.001	program_split.rds	12.5641054086	14844	9237	67.7	0/0/0/0/0	lib_sc
+rs_lma_3e-2	1e-04	TRUE	0.03	program_split.rds	9.7138564708	14844	9124	67.4	0/0/0/0/0	lib_sc
+split_1e-3	0.001	TRUE	0		12.6674068533	10999	9231	70.6	10998/0/2403/0/7	lib_sc
+split_1e-4	1e-04	TRUE	0		12.6687559767	14844	9239	99.7	14843/0/3390/0/1	lib_sc
+split_1e-5	1e-05	TRUE	0		12.6687855928	21106	9247	119.5	21105/0/4631/0/0	lib_sc
+split_1e-6	1e-06	TRUE	0		12.6687258851	31230	9248	184.3	31229/0/6988/0/0	lib_sc
+split_1e-7	1e-07	TRUE	0		12.6687125607	47640	9255	285.3	47639/0/12385/0/0	lib_sc
+split_3e-4	3e-04	TRUE	0		12.6684524243	12751	9233	87.2	12750/0/2852/0/4	lib_sc
+split_3e-5	3e-05	TRUE	0		12.6687296371	17683	9244	90.4	17682/0/3911/0/0	lib_sc
+tp_lma_-1e-2	1e-04	FALSE	-0.01	program_plain.rds	13.3063841015	14839	0	60.7	0/0/0/0/0	lib_sc
+tp_lma_-1e-3	1e-04	FALSE	-0.001	program_plain.rds	12.7322200174	14839	0	84.7	0/0/0/0/0	lib_sc
+tp_lma_-3e-2	1e-04	FALSE	-0.03	program_plain.rds	14.6197420774	14839	0	59.4	0/0/0/0/0	lib_sc
+tp_lma_1e-2	1e-04	FALSE	0.01	program_plain.rds	12.0444051057	14839	0	72.4	0/0/0/0/0	lib_sc
+tp_lma_1e-3	1e-04	FALSE	0.001	program_plain.rds	12.6061910579	14839	0	89.5	0/0/0/0/0	lib_sc
+tp_lma_3e-2	1e-04	FALSE	0.03	program_plain.rds	10.8336828992	14839	0	60.4	0/0/0/0/0	lib_sc
+ts_lma_-1e-2	1e-04	TRUE	-0.01	program_split.rds	13.3062295868	14844	9285	63.3	0/0/0/0/0	lib_sc
+ts_lma_-1e-3	1e-04	TRUE	-0.001	program_split.rds	12.7319181250	14844	9246	79.4	0/0/0/0/0	lib_sc
+ts_lma_-3e-2	1e-04	TRUE	-0.03	program_split.rds	14.6195030822	14844	9408	65.9	0/0/0/0/0	lib_sc
+ts_lma_0	1e-04	TRUE	0	program_split.rds	12.6687560225	14844	9239	62.8	0/0/0/0/0	lib_sc
+ts_lma_1e-2	1e-04	TRUE	0.01	program_split.rds	12.0441492711	14844	9204	76.9	0/0/0/0/0	lib_sc
+ts_lma_1e-3	1e-04	TRUE	0.001	program_split.rds	12.6057226616	14844	9237	91.3	0/0/0/0/0	lib_sc
+ts_lma_3e-2	1e-04	TRUE	0.03	program_split.rds	10.8342191808	14844	9161	67.4	0/0/0/0/0	lib_sc

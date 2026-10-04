@@ -1,0 +1,71 @@
+diff --git a/inst/include/odelia/ode_step.hpp b/inst/include/odelia/ode_step.hpp
+index 95880bd..537062a 100644
+--- a/inst/include/odelia/ode_step.hpp
++++ b/inst/include/odelia/ode_step.hpp
+@@ -367,32 +367,42 @@ void Step<System>::split(System& system, solved_values& at_state, double time,
+     }
+     ++parts_split;
+ 
+-    std::copy(y_start.begin() + first,
+-              y_start.begin() + first + static_cast<std::ptrdiff_t>(width),
+-              own.begin());
+-    double from = 0.0;
+-    for (int c = 0; c <= n_cuts; ++c) {
+-      const double to = c < n_cuts ? cuts[c] : 1.0;
+-      if (!(to > from)) {
+-        continue;
+-      }
+-      const double piece = (to - from) * h;
+-      // At the step's start the part's rates are the step's own first ones.
+-      if (from == 0.0) {
+-        std::copy(k[0].begin() + first,
+-                  k[0].begin() + first + static_cast<std::ptrdiff_t>(width),
+-                  piece_rates[0].begin());
+-      } else {
+-        rate(p, from, &own, piece_rates[0]);
+-      }
+-      for (int i = 1; i < 6; ++i) {
+-        stage_state(i, own, piece_rates, piece, stage);
+-        rate(p, from + ah[i - 1] * (to - from), &stage, piece_rates[i]);
++    // The part over [0, 1] in pieces between `cuts`, its field read from the dense
++    // output throughout, into `own`.
++    auto integrate = [&](const double* at, int n) {
++      std::copy(y_start.begin() + first,
++                y_start.begin() + first + static_cast<std::ptrdiff_t>(width),
++                own.begin());
++      double from = 0.0;
++      for (int c = 0; c <= n; ++c) {
++        const double to = c < n ? at[c] : 1.0;
++        if (!(to > from)) {
++          continue;
++        }
++        const double piece = (to - from) * h;
++        if (from == 0.0) {
++          std::copy(k[0].begin() + first,
++                    k[0].begin() + first + static_cast<std::ptrdiff_t>(width),
++                    piece_rates[0].begin());
++        } else {
++          rate(p, from, &own, piece_rates[0]);
++        }
++        for (int i = 1; i < 6; ++i) {
++          stage_state(i, own, piece_rates, piece, stage);
++          rate(p, from + ah[i - 1] * (to - from), &stage, piece_rates[i]);
++        }
++        step_end(own, piece_rates, piece, own);
++        from = to;
+       }
+-      step_end(own, piece_rates, piece, own);
+-      from = to;
++    };
++    // The step's own end corrected by what the cuts change, both integrations in
++    // the dense output's field, so a cut at either end of the step changes nothing.
++    integrate(nullptr, 0);
++    std::vector<double> whole(own);
++    integrate(cuts, n_cuts);
++    for (std::size_t q = 0; q < width; ++q) {
++      y[static_cast<std::size_t>(first) + q] += own[q] - whole[q];
+     }
+-    std::copy(own.begin(), own.end(), y.begin() + first);
+   }
+ 
+   if (rated) {

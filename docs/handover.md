@@ -121,7 +121,8 @@ and the frontier they draw, with its operating point (§6).
 | invader thinning | parked until the schedule rules are built: an invader's members thinned by its own share of `J′` under the root law, emulated exactly, keep 53–66% of its walk and sweep at ≤ 0.17ε in `ln J′`; the selection gradient and the diagonal unmeasured (`grid-dynamics.md` §14) |
 | the soil stepped on its own | Done on the driver. Where the uptake is under 10% of the soil's budget, the soil is integrated on its own under an extrapolated uptake, with a corrector. The registered version fails its pass on `J` by 2.6% on episodic. With the coupling's error judged at the members' weight, it passes every criterion on both records and saves 29–41% of rows at matched error in `J`, though that error stops falling below `3e-5`. The user decided it joins the build, with its tuning left to the later scheduling heuristics (the design doc's 1e and phase 3, item 2; `grid-dynamics.md` §15) |
 | the node axis on long-wet and long drought | Done. Spread uniform nodes report their own error on both records (square-law ratios, companions reporting 0.95 and 0.98 of the error); graded nodes, lumped or spread, do not (companions 0.65–0.80). The spread's two-rung extrapolation is the cheapest answer with an honest estimate. Thinning after b = 10 fails with the spread as lumped. Sorting the crowns before the light field's sum costs nothing, while walking every node costs 23% of a forward (`grid-dynamics.md` §16) |
-| next | The build, in phase 3's order (`docs/design-grid-controller.md`): the stack lands first (the user's call), then the splits in the forward step, which are under way, then the splits in the sweep, curvatures from the adjoint, the multirate soil step and the node rule. The events consult's reply is recorded and tested (`docs/oracle-response-events.md`, `grid-dynamics.md` §17) |
+| 3.2, splits in the forward step | Built on `sign-changes` (odelia and plant) and measured on long drought (`grid-dynamics.md` §18). It repeats the driver's split: `J` 10× nearer the reference than plain at `1e-4`, and the curvature within 0.015ε of −43.45 at r = `1e-2` and `3e-2`. As registered it misses three gates. Below `3e-5` an error both arms share stops `J`'s error falling. The forward costs 6.9% more, against 6%. From r = `1e-2` to `1e-3` the curvature still moves 0.49ε, part of it passages. At matched stability it costs 0.77 of plain at `1e-5` |
+| next | The build, in phase 3's order (`docs/design-grid-controller.md`): the stack lands first (the user's call), then the splits in the sweep (item 3), curvatures from the adjoint, the multirate soil step and the node rule. Open from item 2: the error both arms share below `3e-5`, and the residue below r = `1e-2` |
 | the acceptance suite | designed in the spec: the objectives as bounded tests against brute-force references, in tiers; its build is held until the user starts it |
 | 2. the node axis | Decided: D, the spread, goes into the build, and B stays an option to consider later (§16). The height sort is agreed in principle and gets its own design turn. The chosen rule's ladders on dry, episodic and the constant record are not run |
 | 3. the build | can start: the multirate soil step and the spread are now decided in, beside the items phase 1 settled. The events still need their design, and the spread's finest rungs wait for the height sort's design turn |
@@ -454,9 +455,10 @@ Three checks the user asked for after the reply:
     its stale context.
   - So they are not the curvature scan's residue below a perturbation of `1e-2`
     (`grid-dynamics.md` §17). Nor are the recorded bases, which repeat bit for
-    bit on the current driver. The candidate left is a pair of sign changes
-    inside one step, which the driver's found-again split does not look for.
-    Splits at class switches stay out of the build.
+    bit on the current driver. Nor is a pair of sign changes inside one step:
+    the build detects pairs and repeats the driver's residue. Passages carry
+    part of it (`grid-dynamics.md` §18). Splits at class switches stay out of the
+    build.
 - *Per-member splits with the spread rule (D).*
   - *Consistent by construction.* The driver evaluates a split member with
     plant's own field construction, from the interpolated state of every member
@@ -592,6 +594,7 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 | `PLANT-99` (#99) | `457f08bb` | the first invasion walks a recorded run without repeating it; 1 commit | `PLANT-98` | `a05f5c2` |
 | `state-weights` (no issue yet) | `4555ea13` | the soil's, the accumulators' and a schedule's weights in the step-size control, and a bound on each state's; 2 commits | `PLANT-99` | odelia `state-weights`, `a62e97c` |
 | `ark-soil` (no issue yet) | `4dc59a40` | TF24's soil drainage and infiltration stepped implicitly under `ode_method = "ark"`; 1 commit | `state-weights` | odelia `ark-step`, `f11e753` |
+| `sign-changes` (no issue yet) | `abcfcc22` | each TF24 node's step split where its net production changes sign, under `ode_split_sign_changes`; the gradients refuse a run that split; 1 commit | `state-weights` | odelia `sign-changes`, `6a6ce45` |
 
 - odelia 0.5.0 is `claude/trusting-curie-4i9n3l` and phylloptim 0.9.0 is
   `378b083`, both unreleased. A branch builds only against its own odelia.
@@ -605,6 +608,14 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 - odelia's `ark-step` (`f11e753`, on `state-weights`) adds `Method::ark` and the
   `HasStiffBlock` concept; plant's `ark-soil` needs it. `$DEV/lib_ark` holds
   both, with phylloptim `378b083`.
+- odelia's `sign-changes` (`6a6ce45`, on `state-weights`) adds the dense output,
+  the `SplitsSignChanges` concept and the split of each kept step; plant's
+  `sign-changes` needs it. `$DEV/lib_sc` holds both, with phylloptim `378b083`.
+  The probe of the passages is `docs/measurements/sign-changes/passage_probe.patch`
+  over odelia's, built in `$DEV/lib_diff`.
+- Two failures in plant's `test-mutant.R` (FF16 invaders' blessed numbers) and
+  odelia's `test-implicit-value.R`, which does not compile under GCC 13, fail
+  identically on `state-weights`; neither is the split's.
 - No PR is open for `offspring-adjoint` or `PLANT-95` to `PLANT-99`; opening them
   is the user's call. #96 is independent of #97 and #98, and all three edit the
   top of `NEWS.md`.

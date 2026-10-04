@@ -55,3 +55,68 @@ What decides
   steps; both need each step's split marked, which nothing records.
 
 Runs: run.sh. Analysis: analyze.R.
+
+Correction and extension, written after the ladder and a first set of replays,
+before the replays below and before any timing alone (2026-10-04)
+  The first replays moved the trait lma through the hyperparameterisation,
+  which moves the parameters it derives as well. The driver's -43.45, and eps,
+  are for lma alone, set after the hyperparameterisation as a gradient's partial
+  moves it. The replays are run again that way (LMA_REL now means it); the first
+  set is kept as tp_* and ts_* and reported apart, as a quantity P4 and P5 do not
+  name.
+  Extension: plain at 1e-5 is timed alone twice beside the 1e-4 pair, since the
+  record has the split at 1e-4 buying the stability plain needs 1e-5 for
+  (grid-dynamics.md section 11). Reported as cost at matched stability, not as
+  a test of P3.
+
+Second extension: the passage hypothesis. Written after the lma-alone replays
+(the split's H -42.862, -43.438, -43.468 at r = 1e-3, 1e-2, 3e-2) and before the
+probe below was built or run (2026-10-04).
+  The build repeats the driver's scan (-42.89, -43.44, -43.47), pairs detected or
+  not, so the residue below r = 1e-2 is not the pair of sign changes inside one
+  step. The hypothesis: each sign change that passes from one step to the next
+  moves J by about 5e-9, with one sign. A piece reads the field from the dense
+  output where the unsplit step read it from its stages, so a cut at either end
+  of a step does not reduce to the unsplit step. With N(r) passages, about 78,
+  200 and 650 at r = 1e-3, 3e-3 and 1e-2, the residue is N(r) 5e-9 / r^2: 0.33,
+  0.095 and 0.028 eps, against 0.47 here at 1e-3 and the driver's 0.094 and 0.026.
+  The probe (odelia sign-changes-diff, local): the step's own end for a split
+  part is corrected by what the cuts change, the pieces less the whole step, both
+  in the dense output's field, so a cut at either end changes nothing. It costs
+  five more part evaluations a split.
+  Runs: its forward at 1e-4, and replays of its own program at lma alone,
+  r = +-1e-3, +-1e-2, +-3e-2 (diff_*).
+  P6. The probe's H at r = 1e-3 is within eps/10 of its H at 1e-2.
+  P7. Its H at 1e-2 and 3e-2 stays within eps/3 of -43.45, and its J at 1e-4 is
+      no farther from J_ref than twice the split's.
+  P6 failing refutes the hypothesis; P6 holding with P7 failing says the
+  correction removes the passages but biases the curvature.
+
+Verdicts (2026-10-04, from analyze.log and runs.txt)
+  P1 fails at its last rung. From 1e-3 to 3e-5 the split's error falls 5.0x,
+     6.0x and 2.5x, to 1.35e-6, and at 1e-4 it is 3.43e-6 against plain's
+     3.55e-5 (the driver's quartic split had +3.41e-6). At 1e-5 it rises to
+     5.76e-6, beside plain's 5.27e-6: both arms carry the same error there.
+  P2: the split and plain agree at 1e-7 within 2.5e-7, and the driver's J* within
+     7.4e-8 (holds); the split at 1e-6 is 1.05e-6 from 1e-7 (fails). The error
+     both arms share falls about 5x from 1e-5 to 1e-6; the kinks do not carry it.
+  P3 fails narrowly: alone on the machine, the split's forward at 1e-4 costs
+     6.9% more than plain's (73.7 and 77.6 s against 70.3 and 71.3 s), 0.53 ms a
+     node step split. The two split runs differ by 5% between themselves.
+     Extension: the split at 1e-4 costs 0.77 of plain at 1e-5.
+  P4 holds: lma alone, the split's H is -43.438 at r = 1e-2 and -43.468 at 3e-2,
+     0.026 eps apart and within 0.015 eps of -43.45. Plain: -44.004, -43.622.
+  P5 fails: from r = 1e-2 to 1e-3 the split's H moves 0.49 eps (bar 1/3), plain's
+     2.72 eps. The build repeats the driver's scan at every r it shares.
+  Not pre-registered: moving the trait through the hyperparameterisation, the
+     split's H is -19.6 at every r, within 0.023 eps, and plain's moves 2.49 eps
+     from 1e-2 to 1e-3.
+  P6 fails and P7 fails on J: the probe's correction cuts the residue from 1e-2
+     to 1e-3 to 0.20 eps and leaves H at 1e-2 and 3e-2 in place (0.010, -0.021
+     eps from -43.45), but its J at 1e-4 is 2.31e-5 from J_ref, 6.7x the split's.
+     The passages carry part of the residue, not all of it, and this correction
+     gives back most of the split's accuracy in J.
+  The harness's replays step to the program's times: with events, plant's
+  schedule takes a program's times and not its sizes, so a replay at lma itself
+  repeats its forward's J within 3.6e-9 rather than bit for bit. The plant test
+  pins the sizes and repeats bit for bit.

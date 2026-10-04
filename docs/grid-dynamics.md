@@ -63,7 +63,7 @@ wet by its own value, so an onset's rising day counts as dry there.
 | 8 | on the pulsed records 59–61% of member-steps come after t = 25, where at most 6.1% of `J` is still to be earned | the tolerance and the spacing weight every time and node alike | established; a rule from a 54-node pilot saves 21–28% of a forward's member evaluations and as many rows at ≤ 0.08ε on three pulsed records. A failing invader's pools are unstable on its loosened steps, and a 15-day cap protects every walk for at most 2.4% of the saving (§8) |
 | 9 | the sign-change refusal costs 3.4× | it refuses after the window too | half established: limited to the window it keeps `J` for 43% less; limited to the cohort that earns `J` it does not. Superseded by per-member events (§11) |
 | 10 | the soil binds 84–91% of the steps | the soil chain's own answer to each rain change, resolved at every member's leaf solve | established; the explicit chain takes a weight of ×20 at most, ×10 passing for both roles (−20.7%). The implicit chain, with the chain alone's estimate for the soil, passes at `3e-5` for the resident (−44.3%) and saves 67% under constant rain. Implicit and out of the norm does not converge (§10) |
-| 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges. Cash–Karp's own fourth-order extension does as well for 5.9% of a forward (§11); its cost in the sweeps not measured |
+| 11 | the per-member split that cures the gradients costs 4× | the driver evaluates every member to read one | established: 10.2% of a forward's leaf solves and 12.4% of a replay's on a quintic interpolant, for 3.4–6.4× less spread under nudges. Cash–Karp's own fourth-order extension does as well for 5.9% of a forward (§11); its cost in the sweeps not measured. Built into plant, it costs 6.9% of a forward in time and repeats the driver's `J` and curvature (§18) |
 | 12 | the partitioned step's corrected couplings stall at 1e-4 to 5e-4 | the held collar's first-order deficit in the dry spells' water budget; the drift is the coupling's error, which no norm measured, so the dry spells' steps stayed long as the tolerance tightened | the partition killed (§13), and dead for another reason: in the dry spells the coupling is an algebraic loop. With the coupling's error in the norm it converges, at 0.39–1.85 of the monolith's leaf solves |
 | 13 | the sweep costs 2.5–2.7 forwards, so a run with every gradient spends 74% in sweeps; spreading each panel's leaf area slows it 1.7–3.4× | a member taped at its recorded point costs 2.4 forward evaluations, with five implicit-function solves, and every zero-depth pulse rebinds the patch twice; the spread's slowdown is the light field's fallback path when two nodes' heights fall out of order | established (`perf-sweep.md`); three changes would halve the sweep |
 | 14 | the soil ×10 with rule A and the cap saves a third of a gradient run but refuses both roles' gradients, on every record | the soil's weight times the window's factor reaches 1000, and the error test then accepts steps with a soil stage at the 1000 MPa potential ceiling, past the root curve's domain; every forward reaches the ceiling, but only on attempts it rejects | established; with each state's weight bounded at 100 (`ode_weight_max`) every gradient is finite on the three records, no sweep meets a soil clamp, and the setting passes the accuracy and nudge tests for 31–34% of a gradient run (§8) |
@@ -1702,6 +1702,99 @@ times less reproducible (0.10ε against 0.002ε). From r = `1e-2` up the residue
 below it does not matter. A build that also splits a pair of sign changes
 inside one step, as the reply's two cuts do, would test the remaining
 candidate.
+
+## 18. The split, built into plant's step
+
+**Built** (odelia and plant, branch `sign-changes`, over `state-weights`; the
+design doc's phase 3, item 2). Where a node's net production changes sign inside
+a step the error estimate keeps, the node is integrated again in pieces between
+its sign changes, with the step's own tableau, in the field the step's dense
+output builds. The dense output is Cash–Karp's fourth-order extension (§11). A
+node is split once where its net production has opposite signs at the step's
+ends, and twice where a stage strictly inside holds the other sign and the dense
+output agrees there. The corrected end is rated again, and the next step starts
+from it. `ode_split_sign_changes` turns it on; off, every run repeats bit for bit.
+
+**Test: the build against item 2's gates** (pre-registered,
+`measurements/sign-changes/prereg.txt`; `analyze.log`, `runs.txt`). Long
+drought, 108 uniform introductions, the tied tolerance, plant's own controller,
+plain and split. The reference is the split at `1e-7`, 12.6687125607; plain at
+`1e-7` is within 2.5e-7 of it, and the driver's J* (§1) within 7.4e-8.
+
+| tol | `J`'s error, plain | `J`'s error, split | nodes split |
+|---|---|---|---|
+| `1e-3` | −2.12e-4 | −1.03e-4 | 9231 |
+| `3e-4` | +5.74e-5 | −2.05e-5 | 9233 |
+| `1e-4` | +3.55e-5 | +3.43e-6 | 9239 |
+| `3e-5` | −1.25e-5 | +1.35e-6 | 9244 |
+| `1e-5` | +5.27e-6 | +5.76e-6 | 9247 |
+
+- *The build repeats the driver.* At `1e-4` the split is 10× nearer the
+  reference than plain, as the driver's quartic split was (+3.41e-6, §11), and
+  it splits 9239 node steps where the driver split 9229. The count barely moves
+  with `tol`: each node changes sign about 85 times in 40 years.
+- *Below `3e-5` an error both arms share sets `J`'s error.* At `1e-5` the split
+  and plain carry +5.8e-6 and +5.3e-6, and the split at `1e-6` is still 1.05e-6
+  from `1e-7`. So the split's error falls 5.0×, 6.0× and 2.5× from `1e-3` to
+  `3e-5` and then rises 4.3×. The kinks do not carry this error; what does is not
+  traced. All of it is four orders under ε for `ln J`.
+- *The cost.* Alone on the machine, the split's forward at `1e-4` costs 6.9% more
+  than plain's, 0.53 ms a node step split, against a gate of 6%; the two split
+  runs differ by 5% between themselves. The split at `1e-4` costs 0.77 of plain at
+  `1e-5`, the tolerance the record needs for the same stability (§11).
+
+**The curvature** (second differences of `ln J` in `ln lma`, on pinned replays of
+each arm's own steps at `1e-4`, `lma` alone as a gradient's partial moves it; ε
+for `lma`'s curvature in the resident role is 1.17):
+
+| r | `1e-3` | `1e-2` | `3e-2` |
+|---|---|---|---|
+| plain | −47.18 | −44.00 | −43.62 |
+| split | −42.86 | −43.44 | −43.47 |
+| split, the step's end corrected by what the cuts change | −43.20 | −43.44 | −43.47 |
+
+- *From `1e-2` up the split's curvature is the driver's converged value.* −43.44
+  and −43.47 are 0.026ε apart and within 0.015ε of §17's −43.45. Plain moves
+  0.33ε between them.
+- *Below `1e-2` a residue remains, as on the driver.* From `1e-2` to `1e-3` the
+  split moves 0.49ε, against plain's 2.72ε and the gate's ε/3. The build detects
+  a pair of sign changes inside one step, which the driver did not, and repeats
+  the driver's value at every r both ran (§17: −42.89, −43.44, −43.47). So a pair
+  inside one step is not the residue.
+- *Moving the trait itself, through the hyperparameterisation,* the split's
+  curvature is −19.6 at every r, within 0.023ε, and plain's moves 2.49ε from
+  `1e-2` to `1e-3`.
+
+**Hypothesis: the residue is the passages** (the second extension in
+`prereg.txt`). A piece reads the field from the dense output, where the unsplit
+step reads it from its stages. So a cut at either end of a step does not reduce
+to the unsplit step, and each sign change that passes into the next step moves
+`J` by about 5e-9 with one sign. With N(r) passages, about 78, 200 and 650 at
+r = `1e-3`, `3e-3` and `1e-2`, the residue would be N(r)·5e-9/r²: 0.33, 0.095 and
+0.028ε, against 0.47ε here and §17's 0.094 and 0.026.
+
+**Test: correct the step's own end by what the cuts change** (a probe,
+`passage_probe.patch`). The pieces less the whole step, both in the dense
+output's field, are added to the unsplit end, so a cut at either end changes
+nothing. It costs five more part evaluations a split.
+- *Refuted as the whole residue.* The residue from `1e-2` to `1e-3` falls from
+  0.49ε to 0.20ε, still over ε/10. Passages carry part of it.
+- *The correction gives back the split's accuracy.* `J` at `1e-4` moves to
+  2.31e-5 from the reference, 6.7× the split's. The curvature from `1e-2` up is
+  unchanged.
+
+**Verdict.** The build does what the driver's split did: `J` 10× nearer at
+`1e-4`, and a curvature reproducible from r = `1e-2` up. It misses three gates as
+pre-registered. `J`'s error stops falling below `3e-5`, through an error both arms
+share. The cost is 6.9% against 6%. And the residue below r = `1e-2` stays. The
+curvature route in item 4 works at r = `1e-2` to `3e-2`, where the split is
+reproducible. **Not measured:** a pair of sign changes merging, halving only the
+split steps, and other records.
+
+**What the harness replays.** With events, plant's schedule takes a program's
+times and not its sizes, so the harness's replays step to each time. A replay at
+`lma` itself repeats its forward's `J` within 3.6e-9 rather than bit for bit;
+plant's own test pins the sizes and repeats bit for bit.
 
 ## What the record supports, and what it does not
 

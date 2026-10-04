@@ -27,7 +27,8 @@
 # for the implicit soil chain (ark-soil). Each run keeps the soil's clamp
 # tallies on the forward run and on each sweep. SPLIT=1 splits each node's step
 # where its net production changes sign (sign-changes), and LMA_REL runs the
-# stand, not its invaders, at lma (1 + LMA_REL).
+# stand, not its invaders, at its own lma (1 + LMA_REL), set after the
+# hyperparameterisation has derived the rest, as a gradient's partial moves it.
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -54,8 +55,15 @@ nodes <- length(times)
 
 p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
+p <- add_strategies(p, trait_matrix(LMA0, "lma"))
 lma_rel <- as.numeric(Sys.getenv("LMA_REL", "0"))
-p <- add_strategies(p, trait_matrix(LMA0 * (1 + lma_rel), "lma"))
+if (lma_rel != 0) {
+  s <- p$strategies[[1]]
+  sp_pars <- s$pars
+  sp_pars$lma <- sp_pars$lma * (1 + lma_rel)
+  s$pars <- sp_pars
+  p$strategies[[1]] <- s
+}
 p$node_schedule_times <- list(times)
 program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))$st
 if (!is.null(program)) {
