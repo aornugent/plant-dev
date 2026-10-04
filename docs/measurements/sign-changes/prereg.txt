@@ -296,3 +296,17 @@ eps10_plant.patch)
   Also reported, not judged: the tight leaf solve's cost, plain's replay at lma
   timed alone on the split build and the tight build, alternating, two each,
   with nothing else running.
+
+Result of the sixth extension (band.log, band_fit.log): B1 fails as
+  registered. With the positive part's width 1e-3, the fine grid's departure
+  from band.R's smooth curve has sd 5.0e-8 against 5.8e-8 at 1e-4, a ratio of
+  0.87. That measure fixes the curvature at -35.2, and the wider width moves
+  the model (ln J by -0.228, the split count from 9239 to 9675, the curvature in
+  r from -33.9 to -32.5), so its departures at 1e-3 are mostly a ramp. Against
+  each scan's own quadratic in r (band_fit.R, not registered), the departure
+  falls about tenfold with the wider width: residual sd 8.0e-8 to 5.0e-9,
+  intervals' sd 5.8e-8 to 5.9e-9. The slower departure belongs to the positive
+  part's sharpness, but it shrinks as the band widens, against the reply's
+  tenfold growth. The residue at 1e-3 less 1e-2 is -0.14 at width 1e-3.
+  Timed alone, plain's replay takes 69 and 67 s on the tight build against 62
+  and 62 s on the split build, 1.10 times.

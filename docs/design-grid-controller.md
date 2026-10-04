@@ -580,8 +580,11 @@ after the events reply):
      one jump of −5.4e-7), and it falls more like 1/r than r⁻². With the leaf
      solve stopped at adjacent floats the residue (+0.58) and the slower
      departure (correlation 0.90) stay, so both are the split's on its pinned
-     grid. What carries them is not traced; the split leaves the class
-     switches and the soil's floor and saturation uncut. The correction costs `J` 6.7× its accuracy and
+     grid. Both shrink when the positive part's width is ×10 (the departure
+     about tenfold, `band_fit.log`), against the splits reply's prediction
+     that it would grow. What carries them is not traced; the split leaves the
+     class switches and the soil's floor and saturation uncut. The tight leaf
+     solve costs 10% of a replay. The correction costs `J` 6.7× its accuracy and
      cutting every pair the dense output shows 12× the runtime, and neither
      changes the residue. An adjoint differentiates the run's own choices, so
      item 4's chord of two gradients carries no jump, only how the slope

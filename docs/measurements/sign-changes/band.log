@@ -1,0 +1,11 @@
+plain's replay alone: split build 62, 62 s, tight build 69, 67 s; tight over split 1.097
+
+width 1e-4: ln J at r = 0 2.5391372503
+  fine grid sd 5.79e-08: +5.9e-08 +7.0e-08 +6.1e-09 -9.8e-08 -8.7e-08 -7.3e-08 -5.0e-08 -3.7e-08 -1.1e-07 -1.8e-08 -6.1e-09 +6.2e-09 +2.3e-08 +3.4e-08 +4.8e-08 +4.4e-08
+  second differences -42.864, -43.443; 1e-3 less 1e-2 +0.579
+
+width 1e-3: ln J at r = 0 2.3111031288
+  fine grid sd 5.02e-08: -7.1e-08 -6.8e-08 -5.4e-08 -4.5e-08 -3.5e-08 -2.3e-08 -1.4e-08 -4.7e-09 +4.7e-09 +1.3e-08 +2.3e-08 +3.8e-08 +6.8e-08 +5.3e-08 +7.0e-08 +8.3e-08
+  second differences -43.092, -42.954; 1e-3 less 1e-2 -0.138
+
+B1 (the band carries the slower departure): sd ratio 0.87; holds at 3 or more, fails at 1.5 or less: fails

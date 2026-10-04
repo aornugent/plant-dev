@@ -455,7 +455,13 @@ Checked against the record:
   smooth positive part in their pieces. Its size is not checked: a cut piece's
   first and last stages sit at net production 0 on every replay, so they are
   not what re-rolls, and the stages that can re-roll are those near a sign
-  change the split does not cut. Under test (sixth extension): `ε_P` ×10.
+  change the split does not cut. Tested (sixth extension): with `ε_P` ×10 the
+  departure does not grow; against each scan's own quadratic it falls about
+  tenfold (8.0e-8 to 5.0e-9 residual sd) with as many splits, so it belongs to
+  the positive part's sharpness, but not by the reply's mechanism
+  (`measurements/sign-changes/band_fit.log`).
+- *The tightening's cost,* timed alone: plain's replay 68 s against 62 s, 10%,
+  as the reply puts its polish at 10–15% of a solve.
 - *The graze cannot carry the residue alone.* Fitted to the noise-free build's
   value at u = `3e-3` (+0.114), a graze straddling θ₀ predicts +0.30 at `1e-3`
   against the +0.58 measured; a 1/u law predicts +0.44, 1/u^1.5 +0.69, 1/u²

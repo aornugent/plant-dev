@@ -1881,9 +1881,20 @@ jumps for the choices' own, and the residue for their sum. Neither holds.
   the ninth, where the default build loses node 5's pair at day 6259. So both
   are the split's on its pinned grid. The build's own value at `3e-3` is the
   driver's, −43.33; plain's is −44.53 there.
+- *The slower departure belongs to the positive part's sharpness, and shrinks
+  as it widens* (`band.log`, `band_fit.log`, the sixth extension). The splits
+  reply read it as stages sampling the band `|P| < ε_P` and predicted that
+  `ε_P` ×10 would grow it tenfold. On the tight build with `ε_P = 1e-3` it falls
+  instead: against each scan's own quadratic, residual sd 8.0e-8 to 5.0e-9 and
+  intervals' sd 5.8e-8 to 5.9e-9, with 9675 node steps split against 9239. The
+  wider width is a different model (`ln J` −0.228); its residue at `1e-3` less
+  `1e-2` is −0.14. The registered measure, which fixed the curvature, read 0.87
+  and missed this. What carries it is not traced.
 - *What the split leaves uncut:* the class switches, a C⁰ kink in each node's
   leaf solution a median 0.26 days before its upward sign change; the soil's
   floor and saturation. Untested as the residue's carrier.
+- *The tight leaf solve costs 10%:* plain's replay alone takes 68 s against
+  62 s (`band.log`).
 
 ## What the record supports, and what it does not
 
