@@ -1,0 +1,51 @@
+
+== r = 0: 9239 node steps split, 7 whose scan disagrees
+    changes
+cuts 2
+   0 7
+missed pairs: 7; a stage surely inside 0, at a bracket's edge 0, none 7
+their widths in the step (between the brackets): median 0.125, max 0.188; the far sign's deepest value: median 0.096, max 0.38
+  step at day  7063.00, 1.00 d long: node  24, the pair inside u 0.000 to 0.188, P 0.0352 at the start, 8.57 at the end, -0.0526 on the far side
+  step at day  8536.00, 1.00 d long: node  50, the pair inside u 0.062 to 0.188, P 0.0073 at the start, 0.52 at the end, -0.000943 on the far side
+  step at day  8684.00, 1.00 d long: node   5, the pair inside u 0.000 to 0.188, P 0.0229 at the start, 33.3 at the end, -0.379 on the far side
+  step at day  8684.00, 1.00 d long: node   6, the pair inside u 0.000 to 0.188, P 0.154 at the start, 33.1 at the end, -0.245 on the far side
+  step at day  8684.00, 1.00 d long: node   7, the pair inside u 0.031 to 0.156, P 0.282 at the start, 32.9 at the end, -0.112 on the far side
+  step at day 10119.00, 0.87 d long: node  59, the pair inside u 0.031 to 0.094, P 0.00431 at the start, 1.04 at the end, -0.000449 on the far side
+  step at day 12298.00, 1.00 d long: node  50, the pair inside u 0.000 to 0.125, P 0.067 at the start, 26.3 at the end, -0.0956 on the far side
+
+== r = 1e-3: 9237 node steps split, 6 whose scan disagrees
+    changes
+cuts 2
+   0 6
+missed pairs: 6; a stage surely inside 1, at a bracket's edge 1, none 4
+their widths in the step (between the brackets): median 0.172, max 0.281; the far sign's deepest value: median 0.13, max 0.39
+  step at day  5409.00, 1.00 d long: node  11, the pair inside u 0.500 to 0.781, P -1.04 at the start, -0.205 at the end, 0.0398 on the far side
+  step at day  6259.00, 1.00 d long: node   5, the pair inside u 0.000 to 0.219, P 0.102 at the start, 26.1 at the end, -0.393 on the far side
+  step at day  8684.00, 1.00 d long: node   5, the pair inside u 0.000 to 0.188, P 0.0713 at the start, 33.2 at the end, -0.33 on the far side
+  step at day  8684.00, 1.00 d long: node   6, the pair inside u 0.031 to 0.188, P 0.202 at the start, 33 at the end, -0.195 on the far side
+  step at day  8684.00, 1.00 d long: node   7, the pair inside u 0.062 to 0.156, P 0.331 at the start, 32.8 at the end, -0.0621 on the far side
+  step at day 10114.64, 0.36 d long: node  34, the pair inside u 0.375 to 0.469, P -0.315 at the start, -0.393 at the end, 0.000994 on the far side
+
+== r = -1e-3: 9248 node steps split, 6 whose scan disagrees
+    changes
+cuts 2
+   0 6
+missed pairs: 6; a stage surely inside 0, at a bracket's edge 1, none 5
+their widths in the step (between the brackets): median 0.141, max 0.188; the far sign's deepest value: median 0.054, max 0.29
+  step at day  8536.00, 1.00 d long: node  50, the pair inside u 0.031 to 0.219, P 0.00483 at the start, 0.522 at the end, -0.00346 on the far side
+  step at day  8569.00, 1.00 d long: node  29, the pair inside u 0.031 to 0.188, P 0.102 at the start, 14.3 at the end, -0.0816 on the far side
+  step at day  8684.00, 1.00 d long: node   6, the pair inside u 0.000 to 0.188, P 0.105 at the start, 33.1 at the end, -0.295 on the far side
+  step at day  8684.00, 1.00 d long: node   7, the pair inside u 0.031 to 0.156, P 0.234 at the start, 32.9 at the end, -0.162 on the far side
+  step at day  8684.00, 1.00 d long: node   8, the pair inside u 0.062 to 0.156, P 0.365 at the start, 32.7 at the end, -0.0267 on the far side
+  step at day 10119.00, 0.87 d long: node  59, the pair inside u 0.000 to 0.125, P 0.00115 at the start, 1.04 at the end, -0.00364 on the far side
+
+P8: each pair on the scan where the detection did not split it
+  node   7 step at 4.8712, r = 0    : not on the scan
+  node  10 step at 19.5342, r = 0    : not on the scan
+  node  24 step at 14.8164, r = 1e-3 : not on the scan
+  node  70 step at 34.3315, r = 0    : not on the scan
+  node  74 step at 27.6575, r = 0    : not on the scan
+  node   5 step at 17.1443, r = 1e-3 : not on the scan
+  node   5 step at 17.1479, r = 1e-3 : cuts 0, changes 2, between u 0.000 and 0.219, stage inside: edge
+
+P9: at r = 0, node steps with a pair the detection missed 7 (bar >= 20); cut a pair the scan does not show 0 (bar < 5)

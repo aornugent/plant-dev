@@ -1,0 +1,62 @@
+Bisections in r (2026-10-04). LIB_LOG is plant sign-changes over odelia sign-changes
+with log_probe.patch; LIB_DIFFLOG the same with passage_probe_log.patch (the
+probe and that logging). Departures are ln J's change less the smooth one.
+
+1. Node 1's sign change passing from step 83 to step 84 (split as built):
+   LIB=$LIB_LOG PROG=program_split.rds P=0 TA=7.3288 TB=7.3339 LO=-1e-3 HI=0 bash bisect.sh
+   start: -1e-3 A, 0 B
+   round 1: [-0.0005, -0.00025] A -> B  width 0.00025
+   round 2: [-0.000375, -0.0003125] A -> B  width 6.25e-05
+   round 3: [-0.000328125, -0.0003125] A -> B  width 1.56e-05
+   round 4: [-0.000328125, -0.00032421875] A -> B  width 3.91e-06
+   round 5: [-0.0003271484375, -0.000326171875] A -> B  width 9.77e-07
+   round 6: [-0.00032666015625, -0.00032641601562500005] A -> B  width 2.44e-07
+   round 7: [-0.00032666015625, -0.00032659912109375005] A -> B  width 6.1e-08
+   round 8: [-0.00032664489746093755, -0.00032662963867187504] A -> ?  width 1.53e-08
+   round 9: [-0.0003266334533691407, -0.00032662963867187504] A -> ?  width 3.81e-09
+   round 10: [-0.00032663154602050786, -0.0003266305923461915] A -> ?  width 9.54e-10
+   bracket [-0.00032663154602050786, -0.0003266305923461915]: J 12.703028041178680 -> 12.703027832481698, ln J change -1.643e-08; smooth change at d ln J/dr = -8.3: -7.915e-09
+   
+   At the upper end node 1 is split in neither step (its value at step 83's end
+   changes sign when the end is rated again, after nodes 3 to 7 are split).
+
+2. Node 5's pair across the knot at day 8684 lost (split as built):
+   LIB=$LIB_LOG PROG=program_split.rds P=4 TA=23.7918 TB=23.7918 LO=-1e-3 HI=0 bash bisect.sh
+   start: -1e-3 ?11, 0 ?
+   round 1: [-0.0005, -0.00025] ?11 -> ?  width 0.00025
+   round 2: [-0.0005, -0.0004375] ?11 -> ?  width 6.25e-05
+   round 3: [-0.000484375, -0.00046875] ?11 -> ?  width 1.56e-05
+   round 4: [-0.0004765625, -0.00047265625] ?11 -> ?  width 3.91e-06
+   round 5: [-0.0004736328125, -0.00047265625] ?11 -> ?  width 9.77e-07
+   round 6: [-0.00047314453125, -0.00047290039062499996] ?11 -> ?  width 2.44e-07
+   round 7: [-0.00047296142578125, -0.00047290039062499996] ?11 -> ?  width 6.1e-08
+   round 8: [-0.00047294616699218746, -0.000472930908203125] ?11 -> ?  width 1.53e-08
+   round 9: [-0.00047293472290039064, -0.000472930908203125] ?11 -> ?  width 3.81e-09
+   round 10: [-0.0004729328155517578, -0.0004729318618774414] ?11 -> ?  width 9.54e-10
+   bracket [-0.0004729328155517578, -0.0004729318618774414]: J 12.718394101605037 -> 12.718394094720464, ln J change -5.413e-10; smooth change at d ln J/dr = -8.3: -7.915e-09
+   
+   Departure: -5.4e-10 against -7.9e-9 smooth, +7.4e-9.
+
+3. Node 5's pair inside the step at day 6259 lost (split as built):
+   LIB=$LIB_LOG PROG=program_split.rds P=4 TA=17.1479 TB=17.1479 LO=0.00053125 HI=0.0005625 bash bisect.sh
+   start: 0.00053125 ?11, 0.0005625 ?
+   round 1: [0.0005390625, 0.000546875] ?11 -> ?  width 7.81e-06
+   round 2: [0.00054296875, 0.000544921875] ?11 -> ?  width 1.95e-06
+   round 3: [0.0005444335937500001, 0.000544921875] ?11 -> ?  width 4.88e-07
+   round 4: [0.0005447998046875001, 0.000544921875] ?11 -> ?  width 1.22e-07
+   round 5: [0.0005447998046875001, 0.000544830322265625] ?11 -> ?  width 3.05e-08
+   round 6: [0.0005448074340820314, 0.0005448150634765626] ?11 -> ?  width 7.63e-09
+   round 7: [0.0005448074340820314, 0.0005448093414306642] ?11 -> ?  width 1.91e-09
+   bracket [0.0005448074340820314, 0.0005448093414306642]: J 12.611686778581417 -> 12.611686002642278, ln J change -6.153e-08; smooth change at d ln J/dr = -8.3: -1.583e-08
+   
+   Departure: -6.15e-8 against -1.58e-8 smooth, -4.6e-8.
+
+4. The probe's largest jump on its fine grid (split, corrected; stopped after round 3):
+   LIB=$LIB_DIFFLOG PROG=program_diff.rds LO=5e-4 HI=5.625e-4 SLOPE=-8.297 bash bisect_jump.sh
+   round 1: [0.00053125, 0.0005468749999999999] departure -5.844e-07 width 1.56e-05
+   round 2: [0.0005429687499999999, 0.0005468749999999999] departure -5.933e-07 width 3.91e-06
+   round 3: [0.0005439453124999999, 0.0005449218749999999] departure -6.222e-07 width 9.77e-07
+   
+   [killed]
+   The only split decision differing across the last bracket: node 5's two cuts in
+   the step at day 6259, present at its lower end, gone at its upper.

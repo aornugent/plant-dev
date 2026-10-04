@@ -159,3 +159,62 @@ one bisection, before the scan below was built or run (2026-10-04).
   P8 failing refutes the hypothesis (the pairs open and close rather than hide
   between stages). P8 holding with P10 failing says the misses are real but
   something else carries the rest.
+
+Verdicts on the third extension (2026-10-04, from scan.log and analyze.log)
+  P8 fails. Of the six pairs only node 5's at day 6259 is on the scan where the
+     detection did not split it: at r = +1e-3 its two sign changes lie inside
+     u = 0 to 0.22 of a one-day step, with no stage surely inside. The other
+     five are absent from the scan where they were not split. They open and
+     close within 1e-3 in lma, so their width where they were split says nothing
+     of how they formed, and for them the hypothesis that pairs hide between
+     stages is refuted.
+  P9 fails: at r = 0 the scan finds 7 node steps with a pair the detection
+     missed (bar 20), and none where it cut a pair the scan does not show.
+  Not pre-registered, what the scan shows. Each run misses 6 or 7 pairs. Every
+     pair missed at r = 0, and all but two at +-1e-3, lies in the first fifth
+     (u under 0.22) of a step that starts at a rainfall knot on the first day of
+     rain after three dry days or more, where net production falls to as low as
+     -0.39. None missed at r = 0 has a stage strictly inside it; one missed at
+     +1e-3 holds a stage (u = 0.6) whose state reads the other sign. A pair whose first sign change falls just before the knot is
+     split once in each step, since each step's ends differ in sign; once that
+     change passes the knot, both lie in the next step's first fifth and the
+     pair is lost. Between r = 0 and +-1e-3 four pairs change between split and
+     lost this way: between -1e-3 and 0, node 5's at day 8684 (P to -0.38),
+     node 24's at day 7063 (-0.05) and node 50's at day 12298 (-0.10); between
+     0 and +1e-3, node 5's at day 6259 (-0.39).
+  P10 fails. Against its own replay at r = 0 the fix probe's H is -42.734,
+     -43.440 and -43.471 at r = 1e-3, 1e-2 and 3e-2: it moves 0.60 eps from
+     1e-2 to 1e-3, more than the split as built. Cutting every pair the dense
+     output shows does not remove the residue. Its forward splits 7 node steps
+     more than the build's (9246) and runs 12 times as long (914 s).
+  Node 5's pair at day 8684, bisected (bisect.log, 2): lost at r = -4.729e-4,
+     it moves ln J by +7.4e-9 beyond the smooth change. With the passage's
+     -0.85e-8, a lost pair moves J about as much as a passage, so pairs alone
+     cannot carry what the correction left.
+
+Not pre-registered, what followed P10 (jumps.R, jumps.log, bisect.log)
+  The base. Each arm's forward had stood for r = 0. Against its own replay at
+     r = 0 the split's residue is 0.49 eps, the correction's 0.15 eps and the
+     fix probe's 0.60 eps; the forward and the replay differ by 3.6e-9, 2.8e-8
+     and -2.9e-9 in J.
+  A floor under every run. A change of 1e-12 in lma, where the smooth change is
+     8.3e-12, moves ln J by +1.5e-8 and +1.0e-8 in plain, -0.8e-8 and -1.8e-8
+     split and -5.4e-8 corrected. Taking LMA_REL's path with lma as it is
+     (1e-300) repeats r = 0 bit for bit, and the split's decisions at +-1e-12 are
+     those at 0, so the floor is the model's on its grid, not the harness's or
+     the split's choices.
+  ln J on a fine grid, r = k/32 1e-3. Each interval of 6.25e-5 departs from the
+     smooth change by up to 1.1e-7 split (sd 6.5e-8) and 5.4e-7 corrected (sd
+     1.5e-7), in runs of one sign as well as single steps.
+  The corrected arm's largest step, bisected (bisect.log, 4): -6.2e-7, where
+     node 5's two cuts in the step at day 6259 are lost; the split as built
+     loses the same pair at r = 5.448e-4 for -4.6e-8 (bisect.log, 3). The
+     correction subtracts an integration across the pair in the dense output's
+     field from the unsplit step's, so losing the pair moves J by the difference
+     of their two errors across it.
+  Reading: the residue below r = 1e-2 is the second difference of a function
+     that departs from smooth by about 1e-7 at the scale of 1e-4 in r. It falls
+     as r^-2, which is why every arm agrees within 0.03 eps at 1e-2 and 3e-2.
+     The departures are jumps where a split choice changes, 1e-8 to 5e-8 each,
+     the slopes between them, and the model's own floor of 1e-8. No single
+     mechanism carries it, so no single correction removes it.

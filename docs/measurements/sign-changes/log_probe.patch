@@ -1,0 +1,80 @@
+diff --git a/inst/include/odelia/ode_solver_internal.hpp b/inst/include/odelia/ode_solver_internal.hpp
+index 9518980..d3a13d7 100644
+--- a/inst/include/odelia/ode_solver_internal.hpp
++++ b/inst/include/odelia/ode_solver_internal.hpp
+@@ -706,6 +706,9 @@ void SolverInternal<System>::step_to(System& system, double time_max_) {
+       continue;
+     }
+ 
++    if (std::FILE* f = split_log()) {
++      std::fprintf(f, "refused %.17g %.17g %.17g\n", time, time_next - time, time_max);
++    }
+     // Undo the failed sub-step. The system is left holding whichever stage threw,
+     // so put it back on the restored state explicitly -- otherwise a give-up below
+     // would exit with the system and y disagreeing, the pattern behind the
+diff --git a/inst/include/odelia/ode_step.hpp b/inst/include/odelia/ode_step.hpp
+index 95880bd..2850f59 100644
+--- a/inst/include/odelia/ode_step.hpp
++++ b/inst/include/odelia/ode_step.hpp
+@@ -3,6 +3,8 @@
+ #define ODELIA_ODE_STEP_HPP_
+ 
+ #include <array>
++#include <cstdio>
++#include <cstdlib>
+ #include <cmath>
+ #include <limits>
+ #include <vector>
+@@ -14,6 +16,15 @@
+ namespace odelia {
+ namespace ode {
+ 
++// Diagnostic only: ODELIA_SPLIT_LOG names a file each split appends a line to.
++inline std::FILE* split_log() {
++  static std::FILE* f = [] {
++    const char* path = std::getenv("ODELIA_SPLIT_LOG");
++    return path != nullptr ? std::fopen(path, "w") : nullptr;
++  }();
++  return f;
++}
++
+ template <class System>
+ class Step {
+ public:
+@@ -362,10 +373,36 @@ void Step<System>::split(System& system, solved_values& at_state, double time,
+         }
+       }
+     }
++    // Diagnostic: P on the dense output at u = k / 32, logged where the number of
++    // sign changes it shows differs from the cuts the detection made.
++    if (std::FILE* f = split_log(); f != nullptr && std::getenv("ODELIA_SPLIT_SCAN") != nullptr) {
++      int changes = 0;
++      double prev = v0, deepest_other = 0.0, u_first = -1.0, u_last = -1.0;
++      for (int q = 1; q <= 32; ++q) {
++        const double u = q / 32.0;
++        const double v = q == 32 ? v1 : rate(p, u, nullptr, rates);
++        if ((v < 0.0) != (prev < 0.0)) {
++          ++changes;
++          if (u_first < 0.0) u_first = u;
++          u_last = u;
++        }
++        if ((v < 0.0) != negative && std::abs(v) > std::abs(deepest_other)) deepest_other = v;
++        prev = v;
++      }
++      if (changes != n_cuts) {
++        std::fprintf(f, "scan %.17g %.17g %zu %d %d %.17g %.17g %.17g %.17g %.17g\n", time, h, p,
++                     n_cuts, changes, u_first, u_last, v0, v1, deepest_other);
++      }
++    }
+     if (n_cuts == 0) {
+       continue;
+     }
+     ++parts_split;
++    if (std::FILE* f = split_log()) {
++      std::fprintf(f, "split %.17g %.17g %zu %d %.17g %.17g %.17g %.17g %d\n", time, h, p,
++                   n_cuts, cuts[0], n_cuts > 1 ? cuts[1] : -1.0, v0, v1,
++                   (v1 < 0.0) != negative ? 0 : 1);
++    }
+ 
+     std::copy(y_start.begin() + first,
+               y_start.begin() + first + static_cast<std::ptrdiff_t>(width),

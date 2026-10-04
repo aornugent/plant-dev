@@ -114,3 +114,17 @@ if (any(is.finite(Hd))) {
   cat(sprintf("    its forward: %d steps, %s splits, %.0f s (the split's %d, %s, %.0f s; both under load)\n",
               d$steps, format(d$splits), d$secs, s$steps, format(s$splits), s$secs))
 }
+
+# The fix probe (prereg.txt, third extension): the probe's correction, with every
+# change the dense output shows at u = k/32 cut.
+Hf <- sapply(RS, function(r) H_of(J_of(sprintf("fix_lma_%s", r)), J_of(sprintf("fix_lma_-%s", r)),
+                                  J_of("fix_1e-4"), as.numeric(r)))
+if (any(is.finite(Hf))) {
+  cat("\nThe fix probe (the probe's correction, cutting every change a 32-point scan shows):\n")
+  print(round(Hf, 3))
+  cat(sprintf("P10: its H at 1e-3 less at 1e-2 %+.3f eps (bar 0.1); from -43.45 at 1e-2 and 3e-2 %+.3f and %+.3f eps\n",
+              (Hf["1e-3"] - Hf["1e-2"]) / eps, (Hf["1e-2"] + 43.45) / eps, (Hf["3e-2"] + 43.45) / eps))
+  f <- run("fix_1e-4")
+  cat(sprintf("    its forward: J at 1e-4 from J_ref %+.2e; %d steps, %s splits, %.0f s under load\n",
+              (f$J - ref) / ref, f$steps, format(f$splits), f$secs))
+}

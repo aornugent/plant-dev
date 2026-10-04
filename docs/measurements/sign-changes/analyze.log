@@ -43,3 +43,9 @@ The probe (the step's own end corrected by what the cuts change):
 P6: its H at 1e-3 less at 1e-2 +0.202 eps (bar 0.1)
 P7: its H from -43.45 at 1e-2 and 3e-2 +0.010 and -0.021 eps (bar 1/3); J at 1e-4 from J_ref +2.31e-05, the split's +3.43e-06
     its forward: 14845 steps, 9239 splits, 76 s (the split's 14844, 9239, 100 s; both under load)
+
+The fix probe (the probe's correction, cutting every change a 32-point scan shows):
+   1e-3    1e-2    3e-2 
+-42.739 -43.440 -43.471 
+P10: its H at 1e-3 less at 1e-2 +0.600 eps (bar 0.1); from -43.45 at 1e-2 and 3e-2 +0.009 and -0.018 eps
+    its forward: J at 1e-4 from J_ref +2.32e-05; 14845 steps, 9246 splits, 914 s under load

@@ -564,10 +564,26 @@ after the events reply):
      curvature within 0.015ε of −43.45 at r = `1e-2` and `3e-2`. Three gates are
      missed as registered: below `3e-5` an error both arms share stops `J`'s
      error falling; the forward costs 6.9% more; and from r = `1e-2` to `1e-3`
-     the curvature still moves 0.49ε. Passages carry part of that residue: a
-     correction that makes a cut at a step's end change nothing halves it, but
-     gives back the split's accuracy in `J`. At matched stability the split at
+     the curvature still moves 0.49ε. At matched stability the split at
      `1e-4` costs 0.77 of plain at `1e-5`.
+   - *The residue's root cause* (`grid-dynamics.md` §18). On a pinned grid `J`
+     jumps wherever a split choice changes with the trait: the step a sign
+     change is cut in, or whether a pair is cut. The pieces read the field from
+     the dense output and the unsplit step from its stages, so the two disagree
+     there, by 1e-8 to 5e-8 in `ln J`; the unsplit model adds a floor of 1e-8. A
+     second difference at r divides these by r², so the residue is 0.49ε at
+     `1e-3` and gone at `1e-2`. Neither a correction at the step's end (0.15ε,
+     and `J` 6.7× less accurate) nor cutting every pair the dense output shows
+     (0.60ε, at 12× the runtime) removes it. The jumps are six orders under ε
+     for `ln J`. An adjoint differentiates the run's own choices, so item 4's
+     chord of two gradients carries no jump, only how the slope differs between
+     its ends, which the fine grid bounds at about 1.5e-3 and item 4's gate will
+     measure. The gates "`J` moves by at most 1e-8 as a sign change passes" and
+     "a pair merging is continuous" are met by passages (0.85e-8) and missed by
+     the deepest pairs (4.6e-8).
+   - *The cost* is a fixed 0.5–0.7 ms a node step split, 12.5% of plain at `1e-3`
+     and 7% at `3e-4` and `1e-4`. 92% of it is part evaluations, each of which
+     rebuilds the whole field, the boundary node's leaf solve included (39%).
 3. *Splits in the sweep.* Each part is a row of its own for its node's
    components, and the field values it read are fixed linear maps of the
    recorded stages. Each split time enters the tape by one implicit-function

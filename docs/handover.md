@@ -121,8 +121,8 @@ and the frontier they draw, with its operating point (§6).
 | invader thinning | parked until the schedule rules are built: an invader's members thinned by its own share of `J′` under the root law, emulated exactly, keep 53–66% of its walk and sweep at ≤ 0.17ε in `ln J′`; the selection gradient and the diagonal unmeasured (`grid-dynamics.md` §14) |
 | the soil stepped on its own | Done on the driver. Where the uptake is under 10% of the soil's budget, the soil is integrated on its own under an extrapolated uptake, with a corrector. The registered version fails its pass on `J` by 2.6% on episodic. With the coupling's error judged at the members' weight, it passes every criterion on both records and saves 29–41% of rows at matched error in `J`, though that error stops falling below `3e-5`. The user decided it joins the build, with its tuning left to the later scheduling heuristics (the design doc's 1e and phase 3, item 2; `grid-dynamics.md` §15) |
 | the node axis on long-wet and long drought | Done. Spread uniform nodes report their own error on both records (square-law ratios, companions reporting 0.95 and 0.98 of the error); graded nodes, lumped or spread, do not (companions 0.65–0.80). The spread's two-rung extrapolation is the cheapest answer with an honest estimate. Thinning after b = 10 fails with the spread as lumped. Sorting the crowns before the light field's sum costs nothing, while walking every node costs 23% of a forward (`grid-dynamics.md` §16) |
-| 3.2, splits in the forward step | Built on `sign-changes` (odelia and plant) and measured on long drought (`grid-dynamics.md` §18). It repeats the driver's split: `J` 10× nearer the reference than plain at `1e-4`, and the curvature within 0.015ε of −43.45 at r = `1e-2` and `3e-2`. As registered it misses three gates. Below `3e-5` an error both arms share stops `J`'s error falling. The forward costs 6.9% more, against 6%. From r = `1e-2` to `1e-3` the curvature still moves 0.49ε, part of it passages. At matched stability it costs 0.77 of plain at `1e-5` |
-| next | The build, in phase 3's order (`docs/design-grid-controller.md`): the stack lands first (the user's call), then the splits in the sweep (item 3), curvatures from the adjoint, the multirate soil step and the node rule. Open from item 2: the error both arms share below `3e-5`, and the residue below r = `1e-2` |
+| 3.2, splits in the forward step | Built on `sign-changes` (odelia and plant) and measured on long drought (`grid-dynamics.md` §18). It repeats the driver's split: `J` 10× nearer the reference than plain at `1e-4`, and the curvature within 0.015ε of −43.45 at r = `1e-2` and `3e-2`. As registered it misses three gates. Below `3e-5` an error both arms share stops `J`'s error falling. The forward costs 6.9% more, against 6%. From r = `1e-2` to `1e-3` the curvature still moves 0.49ε: on a pinned grid `J` jumps by 1e-8 to 5e-8 in `ln J` wherever a split choice changes (a sign change's step, a pair cut or lost), about 150 times within r = ±`1e-3`, over a floor of 1e-8 the unsplit model has too, and a second difference divides that by r². Neither the correction at a step's end nor cutting every pair the dense output shows removes it (0.15ε and 0.60ε). The forward's slowdown is 12.5% at `1e-3` and 7% at `3e-4` and `1e-4` alone, a fixed 0.5–0.7 ms a node step split, 92% of it rebuilding the field for each part evaluation (`measurements/sign-changes/profile.txt`). At matched stability it costs 0.77 of plain at `1e-5` |
+| next | The build, in phase 3's order (`docs/design-grid-controller.md`): the stack lands first (the user's call), then the splits in the sweep (item 3), curvatures from the adjoint, the multirate soil step and the node rule. Open from item 2: the error both arms share below `3e-5`; the 1e-8 floor in `J` on a pinned grid, untraced; whether item 2's continuity gates and P5 should be judged on the curvature as item 4 computes it (adjoint chords at r ≥ `1e-2`) rather than a forward second difference at `1e-3`, the user's call; and the field rebuilt per part evaluation, the split's cost |
 | the acceptance suite | designed in the spec: the objectives as bounded tests against brute-force references, in tiers; its build is held until the user starts it |
 | 2. the node axis | Decided: D, the spread, goes into the build, and B stays an option to consider later (§16). The height sort is agreed in principle and gets its own design turn. The chosen rule's ladders on dry, episodic and the constant record are not run |
 | 3. the build | can start: the multirate soil step and the spread are now decided in, beside the items phase 1 settled. The events still need their design, and the spread's finest rungs wait for the height sort's design turn |
@@ -456,9 +456,10 @@ Three checks the user asked for after the reply:
   - So they are not the curvature scan's residue below a perturbation of `1e-2`
     (`grid-dynamics.md` §17). Nor are the recorded bases, which repeat bit for
     bit on the current driver. Nor is a pair of sign changes inside one step:
-    the build detects pairs and repeats the driver's residue. Passages carry
-    part of it (`grid-dynamics.md` §18). Splits at class switches stay out of the
-    build.
+    the build detects pairs and repeats the driver's residue. The residue is
+    the jumps of a pinned grid's `J` wherever a split choice changes, over a
+    floor the unsplit model has too (`grid-dynamics.md` §18). Splits at class
+    switches stay out of the build.
 - *Per-member splits with the spread rule (D).*
   - *Consistent by construction.* The driver evaluates a split member with
     plant's own field construction, from the interpolated state of every member
@@ -612,10 +613,17 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   the `SplitsSignChanges` concept and the split of each kept step; plant's
   `sign-changes` needs it. `$DEV/lib_sc` holds both, with phylloptim `378b083`.
   The probe of the passages is `docs/measurements/sign-changes/passage_probe.patch`
-  over odelia's, built in `$DEV/lib_diff`.
+  over odelia's, built in `$DEV/lib_diff`; with logging,
+  `passage_probe_log.patch` in `$DEV/lib_difflog`. `log_probe.patch` logs each
+  split and, with `ODELIA_SPLIT_SCAN` set, scans each step's dense output
+  (`$DEV/lib_log`); `fix_probe.patch` is the correction with every pair the scan
+  shows cut (`$DEV/lib_fixp`).
 - Two failures in plant's `test-mutant.R` (FF16 invaders' blessed numbers) and
-  odelia's `test-implicit-value.R`, which does not compile under GCC 13, fail
-  identically on `state-weights`; neither is the split's.
+  odelia's `test-implicit-value.R` fail identically on `state-weights`; neither
+  is the split's. The second is a latent bug in that test since odelia `6fd01c7`:
+  it passes a braced list to `record_with_derivatives`'s `std::span` parameter
+  (lines 104 and 152), which GCC 13 rejects under C++20, 23 and 26. The library's
+  own caller passes a vector; the fix is the test's, on a branch of its own.
 - No PR is open for `offspring-adjoint` or `PLANT-95` to `PLANT-99`; opening them
   is the user's call. #96 is independent of #97 and #98, and all three edit the
   top of `NEWS.md`.

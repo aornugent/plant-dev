@@ -1,0 +1,116 @@
+diff --git a/inst/include/odelia/ode_solver_internal.hpp b/inst/include/odelia/ode_solver_internal.hpp
+index 9518980..d3a13d7 100644
+--- a/inst/include/odelia/ode_solver_internal.hpp
++++ b/inst/include/odelia/ode_solver_internal.hpp
+@@ -706,6 +706,9 @@ void SolverInternal<System>::step_to(System& system, double time_max_) {
+       continue;
+     }
+ 
++    if (std::FILE* f = split_log()) {
++      std::fprintf(f, "refused %.17g %.17g %.17g\n", time, time_next - time, time_max);
++    }
+     // Undo the failed sub-step. The system is left holding whichever stage threw,
+     // so put it back on the restored state explicitly -- otherwise a give-up below
+     // would exit with the system and y disagreeing, the pattern behind the
+diff --git a/inst/include/odelia/ode_step.hpp b/inst/include/odelia/ode_step.hpp
+index 95880bd..742ced9 100644
+--- a/inst/include/odelia/ode_step.hpp
++++ b/inst/include/odelia/ode_step.hpp
+@@ -3,6 +3,8 @@
+ #define ODELIA_ODE_STEP_HPP_
+ 
+ #include <array>
++#include <cstdio>
++#include <cstdlib>
+ #include <cmath>
+ #include <limits>
+ #include <vector>
+@@ -14,6 +16,15 @@
+ namespace odelia {
+ namespace ode {
+ 
++// Diagnostic only: ODELIA_SPLIT_LOG names a file each split appends a line to.
++inline std::FILE* split_log() {
++  static std::FILE* f = [] {
++    const char* path = std::getenv("ODELIA_SPLIT_LOG");
++    return path != nullptr ? std::fopen(path, "w") : nullptr;
++  }();
++  return f;
++}
++
+ template <class System>
+ class Step {
+ public:
+@@ -366,33 +377,48 @@ void Step<System>::split(System& system, solved_values& at_state, double time,
+       continue;
+     }
+     ++parts_split;
++    if (std::FILE* f = split_log()) {
++      std::fprintf(f, "split %.17g %.17g %zu %d %.17g %.17g %.17g %.17g %d\n", time, h, p,
++                   n_cuts, cuts[0], n_cuts > 1 ? cuts[1] : -1.0, v0, v1,
++                   (v1 < 0.0) != negative ? 0 : 1);
++    }
+ 
+-    std::copy(y_start.begin() + first,
+-              y_start.begin() + first + static_cast<std::ptrdiff_t>(width),
+-              own.begin());
+-    double from = 0.0;
+-    for (int c = 0; c <= n_cuts; ++c) {
+-      const double to = c < n_cuts ? cuts[c] : 1.0;
+-      if (!(to > from)) {
+-        continue;
+-      }
+-      const double piece = (to - from) * h;
+-      // At the step's start the part's rates are the step's own first ones.
+-      if (from == 0.0) {
+-        std::copy(k[0].begin() + first,
+-                  k[0].begin() + first + static_cast<std::ptrdiff_t>(width),
+-                  piece_rates[0].begin());
+-      } else {
+-        rate(p, from, &own, piece_rates[0]);
+-      }
+-      for (int i = 1; i < 6; ++i) {
+-        stage_state(i, own, piece_rates, piece, stage);
+-        rate(p, from + ah[i - 1] * (to - from), &stage, piece_rates[i]);
++    // The part over [0, 1] in pieces between `cuts`, its field read from the dense
++    // output throughout, into `own`.
++    auto integrate = [&](const double* at, int n) {
++      std::copy(y_start.begin() + first,
++                y_start.begin() + first + static_cast<std::ptrdiff_t>(width),
++                own.begin());
++      double from = 0.0;
++      for (int c = 0; c <= n; ++c) {
++        const double to = c < n ? at[c] : 1.0;
++        if (!(to > from)) {
++          continue;
++        }
++        const double piece = (to - from) * h;
++        if (from == 0.0) {
++          std::copy(k[0].begin() + first,
++                    k[0].begin() + first + static_cast<std::ptrdiff_t>(width),
++                    piece_rates[0].begin());
++        } else {
++          rate(p, from, &own, piece_rates[0]);
++        }
++        for (int i = 1; i < 6; ++i) {
++          stage_state(i, own, piece_rates, piece, stage);
++          rate(p, from + ah[i - 1] * (to - from), &stage, piece_rates[i]);
++        }
++        step_end(own, piece_rates, piece, own);
++        from = to;
+       }
+-      step_end(own, piece_rates, piece, own);
+-      from = to;
++    };
++    // The step's own end corrected by what the cuts change, both integrations in
++    // the dense output's field, so a cut at either end of the step changes nothing.
++    integrate(nullptr, 0);
++    std::vector<double> whole(own);
++    integrate(cuts, n_cuts);
++    for (std::size_t q = 0; q < width; ++q) {
++      y[static_cast<std::size_t>(first) + q] += own[q] - whole[q];
+     }
+-    std::copy(own.begin(), own.end(), y.begin() + first);
+   }
+ 
+   if (rated) {

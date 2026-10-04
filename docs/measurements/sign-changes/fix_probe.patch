@@ -1,0 +1,111 @@
+diff --git a/inst/include/odelia/ode_step.hpp b/inst/include/odelia/ode_step.hpp
+index 95880bd..e064ea4 100644
+--- a/inst/include/odelia/ode_step.hpp
++++ b/inst/include/odelia/ode_step.hpp
+@@ -338,61 +338,60 @@ void Step<System>::split(System& system, solved_values& at_state, double time,
+   for (std::size_t p = 0; p < parts; ++p) {
+     const auto first = static_cast<std::ptrdiff_t>(p * width);
+     const double v0 = sign_values_in[p], v1 = sign_values[5][p];
+-    const bool negative = v0 < 0.0;
+-    double cuts[2];
+-    int n_cuts = 0;
+-    if ((v1 < 0.0) != negative) {
+-      cuts[n_cuts++] = locate(p, 0.0, v0, 1.0, v1);
+-    } else {
+-      int deepest = 0;
+-      for (int i = 1; i < 6; ++i) {
+-        const double v = sign_values[i - 1][p];
+-        if ((v < 0.0) != negative && ah[i - 1] < 1.0 &&
+-            (deepest == 0 ||
+-             std::abs(v) > std::abs(sign_values[deepest - 1][p]))) {
+-          deepest = i;
+-        }
+-      }
+-      if (deepest > 0) {
+-        const double um = ah[deepest - 1];
+-        const double vm = rate(p, um, nullptr, rates);
+-        if ((vm < 0.0) != negative) {
+-          cuts[n_cuts++] = locate(p, 0.0, v0, um, vm);
+-          cuts[n_cuts++] = locate(p, um, vm, 1.0, v1);
+-        }
++    // Every change P shows on the dense output at u = k / 32, each located.
++    std::vector<double> cuts;
++    double prev_u = 0.0, prev_v = v0;
++    for (int q = 1; q <= 32; ++q) {
++      const double u = q / 32.0;
++      const double v = q == 32 ? v1 : rate(p, u, nullptr, rates);
++      if ((v < 0.0) != (prev_v < 0.0)) {
++        cuts.push_back(locate(p, prev_u, prev_v, u, v));
+       }
++      prev_u = u;
++      prev_v = v;
+     }
++    const int n_cuts = static_cast<int>(cuts.size());
+     if (n_cuts == 0) {
+       continue;
+     }
+     ++parts_split;
+ 
+-    std::copy(y_start.begin() + first,
+-              y_start.begin() + first + static_cast<std::ptrdiff_t>(width),
+-              own.begin());
+-    double from = 0.0;
+-    for (int c = 0; c <= n_cuts; ++c) {
+-      const double to = c < n_cuts ? cuts[c] : 1.0;
+-      if (!(to > from)) {
+-        continue;
+-      }
+-      const double piece = (to - from) * h;
+-      // At the step's start the part's rates are the step's own first ones.
+-      if (from == 0.0) {
+-        std::copy(k[0].begin() + first,
+-                  k[0].begin() + first + static_cast<std::ptrdiff_t>(width),
+-                  piece_rates[0].begin());
+-      } else {
+-        rate(p, from, &own, piece_rates[0]);
+-      }
+-      for (int i = 1; i < 6; ++i) {
+-        stage_state(i, own, piece_rates, piece, stage);
+-        rate(p, from + ah[i - 1] * (to - from), &stage, piece_rates[i]);
++    // The part over [0, 1] in pieces between `cuts`, its field read from the dense
++    // output throughout, into `own`.
++    auto integrate = [&](const double* at, int n) {
++      std::copy(y_start.begin() + first,
++                y_start.begin() + first + static_cast<std::ptrdiff_t>(width),
++                own.begin());
++      double from = 0.0;
++      for (int c = 0; c <= n; ++c) {
++        const double to = c < n ? at[c] : 1.0;
++        if (!(to > from)) {
++          continue;
++        }
++        const double piece = (to - from) * h;
++        if (from == 0.0) {
++          std::copy(k[0].begin() + first,
++                    k[0].begin() + first + static_cast<std::ptrdiff_t>(width),
++                    piece_rates[0].begin());
++        } else {
++          rate(p, from, &own, piece_rates[0]);
++        }
++        for (int i = 1; i < 6; ++i) {
++          stage_state(i, own, piece_rates, piece, stage);
++          rate(p, from + ah[i - 1] * (to - from), &stage, piece_rates[i]);
++        }
++        step_end(own, piece_rates, piece, own);
++        from = to;
+       }
+-      step_end(own, piece_rates, piece, own);
+-      from = to;
++    };
++    // The step's own end corrected by what the cuts change, both integrations in
++    // the dense output's field, so a cut at either end of the step changes nothing.
++    integrate(nullptr, 0);
++    std::vector<double> whole(own);
++    integrate(cuts.data(), n_cuts);
++    for (std::size_t q = 0; q < width; ++q) {
++      y[static_cast<std::size_t>(first) + q] += own[q] - whole[q];
+     }
+-    std::copy(own.begin(), own.end(), y.begin() + first);
+   }
+ 
+   if (rated) {

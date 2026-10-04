@@ -1796,6 +1796,49 @@ times and not its sizes, so the harness's replays step to each time. A replay at
 `lma` itself repeats its forward's `J` within 3.6e-9 rather than bit for bit;
 plant's own test pins the sizes and repeats bit for bit.
 
+**What the residue is** (the third extension in `prereg.txt` and what followed;
+`scan.log`, `bisect.log`, `jumps.log`). Each curvature below is taken against
+the arm's own replay at r = 0, where the table above took its forward.
+
+| r | `1e-3` | `1e-2` | `3e-2` |
+|---|---|---|---|
+| split | −42.87 | −43.44 | −43.47 |
+| split, corrected at a step's end | −43.26 | −43.44 | −43.47 |
+| corrected, and every pair the dense output shows cut | −42.73 | −43.44 | −43.47 |
+
+- *Pairs the detection misses are few and small.* Net production on the dense
+  output at u = k/32, against the cuts made, finds 6 or 7 pairs missed a run.
+  All but two lie in the first fifth of a step that starts at a rainfall knot on
+  the first day of rain after three dry days or more, before the step's first
+  stage strictly inside, where net production falls to as low as −0.39. A pair
+  just before the knot is cut once in each step, and is lost once both its sign
+  changes pass into the next step. Losing one moves `ln J` by +0.74e-8 (node 5,
+  day 8684) and −4.6e-8 (node 5, day 6259); a passage's half moves it by
+  −0.85e-8 (node 1). Cutting every pair the scan shows leaves the residue at
+  0.60ε and costs 12 times the runtime.
+- *A floor under every run.* A change of 1e-12 in `lma`, where the smooth change
+  is 8.3e-12, moves `ln J` by 1e-8 to 2e-8 in plain and split runs alike, with
+  the split's decisions unchanged. The model on a pinned grid does not resolve
+  `J` finer than that; its source is not traced.
+- *`ln J` between r = 0 and `1e-3`* departs from a smooth curve by up to 1.1e-7
+  over 6.25e-5 in r (sd 6.5e-8), in runs of one sign as well as single steps.
+  The correction at a step's end removes the passages' jumps but multiplies a
+  lost pair's: node 5's at day 6259 becomes −6.2e-7, 13 times the build's,
+  since the correction carries the difference between two integrations across
+  the pair, one in the dense output's field and one in the stages'. Its smaller
+  residue at `1e-3` (0.15ε) is where its larger jumps fell.
+
+**Root cause.** On a pinned grid the split's `J` is smooth in the trait only
+between the points where one of its choices changes: the step a sign change is
+cut in, or whether a pair is cut at all. At each, the node's pieces, which read
+the field from the dense output, and the unsplit step, which reads its stages,
+disagree, by 1e-8 to 5e-8 in `ln J`. About 150 such points fall within
+r = ±`1e-3`, with the slopes between them and the model's own floor of 1e-8. A
+second difference divides all of it by r², so the residue falls as r⁻²: 0.49ε at
+`1e-3`, and every arm within 0.03ε of −43.45 at `1e-2` and `3e-2`. No single
+mechanism carries it, so neither correction removes it. The jumps are six orders
+under ε for `ln J`.
+
 ## What the record supports, and what it does not
 
 - *Supported: a gradient run's cost is its rows and its sweeps.* The walk and

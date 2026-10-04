@@ -1,0 +1,15 @@
+H(r) against each arm's replay at r = 0 (its forward in parentheses):
+  split               -42.869 (-42.862), -43.438 (-43.438), -43.468 (-43.468); 1e-3 less 1e-2 +0.49 eps
+  split, corrected    -43.260 (-43.203), -43.439 (-43.439), -43.474 (-43.474); 1e-3 less 1e-2 +0.15 eps
+  corrected, scanned  -42.734 (-42.739), -43.440 (-43.440), -43.471 (-43.471); 1e-3 less 1e-2 +0.60 eps
+
+ln J for a change of 1e-12 in lma, less ln J at r = 0 (the smooth change is 8.3e-12):
+  plain +1e-12 +1.47e-08, -1e-12 +9.55e-09
+  rs    +1e-12 -8.05e-09, -1e-12 -1.83e-08; LMA_REL = 1e-300, lma as it is: +0.00e+00
+  diff  +1e-12 -5.43e-08, -1e-12 -5.47e-08; LMA_REL = 1e-300, lma as it is: +0.00e+00
+
+ln J at r = k/32 1e-3, k even: each interval's departure from the smooth change
+  split +6.5e-08 +5.5e-08 +9.4e-09 -1.0e-07 -7.6e-08 -8.6e-08 -7.1e-09 -3.5e-09 -1.1e-07 -1.2e-08 +3.5e-09 -1.9e-08 +3.8e-08 +1.1e-07 +5.9e-09 +7.7e-08
+        largest +1.13e-07 between r = 8.125e-04 and 8.750e-04; sd 6.5e-08
+  diff  +4.0e-08 +1.1e-07 -7.2e-09 -7.0e-08 -6.8e-08 -4.9e-08 -3.1e-09 -6.1e-08 -5.4e-07 -7.4e-08 +6.0e-08 +1.8e-08 +3.1e-09 +1.2e-07 +9.4e-08 +7.6e-08
+        largest -5.44e-07 between r = 5.000e-04 and 5.625e-04; sd 1.5e-07
