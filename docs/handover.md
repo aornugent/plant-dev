@@ -359,6 +359,60 @@ on disk and a few driver probes:
   and the gain was in the rain intervals, where an implicit chain takes it.
 - *Open:* grid-dynamics' *Next probes*, ordered by the cost above.
 
+**The splits consult and its reply** (`docs/oracle-consultation-splits.md`,
+sent at `b8ec91f` before the tightened build's two tests, and
+`docs/oracle-response-splits.md`). The reply's verdict: the split is finished;
+none of the three features is the split's. What it proposes:
+- *Remove the staircase in the leaf solve:* one Newton step at the end of each
+  root-find, at every level of the nest (10–15% of a solve), or brackets
+  stopped near 1e-14, "also fine". A replay at `θ` would then repeat its
+  forward to ulps if it stored `h`.
+- *A branch of the positive part per piece,* which it holds is not a change to
+  the rates (under 1e-10 in `ln J`). It would remove the smoothing band's
+  departure for cut nodes, make the cut time enter at `O(h^p)` so the sweep may
+  freeze it, and bound the cut terms near a graze. Without it the band stays
+  and routing the cut time by the implicit function is mandatory. The user's
+  call.
+- *Detection at interior extrema of net production,* and *pieces that rebuild
+  only what they read* (no draw, no newborn's leaf solve: about 3% of a forward
+  instead of 7%).
+- *Freeze* the step times, the multirate selection and its inner steps;
+  re-detect the cut structure; record the cut times and route them; never
+  freeze inner iterations.
+- *The sweep through splits next,* gated by central differences at u = `1e-3`,
+  and a sweep with the cut time frozen against one routed: with branches they
+  agree, without them the frozen one is `O(h)` off.
+- *Second derivatives* are a window average at u around `1e-2`; a pointwise
+  second-order adjoint of the smoothed model would read the band (out of scope
+  here anyway).
+
+Checked against the record:
+- *The noise is the leaf solve's tolerances,* as it says. The fourth extension,
+  run before the reply came, already shows it: stopped at adjacent floats, 2.7e-8
+  falls to 1.1e-14 (`measurements/sign-changes/tight.log`).
+- *The slower departure as the smoothing band* fits what is known: it survives
+  the noise's removal and is common to every variant, all of which evaluate the
+  smooth positive part in their pieces. Its size is not checked: a cut piece's
+  first and last stages sit at net production 0 on every replay, so they are
+  not what re-rolls, and the stages that can re-roll are those near a sign
+  change the split does not cut. Under test (sixth extension): `ε_P` ×10.
+- *The graze cannot carry the residue alone.* Fitted to the noise-free build's
+  value at u = `3e-3` (+0.114), a graze straddling θ₀ predicts +0.30 at `1e-3`
+  against the +0.58 measured; a 1/u law predicts +0.44, 1/u^1.5 +0.69, 1/u²
+  +1.12. The data lie between 1/u and 1/u^1.5. The graze itself is the
+  prototype's (a node with 3.1% of `J`, gone within +1e-5); the build's is not
+  identified.
+- *Its cheap tests as stated would not separate the candidates.* From `1e-3` to
+  `3e-4` the three laws give 1.9×, 3.3× and 11×, not the 1.0×, 1.7× and 5.1× it
+  quotes, and if the band is as it says, its re-rolling dominates a second
+  difference at `3e-4`. Re-centred at θ₀e^{−3e-4}, a second difference at u =
+  `1e-3` still straddles a graze at +1e-5.
+- *Net production is not a polynomial on the dense output.* Each value is a
+  single-node evaluation with its leaf solve, so its interior extrema are not a
+  cubic's closed-form roots; the 32-point scan cost 12 times the forward.
+  Detection at extrema needs a cheaper reading of net production inside a
+  step.
+
 **The events consult and its reply** (`docs/oracle-consultation-events.md`,
 sent at `2363155`, and `docs/oracle-response-events.md`). What the reply
 proposes:

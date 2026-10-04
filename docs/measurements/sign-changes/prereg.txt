@@ -275,3 +275,24 @@ Result of the fifth extension (tight_residue.log): R1 and R2 both fail. The
   the tolerances'. The build's own values at 3e-3: split -43.329 on both builds
   (the driver's -43.33), plain -44.53. At 1e-2 and 3e-2 the tight build reads
   -43.443 and -43.468.
+
+Sixth extension: the splits reply's two cheap checks (2026-10-04, written after
+the reply, oracle-response-splits.md, and before the runs; band.sh, band.R,
+eps10_plant.patch)
+  The reply reads the slower departure as the positive part's smoothing band
+  sampled at stages: stages whose net production lies within eps_P = 1e-4 of
+  zero add about 1e-8 each, the band is about 3e-6 wide in ln lma, and as lma
+  moves they re-roll. It predicts that with eps_P x10, declared, the departure
+  grows tenfold in height and width.
+  Test: on the tight build, plant with the positive part's width 1e-3
+  (eps10_plant.patch); the split's program replayed at r = 0, +-1e-3, +-1e-2 and
+  on the fine grid r = k/32 1e-3, k = 2, 4, ..., 32, as tight_residue.sh did at
+  1e-4.
+  B1, the band carries the slower departure: the fine grid's standard
+     deviation at width 1e-3 is at least 3 times the tight build's at 1e-4
+     (5.8e-8). B1 fails at 1.5 times or less; between, the band carries part.
+  Reported, not judged: the residue at 1e-3 less 1e-2 at width 1e-3 (the band
+  would move it if it carried part of it), and ln J at r = 0.
+  Also reported, not judged: the tight leaf solve's cost, plain's replay at lma
+  timed alone on the split build and the tight build, alternating, two each,
+  with nothing else running.
