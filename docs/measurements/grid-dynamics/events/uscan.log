@@ -1,0 +1,49 @@
+eps for lma's curvature (resident) 1.168; eps/3 0.389; eps/10 0.117; reference -43.7
+
+                     arm     tol     r       H  from_ref   clamped
+                   plain    1e-4 3e-04 -49.063 -4.592532     NA/NA
+                   plain    1e-4 1e-03 -47.277 -3.063116     NA/NA
+                   plain    1e-4 3e-03 -44.307 -0.519402     NA/NA
+                   plain    1e-4 1e-02 -44.037 -0.288718     NA/NA
+                   plain    1e-4 3e-02 -43.615  0.072542     NA/NA
+                   plain  9.5e-5 3e-03 -45.894 -1.878897     NA/NA
+                   plain  9.5e-5 1e-02 -44.173 -0.405354     NA/NA
+                   plain  9.5e-5 3e-02 -43.639  0.052296     NA/NA
+                   plain 1.05e-4 3e-03 -42.868  0.712231     NA/NA
+                   plain 1.05e-4 1e-02 -43.520  0.153980     NA/NA
+                   plain 1.05e-4 3e-02 -43.524  0.151008     NA/NA
+                   plain    3e-5 1e-02 -43.434  0.227408     NA/NA
+                   plain    3e-5 3e-02 -43.487  0.182601     NA/NA
+      split, re-detected    1e-4 1e-03 -42.887  0.695939       0/0
+      split, re-detected    1e-4 3e-03 -43.333  0.314040       0/0
+      split, re-detected    1e-4 1e-02 -43.441  0.221504       0/0
+      split, re-detected    1e-4 3e-02 -43.468  0.198637       0/0
+      split, re-detected  9.5e-5 3e-03 -43.357  0.293994       0/0
+      split, re-detected  9.5e-5 1e-02 -43.502  0.169617       0/0
+      split, re-detected  9.5e-5 3e-02 -43.469  0.198040       0/0
+      split, re-detected 1.05e-4 3e-03 -43.086  0.526088       0/0
+      split, re-detected 1.05e-4 1e-02 -43.440  0.222374       0/0
+      split, re-detected 1.05e-4 3e-02 -43.471  0.196257       0/0
+      split, re-detected    3e-5 1e-02 -43.442  0.220731       0/0
+      split, re-detected    3e-5 3e-02 -43.461  0.204872       0/0
+ split, frozen structure    1e-4 3e-04 -44.633 -0.798700     23/23
+ split, frozen structure    1e-4 1e-03 -42.787  0.781609     79/75
+ split, frozen structure    1e-4 3e-03 -43.101  0.512879   217/196
+ split, frozen structure    1e-4 1e-02 -43.576  0.105791   692/667
+ split, frozen structure    1e-4 3e-02 -43.492  0.177986 2024/1678
+ split, frozen structure  9.5e-5 1e-03 -43.514  0.159368     52/57
+ split, frozen structure 1.05e-4 1e-03 -42.619  0.926089     59/59
+base rp at 1e-4: the current driver's ln J less the recorded one's, +0
+base sq at 1e-4: the current driver's ln J less the recorded one's, +0
+base rp at 3e-5: the current driver's ln J less the recorded one's, +0
+base sq at 3e-5: the current driver's ln J less the recorded one's, +0
+
+P1 (the reply): the re-detected split across r in {3e-3, 1e-2, 3e-2} at 1e-4 moves 0.115 eps (bar 0.1); under the nudges at r = 1e-2 it moves 0.053 eps (bar 1/3)
+P2 (the reply): the re-detected split's distance from the reference, in eps, at r = 3e-3, 1e-2, 3e-2: +0.314, +0.222, +0.199 
+P3 (ours): the plain arm's distance from the reference, in eps, at r = 1e-2 and 3e-2: -0.289, +0.073 (bar 1/3); under the nudges at r = 1e-2 it moves 0.559 eps and at 3e-2 0.099 eps (bar 1/3)
+Under the nudges, each arm's spread in eps at r = 3e-3, 1e-2, 3e-2: plain 2.591, 0.559, 0.099 ; split, re-detected 0.232, 0.053, 0.002 
+P4 (ours): the frozen structure less the re-detected split at 1e-4, in eps, at r = 1e-3, 3e-3, 1e-2, 3e-2: +0.086, +0.199, -0.116, -0.021 
+P5 (extension): the re-detected split's H, 3e-5 less 1e-4, in eps, at r = 1e-2 and 3e-2: -0.001, +0.006 (bar 0.1)
+P6 (extension): the plain arm's H, 3e-5 less 1e-4, in eps, at r = 1e-2 and 3e-2: +0.516, +0.110 
+Passage noise, sqrt(N) x 5e-9 / r^2 with N about 78, 200, 650 and 2000 at r = 1e-3, 3e-3, 1e-2, 3e-2, in eps: 0.0378, 0.0067, 0.0011, 0.0002 
+Truncation at r = 3e-2, (0.03/0.245)^2/12 of H: 0.047 eps

@@ -1672,11 +1672,11 @@ role, 1.17. The adaptive reference is −43.7, uncertain by about 0.3 (0.26ε).
     (`archive/oracle-consultation-solver-performance.md`, *Splits chosen to
     separate the candidates*). Nor are the soil's clamps, which are not met on
     accepted steps (§8).
-  - *Two candidates fit its size and its 1/r² fall.* The first is the recorded
-    base at `1e-4`, which ran on an earlier driver and is being re-run. The
-    second is a pair of sign changes inside one step, which the found-again
-    split never looks for, since it compares the signs only at the step's two
-    ends. The record's example is member 5's dip at the rain onset of
+  - *Nor is it the recorded bases.* Re-run on the current driver, all four
+    repeat their recorded `J` bit for bit.
+  - *One candidate fits its size and its 1/r² fall,* untested: a pair of sign
+    changes inside one step. The found-again split never looks for one, since
+    it compares the signs only at the step's two ends. The record's example is member 5's dip at the rain onset of
     t = 17.15. It vanishes within +1e-5 in `lma`, and cut once it moved
     `ln J` by 5.8e-7 (§11). A one-sided jump of that size adds 0.58 to the
     second difference at r = `1e-3`, and 0.06 at `3e-3`. At the nudged
@@ -1685,16 +1685,22 @@ role, 1.17. The adaptive reference is −43.7, uncertain by about 0.3 (0.26ε).
 - *The frozen structure departs from the found-again split by up to 0.2ε at
   `3e-3`,* and agrees with it at `3e-2` (−0.02ε). The departure does not grow
   with r, as the pre-registration expected; it is largest in between.
-- *Against the reference,* the split's value at `1e-2` and `3e-2` sits 0.20–0.22ε
-  above −43.7, inside the reference's own uncertainty.
+- *The split's value has converged in `tol`* (the pre-registered extension).
+  At `3e-5` it gives −43.44 and −43.46 at r = `1e-2` and `3e-2`, within 0.006ε of
+  its values at `1e-4`. The plain run moves 0.52ε and 0.11ε between the two
+  tolerances and arrives at the same values (−43.43 and −43.49). So −43.45 is
+  the converged curvature at 108 introductions, and the adaptive reference
+  (−43.7, uncertain by 0.3) is the less precise of the two. The split's value
+  sits 0.20–0.22ε above it.
 
 **Verdict.** The reply's route holds with the split: forward second
 differences at r between `1e-2` and `3e-2` give `lma`'s curvature reproducibly,
-within 0.002–0.05ε under the nudges, for two forwards each and no sweep. Without
+within 0.002–0.05ε under the nudges and within 0.006ε of its value at `3e-5`,
+for two forwards each and no sweep. Without
 the split the same route fails at `1e-2`, and at `3e-2` it passes but is fifty
 times less reproducible (0.10ε against 0.002ε). From r = `1e-2` up the residue
 below it does not matter. A build that also splits a pair of sign changes
-inside one step, as the reply's two cuts do, would remove the second
+inside one step, as the reply's two cuts do, would test the remaining
 candidate.
 
 ## What the record supports, and what it does not

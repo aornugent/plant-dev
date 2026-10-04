@@ -647,7 +647,11 @@ asserts, so a better controller passes without a test edited.
    `J` smooth on a grid, curvatures have three routes:
    - chords of gradients, about 68 forwards for five traits in both roles;
    - forward-over-reverse, about 26;
-   - forward second differences, about 10.
+   - forward second differences, about 10. With per-member splits, at a
+     perturbation of `1e-2` to `3e-2`, they hold `lma`'s curvature within 0.05ε
+     under the nudges and within 0.006ε across `tol` (`grid-dynamics.md` §17).
+     For an invader's curvature the perturbation is nearer `1e-3`, since `J′`
+     has large higher derivatives (`assessment.md`, step 5).
 3. *The optimising loop:* one resident run serving many invader evaluations,
    with refinements frozen per grid and the grid rebuilt on big moves.
 

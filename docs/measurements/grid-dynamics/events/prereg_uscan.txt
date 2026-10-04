@@ -74,3 +74,21 @@ nudges finished (2026-10-04, 03:40 UTC)
       tolerances, because how far its kinks have averaged out depends on its
       grid.
   Runs: uscan.sh ext. Analysis: uscan.R (its tol-convergence lines).
+
+Verdicts (2026-10-04, from uscan.log)
+  P1 holds from r = 1e-2 up: under the nudges the found-again split moves
+     0.053 eps at 1e-2 and 0.002 eps at 3e-2, and from 1e-2 to 3e-2 it moves
+     0.02 eps. Across 3e-3 to 3e-2 it spans 0.115 eps, just over eps/10, all of
+     it from the 3e-3 point.
+  P2 is not supported: the split's distance from the reference, 0.20-0.22 eps,
+     is the reference's imprecision, since P5 shows the split's value has
+     converged in tol.
+  P3 fails at r = 1e-2: the plain arm moves 0.56 eps under the nudges. It holds
+     at 3e-2 (0.10 eps, 0.07 eps from the reference).
+  P4 is refuted as stated: the frozen structure departs from the found-again
+     split by up to 0.2 eps at 3e-3, but the departure does not grow with r, and
+     the two agree at 3e-2.
+  P5 holds: 3e-5 less 1e-4 is -0.001 and +0.006 eps at r = 1e-2 and 3e-2.
+  P6 holds: the plain arm moves +0.52 and +0.11 eps between the tolerances, to
+     the split's values.
+  The bases re-run on the current driver repeat their recorded J bit for bit.

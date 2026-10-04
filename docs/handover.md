@@ -429,9 +429,10 @@ Where the record disagrees with the reply:
 The reply's own test (`grid-dynamics.md` §17). With splits at crossings found
 again on each replay, forward second differences give `lma`'s curvature
 reproducibly from a perturbation of `1e-2` up: 0.05ε under the ±5% nudges at
-`1e-2`, and 0.002ε at `3e-2`. Without splits they fail at `1e-2` (0.56ε) and
-pass at `3e-2` (0.10ε). So events stay in the resident's build for the
-curvatures as well as for predictability.
+`1e-2`, and 0.002ε at `3e-2`. They have converged in `tol`, moving at most 0.006ε
+from `1e-4` to `3e-5`. Without splits they fail at `1e-2` (0.56ε), pass at
+`3e-2` (0.10ε), and reach the split's value only at `3e-5`. So events stay in
+the resident's build for the curvatures as well as for predictability.
 
 Three checks the user asked for after the reply:
 - *Class switches are not the soil's instability.* The soil instability the
@@ -452,10 +453,10 @@ Three checks the user asked for after the reply:
     carry nothing measurable on their own. The events reply raised them from
     its stale context.
   - So they are not the curvature scan's residue below a perturbation of `1e-2`
-    (`grid-dynamics.md` §17). That residue is either the recorded base at
-    `1e-4`, which predates the current driver and is being re-run, or a pair of
-    sign changes inside one step, which the driver's found-again split does not
-    look for. Splits at class switches stay out of the build.
+    (`grid-dynamics.md` §17). Nor are the recorded bases, which repeat bit for
+    bit on the current driver. The candidate left is a pair of sign changes
+    inside one step, which the driver's found-again split does not look for.
+    Splits at class switches stay out of the build.
 - *Per-member splits with the spread rule (D).*
   - *Consistent by construction.* The driver evaluates a split member with
     plant's own field construction, from the interpolated state of every member
