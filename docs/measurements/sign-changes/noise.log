@@ -1,0 +1,23 @@
+Neighbouring replays at most 6.2e-8 apart in r, with no tracked change between
+most of them: each change of ln J less the smooth change
+  bisect_split_n1  13 intervals of 9.5e-10 to 6.1e-08: rms 1.81e-08, largest 3.80e-08
+  bisect_split_n5  13 intervals of 9.5e-10 to 6.1e-08: rms 3.10e-08, largest 7.19e-08
+  near5            10 intervals of 1.9e-09 to 3.1e-08: rms 2.86e-08, largest 5.38e-08
+  pooled, 36 intervals: rms 2.63e-08, largest 7.19e-08; a replay's own share 1.86e-08
+
+A change of 1e-12 in lma, ln J less its replay at lma:
+  plain +1.47e-08, +9.55e-09
+  rs    -8.05e-09, -1.83e-08
+  diff  -5.43e-08, -5.47e-08
+
+The fine grids, 16 intervals of 6.25e-5 between r = 0 and 1e-3:
+  split: sd 6.52e-08; corrected: sd 6.76e-08 without its one jump of -5.44e-07
+  the arms' correlation over the other 15: 0.78, signs agreeing in 13; their
+  difference's sd 4.31e-08, against 3.72e-08 for four replays' own shares
+  slope at r = 0 (d ln J / dr): split -8.2772, corrected -8.2773
+
+Second differences at r = 1e-3 less at 1e-2:
+  rs   +0.569
+  diff +0.179
+  fix  +0.706
+  the corrected arm's jump moves its value at 1e-3 by -0.544

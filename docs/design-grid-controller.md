@@ -566,21 +566,26 @@ after the events reply):
      error falling; the forward costs 6.9% more; and from r = `1e-2` to `1e-3`
      the curvature still moves 0.49ε. At matched stability the split at
      `1e-4` costs 0.77 of plain at `1e-5`.
-   - *The residue's root cause* (`grid-dynamics.md` §18). On a pinned grid `J`
-     jumps wherever a split choice changes with the trait: the step a sign
-     change is cut in, or whether a pair is cut. The pieces read the field from
-     the dense output and the unsplit step from its stages, so the two disagree
-     there, by 1e-8 to 5e-8 in `ln J`; the unsplit model adds a floor of 1e-8. A
-     second difference at r divides these by r², so the residue is 0.49ε at
-     `1e-3` and gone at `1e-2`. Neither a correction at the step's end (0.15ε,
-     and `J` 6.7× less accurate) nor cutting every pair the dense output shows
-     (0.60ε, at 12× the runtime) removes it. The jumps are six orders under ε
-     for `ln J`. An adjoint differentiates the run's own choices, so item 4's
-     chord of two gradients carries no jump, only how the slope differs between
-     its ends, which the fine grid bounds at about 1.5e-3 and item 4's gate will
-     measure. The gates "`J` moves by at most 1e-8 as a sign change passes" and
-     "a pair merging is continuous" are met by passages (0.85e-8) and missed by
-     the deepest pairs (4.6e-8).
+   - *The residue* (`grid-dynamics.md` §18, as revised). Every replay on a
+     pinned grid carries noise of about 1.9e-8 in `ln J`, plain too, under a
+     change of the trait as small as 1e-12; its source is not traced, and the
+     leaf solve is the first suspect. No split choice was seen to move `J` by
+     more than that: the bisected passage and pairs lie inside it. Over 6.25e-5
+     in r `ln J` also wanders from a smooth curve by 6.5e-8, the same in the
+     split and in its correction at a step's end (correlation 0.78), so the
+     passages do not carry it. Every arm holds about the same residue at `1e-3`,
+     +0.57 to +0.72 against its value at `1e-2` (the correction's +0.18 is its
+     one jump of −5.4e-7), and it falls more like 1/r than r⁻². What carries it
+     is not traced; the split leaves the class switches and the soil's floor
+     and saturation uncut. The correction costs `J` 6.7× its accuracy and
+     cutting every pair the dense output shows 12× the runtime, and neither
+     changes the residue. An adjoint differentiates the run's own choices, so
+     item 4's chord of two gradients carries no jump, only how the slope
+     differs between its ends, which the fine grid bounds at about 1.5e-3 and
+     item 4's gate will measure. The gates "`J` moves by at most 1e-8 as a sign
+     change passes" and "a pair merging is continuous" cannot be read on
+     replays whose own noise is 1.9e-8; toggling one choice at a fixed trait
+     would read them.
    - *The cost* is a fixed 0.5–0.7 ms a node step split, 12.5% of plain at `1e-3`
      and 7% at `3e-4` and `1e-4`. 92% of it is part evaluations, each of which
      rebuilds the whole field, the boundary node's leaf solve included (39%).

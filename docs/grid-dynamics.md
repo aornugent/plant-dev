@@ -1828,16 +1828,49 @@ the arm's own replay at r = 0, where the table above took its forward.
   the pair, one in the dense output's field and one in the stages'. Its smaller
   residue at `1e-3` (0.15ε) is where its larger jumps fell.
 
-**Root cause.** On a pinned grid the split's `J` is smooth in the trait only
-between the points where one of its choices changes: the step a sign change is
-cut in, or whether a pair is cut at all. At each, the node's pieces, which read
-the field from the dense output, and the unsplit step, which reads its stages,
-disagree, by 1e-8 to 5e-8 in `ln J`. About 150 such points fall within
-r = ±`1e-3`, with the slopes between them and the model's own floor of 1e-8. A
-second difference divides all of it by r², so the residue falls as r⁻²: 0.49ε at
-`1e-3`, and every arm within 0.03ε of −43.45 at `1e-2` and `3e-2`. No single
-mechanism carries it, so neither correction removes it. The jumps are six orders
-under ε for `ln J`.
+**Root cause, as first read** (revised below). On a pinned grid the split's `J`
+is smooth in the trait only between the points where one of its choices changes:
+the step a sign change is cut in, or whether a pair is cut at all. At each, the
+node's pieces, which read the field from the dense output, and the unsplit step,
+which reads its stages, disagree, by 1e-8 to 5e-8 in `ln J`. About 150 such
+points fall within r = ±`1e-3`, with the slopes between them and the model's own
+floor of 1e-8. A second difference divides all of it by r², so the residue falls
+as r⁻²: 0.49ε at `1e-3`, and every arm within 0.03ε of −43.45 at `1e-2` and
+`3e-2`. No single mechanism carries it, so neither correction removes it. The
+jumps are six orders under ε for `ln J`.
+
+**Revised: the split's choices do not carry the residue** (`noise.R`,
+`noise.log`; the same runs read again). The reading above took the bisected
+jumps for the choices' own, and the residue for their sum. Neither holds.
+- *Every replay carries noise of about 1.9e-8 in `ln J`.* Neighbouring replays
+  of the bisections, 1e-9 to 6e-8 apart in r, mostly with no change of choice
+  between them, differ from the smooth change by 2.6e-8 rms and up to 7.2e-8.
+  At `lma` itself a change of 1e-12 moves plain by +1.5e-8 and +1.0e-8. Its
+  source is not traced; the leaf solve, which turns an ulp upstream into 1e-9,
+  is the first suspect.
+- *So no single choice was resolved.* The passage's −0.85e-8 and the lost pairs'
+  +0.74e-8 and −4.6e-8 lie inside that noise.
+- *What wanders is common to the split and its correction.* Over 6.25e-5 in r,
+  `ln J` departs from a smooth curve by 6.5e-8 (sd) in the split and 6.8e-8 in
+  the corrected arm without its one jump. The two arms' departures correlate at
+  0.78, signs agreeing in 13 of 15, and differ by about what the replays' own
+  noise gives (4.3e-8 against 3.7e-8). The correction removes the passages'
+  jumps, so the passages are not what wanders.
+- *Every arm holds about the same residue.* At `1e-3` less `1e-2` the split reads
+  +0.57, the correction +0.18, and the correction with every scanned pair cut
+  +0.71. The correction's lower value is its one jump (−5.4e-7, node 5 at day
+  6259), which falls inside +`1e-3` and moves its value there by −0.54; without
+  it the correction reads +0.72. The noise above gives about 0.05 at `1e-3`.
+- *The residue falls more like 1/r than r⁻², as noise would.* A 1/r law through
+  `1e-2` and `3e-2`, H(r) = −43.48 + 4.5e-4/r, predicts the driver's −43.33 at
+  `3e-3` within 0.003 and reads `1e-3` 0.16 low; a law in r⁻² through `1e-3`
+  and `3e-2` misses `3e-3` by 0.07 and `1e-2` by 0.03. At `3e-3` the three
+  tolerances' programs all sit above (+0.11, +0.15, +0.35), so it has a sign.
+  Plain's residue at `1e-3` has the other sign and is 6 times larger.
+- *What the split leaves uncut:* the class switches, a C⁰ kink in each node's
+  leaf solution a median 0.26 days before its upward sign change; the soil's
+  floor and saturation. Untested as the residue's carrier, as is the noise's
+  source.
 
 ## What the record supports, and what it does not
 
