@@ -1895,6 +1895,14 @@ jumps for the choices' own, and the residue for their sum. Neither holds.
   floor and saturation. Untested as the residue's carrier.
 - *The tight leaf solve costs 10%:* plain's replay alone takes 68 s against
   62 s (`band.log`).
+- *The positive part's width is part of the model* (the seventh extension). On
+  the split's pinned program `ln J` is 2.55559, 2.53914 and 2.31110 with
+  `storage_prod_eps` 1e-5, 1e-4 and 1e-3, with about as many splits (9206,
+  9239, 9675). From 1e-4 to 1e-5 it moves by +0.0165, 0.65ε; the step a decade
+  falls about fourteenfold, so the sharp cutoff would sit about 0.018 (0.7ε)
+  above 1e-4. So little of that can come from the crossings' own turn, which
+  lasts about 2e-7 years each; it must come from time spent with net
+  production near zero, where the smooth positive part keeps a node growing.
 
 ## What the record supports, and what it does not
 

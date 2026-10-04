@@ -320,3 +320,11 @@ Seventh extension: how close the positive part's width is to a sharp cutoff
   1e-4. If it differs by eps/3 (0.0083) or more, the width is a modelling
   choice that moves the answer by a third of eps or more and needs the user's
   decision. Between, it is reported as a modelling sensitivity.
+
+Result of the seventh extension: W1 fails. On the split's pinned program and
+  the tight build, ln J at lma is 2.55559 with storage_prod_eps 1e-5, 2.53914
+  with 1e-4 and 2.31110 with 1e-3 (9206, 9239 and 9675 node steps split). From
+  1e-4 to 1e-5 ln J moves by +0.0165, 0.65 eps; from 1e-3 to 1e-4 by +0.228,
+  about 14 times as much a decade. If that ratio holds, the sharp cutoff sits
+  about 0.0013 above 1e-5 and 0.018 (0.7 eps) above 1e-4. The width moves the
+  answer by more than a third of eps, so it is a modelling choice for the user.

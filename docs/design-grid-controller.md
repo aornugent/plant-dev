@@ -785,10 +785,14 @@ asserts, so a better controller passes without a test edited.
   `1e-2` or for a pointwise second-order adjoint, which is out of scope. When
   it is picked up: the gradient's wobble at the seventeen points (phase 3, item
   4), then a scan at `storage_prod_eps` 3e-4.
-- *The positive part's width as part of the model.* Widening
-  `storage_prod_eps` from 1e-4 to 1e-3 moved `ln J` by −0.228 on the split's
-  pinned program; one replay at 1e-5 reads how far 1e-4 sits from a sharp
-  cutoff (the seventh extension in `measurements/sign-changes/prereg.txt`).
+- *The positive part's width as part of the model: the user's decision.* On
+  the split's pinned program `ln J` moves by −0.228 from `storage_prod_eps`
+  1e-4 to 1e-3, and by +0.0165 (0.65ε) from 1e-4 to 1e-5, so 1e-4 sits about
+  0.7ε below a sharp cutoff if the fourteenfold fall a decade holds
+  (`grid-dynamics.md` §18). It moves the answer through time spent with net
+  production near zero, not through the crossings. Either the width is part of
+  TF24's definition, as now, or it narrows; how the wobble moves with a
+  narrower width is unmeasured.
 - *The error both arms share below `3e-5`,* which stops `J`'s error falling,
   and the class switches the split leaves uncut.
 
