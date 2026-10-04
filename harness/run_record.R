@@ -7,7 +7,8 @@
 #   PLANT_LIB=... [REGIME=long-drought] [SEED=...] [TOL=1e-4] [ATOL=1e-4] \
 #     [NODES=108] [SHIFT=0] [TIMES=times.rds] [FORWARD=1] [PROGRAM=driver.rds] \
 #     [WEIGHT_SOIL=10] [WEIGHT_ACC=10] [WEIGHT=weight.rds] [WEIGHT_MAX=100] \
-#     [HMAX=15] [METHOD=ark] OUT=run.rds Rscript harness/run_record.R
+#     [HMAX=15] [METHOD=ark] [SPLIT=1] [LMA_REL=1e-2] OUT=run.rds \
+#     Rscript harness/run_record.R
 #
 # ATOL is the absolute tolerance over the relative one: 1e-4 ties it as step 2
 # decided, and 1 is plant's default. SHIFT moves every introduction after the
@@ -24,7 +25,9 @@
 # they multiply, and HMAX caps every step at that many days. They need a plant
 # with the error weights (state-weights). METHOD names plant's stepper, "ark"
 # for the implicit soil chain (ark-soil). Each run keeps the soil's clamp
-# tallies on the forward run and on each sweep.
+# tallies on the forward run and on each sweep. SPLIT=1 splits each node's step
+# where its net production changes sign (sign-changes), and LMA_REL runs the
+# stand, not its invaders, at lma (1 + LMA_REL).
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -51,7 +54,8 @@ nodes <- length(times)
 
 p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
-p <- add_strategies(p, trait_matrix(LMA0, "lma"))
+lma_rel <- as.numeric(Sys.getenv("LMA_REL", "0"))
+p <- add_strategies(p, trait_matrix(LMA0 * (1 + lma_rel), "lma"))
 p$node_schedule_times <- list(times)
 program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))$st
 if (!is.null(program)) {
@@ -72,6 +76,7 @@ if (nzchar(Sys.getenv("WEIGHT"))) {
 if (nzchar(Sys.getenv("WEIGHT_MAX"))) ct$ode_weight_max <- as.numeric(Sys.getenv("WEIGHT_MAX"))
 if (nzchar(Sys.getenv("HMAX"))) ct$ode_step_size_max <- as.numeric(Sys.getenv("HMAX")) / 365
 if (nzchar(Sys.getenv("METHOD"))) ct$ode_method <- Sys.getenv("METHOD")
+if (Sys.getenv("SPLIT") == "1") ct$ode_split_sign_changes <- TRUE
 ev <- events(events_default(p), pulse_rows(sort(unique(knots))))
 
 clock <- function() proc.time()[["elapsed"]]
@@ -82,6 +87,7 @@ peak_mb <- function() {
 out <- list(
   setting = list(regime = regime, seed = seed, spec = RAIN_SPECS[[regime]], tol = tol,
                  tol_abs = ct$ode_tol_abs, nodes = nodes, shift = shift, lma = LMA0,
+                 lma_rel = lma_rel, split = Sys.getenv("SPLIT") == "1",
                  lifetime = LIFETIME, program = Sys.getenv("PROGRAM")),
   versions = list(plant = as.character(packageVersion("plant")),
                   odelia = as.character(packageVersion("odelia")),
@@ -165,6 +171,7 @@ scm <- phase("stand_run", function() {
 if (!is.null(scm)) {
   out$stand <- list(J = sum(scm$offspring_production), times = scm$ode_times,
                     sizes = scm$ode_step_sizes, attempts = scm$ode_step_attempts,
+                    splits = if (!is.null(scm$ode_splits)) scm$ode_splits,
                     nodes = per_node(scm), event_log = unclass(scm$event_log),
                     creation = creation_record(scm), soil = soil_record(scm),
                     forward_clamps = soil_clamps(plant:::census_clamp_counts_tf24))

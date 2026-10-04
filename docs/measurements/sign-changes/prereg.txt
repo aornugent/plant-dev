@@ -1,0 +1,57 @@
+Pre-registration: step 2's gates, splits in plant's forward step
+Written before any run of this test (2026-10-04).
+
+The question
+  Does the split built into odelia's step and plant's patch (design item 2) meet
+  its gates on long drought? The R driver's split met them on the same setting
+  (grid-dynamics.md section 11 and section 17); this asks whether the build does.
+
+The build
+  odelia and plant on branch sign-changes, over state-weights (odelia a62e97c,
+  plant 4555ea13), with phylloptim09, in one private library. A part is a node;
+  it is split where its net production changes sign inside a step the error
+  estimate keeps, on Cash-Karp's fourth-order dense output.
+
+The setting
+  harness/run_record.R, FORWARD=1: long drought (seed 31), 108 uniform nodes,
+  the tied tolerance (ATOL=1e-4). SPLIT=1 turns the split on; LMA_REL=r runs the
+  stand at lma (1 + r); PROGRAM pins the steps to a run's own.
+
+The runs
+  A. tol 1e-3, 3e-4, 1e-4, 3e-5 and 1e-5, plain and split.
+  B. References: split at 1e-6 and 1e-7, plain at 1e-7.
+  C. Cost: plain and split at 1e-4 again, alternating, alone on the machine.
+  D. Each arm's own program at 1e-4 replayed at lma (1 + r), r in +-1e-3,
+     +-1e-2 and +-3e-2, each arm with its own split setting.
+
+The quantities
+  J's error: |J - J_ref| / J_ref, J_ref the split run at 1e-7.
+  Cost: the stand_run phase's seconds, split over plain, the median of two.
+  H(r): the second difference of ln J in ln lma about lma (uscan.R's), in eps
+  for lma's curvature in the resident role, 1.17.
+
+The predictions
+  P1 (J's error falls with tol). The split's error falls at every rung from 1e-3
+     to 1e-5, and at 1e-4 it is at most the plain arm's.
+  P2 (the references). The split and the plain arm at 1e-7 agree within 1e-6 of
+     J, and the split at 1e-6 is within 1e-7 of the split at 1e-7.
+  P3 (cost). At 1e-4 the split's forward costs at most 6% more than the plain.
+  P4 (the curvature). The split's H at r = 1e-2 and 3e-2 differ by less than
+     eps/10, and each is within eps/3 of the driver's converged -43.45
+     (prereg_uscan.txt, P5).
+  P5 (passage). The split's H at r = 1e-3 is within eps/3 of its H at 1e-2; the
+     plain arm's is not (the record has it 2.8-4.4 eps off at r up to 1e-3).
+
+What decides
+  - P1, P3 and P4 hold: step 2 meets its gates; build the sweep (item 3).
+  - P1 fails: the split does not make J's time error follow tol in the build,
+    though it did in the driver; find what differs before item 3.
+  - P3 fails: price where the time goes (locating, pieces, the corrected end,
+    the extra copies of the state) before item 3.
+  - P4 or P5 fails with P1 holding: the curvature carries something the
+    forward's error does not; the pair of sign changes inside one step is the
+    first candidate.
+  Not measured here: a pair of sign changes merging, and halving only the split
+  steps; both need each step's split marked, which nothing records.
+
+Runs: run.sh. Analysis: analyze.R.
