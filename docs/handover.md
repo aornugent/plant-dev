@@ -499,10 +499,13 @@ Three checks the user asked for after the reply:
       step in two parts, the first ending at the sign change;
     - *a pair of sign changes in one step,* where net production goes negative
       and back inside one step.
-  - In code that would read as `sign_changes` and `split_member_step`, or
-    similar. Our docs also use *thinning* for dropping node introductions,
-    which in forestry is a harvest; *sparser introductions* would avoid that
-    clash.
+  - *Agreed with the user: sign change.* What is split needs no new noun in
+    odelia, which already speaks of a state's components; plant's cohort is a
+    `Node` (`plant/node.h`). So in odelia a sign change carries its time and
+    the components it splits, and plant says which components are a node's and
+    finds the times. Our docs also use *thinning* for dropping node
+    introductions, which in forestry is a harvest; *sparser introductions*
+    would avoid that clash.
 
 **The strategy consult and its reply** (`docs/oracle-consultation-strategy.md`,
 its addenda, and `docs/oracle-response-strategy.md`). What it changed:
