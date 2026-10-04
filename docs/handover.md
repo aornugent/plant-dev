@@ -444,12 +444,18 @@ Three checks the user asked for after the reply:
     member-states. Each is a kink in that member's inner solution, and so in its
     draw on the soil, its net production and its pool's rate. They appear in
     23–34% of the members' own rejections.
-  - In the curvature scan they are the leading candidate for the split's
-    residue below a perturbation of `1e-2`, since the soil's clamps are never
-    met on accepted steps. That residue fades by `1e-2`.
-  - So splits at class switches are not needed for the curvature route. They
-    stay an option for smaller perturbations, or for a pointwise second-order
-    sweep, which would carry every unlocated kink's bias.
+  - *And the record already showed they do not matter.* The follow-up to the
+    Oracle split the steps that hold only class switches, and that removed
+    none of the gradients' error. Most class switches share a step with a sign
+    change of net production (`archive/oracle-consultation-solver-performance.md`,
+    *Splits chosen to separate the candidates*), and the fifth reply agreed they
+    carry nothing measurable on their own. The events reply raised them from
+    its stale context.
+  - So they are not the curvature scan's residue below a perturbation of `1e-2`
+    (`grid-dynamics.md` §17). That residue is either the recorded base at
+    `1e-4`, which predates the current driver and is being re-run, or a pair of
+    sign changes inside one step, which the driver's found-again split does not
+    look for. Splits at class switches stay out of the build.
 - *Per-member splits with the spread rule (D).*
   - *Consistent by construction.* The driver evaluates a split member with
     plant's own field construction, from the interpolated state of every member
@@ -483,11 +489,19 @@ Three checks the user asked for after the reply:
   - Per-member splits do none of that: no action, no jump in the state or the
     adjoint, no stop for the global step, one member at a time, thousands per
     run. So the build should not call them events.
-  - Proposed, for the user: a *crossing* is the located time where a member's
-    net production changes sign, and a *split* re-integrates that member on
-    sub-steps either side of it. Our docs also use *thinning* for dropping node
-    introductions, which in forestry is a harvest; *sparser introductions*
-    would avoid that clash.
+  - Proposed, for the user, names that say what happens. AGENTS.md's code
+    style rules out metaphor, and "crossing" is one, as are "event", "cut",
+    "dip" and "graze".
+    - the *sign change* of a member's net production, located on the step's
+      interpolant;
+    - *splitting* that member's step at it: integrating the member over the
+      step in two parts, the first ending at the sign change;
+    - *a pair of sign changes in one step,* where net production goes negative
+      and back inside one step.
+  - In code that would read as `sign_changes` and `split_member_step`, or
+    similar. Our docs also use *thinning* for dropping node introductions,
+    which in forestry is a harvest; *sparser introductions* would avoid that
+    clash.
 
 **The strategy consult and its reply** (`docs/oracle-consultation-strategy.md`,
 its addenda, and `docs/oracle-response-strategy.md`). What it changed:

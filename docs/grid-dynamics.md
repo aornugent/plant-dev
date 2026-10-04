@@ -1664,9 +1664,24 @@ role, 1.17. The adaptive reference is −43.7, uncertain by about 0.3 (0.26ε).
   `1e-3` its value sits 0.55 (0.47ε) above its value at `1e-2`, against about
   0.04 that the crossings changing step can cause. It fades as r grows, as the
   plain arm's much larger kink error does, rather than staying as a constant
-  offset. The kinks left unlocated in the members' rates are the class switches.
-  The soil's clamps are not met on accepted steps (§8), so they do not shape
-  the frozen map.
+  offset.
+  - *Not class switches,* though the reply suggested them. The record already
+    showed that class switches carry nothing measurable on their own:
+    splitting the steps that hold only class switches removed none of the
+    gradients' error, and most class switches share a step with a crossing
+    (`archive/oracle-consultation-solver-performance.md`, *Splits chosen to
+    separate the candidates*). Nor are the soil's clamps, which are not met on
+    accepted steps (§8).
+  - *Two candidates fit its size and its 1/r² fall.* The first is the recorded
+    base at `1e-4`, which ran on an earlier driver and is being re-run. The
+    second is a pair of sign changes inside one step, which the found-again
+    split never looks for, since it compares the signs only at the step's two
+    ends. The record's example is member 5's dip at the rain onset of
+    t = 17.15. It vanishes within +1e-5 in `lma`, and cut once it moved
+    `ln J` by 5.8e-7 (§11). A one-sided jump of that size adds 0.58 to the
+    second difference at r = `1e-3`, and 0.06 at `3e-3`. At the nudged
+    tolerances, whose bases are current, the residue at `3e-3` is 0.15 and
+    0.35.
 - *The frozen structure departs from the found-again split by up to 0.2ε at
   `3e-3`,* and agrees with it at `3e-2` (−0.02ε). The departure does not grow
   with r, as the pre-registration expected; it is largest in between.
@@ -1677,8 +1692,10 @@ role, 1.17. The adaptive reference is −43.7, uncertain by about 0.3 (0.26ε).
 differences at r between `1e-2` and `3e-2` give `lma`'s curvature reproducibly,
 within 0.002–0.05ε under the nudges, for two forwards each and no sweep. Without
 the split the same route fails at `1e-2`, and at `3e-2` it passes but is fifty
-times less reproducible (0.10ε against 0.002ε). Splits at class switches are
-not needed from r = `1e-2` up.
+times less reproducible (0.10ε against 0.002ε). From r = `1e-2` up the residue
+below it does not matter. A build that also splits a pair of sign changes
+inside one step, as the reply's two cuts do, would remove the second
+candidate.
 
 ## What the record supports, and what it does not
 
