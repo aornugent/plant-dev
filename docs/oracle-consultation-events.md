@@ -1,7 +1,8 @@
 # Per-member events in a field-coupled ensemble: how to build them, and what they buy two workflows
 
-*A draft, not yet sent. It continues `oracle-consultation-strategy.md`, its
-addendum and your reply, in the same thread, and uses their notation.*
+*Sent at `2363155`; the reply is `oracle-response-events.md`. It continues
+`oracle-consultation-strategy.md`, its addendum and your reply, in the same
+thread, and uses their notation.*
 
 ## What we ask
 

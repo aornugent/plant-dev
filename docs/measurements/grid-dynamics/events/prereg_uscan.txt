@@ -1,0 +1,62 @@
+Pre-registration: the events reply's u-scan of second differences
+Written before any run of this test (2026-10-04).
+
+The question
+  The events reply (docs/oracle-response-events.md, section 2) recommends taking the
+  resident's curvatures by forward second differences of ln J at u near 1e-2 on a
+  frozen grid with events. It predicts they are stable across u in [3e-3, 3e-2]
+  within eps/10, and that a bias from unlocated class switches, if any, would show
+  as an offset from the converged value that does not fall with u. The record
+  already has the plain arm's second difference at u = 1e-2 within 0.3 of the
+  adaptive value (-44.04 against -43.7; final_chord.txt, assessment step 5). So
+  the curvature diagonal may not need events at that u at all.
+
+The setting
+  The events spike's driver and setting: long drought (seed 31), 108 uniform
+  nodes, Cash-Karp under the tied tolerance (ATOL=1e-4), at tol 1e-4 and its
+  +-5% nudges 9.5e-5 and 1.05e-4, each on its own recorded program (g_T.rds).
+  lma alone, at lma (1 + r) for r in +-3e-3, +-1e-2, +-3e-2, with +-1e-3 added
+  for the re-detected split at 1e-4.
+
+The arms
+  - plain: the program replayed with no split (rp).
+  - split, re-detected: each replay finds its own crossings and splits them on
+    the quintic through the half-step midpoint (sq). This is the reply's model,
+    in which the structure changes as crossings pass from step to step.
+  - split, frozen structure: the (row, member) pairs split at lma, as in
+    final_chord.txt (fq), at 1e-4 only, for continuity with that table.
+
+The quantity
+  H(r), the second difference of ln J in ln lma about lma (analyze.R's diffs()),
+  in units of eps for lma's curvature in the resident role, 1.17 (eps.csv).
+
+The reference
+  The adaptive chords at seed 31: -43.7 combined over 1e-2 and 3e-2, each run on
+  its own grid (assessment step 5). Singly they are -43.1 and -43.6, so the
+  reference itself is uncertain by about 0.3, a quarter of eps.
+
+The predictions
+  P1 (the reply). The re-detected split's H moves by less than eps/10 (0.12)
+     across r in {3e-3, 1e-2, 3e-2} at 1e-4, and by less than eps/3 (0.39)
+     under the nudges at r = 1e-2.
+  P2 (the reply). If class switches leave a bias of order eps, the re-detected
+     split's H sits at a distance of order eps from the reference at every r.
+  P3 (ours, from the record). The plain arm's H at r = 1e-2 and 3e-2 lies within
+     eps/3 of the reference and moves by less than eps/3 under the nudges.
+  P4 (ours). The frozen-structure arm departs from the re-detected arm as r
+     grows, because crossings that leave their recorded step are integrated
+     unsplit in their new one.
+
+What decides
+  - P1 holds and P3 fails: the curvature diagonal needs events; build as the
+    reply orders.
+  - P1 and P3 both hold: second differences at r >= 1e-2 serve the diagonal
+    without events, and events are justified by predictability (J's error
+    falling with tol) and the gradients' margin instead.
+  - P1 fails, with H moving across r by more than the passages allow
+    (sqrt(N) x 5e-9 / r^2, N the crossings that change step): an unlocated kink
+    shapes the frozen map, and P2 says whether it is a constant bias.
+  The truncation at r = 3e-2 is about (0.03/0.245)^2/12 = 1.3e-3 of H, 0.06; it
+  is reported, not removed.
+
+Runs: uscan.sh. Analysis: uscan.R.
