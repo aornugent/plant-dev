@@ -1,0 +1,53 @@
+# Oracle response: the algorithm questions
+
+One reply, captured verbatim. It answers the questions of
+`oracle-consultation-grids.md` (drafted at `42bb0d3`), sent in the splits
+thread after `oracle-consultation-splits.md` and its reply. The handover records
+what it changes, which of its premises the record contradicts, and which of its
+predictions are under test.
+
+---
+
+## The algorithm: four passes, three channels, one budget
+
+**Pass 0, the record alone** (`2e-4` of a forward). The chain under the forcing with `a ≡ 0`: knots, active stretches, the step program at pulse onsets (seeds), the stability regime (near-constant forcing → chain implicit), and candidate creation windows (quiescent stretches long enough to shut creation). From it, a structural skeleton for creation times: a node at each candidate window edge, geometric grading from each opening starting near `δ`, uniform within windows. The skeleton is a prior, not a measurement; it is what keeps a uniform pilot from reading the constant record as 0.0008.
+
+**Pass 1, the pilot** (about one forward-equivalent, once per record). The skeleton at 50–60 nodes with the spread rule, `tol = 1e-3`, unweighted, with the split. Forward, sweep, field-adjoint map. It returns everything the base needs and nothing the base must inherit: `λ(b, t)` per component, `R(t)`, the window edges as `P_new` actually read them, the panel error map (field part and own part), each member's share, the graze list, and its recorded inner solutions. Cost: 54 nodes at `1e-3` is a third of the base's rows, so forward plus sweep is near one forward, and after the three sweep fixes about 0.6.
+
+**Pass 2, the budget** (no run). Two one-parameter error models per quantity `Q`, both with constants read from the pilot: `e_t,Q = A_Q·tol` on the time axis, valid once every kink is cut (your split measurements: 5×, 6×, 2.5× for 3.3× in `tol`), with `A_Q` from the pilot's `Σ|λ·est|` or from the pilot at two tolerances; and `e_b,Q = B_Q·N^{−2}` on the creation axis with `B_Q` from the map. Cells scale as `tol^{−1/5}·N·(mean lifetime)`. Choose `tol` and `N` to minimise cells subject to `e_t,Q + e_b,Q ≤ ε_Q` for every `Q` with the margin you want; place nodes by equidistributing the map's density to the cube-root law with the window edges fixed; set per-component step weights from `|λ|` with a floor of `1/100` of the largest; keep the `15δ` cap and the stability guards as walls outside the budget. Reproducibility no longer binds separately: once an error is `∝ tol`, a 5% nudge moves it by 5% of itself, so it is implied by accuracy.
+
+**Pass 3, the base** (about 2–3 forwards after the sweep fixes, against 10 today with a two-rung ladder). Build with those settings, multirate, events, inner solves warm-started and polished. Forward, sweep, map. Report `Σ|λ·est|` as the time-axis error, the map's prediction as the creation error, and apply the map's correction to `J` and the elasticities: a map that predicts the move within 6% turns a single rung whose error is `1×` into a corrected value whose residual is `~0.1×`, which is what the second rung bought at twice the rows. Verify the map once per record with a second rung (ratio 3.3–4.4, prediction within 10%), then drop it.
+
+**Local analyses on that recording.** Walks within ±10% re-detect cuts, warm-start every inner solve from the recording's own solution at the same member and stage, and polish; a walk then costs a fraction of a forward and `J` stays a smooth function of `θ`. Second derivatives of the diagonal: windowed forward differences at `u ∈ [1e-2, 2e-2]`, two walks per constant. Probes: the diagonal's selection gradient from the base sweep for free, forward-only ray search before any probe sweep, thinning beyond `0.1`, on-demand sub-steps.
+
+**The next `θ₀`.** The previous base is the pilot: its `λ`, map, window edges and solutions carry; only passes 2 and 3 run. The pilot is paid once per record.
+
+Several passes, then, and each informs the next; two is the normal count, and the loop converges because the couplings between axes are weak: the map predicted moves across rungs within 6%, and `R(t)` from 54 nodes is within 10%. A third pass is warranted only when the base's own estimates exceed the budget they were built to.
+
+## The three channels, and what each must not carry
+
+*Step weights from the adjoint.* `σ_n(t) = tol·max(|y_n|, floor_n)/w_n(t)` with `w_n ∝ |λ_n(t)|`, normalised and floored. Against `R(t)`×100 with the chain at ×10, this is per component and per time; it tells you the chain's reach rather than guessing ×10, drops the accumulators, and puts the late understory's pools where they belong. Expect it to realise finding 4's bound in pulses and to run into the `15δ` cap late. The caution is the one the partition taught: any direction with zero weight is uncontrolled, so the chain keeps a stability guard (implicit under constant forcing, the seeds otherwise), the pools keep the cap, and the floor keeps every state inside the norm at a hundredth. The weights are built from `λ_J`; the elasticities' errors are controlled only indirectly, so their spread under nudges and their companion against a tighter run remain the gate, as now.
+
+*Creation times from the map.* Equidistribute the map's panel error density (field part plus own part, per quantity, take the binding one) to the cube-root law within windows; edges fixed from `P_new`; geometric from each opening with the ratio set by the first-mover scale the pilot read. The pilot's map is on the pilot's panels, so the density is interpolated into them; that is valid inside windows and is why the skeleton must put the edges in before the map is read. The spread rule stays, since the map's square law was measured on it. What must not carry: the pilot's node *set*; the base rebuilds it from the density.
+
+*Warm-started inner solves.* Three starts, in order of use: within an attempt, the previous stage's solution; the first stage of an attempt, the last accepted step's end; on any replay, walk or probe, the recording's solution at the same member and stage. Each followed by a Newton polish, so the output is the converged root to roundoff whatever the start, which is what keeps replays bit-exact and `J(θ)` smooth. The bracketing solve stays as the fallback when Newton leaves the bracket. This is 85% of the forward's member evaluations; expect 2–3× on forwards and more on walks and probes, nothing on sweeps. What must not carry: a start from a *rejected* attempt into the next attempt.
+
+Two more channels you did not name but should treat the same way: the window edges and graze list (structure, carried as values) and the chain-alone program (seeds, carried as proposals). Nothing else crosses passes.
+
+## What a grid and its splits must hold for a chord of gradients
+
+For both arms to be two points of one smooth function, the recording must fix: the step times and stage abscissae; the multirate flags and the inner chain's steps; the node set and the member order the spread rule sorts by; the split's detection rule, deterministic and continuous (interior extrema of the quartic, not stage signs), re-applied on each arm, with the cut times written to each arm's tape and routed by the implicit-function theorem, or made `O(h^p)` by branched pieces; polished inner solves on both arms; and no decision re-made on a walk. Each arm should also report its cut list, so the passage count between the arms is known, its band-stage count, its grazes, and the smallest `|Ṗ|` at any cut.
+
+Then the chord's quality depends on the interval. At `u ≈ 1e-2`, the floor is the gradient's own passage jumps: `√N_pass × (jump per passage)/(2u)`. If the jump is the `3e-5` of the gradient you measured on the probe, that is about `0.3ε` at `1e-2` and `0.2ε` at `3e-2`, while the forward second difference's floor is the coherent passage sum, `0.04ε` at `1e-2`. So the chord of gradients is the instrument for Hessian rows, at `u = 2–3e-2`, and the diagonal comes from forward differences; measure the per-passage gradient jump once on the polished split by bisecting ten passages, since the split's may be smaller than the probe's unsplit one.
+
+A short chord, `u ≤ 1e-4`, is a different object: it returns the pointwise second derivative, and for that to be stable everything the window averages must be absent. That means polished solves (the noise floor at `u = 1e-5` is then ~5e-9 relative), both arms with identical cut structure (the probability of a passage inside `u = 1e-5` is about 0.65, so search for a clean `u` and verify by comparing the lists), branched pieces (otherwise the band's gradient-level bumps, ~1e-3λ per stage, re-roll inside the interval and swamp it), every kink cut including class switches (otherwise the chord returns the biased staircase value, your residual of about 1ε), and no graze within ~1e-5. That is a long list for a quantity that equals the windowed one everywhere but at grazes. Build the windowed instrument; keep the short chord as a diagnostic for when the two disagree.
+
+## One budget for both axes
+
+Yes, one algorithm, because the two axes compete for one quantity, cells, under one metric, `ε`. The time axis is fifth order, so its cells grow as `ε_t^{−1/5}`; the creation axis is second order, `ε_b^{−1/2}`, or effectively fourth with the map's correction. Minimising the product gives the split `ε_t : ε_b = 2 : 5`, near even once the correction is applied. On `J` you are at `1/2000 : 1`; on the elasticities, which bind, the time axis holds about `0.1ε/3` at `tol = 1e-4` with the split and the creation axis `0.2–1.2ε` at 108 nodes, so the imbalance there is about tenfold. The budget then says: loosen `tol` until the binding elasticity's smooth bias reaches its share, which the split's proportionality puts near `3e-4` to `1e-3`, for 1.3–1.6× fewer steps; and spend on the creation axis, 150 or so map-placed nodes with the correction applied, rather than a 429-node rung. At matched error that is of order half today's cells, before the warm start and the sweep fixes, which act on cost per cell.
+
+One rule makes the allocator honest: the budget is per quantity and the binding one decides, so the allocator must see the gradients' error models, not only `J`'s. The pilot gives those constants for free, since its sweep is already run.
+
+## What to measure first
+
+Three things, each one run: a base with λ-weights and a floor against the current weighted norm, judged on rows and on the elasticities' companion; a map-corrected single rung against the two-rung value, per quantity; and ten bisected passages on the polished split, to fix the chord's floor and settle which instrument serves the rows.

@@ -359,6 +359,66 @@ on disk and a few driver probes:
   and the gain was in the rain intervals, where an implicit chain takes it.
 - *Open:* grid-dynamics' *Next probes*, ordered by the cost above.
 
+**The algorithm questions and their reply** (the questions of
+`docs/oracle-consultation-grids.md`, drafted at `42bb0d3` and sent in the
+splits thread; `docs/oracle-response-grids.md`). What the reply proposes:
+- *Four passes.* The chain alone for the knots, seeds, regime and candidate
+  creation windows, giving a skeleton of creation times (edges, grading from
+  each opening, uniform within); a pilot at 50–60 of them, `1e-3`, unweighted,
+  with the split, its sweep and the field-adjoint map; a budget with no run,
+  `e_t = A·tol` and `e_b = B·N⁻²` per quantity, minimising cells; the base at
+  the budget's `tol` and map-placed nodes, corrected by the map, its second
+  rung run once per record. The next θ₀ reuses the base as its pilot.
+- *Three channels across passes:* step weights per state and time from `|λ|`
+  with a floor of a hundredth; creation times equidistributing the map's
+  density by the cube-root law, edges fixed; inner solves warm-started (stage,
+  step, recording) and polished. Never carry the pilot's node set or a rejected
+  attempt's start.
+- *The budget* would loosen `tol` to `3e-4`–`1e-3` and spend on about 150
+  map-placed nodes with the correction, for about half today's cells at matched
+  error, before the warm start and the sweep's fixes.
+- *For chords of gradients* the recording fixes everything the arms share and
+  each arm reports its cuts, band stages, grazes and smallest `|Ṗ|` at a cut.
+  It puts the chord's floor at u ≈ `1e-2` at the gradient's passage jumps
+  (0.3ε if they are the probe's 3e-5 of the gradient) and so prefers forward
+  differences for the diagonal and chords at u = `2–3e-2` for rows; a short
+  chord needs every kink cut, branches and no nearby graze.
+- *First measurements:* a base with `|λ|` weights against the weighted norm; a
+  map-corrected single rung against the two-rung value; ten passages bisected
+  on the polished split.
+
+Checked against the record:
+- *The map predicts the move to a coarser grid,* made by dropping every other
+  node of the run itself (1.000×, 0.991×, 0.996× for `J`, 0.986× and 0.94× for
+  the probe's θ_A elasticity), and only its field part. Interpolated into a
+  coarser run as virtual cohorts it fails (0.63–1.18×, the top panel 2.9×)
+  (`measurements/field-adjoint-map.md`). A single rung's own error follows from
+  that move only through the square law, so the correction's residual is the
+  two-rung extrapolation's, not below it.
+- *Non-uniform grids did not converge on the square law here.* Graded ladders,
+  with or without the spread, gave ratios 2.8–3.3 and companions reporting
+  0.65–0.80 of the error (`grid-dynamics.md` §16); the map's own falsification
+  list names this case. A map-placed grid is non-uniform; its ratio is
+  unmeasured, and the correction rests on it.
+- *The creation axis at 108 nodes is larger than it says:* the spread rule's
+  single rung errs by up to 3.31ε on long-wet and 2.72ε on long drought, not
+  0.2–1.2ε; the two-rung extrapolation reaches 0.09–0.17ε. The imbalance against
+  the time axis is larger than tenfold, which strengthens its direction.
+- *The skeleton outgrows the pilot on long drought:* its 56 gaps in creation
+  put about 114 nodes at their edges alone, against a pilot of 50–60.
+- *The pilot's sweep with the split needs the sweep through splits,* which is
+  not built; gradients refuse a run that split. An unsplit pilot serves until
+  it is.
+- *Its curvature route is not ours:* second derivatives come from chords of
+  reverse-mode gradients (the user's decision), forward differences only as a
+  check. Its chord floor rests on a per-passage gradient jump not yet measured
+  on the split; that needs the sweep through splits.
+- *Unmeasured, as it says:* the warm start (85% of a member evaluation, its
+  2–3× expected), `|λ|` weights per state and time (plant weights a scalar of
+  `t` times constant factors per class today), and `e_t ∝ tol` for the
+  elasticities with the split. For `J` it holds from `1e-3` to `3e-5` and then
+  stops on an error shared with plain.
+
 **The splits consult and its reply** (`docs/oracle-consultation-splits.md`,
 sent at `b8ec91f` before the tightened build's two tests, and
 `docs/oracle-response-splits.md`). The reply's verdict: the split is finished;
