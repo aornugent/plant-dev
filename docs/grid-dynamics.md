@@ -1871,6 +1871,16 @@ jumps for the choices' own, and the residue for their sum. Neither holds.
   and `3e-2` misses `3e-3` by 0.07 and `1e-2` by 0.03. At `3e-3` the three
   tolerances' programs all sit above (+0.11, +0.15, +0.35), so it has a sign.
   Plain's residue at `1e-3` has the other sign and is 6 times larger.
+- *Without the noise, the residue and the slower departure stay*
+  (`tight_residue.log`, the fifth extension). On the build whose leaf solve
+  stops at adjacent floats, the split's value at `1e-3` less `1e-2` is +0.58
+  and plain's −3.22, as before; the fine grid departs by 5.8e-8 (sd), its 16
+  intervals correlating with the default build's at 0.90. The departures now
+  run +5.9 +7.0 +0.6 −9.8 −8.7 −7.3 −5.0 −3.7 −11 −1.8 −0.6 +0.6 +2.3 +3.4
+  +4.8 +4.4 (×1e-8), changing gradually except around the third interval and
+  the ninth, where the default build loses node 5's pair at day 6259. So both
+  are the split's on its pinned grid. The build's own value at `3e-3` is the
+  driver's, −43.33; plain's is −44.53 there.
 - *What the split leaves uncut:* the class switches, a C⁰ kink in each node's
   leaf solution a median 0.26 days before its upward sign change; the soil's
   floor and saturation. Untested as the residue's carrier.

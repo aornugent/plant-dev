@@ -266,3 +266,12 @@ replays; tight_residue.sh, tight_residue.R)
      R2 fails at 4e-8 or more (6.5e-8 on the split build).
   Reported, not judged: plain's residue on both builds, each arm's values at
   3e-3, and the tight build's values at 1e-2 and 3e-2 against -43.45.
+
+Result of the fifth extension (tight_residue.log): R1 and R2 both fail. The
+  noise gone, the split's value at 1e-3 less 1e-2 is +0.579 (split build
+  +0.569) and plain's -3.215 (-3.177); the fine grid departs from a smooth curve
+  by 5.8e-8 (sd; 6.5e-8 on the split build), the two builds correlating at 0.90.
+  The residue and the slower departure are the split's on its pinned grid, not
+  the tolerances'. The build's own values at 3e-3: split -43.329 on both builds
+  (the driver's -43.33), plain -44.53. At 1e-2 and 3e-2 the tight build reads
+  -43.443 and -43.468.

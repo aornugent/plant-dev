@@ -1,0 +1,12 @@
+Second differences at r = 1e-3, 3e-3, 1e-2, 3e-2, and 1e-3 less 1e-2:
+  plain, split build  -47.181, -44.531, -44.004, -43.622; -3.177
+  split, split build  -42.869, -43.329, -43.438, -43.468; +0.569
+  plain, tight build  -47.222, -44.538, -44.007, -43.623; -3.215
+  split, tight build  -42.864, -43.329, -43.443, -43.468; +0.579
+
+The split's fine grid, 16 intervals of 6.25e-5: sd 6.52e-08 on the split build, 5.79e-08 on the tight
+  tight: +5.9e-08 +7.0e-08 +6.1e-09 -9.8e-08 -8.7e-08 -7.3e-08 -5.0e-08 -3.7e-08 -1.1e-07 -1.8e-08 -6.1e-09 +6.2e-09 +2.3e-08 +3.4e-08 +4.8e-08 +4.4e-08
+  correlation between the builds 0.90
+
+R1 (the split's residue on the tight build within +-0.1): +0.579, fails
+R2 (its fine grid's sd at most 1e-8): 5.79e-08, fails

@@ -577,9 +577,11 @@ after the events reply):
      split and in its correction at a step's end (correlation 0.78), so the
      passages do not carry it. Every arm holds about the same residue at `1e-3`,
      +0.57 to +0.72 against its value at `1e-2` (the correction's +0.18 is its
-     one jump of −5.4e-7), and it falls more like 1/r than r⁻². What carries it
-     is not traced; the split leaves the class switches and the soil's floor
-     and saturation uncut. The correction costs `J` 6.7× its accuracy and
+     one jump of −5.4e-7), and it falls more like 1/r than r⁻². With the leaf
+     solve stopped at adjacent floats the residue (+0.58) and the slower
+     departure (correlation 0.90) stay, so both are the split's on its pinned
+     grid. What carries them is not traced; the split leaves the class
+     switches and the soil's floor and saturation uncut. The correction costs `J` 6.7× its accuracy and
      cutting every pair the dense output shows 12× the runtime, and neither
      changes the residue. An adjoint differentiates the run's own choices, so
      item 4's chord of two gradients carries no jump, only how the slope
