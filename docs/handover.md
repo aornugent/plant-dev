@@ -357,6 +357,75 @@ on disk and a few driver probes:
   and the gain was in the rain intervals, where an implicit chain takes it.
 - *Open:* grid-dynamics' *Next probes*, ordered by the cost above.
 
+**The events consult and its reply** (`docs/oracle-consultation-events.md`,
+sent at `2363155`, and `docs/oracle-response-events.md`). What the reply
+proposes:
+- *For the resident's gradients and curvatures, events, in four stacked
+  changes.*
+  1. Events in the forward step: Cash–Karp's quartic, two cuts where a member's
+     `P` dips inside a step, each sub-step on one branch of the positive part
+     (`P⁺ = P` on one side of the crossing and 0 on the other), and the member's
+     rates re-evaluated at its corrected end state.
+  2. The multirate soil's inner steps recorded and held fixed in replays.
+  3. The sweep's sub-step rows, with the cut times frozen.
+  4. Curvatures by forward second differences at a perturbation near `1e-2`,
+     which need no sweep.
+
+  Class switches become events, behind a flag, only if a scan over the
+  perturbation size shows a bias of order ε.
+- *Why one branch per sub-step.* With the smooth positive part on both sides,
+  a sweep that freezes the cut time is wrong at first order in the step,
+  because the cut's own derivative carries the kink. With one branch per side
+  the rates agree at the cut, so the cut time enters `J` only at the pair's
+  order and the sweep can freeze it. This is the standard sensitivity of an
+  event whose right-hand side is continuous, so it is a choice for the build
+  rather than a claim to test.
+- *For the invader loop, no events.* The invader keeps walking the resident's
+  steps, and refines a member inside a step only when its own error estimate or
+  its pool asks. The diagonal keeps the resident's program. Thinning starts at a
+  fixed distance, `|ln θ′/θ| > 0.1`. Each evaluation reports its error estimate,
+  for a trust-region optimiser that tightens it near convergence.
+  - The selection gradient at `θ′ = θ` could come from the resident's own sweep,
+    as a second adjoint with the field's response cut out.
+  - Forward-only walks along that gradient would find positive fitness without
+    an invader sweep whenever the ray succeeds, and sweeps would be the
+    exception.
+- *An identity for the invader workflow,* where the resident is solved to
+  equilibrium. Equilibrium belongs to the invader workflow only, not to the
+  resident workflow (the user, after the reply). On the diagonal,
+  `∂J′/∂θ′ + ∂J′/∂θ = 0`, so the environment's response gradient is minus the
+  selection gradient. Of the three second derivatives there, one follows from
+  the other two.
+
+Where the record disagrees with the reply:
+- *Events are still needed for "predictable", whatever the curvatures need.*
+  Bounded Cash–Karp's error in `J` falls more slowly than `tol` on long drought
+  (4.3×, 2.0× and 1.7× per step against 3×), and changes sign between `1e-4`
+  and `3e-5` on episodic (`q3_report.log`).
+- *The chord's noise was sized with the invader's gradient jumps,* 3e-5 of the
+  gradient. The resident's are about 1e-3 of it (`assessment.md`, step 5), so
+  the unsplit chord is off by about ±1 at `1e-2`. That strengthens the case for
+  second differences over chords for a single curvature. Chords still give a
+  whole row of the Hessian, and their noise with events is unmeasured.
+- *The fan-out's cost assumed about 45 splits per crossing step.* The record has
+  9–13: 9235 crossings in 859 steps on long drought, 6206 in 662 on episodic,
+  and 9233 in 726 unweighted. So the field reads' fan-out in the sweep is about
+  a quarter of its estimate.
+- *The quartic's own gate is unmeasured.* The reply says the quartic passes
+  "halve only the crossing steps; the residual falls at the pair's order", but
+  only the cubic was halved (as `h⁴`).
+- *The invader's curvature without events is answered by the record*
+  (`assessment.md`, step 5). At a perturbation of `1e-3` its second difference
+  is within 0.5 of the smooth value (0.13ε). At `1e-2` the `O(u²)` term costs
+  3.9 (1.0ε), because `J′` has large higher derivatives. So invaders take
+  `1e-3`, or the combination `2(ln J)″ − chord`, rather than `1e-2`.
+- *The loop's cost.* The reply puts most of it in the invaders: tens at 3.4
+  forwards each, against a few resident forwards to equilibrium and one
+  gradient. That holds for a resident of one kind. With several kinds, each
+  resident run grows with the kinds and its equilibrium becomes a fixed point
+  in several input rates, so the balance moves toward the resident, as the user
+  expects. Forward-only invader walks, at 0.8 of a forward, move it further.
+
 **The strategy consult and its reply** (`docs/oracle-consultation-strategy.md`,
 its addenda, and `docs/oracle-response-strategy.md`). What it changed:
 - *The forward was being optimised* while the sweeps are 74% of a gradient run,

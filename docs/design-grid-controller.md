@@ -541,7 +541,16 @@ bit-identical wherever its default is off (AGENTS.md):
    step's continuous extension through one interface each stepper supplies.
    For Cash–Karp it is its own quartic (`BCK4`). For ARK it is `BARK3`: free,
    C¹, fourth order on the members' explicit trees, and as good on ARK grids
-   as Cash–Karp's quartic on its own (`grid-dynamics.md` §11);
+   as Cash–Karp's quartic on its own (`grid-dynamics.md` §11).
+   The events reply (`docs/oracle-response-events.md`) proposes the build's
+   order and one change, for the user's decision (handover):
+   - first, events in the forward step, each sub-step on one branch of the
+     positive part, and the member's rates re-evaluated at its corrected end;
+   - then the multirate soil's inner steps held fixed in replays (item 2);
+   - then the sweep's sub-step rows. With one branch per sub-step, the cut times
+     can be frozen in the sweep, exact to the pair's order, instead of
+     differentiated;
+   - class switches only behind a flag, if a curvature scan shows their bias;
 5. the window's weight from a pilot, through the same mechanism's schedule, and
    the 15-day cap from 1c, which is plant's `ode_step_size_max`;
 6. the node rule from phase 2: spread uniform nodes (D), each reported as the
@@ -670,6 +679,18 @@ gain, and each multiplies with the rows the arc saves.
   its own before it is built (2b).
 - *The acceptance suite* is part of the design; its build waits for the user's
   go.
+- *The two workflows, in order* (the events consult): first the resident's
+  gradients with stable, efficient curvatures; then convergent, cheap invader
+  gradients for an optimiser.
+  - No trait is special, and which curvatures the work needs is open, so stable
+    curvature estimates are asked of the solver and controller in general.
+  - The invader loop expects tens of invader evaluations per resident run when
+    the gradient is informative.
+  - *Equilibrium residents belong to the invader workflow only.* There the
+    resident is solved to its demographic equilibrium (`J = 1`) before invaders
+    are run against it, and again after an invader is adopted. The resident
+    workflow does not assume equilibrium.
+  - What the optimiser needs between evaluations is left to the events reply.
 - *The pair:* Cash–Karp everywhere, invader runs included, with its own
   fourth-order extension as the dense output. Dormand–Prince is dropped.
   - The earlier plan, Dormand–Prince for runs that host invader gradients, rested
