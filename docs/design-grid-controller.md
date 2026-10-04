@@ -541,13 +541,18 @@ after the events reply):
    - The sign change is located on the dense output. A pair of sign changes
      inside one step is split twice, since a test at the step's ends misses it
      (`grid-dynamics.md` §17).
-   - Each part integrates one branch of the positive part: `P⁺ = P` on the
-     positive side and 0 on the other. The rates then agree at the split, so the
-     split's time enters `J` only at the pair's order.
-   - The node's rates are evaluated again at its corrected end state, which the
-     next step starts from.
-   - Walks repeat the forward's splits, so a replay and an invader walk at the
-     resident's traits repeat `J` bit for bit.
+   - Each part integrates the model's own rates, its smooth positive part
+     included, so the rates do not change. (The events reply proposed one branch
+     of the positive part per part instead. That changes the rates, and it
+     threads a flag from the patch into the strategy's rate function.)
+   - The state's rates are evaluated again at the corrected end state, which
+     the next step starts from.
+   - A replay of the resident repeats the forward's splits bit for bit, since
+     it evaluates every node again. An invader walk evaluates in the fields the
+     resident recorded, and a part's stages fall where no field was recorded, so
+     invader walks stay unsplit until workflow 2's design. At the resident's
+     traits an invader's `J′` then differs from the split `J` by the split's
+     own correction, about 1e-5 in `ln J`.
    - Gates: `J`'s error falls with `tol`; `J` moves by at most 1e-8 as a sign
      change passes from one step to the next; a pair of sign changes merging is
      continuous; the forward costs at most 6% more; and halving only the split
@@ -555,10 +560,42 @@ after the events reply):
      unmeasured for the quartic.
 3. *Splits in the sweep.* Each part is a row of its own for its node's
    components, and the field values it read are fixed linear maps of the
-   recorded stages. The split times are held fixed, which one branch per part
-   makes exact to the pair's order. Gates: the sweep's gradient against central
+   recorded stages. Each split time enters the tape by one implicit-function
+   step at its located time, through odelia's implicit node: its derivative is
+   minus the node's net production's sensitivity over its rate of change. With
+   the model's smooth positive part in both parts, that term is what makes the
+   gradient exact rather than first order in the step. Gates: the sweep's gradient against central
    differences of the forward on the recorded steps, to the replay's floor; the
    sweep costs at most 6% more.
+   *The design of items 2 and 3.* One commitment: odelia does the arithmetic and
+   plant names the parts.
+   - *odelia.* A System that satisfies a concept supplies three things: the
+     sign value of each part after an evaluation (for TF24, each node's net
+     production), the components each part holds, and one part's rates and sign
+     value at a time, given the state its field is built from and the part's own
+     state.
+   - One private function of the solver runs after an accepted step and after a
+     walk's pinned step, before the end rate is handed on and the row recorded.
+     It compares each part's sign value at the step's ends and at its five
+     stages, locates each sign change on the step's dense output, integrates the
+     part's components over the pieces between them with the step's own tableau,
+     writes the end state, and evaluates the rates there again. A control field,
+     off by default, turns it on, so every run without it repeats bit for bit.
+   - `Step` gains the dense output, from the six stage rates and the end's rate
+     it already holds, and its stage and end combinations take their length from
+     the vectors rather than the full state, so a part reuses them.
+   - *plant.* The patch satisfies the concept where its strategy has a net
+     production to change sign (TF24): a node's components are where
+     `ode_state` writes them, its sign value is its net production, and a part's
+     rates build the field from the interpolated state of every node and rate
+     that node alone at its part's state.
+   - *Recorded:* nothing new for item 2, since replays split again and
+     arrive at the same numbers. Item 3 records each part's evaluations, so the
+     sweep tapes them at the solutions found.
+   - *Tests, with the change:* the dense output's order and its end against
+     the step's solution, in odelia; in plant, a TF24 run with splits on, its
+     replay bit for bit, and its error falling with `tol`, with every run
+     without splits bit for bit, the FF16 guard included.
 4. *Curvatures from the adjoint.* A chord of two split gradients at
    `θ·e^{±r}` gives a whole row of curvatures, every elasticity's derivative in
    one trait, for two gradient runs. `lma`'s row, which the ε table sets, is one
