@@ -218,3 +218,29 @@ Not pre-registered, what followed P10 (jumps.R, jumps.log, bisect.log)
      The departures are jumps where a split choice changes, 1e-8 to 5e-8 each,
      the slopes between them, and the model's own floor of 1e-8. No single
      mechanism carries it, so no single correction removes it.
+
+Fourth extension: the noise's source (2026-10-04, written before the build and
+the replays; tight.sh, tight.R, tight_phylloptim.patch, tight_plant.patch)
+  Read again (noise.R, noise.log), every replay on a pinned grid carries noise
+  of about 1.9e-8 in ln J, plain too, under a change of lma as small as 1e-12.
+  Hypothesis: it comes from iterations that stop on a tolerance, whose result
+  moves by up to that tolerance when an ulp upstream flips one of their
+  comparisons: the leaf solve's root-finds (TOMS748 at 1e-4 for the root's
+  potential, 1e-10 for ci, 1e-12 for the collar; bisection at ci_abs_tol), its
+  searches (Brent at ci_abs_tol or 1e-4 of the interval, golden section at
+  GSS_tol_abs), and plant's own (the newborn's height, bisection at 1e-8).
+  Test: plant (abcfcc22, plain) built against a phylloptim (378b083) whose
+  root-finds stop only once their bracket is under 1e-15 + 4e-16 of its ends,
+  adjacent floats, and whose two searches stop at 1e-12, with plant's own
+  root-finds stopping alike. Decision thresholds stay as they are: the collar
+  interval's collapse at GSS_tol_abs, and the steps inside it until the
+  gradient is real. The plain program (program_plain.rds) is replayed at
+  lma (1 + k 1e-12), k = -3..3, on the tight build, and at k = +-2, +-3 on the
+  split build, whose k = 0, +-1 exist.
+  Measure: on each build, the six changes of ln J between neighbouring k less
+  the smooth change (-8.277e-12 a step), and their rms.
+  T1, the tolerances carry the noise: the tight build's rms is at most a tenth
+     of the split build's. T1 fails if it is half or more; between the two, the
+     tolerances carry part of it.
+  Reported, not judged: ln J at k = 0 on each build, which is what the
+  tightening moves J by, and each replay's time.

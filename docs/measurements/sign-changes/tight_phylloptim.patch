@@ -1,0 +1,49 @@
+--- a/inst/include/phylloptim/uniroot.hpp
++++ b/inst/include/phylloptim/uniroot.hpp
+@@ -29,7 +29,7 @@
+   using boost::math::tools::bisect;
+   boost::uintmax_t it = max_iterations;
+   std::pair<double, double> root = bisect(f, min, max,
+-                                          internals::uniroot_tol(tol, tol),
++                                          internals::uniroot_tol(1e-15, 4e-16),
+                                           it);
+   if (it > static_cast<boost::uintmax_t>(max_iterations)) {
+     util::stop_infeasible("root_find_iterations",
+@@ -73,7 +73,7 @@
+   using boost::math::tools::toms748_solve;
+   boost::uintmax_t it = max_iterations;
+   std::pair<double, double> root = toms748_solve(
+-      f, min, max, internals::uniroot_tol(tol, tol), it);
++      f, min, max, internals::uniroot_tol(1e-15, 4e-16), it);
+   if (it >= static_cast<boost::uintmax_t>(max_iterations)) {
+     util::stop_infeasible("root_find_iterations",
+                           "exceeded max_iterations");
+@@ -96,7 +96,7 @@
+   using boost::math::tools::toms748_solve;
+   boost::uintmax_t it = max_iterations;
+   std::pair<double, double> root = toms748_solve(
+-      f, min, max, f_min, f_max, internals::uniroot_tol(tol, tol), it);
++      f, min, max, f_min, f_max, internals::uniroot_tol(1e-15, 4e-16), it);
+   if (it >= static_cast<boost::uintmax_t>(max_iterations)) {
+     util::stop_infeasible("root_find_iterations",
+                           "exceeded max_iterations");
+--- a/inst/include/phylloptim/optimize.hpp
++++ b/inst/include/phylloptim/optimize.hpp
+@@ -37,7 +37,7 @@
+   double d = 0.0, e = 0.0;
+   double fx = f(x);
+   double fv = fx, fw = fx;
+-  const double tol3 = tol / 3.0;
++  const double tol3 = 1e-12 / 3.0;
+ 
+   for (;;) {
+     const double xm = (a + b) * 0.5;
+@@ -149,7 +149,7 @@
+   double d = a + (b - a) / gr;
+   double fc = f(c);
+   double fd = f(d);
+-  while (std::abs(b - a) > tol) {
++  while (std::abs(b - a) > 1e-12) {
+     if (fc > fd) {
+       b  = d;
+       d  = c;

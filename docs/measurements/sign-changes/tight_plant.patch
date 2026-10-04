@@ -1,0 +1,20 @@
+--- a/inst/include/plant/uniroot.h
++++ b/inst/include/plant/uniroot.h
+@@ -29,7 +29,7 @@
+   using boost::math::tools::bisect;
+   boost::uintmax_t it = max_iterations;
+   std::pair<double, double> root = bisect(f, min, max,
+-                                          internals::uniroot_tol(tol, tol),
++                                          internals::uniroot_tol(1e-15, 4e-16),
+                                           it);
+   if (it > static_cast<boost::uintmax_t>(max_iterations)) {
+     util::stop("Exceeded max_iterations");
+@@ -72,7 +72,7 @@
+   using boost::math::tools::toms748_solve;
+   boost::uintmax_t it = max_iterations;
+   std::pair<double, double> root = toms748_solve(
+-      f, min, max, internals::uniroot_tol(tol, tol), it);
++      f, min, max, internals::uniroot_tol(1e-15, 4e-16), it);
+   if (it >= static_cast<boost::uintmax_t>(max_iterations)) {
+     util::stop("Exceeded max_iterations");
+   }
