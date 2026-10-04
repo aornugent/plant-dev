@@ -5,6 +5,7 @@
 # its +-5% nudges. Four lanes, each running its share of the jobs in turn.
 #   bash uscan.sh            # launch the four lanes
 #   bash uscan.sh lane K     # run lane K (0-3) in the foreground
+#   bash uscan.sh ext        # the tol extension at 3e-5, after the lanes
 E=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/events
 source $E/run.sh
 OFF="TF24_DOMAIN_TOL=1e9"
@@ -26,6 +27,29 @@ jobs() {
     done
   done
 }
+ext_jobs() {
+  # The bases at 1e-4 and 3e-5 again, on the current driver: the recorded
+  # spq_1e-4 and spq_3e-5 ran on an earlier one, and rp_1e-4 and rp_3e-5 have
+  # no snapshot.
+  for T in 1e-4 3e-5; do
+    echo "b_rp_$T TOL=$T PROGRAM=$R/g_$T.rds $OFF"
+    echo "b_spq_$T TOL=$T PROGRAM=$R/g_$T.rds $OFF $SPLIT"
+  done
+  for r in 1e-2 -1e-2 3e-2 -3e-2; do
+    echo "rp_3e-5_lma_$r TOL=3e-5 PROGRAM=$R/g_3e-5.rds $OFF $TH THETA_REL=$r"
+    echo "sq_3e-5_lma_$r TOL=3e-5 PROGRAM=$R/g_3e-5.rds $OFF $SPLIT $TH THETA_REL=$r"
+  done
+}
+if [ "$1" = ext ]; then
+  while pgrep -f "uscan.sh lane" > /dev/null; do sleep 20; done
+  for k in 0 1 2 3; do
+    ext_jobs | awk -v k="$k" 'NR % 4 == k' | while read -r tag args; do
+      run $tag $NEW $LIB $args
+    done > $R/uscan_ext_$k.out 2>&1 &
+  done
+  wait
+  exit 0
+fi
 if [ "$1" = lane ]; then
   jobs | awk -v k="$2" 'NR % 4 == k' | while read -r tag args; do
     run $tag $NEW $LIB $args

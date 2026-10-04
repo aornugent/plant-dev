@@ -30,10 +30,16 @@ H_of <- function(Jp, Jm, J0, r) {
   2 * (log(Jp) / (hp * (hp + hm)) + log(Jm) / (hm * (hp + hm)) - log(J0) / (hp * hm))
 }
 tag <- function(arm, T, r) if (T == "1e-4") sprintf("%s_lma_%s", arm, r) else sprintf("%s_%s_lma_%s", arm, T, r)
-base <- function(arm, T) J_of(if (arm == "rp") paste0("rp_", T) else paste0("spq_", T))
+# Each base on the current driver: b_* re-runs the bases at 1e-4 and 3e-5, whose
+# recorded runs predate it; the nudges' bases already ran on it.
+base_tag <- function(arm, T) {
+  old <- if (arm == "rp") paste0("rp_", T) else paste0("spq_", T)
+  if (!is.na(J_of(paste0("b_", old)))) paste0("b_", old) else old
+}
+base <- function(arm, T) J_of(base_tag(arm, T))
 
 arms <- c(rp = "plain", sq = "split, re-detected", fq = "split, frozen structure")
-TOLS <- c("1e-4", "9.5e-5", "1.05e-4")
+TOLS <- c("1e-4", "9.5e-5", "1.05e-4", "3e-5")
 RS <- c("3e-4", "1e-3", "3e-3", "1e-2", "3e-2")
 out <- NULL
 for (a in names(arms)) for (T in TOLS) for (r in RS) {
@@ -48,6 +54,12 @@ cat(sprintf("eps for lma's curvature (resident) %.3f; eps/3 %.3f; eps/10 %.3f; r
             eps, eps / 3, eps / 10, REF))
 print(format(out, digits = 5), row.names = FALSE)
 
+for (T in c("1e-4", "3e-5")) for (a in c("rp", "sq")) {
+  old <- J_of(if (a == "rp") paste0("rp_", T) else paste0("spq_", T))
+  new <- J_of(paste0("b_", if (a == "rp") paste0("rp_", T) else paste0("spq_", T)))
+  if (is.finite(old) && is.finite(new))
+    cat(sprintf("base %s at %s: the current driver's ln J less the recorded one's, %+.3g\n", a, T, log(new) - log(old)))
+}
 pick <- function(a, T, r) { x <- out$H[out$arm == arms[[a]] & out$tol == T & out$r == r]; if (length(x)) x else NA }
 spread <- function(v) if (all(is.finite(v))) (max(v) - min(v)) / eps else NA
 cat("\nP1 (the reply): the re-detected split across r in {3e-3, 1e-2, 3e-2} at 1e-4 moves",
@@ -62,6 +74,11 @@ cat("P3 (ours): the plain arm's distance from the reference, in eps, at r = 1e-2
             spread(sapply(TOLS, function(T) pick("rp", T, 1e-2))), spread(sapply(TOLS, function(T) pick("rp", T, 3e-2)))))
 cat("P4 (ours): the frozen structure less the re-detected split at 1e-4, in eps, at r = 1e-3, 3e-3, 1e-2, 3e-2:",
     paste(sprintf("%+.3f", sapply(c(1e-3, 3e-3, 1e-2, 3e-2), function(r) pick("fq", "1e-4", r) - pick("sq", "1e-4", r)) / eps), collapse = ", "), "\n")
+cat("P5 (extension): the re-detected split's H, 3e-5 less 1e-4, in eps, at r = 1e-2 and 3e-2:",
+    paste(sprintf("%+.3f", sapply(c(1e-2, 3e-2), function(r) pick("sq", "3e-5", r) - pick("sq", "1e-4", r)) / eps), collapse = ", "),
+    "(bar 0.1)\n")
+cat("P6 (extension): the plain arm's H, 3e-5 less 1e-4, in eps, at r = 1e-2 and 3e-2:",
+    paste(sprintf("%+.3f", sapply(c(1e-2, 3e-2), function(r) pick("rp", "3e-5", r) - pick("rp", "1e-4", r)) / eps), collapse = ", "), "\n")
 cat("Passage noise, sqrt(N) x 5e-9 / r^2 with N about 78, 200, 650 and 2000 at r = 1e-3, 3e-3, 1e-2, 3e-2, in eps:",
     paste(sprintf("%.4f", sqrt(c(78, 200, 650, 2000)) * 5e-9 / c(1e-3, 3e-3, 1e-2, 3e-2)^2 / eps), collapse = ", "), "\n")
 cat(sprintf("Truncation at r = 3e-2, (0.03/0.245)^2/12 of H: %.3f eps\n", (0.03 / 0.245)^2 / 12 * abs(REF) / eps))

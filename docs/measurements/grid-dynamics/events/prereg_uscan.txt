@@ -60,3 +60,17 @@ What decides
   is reported, not removed.
 
 Runs: uscan.sh. Analysis: uscan.R.
+
+Extension, registered after the 1e-4 scan's values were seen and before the
+nudges finished (2026-10-04, 03:40 UTC)
+  The reference (-43.7, uncertain by about 0.3) cannot tell the re-detected
+  split's -43.45 from the plain arm's -43.62 at r = 3e-2. A tighter tolerance
+  can: the same second differences at tol 3e-5, on its own recorded program
+  (g_3e-5.rds; bases rp_3e-5 and spq_3e-5), at r = +-1e-2 and +-3e-2, for both
+  arms.
+  P5. The re-detected split's H at r = 1e-2 and 3e-2 moves by less than eps/10
+      from 1e-4 to 3e-5: its curvature has converged in tol.
+  P6. The plain arm's H moves by more than the split's between the two
+      tolerances, because how far its kinks have averaged out depends on its
+      grid.
+  Runs: uscan.sh ext. Analysis: uscan.R (its tol-convergence lines).
