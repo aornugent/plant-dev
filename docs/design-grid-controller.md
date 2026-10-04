@@ -155,8 +155,7 @@ Kept true by:
 - plant's control passes one weight per state (the tolerance weights times the
   window's weight), and odelia's controller takes no cap;
 - the knots stay step targets, which land steps rather than shorten them;
-- events and sub-steps live inside `Step` and have no handle on the global
-  step's size.
+- splits live inside `Step` and have no handle on the global step's size.
 
 Phase 1c keeps the 15-day cap, plant's `ode_step_size_max`. It is the one bound
 on the global step besides the norm, and the kill condition names it.
@@ -178,8 +177,9 @@ converges, and the implicit chain out of the norm does not (`grid-dynamics.md`
 **What survives deletion:**
 - the state weights, the window's and the chain's: R7 and R4;
 - the dense output, Cash–Karp's own fourth-order extension: R2 and R3 through
-  events;
-- per-member events, with the crossing times differentiated: R2 and R3;
+  the splits;
+- splits at the sign changes of each node's net production, their times held
+  fixed in the sweep: R2, R3 and the curvatures;
 - the 15-day cap: R5. Under Cash–Karp it protects every walk for at most 2.4% of
   the window's saving (phase 1c), so invader sub-steps are deleted;
 - an implicit chain: R7. The explicit chain takes ×10 but not ×100, and where
@@ -209,8 +209,7 @@ refusals for kinks.
   need refinements the grid did not freeze. Cope: rebuild, as for a big move.
 - *Records where stability sets every step,* as under constant rain. Cope: the
   implicit chain.
-- *The build:* a dense output, events and their adjoint, in odelia's step and
-  sweep.
+- *The build:* a dense output and the splits, in odelia's step and sweep.
 
 **Kill condition:** a component whose error can be neither weighted nor refined
 locally, so the global step must be capped by a reading.
@@ -522,48 +521,74 @@ with the later task of building general scheduling heuristics.
 ### Phase 3: the build
 
 Stacked changes on the plant and odelia forks, each with its own tests, and
-bit-identical wherever its default is off (AGENTS.md):
-1. the chain's treatment from 1a. Its mechanism, a weight per state in odelia's
-   controller supplied by plant's patch, is built (`state-weights` on both
-   forks), and reproduces the driver's weighted runs bit for bit. Each state's
-   weight is bounded: at 1000 the soil's stages reached the potential ceiling
-   within accepted steps, and at 100 they did not (1c);
-2. the soil stepped on its own where the plants draw little, from 1e. On steps
-   whose uptake is under 10% of the soil's budget, the soil is integrated on its
-   own under an extrapolated uptake with a corrector pass, and the coupling's
-   error enters the norm at the members' weight. The soil's inner steps are held
-   fixed in the replay so that reverse mode runs through them. Its threshold is
-   tuned later, with the scheduling heuristics;
-3. the dense output from 1b: Cash–Karp's own fourth-order extension, from its
-   stages and the end's rate;
-4. per-member events, in the forward and the sweep: the invader's structure is
-   frozen per grid, and the crossing times are differentiated. They read the
-   step's continuous extension through one interface each stepper supplies.
-   For Cash–Karp it is its own quartic (`BCK4`). For ARK it is `BARK3`: free,
-   C¹, fourth order on the members' explicit trees, and as good on ARK grids
-   as Cash–Karp's quartic on its own (`grid-dynamics.md` §11).
-   The events reply (`docs/oracle-response-events.md`) proposes the build's
-   order and one change, for the user's decision (handover):
-   - first, events in the forward step, each sub-step on one branch of the
-     positive part, and the member's rates re-evaluated at its corrected end;
-   - then the multirate soil's inner steps held fixed in replays (item 2);
-   - then the sweep's sub-step rows. With one branch per sub-step, the cut times
-     can be frozen in the sweep, exact to the pair's order, instead of
-     differentiated;
-   - class switches only behind a flag, if a curvature scan shows their bias;
-5. the window's weight from a pilot, through the same mechanism's schedule, and
-   the 15-day cap from 1c, which is plant's `ode_step_size_max`;
-6. the node rule from phase 2: spread uniform nodes (D), each reported as the
+bit-identical wherever its default is off (AGENTS.md). The order puts
+subtraction first and the resident's workflow before performance (the user,
+after the events reply):
+1. *Land the stack under it:* exact counts (#94), the reverse sweep (#91),
+   exact invader replay (#95), the knots as step targets (#96), the pool's
+   relaxation offset and stage guard (#97, #98), the first invasion walk (#99)
+   and the state weights (`state-weights`, both forks). #96 subtracts before the
+   splits add: its knots no longer split the sweep's descent with identity
+   rows, 19% of the sweep (`perf-sweep.md`). The PRs and merges are the
+   user's call.
+2. *Splits in the forward step.* Where a node's net production changes sign
+   inside an accepted step, that node's components are integrated over the step
+   in two parts, the first ending at the sign change; the rest of the state is
+   read from the step's dense output.
+   - The dense output is Cash–Karp's own fourth-order extension, from its six
+     stages and the end's rate (1b). It exists for the splits, so it lands with
+     them.
+   - The sign change is located on the dense output. A pair of sign changes
+     inside one step is split twice, since a test at the step's ends misses it
+     (`grid-dynamics.md` §17).
+   - Each part integrates one branch of the positive part: `P⁺ = P` on the
+     positive side and 0 on the other. The rates then agree at the split, so the
+     split's time enters `J` only at the pair's order.
+   - The node's rates are evaluated again at its corrected end state, which the
+     next step starts from.
+   - Walks repeat the forward's splits, so a replay and an invader walk at the
+     resident's traits repeat `J` bit for bit.
+   - Gates: `J`'s error falls with `tol`; `J` moves by at most 1e-8 as a sign
+     change passes from one step to the next; a pair of sign changes merging is
+     continuous; the forward costs at most 6% more; and halving only the split
+     steps shrinks the split nodes' error at the pair's order, which is
+     unmeasured for the quartic.
+3. *Splits in the sweep.* Each part is a row of its own for its node's
+   components, and the field values it read are fixed linear maps of the
+   recorded stages. The split times are held fixed, which one branch per part
+   makes exact to the pair's order. Gates: the sweep's gradient against central
+   differences of the forward on the recorded steps, to the replay's floor; the
+   sweep costs at most 6% more.
+4. *Curvatures from the adjoint.* A chord of two split gradients at
+   `θ·e^{±r}` gives a whole row of curvatures, every elasticity's derivative in
+   one trait, for two gradient runs. `lma`'s row, which the ε table sets, is one
+   example. A forward second difference of `ln J` checks the row's diagonal
+   entry: with splits it is reproducible at r from `1e-2` to `3e-2`
+   (`grid-dynamics.md` §17). Gate: each row stable under the `tol` nudges and
+   across r, against the check.
+5. *The soil stepped on its own where the plants draw little* (1e). On steps
+   whose uptake is under 10% of the soil's budget, the soil is integrated on
+   its own under an extrapolated uptake with a corrector pass, and the
+   coupling's error enters the norm at the members' weight. Its inner steps are
+   held fixed in replays, so the sweep runs through them, and a split reads the
+   soil from them. Its threshold is tuned later, with the scheduling
+   heuristics.
+6. *The node rule from phase 2:* spread uniform nodes (D), each reported as the
    two-rung extrapolation with the coarser run as its companion. It changes
    plant's birth-date competition sum, and so every reference. Its finest rungs
    need the crowns sorted by height, which waits for its own design turn (2b).
-   With it comes the invader's own rule: its members thinned by its own share
-   of `J′` under the root law, which needs no field part. Emulated exactly,
-   that keeps 53–66% of an invader's walk and sweep at ≤ 0.17ε in `ln J′`
-   (`grid-dynamics.md` §14). It needs the invader's schedule as a subset of the
-   run's introductions, and the full walk kept on the diagonal;
-7. the diagnostics R8 asks for: the companions' estimate, θ's distance from θ₀
+   A split rebuilds the light field from every node, so the spread's 16 point
+   crowns per node raise the split's cost; one build with both measures it.
+   With it comes the invader's own rule, sparser introductions by its own share
+   of `J′` (`grid-dynamics.md` §14), with the full walk kept on the diagonal.
+7. *The window's weight from a pilot,* through the state weights, and the
+   15-day cap from 1c, which is plant's `ode_step_size_max`.
+8. *The diagnostics R8 asks for:* the companions' estimate, θ's distance from θ₀
    against the radius, the failures, and the chain's error.
+
+Out of scope: the second-order adjoint, and splits at class switches, which
+carry nothing measurable on their own
+(`archive/oracle-consultation-solver-performance.md`).
 
 ### The acceptance suite: the objectives as tests
 
@@ -617,7 +642,7 @@ asserts, so a better controller passes without a test edited.
   - Milestones, hours: the bank, which is phase 4.
 - *An objective not yet met is skipped with its reason, not dropped.* A build is
   accepted when its skip comes out and the test passes, so the skips list what
-  remains: reproducibility at a loose `tol` until events land, for one.
+  remains: reproducibility at a loose `tol` until the splits land, for one.
 - *`tol` stands in for the target.* Until the controller takes an accuracy
   target, the tests drive it through `tol`. When it takes one, `tol` leaves the
   tests and nothing else changes. Finding the operating point is phase 4's; the
@@ -633,7 +658,7 @@ asserts, so a better controller passes without a test edited.
 1. *The four tests at ε* for forward runs and both roles' gradients, on every
    record of the bank, with the runtime against the floor's at matched error.
    *The operating point* splits the error budget about 2:5 between time and
-   nodes (`geometry.md` §6). With events in, `tol` loosens until the gradients'
+   nodes (`geometry.md` §6). With the splits in, `tol` loosens until the gradients'
    spread under nudges meets ε/3: about `3e-4`, if it grows in proportion from
    0.06–0.28 of ε/3 at `1e-4`. The saving goes to graded nodes, with a second
    rung read for their error.
@@ -643,15 +668,13 @@ asserts, so a better controller passes without a test edited.
    whichever costs less, with brute force the fallback. The invader's radius is
    measured first, at ×0.5, 0.7, 1.4 and 2 against brute force. The cheaper side
    should meet it first, since its weight spreads later in b, where the mesh is
-   coarser (`geometry.md` §5). Once events make
-   `J` smooth on a grid, curvatures have three routes:
-   - chords of gradients, about 68 forwards for five traits in both roles;
-   - forward-over-reverse, about 26;
-   - forward second differences, about 10. With per-member splits, at a
-     perturbation of `1e-2` to `3e-2`, they hold `lma`'s curvature within 0.05ε
-     under the nudges and within 0.006ε across `tol` (`grid-dynamics.md` §17).
-     For an invader's curvature the perturbation is nearer `1e-3`, since `J′`
-     has large higher derivatives (`assessment.md`, step 5).
+   coarser (`geometry.md` §5). Curvatures come from the adjoint: once the
+   splits make `J` smooth on a grid, a chord of two split gradients gives a
+   whole row of them for two gradient runs (phase 3, item 4), and a forward
+   second difference checks a row's diagonal entry (`grid-dynamics.md` §17).
+   For an invader's row the perturbation is nearer `1e-3`, since `J′` has large
+   higher derivatives (`assessment.md`, step 5). The second-order adjoint is out
+   of scope.
 3. *The optimising loop:* one resident run serving many invader evaluations,
    with refinements frozen per grid and the grid rebuilt on big moves.
 
@@ -666,9 +689,8 @@ gain, and each multiplies with the rows the arc saves.
   - the crown's light quadrature comes off the tape (20–24%);
   - the collar's slope is stored with the recorded collar (8.5%);
   - three smaller items follow.
-  - Check first that the invader's sweep has the same profile. The pulse change
-    touches the rows that events extend, so it lands before events if both are
-    in flight.
+  - Check first that the invader's sweep has the same profile. The first item is
+    #96, which lands before the splits (phase 3, item 1).
 - *The forward's and the walk's cost per row:* the inner solve warm-started as an
   index-1 algebraic variable.
 - *The refused gradient* at u108 under `ode_tol_rel = ode_tol_abs = 1e-3`.
@@ -695,6 +717,16 @@ gain, and each multiplies with the rows the arc saves.
     are run against it, and again after an invader is adopted. The resident
     workflow does not assume equilibrium.
   - What the optimiser needs between evaluations is left to the events reply.
+- *The build's order* is phase 3's, after the events reply: the stack first,
+  then the splits in the forward step and in the sweep, then curvatures, then
+  the multirate soil step and the node rule.
+- *Names.* The *sign change* of a node's net production, and *splitting* that
+  node's step there. odelia needs no new noun: it speaks of a state's
+  components, and plant says which are a node's. "Event" stays plant's word for
+  its discrete actions (`plant/events.h`).
+- *Curvatures come from the adjoint,* as chords of split gradients; `lma`'s row
+  is one example. Forward second differences are only a check. The second-order
+  adjoint is out of scope.
 - *The pair:* Cash–Karp everywhere, invader runs included, with its own
   fourth-order extension as the dense output. Dormand–Prince is dropped.
   - The earlier plan, Dormand–Prince for runs that host invader gradients, rested
