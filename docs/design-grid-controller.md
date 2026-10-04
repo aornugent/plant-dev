@@ -596,14 +596,51 @@ after the events reply):
    - *The cost* is a fixed 0.5–0.7 ms a node step split, 12.5% of plain at `1e-3`
      and 7% at `3e-4` and `1e-4`. 92% of it is part evaluations, each of which
      rebuilds the whole field, the boundary node's leaf solve included (39%).
+   - *To finish it* (after the splits reply, `oracle-response-splits.md`, and
+     the tightened build's tests, `grid-dynamics.md` §18):
+     - *The leaf solve stops at adjacent floats* (the user's decision). Every
+       root-find and search in phylloptim's leaf, and plant's own for the
+       newborn's height, stops only once its bracket is two adjacent floats
+       (`measurements/sign-changes/tight_phylloptim.patch`,
+       `tight_plant.patch`). A replay's noise falls from 1.9e-8 to 1.1e-14, for
+       10% of a replay. It moves TF24's outputs (`ln J` by −1.5e-6 on long
+       drought), so it bumps TF24's model version and re-blesses phylloptim's
+       golden files and plant's pinned TF24 values. It lands as its own change
+       ahead of the rest. (The reply's alternative, one Newton step at the end
+       of each solve, does the same and suits a warm start; it is unmeasured.)
+     - *A part rebuilds only what it reads:* the chain from the dense output and
+       the light field from the nodes' interpolated heights, not the uptake and
+       not the newborn's leaf solve (39% of the split's cost). The reply puts the
+       split at about 3% of a forward instead of 7%. Gate: the same `J` to
+       roundoff, and the cost.
+     - *A pair inside a step is found without the stages' signs.* The stage rule
+       misses 6 or 7 pairs a run, in the first fifth of a step that opens a
+       pulse after three or more dry days. The reply's interior extrema need a
+       cheap reading of net production inside a step: it is not a polynomial on
+       the dense output, and each value is a single-node evaluation with its
+       leaf solve. Gate: none missed on the 32-point scan, and a pair's birth
+       continuous.
+     - *The positive part in a part,* smooth or one branch per side: the user's
+       call. The reply holds a branch is not a change to the rates (under 1e-10
+       in `ln J`). With it the split time enters `J` only at the pair's order,
+       so the sweep may freeze it; without it item 3 must route it by the
+       implicit function. How a branch would bear on the wobble (below) is
+       unknown: the wobble shrank when the turn was widened.
+     - *Diagnostics per run:* the nodes whose net production comes within a
+       threshold of zero inside a step, with their share of `J`; the node steps
+       split; the smallest rate of change of net production at a split.
 3. *Splits in the sweep.* Each part is a row of its own for its node's
    components, and the field values it read are fixed linear maps of the
    recorded stages. Each split time enters the tape by one implicit-function
    step at its located time, through odelia's implicit node: its derivative is
    minus the node's net production's sensitivity over its rate of change. With
    the model's smooth positive part in both parts, that term is what makes the
-   gradient exact rather than first order in the step. Gates: the sweep's gradient against central
-   differences of the forward on the recorded steps, to the replay's floor; the
+   gradient exact rather than first order in the step. Gates: the sweep's
+   gradient against central differences of the forward on the recorded steps
+   at r = `1e-3`, within about 2e-3 in an elasticity, which the wobble's local
+   slope allows; a sweep with the split times frozen against one that routes
+   them, which agree with a branch per side and differ at first order in the
+   step without (the construction's own test, from the splits reply); and the
    sweep costs at most 6% more.
    *The design of items 2 and 3.* One commitment: odelia does the arithmetic and
    plant names the parts.
@@ -644,7 +681,10 @@ after the events reply):
    example. A forward second difference of `ln J` checks the row's diagonal
    entry: with splits it is reproducible at r from `1e-2` to `3e-2`
    (`grid-dynamics.md` §17). Gate: each row stable under the `tol` nudges and
-   across r, against the check.
+   across r, against the check. The wobble (below) keeps chords at r of `1e-2`
+   or more, where it costs about 0.05 of the curvature's ε; at `1e-3` it would
+   cost half of it. With item 3 built, the gradient's own wobble is read at the
+   fine grid's seventeen points.
 5. *The soil stepped on its own where the plants draw little* (1e). On steps
    whose uptake is under 10% of the soil's budget, the soil is integrated on
    its own under an extrapolated uptake with a corrector pass, and the
@@ -732,6 +772,26 @@ asserts, so a better controller passes without a test edited.
 - *Rejected:* pinned-output snapshots, fast but broken by every controller
   improvement; and the bank alone, the right checks at hours a run.
 
+### Later: investigations held open
+
+- *The wobble.* On a frozen grid, with the leaf solve exact, `ln J` departs
+  from a smooth curve in `lma` by up to about 1e-7, in a slow wave, alike in
+  every variant of the split, and the `lma` elasticity wanders by about 1e-3
+  (up to 2e-3) with it (`grid-dynamics.md` §18). It shrank tenfold when the
+  positive part's width went from 1e-4 to 1e-3, against the splits reply's
+  account, and what carries it is not traced. It costs a gradient at most a
+  tenth of the smallest ε (0.01) and a hundredth of `lma`'s, and a chord at r
+  of `1e-2` or more about 0.05 of the curvature's; it matters only below r =
+  `1e-2` or for a pointwise second-order adjoint, which is out of scope. When
+  it is picked up: the gradient's wobble at the seventeen points (phase 3, item
+  4), then a scan at `storage_prod_eps` 3e-4.
+- *The positive part's width as part of the model.* Widening
+  `storage_prod_eps` from 1e-4 to 1e-3 moved `ln J` by −0.228 on the split's
+  pinned program; one replay at 1e-5 reads how far 1e-4 sits from a sharp
+  cutoff (the seventh extension in `measurements/sign-changes/prereg.txt`).
+- *The error both arms share below `3e-5`,* which stops `J`'s error falling,
+  and the class switches the split leaves uncut.
+
 ### Phase 4: on the bank
 
 1. *The four tests at ε* for forward runs and both roles' gradients, on every
@@ -773,6 +833,17 @@ gain, and each multiplies with the rows the arc saves.
 - *The forward's and the walk's cost per row:* the inner solve warm-started as an
   index-1 algebraic variable.
 - *The refused gradient* at u108 under `ode_tol_rel = ode_tol_abs = 1e-3`.
+- *A schedule set by a pilot, not a general one* (the algorithm reply,
+  `oracle-response-grids.md`). A cheap pilot's adjoint and field map would set
+  the step weights per state and time, the creation times and the error budget
+  for the base run, and the next θ₀ would reuse the base as its pilot. What to
+  carry: its passes informing each other, the budget per quantity with the
+  binding one deciding, and the warm start's three sources (stage, step,
+  recording). What the record contradicts and must be measured first: a
+  non-uniform grid converging on the square law (graded ladders gave ratios
+  2.8–3.3), and a single rung corrected by the map, which predicts only the move
+  to a grid dropped from the run. Its first measurements: `|λ|` weights against
+  the weighted norm, and a map-corrected single rung against two rungs.
 
 ## The user's decisions
 
@@ -798,7 +869,12 @@ gain, and each multiplies with the rows the arc saves.
   - What the optimiser needs between evaluations is left to the events reply.
 - *The build's order* is phase 3's, after the events reply: the stack first,
   then the splits in the forward step and in the sweep, then curvatures, then
-  the multirate soil step and the node rule.
+  the multirate soil step and the node rule. After the splits and algorithm
+  replies: finish the splits in the forward step, then build them in the sweep.
+- *The leaf solve stops at adjacent floats* (after the tightened build's
+  tests), for 10% of a replay.
+- *The wobble is held open* as a later investigation; the adjoint workflows go
+  ahead with chords at r of `1e-2` or more.
 - *Names.* The *sign change* of a node's net production, and *splitting* that
   node's step there. odelia needs no new noun: it speaks of a state's
   components, and plant says which are a node's. "Event" stays plant's word for
