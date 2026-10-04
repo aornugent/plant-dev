@@ -118,4 +118,14 @@ VERDICTS ON LONG-WET, written 23:07 UTC from ladder_wet.log, q2_thin_wet.log, or
   H6 holds: the sort's forward CPU per row is within 0.4% of the 1 cm tolerance's, with J bit
     for bit; the walk costs +23% of the forward at u429, where 20% of builds are out of order
     (at most 1.1 mm); at u215 nothing is out of order. ORDER=0's sweep not run.
-  H4 (long drought): running.
+  H4 (long drought): see below.
+
+VERDICT ON LONG DROUGHT (H4), written 00:29 UTC from ladder_ld.log, after every long-drought run.
+  H4 fails as registered: bounded Cash-Karp does not reproduce the plain-tolerance record exactly.
+  D stays on the square law over u108-u215-u429 (median 3.92, groups 3.32-3.98, none negative;
+  companions at u215 0.98, groups 0.83-1.00), a little outside the record's ranges (3.6-3.9 and
+  0.93-1.09) in the resident's other quantities. B falls off the record: its ratio over G1-G2-G3
+  is 3.26 with the resident's other quantities at 2.68, and its companion reports 0.80 of the
+  error, not 1.0-1.2. B+D is worse (2.80, companion 0.65). L is not on the square law (6.6, 15 of
+  82 negative). The finest extrapolations of B, D and B+D agree to 0.054 eps. The ordering
+  breaks at the finest rung of every arm (79% of builds, at most 1.18 mm), and the sort takes it.

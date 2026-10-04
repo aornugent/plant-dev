@@ -65,21 +65,29 @@ partitioned step of `grid-dynamics.md` §13 (Q3).
     used for finite differences add up to 0.03ε of noise to the elasticities,
     because the soil's adaptive inner steps are not held fixed.
 
-**The node axis** (`node-axis/`, recorded in `grid-dynamics.md` §16): B, D and
-B+D on long-wet and long drought, D against the thinning the field part
-refuted, and the light field's ordering. The probe build is `src/probe_build.diff`.
-- *Long-wet done* (`ladder_wet.log`, `q2_thin_wet.log`, `order_wet.log`,
-  `cost_wet.log`):
-  - D is on the square law over u108–u215–u429 (ratios 3.72–4.42, companions
-    0.93–1.10). B and B+D are not (2.76 and 2.84, companions 0.71 and 0.65).
-    The finest extrapolations of B, D and B+D agree to 0.033ε.
-  - D's u108 + u215 extrapolation is the cheapest answer with an honest
-    estimate: 2.41M rows for 0.090ε, its estimate covering 93%.
-  - Thinning after b = 10 fails spread as lumped: the field part is the soil's.
-  - The ordering breaks only at u429 (20% of builds, by at most 1.1 mm). The
-    sort costs nothing measurable; walking every node costs 23% of a forward.
-  - The spread costs 2–6% of the resident's sweep per row.
-- *Running:* the long-drought ladders (H4).
+**The node axis** (`node-axis/`, written up in `grid-dynamics.md` §16). This
+pathfinder compared four node rules on long-wet and long drought, with both
+roles' gradients under bounded Cash–Karp: lumped uniform nodes, graded nodes
+(B), spread uniform nodes (D), and graded nodes with the spread. It also tested
+whether the spread rescues thinning the introductions after b = 10, and what
+the light field's height ordering costs. The probe build is
+`src/probe_build.diff`; the logs are `ladder_wet.log`, `ladder_ld.log`,
+`q2_thin_wet.log`, `order_all.log`, `cost_wet.log` and `cost_ld.log`.
+- Spread uniform nodes are on the square law over 108, 215 and 429
+  introductions on both records, and their companion reports 0.95 and 0.98 of
+  the true error. Graded nodes, lumped or spread, are not: their companions
+  report 0.65–0.80 of it.
+- Spread nodes' two-rung extrapolation from 108 and 215 is the cheapest answer
+  with an honest estimate: 0.090ε at 2.41M rows on long-wet and 0.174ε at 1.95M
+  rows on long drought, its estimate covering 93–95% of quantities.
+- The finest extrapolations of the graded, spread and graded-and-spread ladders
+  agree to within 0.054ε on each record.
+- Thinning after b = 10 fails with the spread as it does lumped, because that
+  error comes through the soil.
+- The crowns fall out of height order only at the finest rung, in 20% of
+  builds on long-wet and 79% on long drought, by at most 1.2 mm. Sorting them
+  costs nothing measurable; walking every node costs 23% of a forward.
+- The spread costs 2–6% of the resident's sweep per row.
 
 **The events build's design:** not started.
 

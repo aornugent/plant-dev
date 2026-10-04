@@ -47,6 +47,20 @@
    largest inversion: node 0 m, boundary 0 m; out of order from t = Inf to -Inf; most pairs in one build 0
    largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 0 0 0 0 0 | boundary 0 0 0 0 0 0 0 0 
    cpu s: forward 74 (0.116 ms per row), stand sweep 224, invader walk 59, invader sweep 188
+== ld_D_u215 (215 nodes, 1310958 rows)
+   stand_run         double builds    100254: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    double builds      6288: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   stand_gradient    active builds     81198: ordered 100.0%, node pairs out  0.00%, boundary out  0.00%, sorted  0.00%, walked  0.00%
+   largest inversion: node 0 m, boundary 0 m; out of order from t = Inf to -Inf; most pairs in one build 0
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 0 0 0 0 0 0 | boundary 0 0 0 0 0 0 0 0 
+   cpu s: forward 148 (0.113 ms per row), stand sweep 433, invader walk 120, invader sweep 369
+== ld_D_u429 (429 nodes, 2713772 rows)
+   stand_run         double builds    105064: ordered  21.2%, node pairs out 78.84%, boundary out  0.00%, sorted 78.84%, walked  0.00%
+   stand_gradient    double builds      6716: ordered  18.2%, node pairs out 81.80%, boundary out  0.00%, sorted 81.80%, walked  0.00%
+   stand_gradient    active builds     84682: ordered  21.3%, node pairs out 78.72%, boundary out  0.00%, sorted 78.72%, walked  0.00%
+   largest inversion: node 0.00118 m, boundary 0 m; out of order from t = 6.9 to 40; most pairs in one build 5
+   largest inversion per build by decade (<1e-7 ... >=1e-1 m): node 0 0 6 6339 64866 17111 0 0 | boundary 0 0 0 0 0 0 0 0 
+   cpu s: forward 309 (0.114 ms per row), stand sweep 877, invader walk 244, invader sweep 751
 
 == forward only: walk (0) and tolerance (1) against the ladder's sort (2)
    D u215 o1: cpu 188 s against 189 (-0.7%), per row -0.7%; J/J_sort - 1 = +0.00e+00; steps 16002 against 16002

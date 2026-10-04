@@ -10,10 +10,10 @@
 # taken 23:01:12 ld_D_u429 long-drought t_u429 8
 # taken 23:01:28 ld_B_G1 long-drought t_ld_G1 0
 # taken 23:05:09 ld_B_G2 long-drought t_ld_G2 0
-ld_BD_G1 long-drought t_ld_G1 8
-ld_BD_G2 long-drought t_ld_G2 8
-ld_L_u215 long-drought t_u215 0
-ld_L_u54 long-drought t_u54 0
-ld_D_u54 long-drought t_u54 8
-ld_B_G3 long-drought t_ld_G3 0
-ld_BD_G3 long-drought t_ld_G3 8
+# taken 23:13:36 ld_BD_G1 long-drought t_ld_G1 8
+# taken 23:13:51 ld_BD_G2 long-drought t_ld_G2 8
+# taken 23:25:50 ld_L_u215 long-drought t_u215 0
+# taken 23:28:12 ld_L_u54 long-drought t_u54 0
+# taken 23:33:14 ld_D_u54 long-drought t_u54 8
+# taken 23:37:31 ld_B_G3 long-drought t_ld_G3 0
+# taken 23:38:22 ld_BD_G3 long-drought t_ld_G3 8
