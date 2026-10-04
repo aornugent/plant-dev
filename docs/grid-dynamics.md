@@ -1386,7 +1386,7 @@ to 8.9e-16. Under bounded Cash–Karp, for the stand's invader and eight invader
   the full walk there, or checks the identity on the full schedule.
 - *Verdict: worth 35–47% of an invader's evaluation, and 17–23% of a gradient
   run, at ≤ 0.17ε in `ln J′`.* Parked until the schedule rules are built
-  (phase 3, item 5), where the invader's rule belongs beside the resident's.
+  (phase 3, item 6), where the invader's rule belongs beside the resident's.
 
 ## 15. The soil stepped on its own where the plants draw little
 

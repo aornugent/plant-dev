@@ -467,8 +467,9 @@ phase 4 finds the invader's curvatures short. For R5, 1c's cap suffices.
   3e-5 of itself, since its sweep holds the resident's field fixed.
 
 **1e. The soil stepped on its own where the plants draw little** (a pathfinder;
-`grid-dynamics.md` §15). It was not in the arc as first written, and whether it
-joins phase 3 is the user's call.
+`grid-dynamics.md` §15). It was not in the arc as first written. The user has
+decided that it joins the build (phase 3, item 2), and that tuning it belongs
+with the later task of building general scheduling heuristics.
 - *How it works:* when the uptake at a step's start is under 10% of the soil's
   water budget, the soil is integrated on its own under an uptake extrapolated
   from the last step, a corrector pass follows, and the coupling's error enters
@@ -478,10 +479,11 @@ joins phase 3 is the user's call.
   `J`. Every elasticity of five traits stayed within 0.11ε of the reference.
   When the coupling's error was judged at the soil's weight instead, the error
   in `J` grew to 22 times bounded Cash–Karp's.
-- *What a build needs:* the soil's inner steps held fixed in the replay, so that
-  reverse mode can run through them; a threshold that tightens with the
-  tolerance, because its error in `J` stops falling below `3e-5`; and the
-  invader's gradients measured, which the driver cannot do.
+- *What the build needs:* the soil's inner steps held fixed in the replay, so
+  that reverse mode can run through them, and the invader's gradients measured,
+  which the driver cannot do. The threshold stays at 10% until it is tuned.
+  Tuning includes making it tighten with the tolerance, which the error in `J`
+  needs below `3e-5`.
 
 ### Phase 2: the node axis
 
@@ -499,6 +501,8 @@ joins phase 3 is the user's call.
     0.155ε, and its estimate covers only 64–78%.
   - The spread costs 2–6% of the resident's sweep per row once the crowns are
     sorted.
+  - *Decided:* D is in the build. B is not rejected: it stays an option to
+    consider later, since there may be cases where grading helps.
 - **2b. The light field's ordering test,** given a tolerance or replaced by a sort
   before the prefix pass, in plant. Either rule needs it at its finest rungs.
   - *Measured on both records:* the crowns fall out of height order only at
@@ -507,6 +511,8 @@ joins phase 3 is the user's call.
     measurable on either record. On long-wet a 1 cm tolerance repeats the
     sort's `J` bit for bit, while walking every node costs 23% of a forward. The
     sort is the fix, and it needs no tolerance to choose.
+  - *Decided:* the sort is agreed in principle, and it gets a design turn of its
+    own before it is built.
 - **2c. The chosen rule's ladders** on wet, dry and episodic (D's to u429), and
   the constant record with its front nodes, with the introductions also moved by
   a quarter spacing (R2's other knob). *Pass:* square-law ratios near 4,
@@ -522,23 +528,32 @@ bit-identical wherever its default is off (AGENTS.md):
    forks), and reproduces the driver's weighted runs bit for bit. Each state's
    weight is bounded: at 1000 the soil's stages reached the potential ceiling
    within accepted steps, and at 100 they did not (1c);
-2. the dense output from 1b: Cash–Karp's own fourth-order extension, from its
+2. the soil stepped on its own where the plants draw little, from 1e. On steps
+   whose uptake is under 10% of the soil's budget, the soil is integrated on its
+   own under an extrapolated uptake with a corrector pass, and the coupling's
+   error enters the norm at the members' weight. The soil's inner steps are held
+   fixed in the replay so that reverse mode runs through them. Its threshold is
+   tuned later, with the scheduling heuristics;
+3. the dense output from 1b: Cash–Karp's own fourth-order extension, from its
    stages and the end's rate;
-3. per-member events, in the forward and the sweep: the invader's structure is
+4. per-member events, in the forward and the sweep: the invader's structure is
    frozen per grid, and the crossing times are differentiated. They read the
    step's continuous extension through one interface each stepper supplies.
    For Cash–Karp it is its own quartic (`BCK4`). For ARK it is `BARK3`: free,
    C¹, fourth order on the members' explicit trees, and as good on ARK grids
    as Cash–Karp's quartic on its own (`grid-dynamics.md` §11);
-4. the window's weight from a pilot, through the same mechanism's schedule, and
+5. the window's weight from a pilot, through the same mechanism's schedule, and
    the 15-day cap from 1c, which is plant's `ode_step_size_max`;
-5. the node rule from phase 2, with its companion, and the invader's own rule:
-   its members thinned by its own share of `J′` under the root law, which needs
-   no field part. Emulated exactly, that keeps 53–66% of an invader's walk and
-   sweep at ≤ 0.17ε in `ln J′` (`grid-dynamics.md` §14). It needs the invader's
-   schedule as a subset of the run's introductions, and the full walk kept on
-   the diagonal;
-6. the diagnostics R8 asks for: the companions' estimate, θ's distance from θ₀
+6. the node rule from phase 2: spread uniform nodes (D), each reported as the
+   two-rung extrapolation with the coarser run as its companion. It changes
+   plant's birth-date competition sum, and so every reference. Its finest rungs
+   need the crowns sorted by height, which waits for its own design turn (2b).
+   With it comes the invader's own rule: its members thinned by its own share
+   of `J′` under the root law, which needs no field part. Emulated exactly,
+   that keeps 53–66% of an invader's walk and sweep at ≤ 0.17ε in `ln J′`
+   (`grid-dynamics.md` §14). It needs the invader's schedule as a subset of the
+   run's introductions, and the full walk kept on the diagonal;
+7. the diagnostics R8 asks for: the companions' estimate, θ's distance from θ₀
    against the radius, the failures, and the chain's error.
 
 ### The acceptance suite: the objectives as tests
@@ -647,8 +662,12 @@ gain, and each multiplies with the rows the arc saves.
 
 ## The user's decisions
 
-- *B or D:* evaluated at phase 2a.
-- *The multirate soil step (1e):* whether it joins phase 3.
+- *The node rule:* D, the spread, is in the build. B stays an option to consider
+  later, since there may be cases where grading helps (2a).
+- *The multirate soil step (1e)* is in the build. Tuning it, its threshold
+  included, waits for the later task of building general scheduling heuristics.
+- *The crowns' height sort* is agreed in principle, and is designed in a turn of
+  its own before it is built (2b).
 - *The acceptance suite* is part of the design; its build waits for the user's
   go.
 - *The pair:* Cash–Karp everywhere, invader runs included, with its own
