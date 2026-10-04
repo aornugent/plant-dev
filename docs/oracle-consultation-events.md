@@ -11,10 +11,10 @@ each part can fail, and what test would show each failure. We would like the
 assessment made against two workflows, in this order of priority:
 
 1. **Base-run gradients with stable and efficient second derivatives.**
-2. **Convergent and cheap probe gradients, many per base run.** An optimiser
+2. **Convergent and cheap probe gradients, tens per base run.** An optimiser
    uses them to step a probe's constants toward constants where the probe would
-   outgrow the base; when one gets there, the base run is redone with it
-   included and the loop starts again.
+   grow; when one gets there, the base run is solved again with it included and
+   the loop starts again.
 
 Both are described below. Events may be the wrong object for one workflow or
 for both, or the right object built in a way we have not considered. If so,
@@ -223,10 +223,14 @@ cheap, over a box several of its length scales wide.
 comes first. A run must deliver `ln J`, each elasticity `d ln J / d ln θ_k`, and
 second derivatives of `ln J` in `ln θ`, all within ε of their converged values,
 with the four tests holding: reproducible, continuous in `θ`, predictable,
-never failing. ε is set today for the column in `θ_A`, each elasticity's
-derivative in `ln θ_A`; for `θ_A`'s own second derivative it is 1.17 in the base
-role and 3.8 in the probe role. One grid must serve base runs within ±10% of
-the `θ₀` it was built at. In `ln θ` that box is 0.095 wide, about 0.39 of the
+never failing. No constant is special. Which second derivatives the work will
+need is open. They may include the base run's own in its constants, the
+probe's at `θ′ = θ`, and the mixed ones in `θ` and `θ′`. So stable, efficient
+estimates of curvature are a property we want of the gradient solver, and so of
+the controller. ε is set today for the column in `θ_A`, each elasticity's
+derivative in `ln θ_A`; for `θ_A`'s own second derivative it is 1.17 in the
+base role and 3.8 in the probe role. One grid must serve base runs within ±10%
+of the `θ₀` it was built at. In `ln θ` that box is 0.095 wide, about 0.39 of the
 base run's length scale `|g|/|g′|`, so a quadratic model holds over it.
 
 Today the second derivatives come from chords of gradients at `θe^{±u}`. For
@@ -238,21 +242,29 @@ chord; split at every crossing, it comes within about 1ε, and the elasticity is
 flat in the difference size within 0.06 of ε/3.
 
 **2. Probe gradients for an optimiser.** The loop runs as follows:
-- the base run is recorded once and treated as data;
-- many probes are evaluated against it, each a walk and a sweep;
+- the base run is solved to its equilibrium and recorded. `ρ_c` carries a
+  constant input rate as a factor, `J` is output per unit input, and the input
+  rate is iterated until `J = 1`, which takes several base runs. The recording
+  is then treated as data;
+- tens of probes are evaluated against it, if the gradient is informative, each
+  a walk and a sweep;
 - each probe's gradient `dJ′/dθ′` steers an optimiser toward constants where
-  `J′ > J`, where the probe would outgrow the base;
-- when a probe's constants get there, the probe joins the base. The base run is
-  redone with both kinds of members, which changes the fields, and the loop
-  starts again against the new base.
+  `J′ > 1 = J`, where the probe would grow while its members are too few to move
+  the fields;
+- when a probe's constants get there, the probe joins the base. The base is
+  solved to equilibrium again with both kinds of members, each kind with its
+  own input rate and its own creation times, which changes the fields, and the
+  loop starts again against the new base.
 
 Repeated, this assembles a base of several kinds of members, one probe at a
-time, and maps `J′` across `θ′` along the way. What the loop needs from a probe:
+time, and maps `J′` across `θ′` along the way. We expect most of the loop's cost
+to lie in the base runs: each must be solved to equilibrium, and each adopted
+kind adds its own members to every row. What the loop needs from a probe:
 - gradients that converge as the base run's settings, `tol` and the creation
   times, are refined;
-- a low cost per evaluation, since the base run's own cost is spread over many
-  probes;
-- `J′ = J` exactly at `θ′ = θ`;
+- a low cost per evaluation, so that tens of evaluations stay cheap beside the
+  base runs they serve;
+- `J′ = J` exactly at `θ′ = θ`, which at equilibrium is `J′ = 1`;
 - nothing failing anywhere in `θ′ ∈ θ·[0.5, 2]`.
 
 The probe's box is about four of its length scales wide (0.177 against ln 2), so
@@ -412,7 +424,9 @@ We do not know which of these matter most for the build.
    events inside them, or set its own program against the base run's stored
    fields, or something else?
    - If its own program, what must the base run store, and what does each probe
-     evaluation then cost? This includes the multirate step's inner chain.
+     evaluation then cost? This includes the multirate step's inner chain. With
+     tens of probes per base run and most of the cost in the base runs, does a
+     probe's own program repay what the base run must then store?
    - How should a probe's program be recorded on its own tape, so that its sweep
      replays exactly what its walk did?
    - How should the structure be frozen for an optimiser that moves `θ′` by
