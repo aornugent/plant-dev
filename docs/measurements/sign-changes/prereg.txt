@@ -120,3 +120,42 @@ Verdicts (2026-10-04, from analyze.log and runs.txt)
   schedule takes a program's times and not its sizes, so a replay at lma itself
   repeats its forward's J within 3.6e-9 rather than bit for bit. The plant test
   pins the sizes and repeats bit for bit.
+
+Third extension: what the probe leaves. Written after the probe's verdicts and
+one bisection, before the scan below was built or run (2026-10-04).
+  The bisection (diag/bisect.sh, run before this entry; its expectation, a jump
+  of 1e-8 to 1e-7 in ln J, was stated in the session and not here) narrowed node
+  1's passage from step 83 to step 84, between r = -1e-3 and 0, to 9.5e-10 in r.
+  Across that bracket ln J moves -1.64e-8 where the smooth change is -0.79e-8:
+  node 1's cut at u = 1 - 3e-9 in step 83 ceasing moves ln J by -0.85e-8.
+  It also found a window, at most 3.2e-8 wide in r, where node 1's sign change is
+  split in neither step. Step 83 decides on its end's sign values before the
+  parts it splits (nodes 3 to 7) are corrected, and the end is rated again after;
+  node 1's value, within 1e-6 of zero, changes sign in between, so step 84 starts
+  on the far side. The window divides a passage's jump in two and adds nothing
+  to it.
+  The hypothesis: what the probe leaves is carried by pairs of sign changes the
+  detection misses. It looks for a pair only through a stage strictly inside the
+  step that holds the other sign, and those stages sit at u = 0.2, 0.3, 0.6 and
+  0.875, so a pair inside (0, 0.2), (0.3, 0.6), (0.6, 0.875) or (0.875, 1) goes
+  unsplit, and a pair moving across a stage is split or not with a jump of all
+  the unsplit step lost in it. Between r = 0 and +-1e-3 six pairs (nodes 7, 10,
+  24, 70 and 74, and node 5's across steps 270 and 271) are split at one r and
+  not the other, 0.08 to 0.22 of a step wide: too wide to have opened or closed
+  within 1e-3 in lma.
+  The scan (odelia sign-changes-log, local, ODELIA_SPLIT_SCAN set): after each
+  kept step, P on the dense output at u = k/32 for every part, logging each part
+  whose number of sign changes there differs from its number of cuts. Runs:
+  replays of the split's program at r = 0 and +-1e-3 (scan_*).
+  P8. Each of the six pairs shows on the scan at the r where it was not split,
+      as two changes more than its cuts.
+  P9. Missed pairs are common: at r = 0 the scan finds at least 20 node steps
+      with a pair the detection missed, and fewer than 5 where the detection cut
+      a pair the scan does not show.
+  Then the fix probe (odelia sign-changes-scan, local): cut wherever the 32-point
+  scan shows a change, over the probe's correction. Its forward at 1e-4 and
+  replays of its own program at r = +-1e-3, +-1e-2, +-3e-2 (fix_*).
+  P10. Its H at r = 1e-3 is within eps/10 of its H at 1e-2.
+  P8 failing refutes the hypothesis (the pairs open and close rather than hide
+  between stages). P8 holding with P10 failing says the misses are real but
+  something else carries the rest.

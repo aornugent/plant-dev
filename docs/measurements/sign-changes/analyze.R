@@ -51,6 +51,21 @@ if (all(is.finite(cost))) {
               median(cost[, "split"]) / median(cost[, "plain_1e-5"])))
 }
 
+# run.sh cost-loose: the slowdown the loaded ladder showed at 1e-3 and 3e-4,
+# timed alone, beside the 1e-4 pair above.
+loose <- do.call(rbind, lapply(c("1e-3", "3e-4", "1e-4"), function(t) {
+  tag <- function(a, k) if (t == "1e-4") sprintf("cost_%s_%d", a, k) else sprintf("cost_%s_%s_%d", a, t, k)
+  p <- sapply(1:2, function(k) { r <- run(tag("plain", k)); if (is.null(r)) NA else r$secs })
+  s <- sapply(1:2, function(k) { r <- run(tag("split", k)); if (is.null(r)) NA else r$secs })
+  n <- run(tag("split", 1))$splits
+  data.frame(tol = t, plain_s = median(p), split_s = median(s), ratio = median(s) / median(p),
+             splits = n, ms_per_split = 1e3 * (median(s) - median(p)) / n)
+}))
+if (all(is.finite(loose$ratio))) {
+  cat("\nAlone on the machine, each the median of two (cost-loose; 1e-4 from cost):\n")
+  print(format(loose, digits = 3), row.names = FALSE)
+}
+
 # The second difference of ln J in ln lma about lma, as uscan.R's.
 H_of <- function(Jp, Jm, J0, r) {
   hp <- log1p(r); hm <- -log1p(-r)

@@ -1,0 +1,27 @@
+The split's forward at 1e-3, sampled by gperftools (2026-10-04). Built from
+plant sign-changes abcfcc22 and odelia sign-changes 6a6ce45, -O2 -g.
+
+  env PLANT_LIB=$LIB PLANT_TEST_LIB=$LIB FORWARD=1 ATOL=1e-4 NODES=108 \
+    TOL=1e-3 SPLIT=1 bash scripts/profile-gradient.sh harness/profile_forward.R $DIR
+  google-pprof --text --cum --focus='Step::split' $DIR/plant.so $DIR/gradient.prof
+
+Of the run's 15034 samples, 1425 (9.5%) fall under odelia's Step::split; the
+plain arm's run has none. Under it, cumulative, of those 1425:
+   1425 100.0%  odelia::ode::Step::split
+   1308  91.8%  plant::Patch::part_rates
+   1059  74.3%  plant::TF24_Strategy::solve_leaf
+    798  56.0%  plant::Patch::set_ode_state
+    712  50.0%  plant::Patch::compute_environment
+    555  38.9%  plant::Patch::compute_boundary_nodes
+    503  35.3%  plant::Species::compute_node_rates
+    155  10.9%  plant::build_extinction_field
+     74   5.2%  odelia::ode::derivs
+     40   2.8%  odelia::ode::Step::dense_state
+
+Read: each part evaluation sets the whole patch's state (Patch::set_ode_state),
+which rebuilds the field (compute_environment) and with it the boundary node's
+leaf solve (compute_boundary_nodes); the part's own rates follow
+(compute_node_rates). The corrected end's full re-rating (ode::derivs) is 5.2%
+and the dense output (dense_state) 2.8%. Every tolerance splits about 9230 node
+steps (analyze.log), so the split costs a fixed 5 to 7 s a run: 12.5% of plain
+at 1e-3, 7% at 3e-4 and 1e-4.

@@ -15,6 +15,12 @@ P3: the forward at 1e-4 alone on the machine: plain 70.3, 71.3 s, split 73.7, 77
     the split's added seconds per node step split: 0.53 ms
 Extension: plain at 1e-5 alone 98.7, 98.5 s; the split at 1e-4 over it 0.768
 
+Alone on the machine, each the median of two (cost-loose; 1e-4 from cost):
+  tol plain_s split_s ratio splits ms_per_split
+ 1e-3    53.6    60.3  1.12   9231        0.726
+ 3e-4    64.2    68.7  1.07   9233        0.491
+ 1e-4    70.8    75.7  1.07   9239        0.528
+
 H(r) at r = 1e-3, 1e-2, 3e-2, eps for lma's curvature 1.168
           rp      rs
 1e-3 -47.176 -42.862

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Step 2's gates (prereg.txt). PLANT_LIB is the sign-changes build; R holds the
 # runs. Lanes run three at a time; the cost pair runs alone.
-#   PLANT_LIB=... R=... bash run.sh ladder|cost|replays|diff
+#   PLANT_LIB=... R=... bash run.sh ladder|cost|cost-loose|replays|diff
 set -u
 H="$(cd "$(dirname "$0")/../../.." && pwd)/harness"
 : "${PLANT_LIB:?}" "${R:?}"
@@ -41,6 +41,13 @@ case "${1:-}" in
       echo "rs_lma_0 TOL=1e-4 PROGRAM=$R/program_split.rds SPLIT=1"
     } | xargs -P 3 -L 1 bash -c 'one "$@"' _
     ;;
+  cost-loose)  # the loaded ladder's slowdown at 1e-3 and 3e-4, timed alone
+    for k in 1 2; do
+      for tol in 1e-3 3e-4; do
+        one "cost_plain_${tol}_$k" TOL=$tol; one "cost_split_${tol}_$k" TOL=$tol SPLIT=1
+      done
+    done
+    ;;
   diff)  # PLANT_LIB is the probe build (odelia sign-changes-diff)
     one diff_1e-4 TOL=1e-4 SPLIT=1
     Rscript -e "o <- readRDS('$R/diff_1e-4.rds'); saveRDS(list(st = data.frame(time = o\$stand\$times[-1], h = o\$stand\$sizes[-1])), '$R/program_diff.rds')"
@@ -48,5 +55,5 @@ case "${1:-}" in
       echo "diff_lma_$r TOL=1e-4 PROGRAM=$R/program_diff.rds LMA_REL=$r SPLIT=1"
     done | xargs -P 3 -L 1 bash -c 'one "$@"' _
     ;;
-  *) echo "usage: run.sh ladder|cost|replays|diff"; exit 1 ;;
+  *) echo "usage: run.sh ladder|cost|cost-loose|replays|diff"; exit 1 ;;
 esac
