@@ -1901,8 +1901,9 @@ jumps for the choices' own, and the residue for their sum. Neither holds.
   9239, 9675). From 1e-4 to 1e-5 it moves by +0.0165, 0.65ε; the step a decade
   falls about fourteenfold, so the sharp cutoff would sit about 0.018 (0.7ε)
   above 1e-4. So little of that can come from the crossings' own turn, which
-  lasts about 2e-7 years each; it must come from time spent with net
+  lasts about 2e-7 years each; it would have to come from time spent with net
   production near zero, where the smooth positive part keeps a node growing.
+  That is inferred, not measured.
 
 ## What the record supports, and what it does not
 
