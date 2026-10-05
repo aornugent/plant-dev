@@ -34,3 +34,16 @@ P6. The implicit function theorem's move leaves |f| at most a tenth of the
 P7. The stand's sweep costs at most 4 forwards and the invader's at most 3.5 of
     its walks, as at b = 1 (3.6 and 3.2). The five-invader sweep costs at least
     4 single-invader sweeps (no saving from batching invaders in one sweep).
+
+Extension: regnans's own root-finders (pre-registered 2026-10-05, after the
+secant and the iteration above had run and before these did). regnans offers
+nleqslv (Broyden, global "none", its starting Jacobian by its own differences)
+and dfsane on ln b, each with the target J/b - 1, at tol 1e-5 from b = 1.
+harness/regnans_solvers.R sources regnans's util_nlsolve.R and the target from
+R/community_demography.R at traitecoevo/regnans 56ad241, and drives them with
+the same runner and setting as above, stopping either after 25 runs. Run alone,
+after the runs above, by run_solvers.sh.
+
+P8. nleqslv reaches tol 1e-5 from b = 1 within 10 runs, the first (regnans's
+    check that the species is kept) included.
+P9. dfsane reaches tol 1e-5 from b = 1 within 15 runs.
