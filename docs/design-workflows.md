@@ -389,6 +389,40 @@ Measurements first: adaptive runs against replays at regnans's Jacobian step,
 `1e-3`, along the hyperparameterisation (the kill question); the cold secant from
 `b = 1e-3`; the five-invader sweep's cost once plant's fix lands (P7).
 
+## Curvatures as chords of sweeps
+
+The user asked whether differencing two sweeps suits regnans's workflow, after
+item 4 measured the rows (`grid-dynamics.md` §19). regnans already takes the
+convergence Jacobian as `util_jacobian`, central differences with Richardson
+over halved steps, of a selection gradient that is itself a difference at
+`1e-4`. Its mutant Hessian is `util_hessian`'s second differences at `1e-3` and
+`5e-4`, extrapolated (`R/util_gradient.R`, `R/singularity.R` at 56ad241).
+- *The fit:* both become `util_jacobian` of a swept gradient. The Hessian is the
+  chord of the invader's sweep on the singular resident's record, the Jacobian
+  the chord of the selection gradient's over moved residents. One function, and
+  every parameter's row comes with each.
+- *Measured on long drought at a fixed birth rate:* the selection gradient's row
+  moves 0.17ε from r = `1e-2` to `3e-2` and 0.02–0.04ε under the nudges. The
+  invader's repeats under the nudges, 0.01–0.03ε, but moves 2ε across r, since
+  its curvature runs from −161 to −197 over ±3% of `lma`. Its value at `1e-2`,
+  −193 ± 5, leaves the Hessian's sign unambiguous.
+- *The steps are the mismatch.* TF24's curvatures on a grid are stable from
+  about `1e-2`; at `1e-3` the split resident's second difference moves 0.47ε
+  (§17), and the invader's at `1e-3` is unmeasured. With sweeps the selection
+  gradient takes no step, and each chord is read at one r near `1e-2`, without
+  extrapolation across r.
+- *What regnans would need:* a gradient connector, which the toy harnesses
+  implement by differences; the sweep's gradient composed through the
+  hyperparameterisation, which plant owns; and the invader walked at a birth
+  rate of 1, where `J′ = R′`, since its mutants enter at 0.
+- *Its cost at k = 1:* a Hessian row by chords is two walks with their sweeps,
+  about 6 forwards, against five mutants in one walk, about 3.9. At k = 2 the
+  chords' four come to 11.9 against 17 mutants' 13.1, so from there they cost
+  less, and at any k they pay for an exact selection gradient and every
+  parameter's row. With `PLANT-95`'s walked-patch fix two invaders share one walk and
+  one sweep. The Jacobian's moved residents need their own equilibria either
+  way, and those dominate.
+
 ## The splits, against regnans, dust2 and the references
 
 The user asked whether regnans holds anything like the splits, how they

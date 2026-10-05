@@ -807,6 +807,23 @@ after the events reply):
    or more, where it costs about 0.05 of the curvature's ε; at `1e-3` it would
    cost half of it. With item 3 built, the gradient's own wobble is read at the
    fine grid's seventeen points.
+   - *Measured* (the sixteenth extension; `measurements/sign-changes/`
+     `curvature_rows.log`). Long drought at `1e-4`, `lma` alone, each row the
+     chord of two split gradients on one grid, its ε a tenth of its spread over
+     the eight records. The resident's `lma` entry, −43.46, matches its second
+     difference to 0.001 and moves 0.13ε from r = `1e-2` to `3e-2` and 0.06ε
+     under the nudges. Across the row 41 of 48 entries stay within ε/3 across r
+     and 42–46 under the nudges; seven entries with small spreads do not, up
+     to 3.7ε across r (`rooting_depth_max`) and 0.8ε under the nudges, so as
+     registered the row fails both.
+   - *The invader's row* repeats under the nudges, a median 0.01–0.03ε, but
+     not across r, a median 2ε: its curvature in `lma` runs from −161 to −197
+     over ±3% of it. An invader's row is read at one r.
+   - *The selection gradient's row over moved residents,* the convergence
+     Jacobian at a fixed birth rate, moves 0.17ε across r and 0.02–0.04ε under
+     the nudges, against the invader's ε as a stand-in. With the mutant
+     Hessian as the invader's row, both of regnans's classifying matrices are
+     chords of a swept gradient (`design-workflows.md`).
 5. *The soil stepped on its own where the plants draw little* (1e). On steps
    whose uptake is under 10% of the soil's budget, the soil is integrated on
    its own under an extrapolated uptake with a corrector pass, and the

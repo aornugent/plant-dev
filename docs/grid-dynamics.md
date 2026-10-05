@@ -2031,6 +2031,48 @@ extension; aornugent/plant#103, aornugent/odelia#54).
     within the runs' noise, and no function in the profiles carries the rest,
     up to 3%, beyond the 2% a sweep's speed moves between processes.
 
+## 19. Curvature rows from chords of split gradients
+
+**The question** (the design doc's item 4; the sixteenth extension in
+`measurements/sign-changes/prereg.txt`). A chord of two split gradients at
+`lma e^{±r}` on one grid gives a whole row of curvatures, `d e_k / d ln lma` for
+every elasticity `e_k`, for two gradient runs. Is each row stable across r and
+under the ±5% nudges, against the second difference of `ln J`? Asked of three
+rows: the resident's; the invader's, walked on the resident's record (the mutant
+Hessian's row); and the selection gradient's over moved residents (the
+convergence Jacobian's at a fixed birth rate). Long drought, 108 uniform nodes,
+`1e-4` tied, splits on, the build of the cure (`curvature_rows.log`). Each
+entry's ε is a tenth of its spread over the eight records of
+`measurements/eps-spread.md`.
+
+| row | `lma` at r = `1e-2` | at `3e-2` | across r: median, within ε/3 | under the nudges |
+|---|---|---|---|---|
+| resident | −43.459 (second difference −43.458) | −43.611 | 0.13ε, 41 of 48 | 0.06ε, 46 and 42 of 48 |
+| invader | −192.6 (second difference −196.5) | −182.8 | 1.97ε, 5 of 48 | 0.03 and 0.01ε, 47 and 46 of 48 |
+| selection gradient | −91.29 | −92.09 | 0.17ε, 46 of 48 | 0.02 and 0.04ε, 47 of 48 |
+
+- *The resident's `lma` entry is settled.* Its chord and second difference agree
+  to 0.001; before the splits they were 0.16 apart on this record
+  (`eps-spread.md`). Its curvature itself changes with `lma` (−35 to −52 between
+  neighbouring points over ±3%), symmetrically, so the chord at `3e-2` stays
+  within 0.13ε.
+- *Seven small entries of the resident's row move with r* (`rooting_depth_max`
+  3.7ε, `omega` 1.1ε, `a_d0` 0.87ε and four under 0.71ε), and six move with the
+  grid by under an eps (`a_dG1`, `a_d0`, `root_P50`, `recruitment_decay`,
+  `storage_relaxation_offset`, `a_st3`). The first kind repeat on the nudged
+  grids, so they bend over three percent of `lma`; the second vary with the
+  grid. Every one has a small spread over the eight records. Their carrier is
+  not traced.
+- *The invader's row repeats on any grid at one r, and depends on r.* Its
+  elasticity in `lma` steps by −161, −197, −188 and −195 per unit of `ln lma`
+  between the points at u = −0.03, −0.01, 0, 0.01 and 0.03. The gap between its
+  chord and second difference shrinks from 3.9 to 2.9 as r triples, so it is not
+  the chord's `O(r²)` term. So an invader's curvature is read at one r, about
+  `1e-2`, and not extrapolated across r.
+- *The selection gradient's row is smooth* across r and under the nudges. It is
+  the convergence Jacobian at a fixed birth rate; regnans's moves each resident
+  to its own equilibrium as well.
+
 ## What the record supports, and what it does not
 
 - *Supported: a gradient run's cost is its rows and its sweeps.* The walk and
