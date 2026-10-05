@@ -451,3 +451,39 @@ Result of the tenth extension (pair_birth.log): C1 and C2 hold. Between r = 0
   r = -4.8975e-4, moves ln J by +4.9e-11: at the lower end node 2 is cut at the
   step's end, u = 1, and at the upper end in neither step. In neither bracket
   does any other node step's split differ.
+
+Eleventh extension: one branch per side (2026-10-05, written before the build
+finished and before any run; branch.sh, branch.R, branch_odelia.patch,
+branch_plant.patch)
+  The user asked for one branch per side tested and weighed. In the probe, each
+  piece of a split node step evaluates the positive part of net production on
+  its own side of zero: P where the piece is positive, 0 where it is negative,
+  the first rating of the first piece included; the steps, the cuts and the end
+  keep the smooth positive part. The splits reply holds this is not a change to
+  the rates, of order 1e-10 in ln J, and that it removes the slower departure
+  for cut nodes. The seventh extension's width ladder suggests time near zero
+  matters more than that: from width 1e-4 to the sharp cutoff ln J would rise
+  by about 0.018, and a split node step's pieces cover its whole step.
+  The arms: the final build (smooth pieces) and the probe (branch pieces), each
+  replaying the split's pinned program at r = 0, +-1e-3, +-1e-2 and on the fine
+  grid r = k/32 1e-3, k = 2, 4, ..., 32; long drought, 108 nodes, 1e-4.
+  B1, the branch is not a change to the rates: ln J at r = 0 moves by at most
+     1e-8. Fails at 1e-6 or more, a move the size of the leaf solve's (#100).
+  B2, the branch removes the slower departure: on the fine grid, the residual
+     sd about each arm's own quadratic in r is at most a third of the smooth
+     arm's. Fails at two thirds or more.
+  Reported, not judged: each arm's value at r = 1e-3 less 1e-2 (the residue);
+  the cost, each arm's replay at r = 0 timed alone, alternating, two each.
+
+Result of the eleventh extension (branch.log): B1 and B2 fail. At r = 0 the
+  branch moves ln J by -1.542e-3 (J 12.64921241 against 12.66873622): the
+  opposite sign to the width ladder's extrapolation and about a twelfth of its
+  size, the branch being taken only in split node steps. On the fine grid the
+  branch's residual sd about its own quadratic is 6.1e-7 against the smooth
+  arm's 7.2e-8, 8.45 times as large, and its largest residual is -1.8e-6, at
+  k = 2. Its second difference in ln lma reads -51.55 at 1e-3 and -41.95 at
+  1e-2, a residue of -9.60 (8.2 eps), against the smooth arm's +0.63 (-42.82 and
+  -43.44). The two cost the same: 68 and 69 s smooth, 69 and 68 s branch. A
+  branch per side changes the rates a split node step takes, so J moves as a
+  node step passes between split and unsplit. The smooth positive part stays,
+  and the sweep routes each cut by the implicit function (item 3).

@@ -1,0 +1,45 @@
+diff -ru a/inst/include/plant/models/tf24_strategy.h b/inst/include/plant/models/tf24_strategy.h
+--- a/inst/include/plant/models/tf24_strategy.h	2026-10-04 23:15:22.000000000 +0000
++++ b/inst/include/plant/models/tf24_strategy.h	2026-10-05 00:51:37.382812823 +0000
+@@ -828,6 +828,9 @@
+   // The auxiliary at whose sign change the rates change form: net production,
+   // which the storage pool reads through its smooth positive part.
+   int sign_value_aux() const { return aux_idx_net_mass_production_dt; }
++  // Probe: the side of zero a split's piece lies on, 0 outside a piece.
++  static int& positive_part_side() { static int side = 0; return side; }
++  static void set_positive_part_side(int side) { positive_part_side() = side; }
+ 
+   std::vector<std::string> aux_names() {
+     std::vector<std::string> ret({
+@@ -1989,8 +1992,15 @@
+   const S G = 1.0 / (1.0 + exp(-(r - pars.a_st2) / storage_gate_width));
+   // Smooth positive part of net production (replaces the old hard net>0 cutoff).
+   const S P = net_mass_production_dt_;
+-  const S Ppos =
+-    0.5 * (P + sqrt(P * P + storage_prod_eps * storage_prod_eps));
++  // Probe: inside a split's piece the positive part takes its branch.
++  S Ppos;
++  if (positive_part_side() > 0) {
++    Ppos = P;
++  } else if (positive_part_side() < 0) {
++    Ppos = 0.0;
++  } else {
++    Ppos = 0.5 * (P + sqrt(P * P + storage_prod_eps * storage_prod_eps));
++  }
+   const S growth_flux = Ppos * G;
+ 
+   const S fraction_allocation_reproduction_ = fraction_allocation_reproduction(height);
+diff -ru a/inst/include/plant/patch.h b/inst/include/plant/patch.h
+--- a/inst/include/plant/patch.h	2026-10-04 23:15:22.000000000 +0000
++++ b/inst/include/plant/patch.h	2026-10-05 00:51:37.380825073 +0000
+@@ -287,6 +287,10 @@
+   // One node's rates and sign value in the field the state `y` builds.
+   double part_rates(size_t part, const std::vector<double>& y, double time,
+                     std::vector<double>& rates) requires NamesSignValue<T>;
++  // Probe: the side of zero the piece being rated lies on.
++  void set_piece_side(int side) requires NamesSignValue<T> {
++    T::set_positive_part_side(side);
++  }
+ 
+   // Returns state in structure format as opposed to single 
+   // vector as given by ode_state

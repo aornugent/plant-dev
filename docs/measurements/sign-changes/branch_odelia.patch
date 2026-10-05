@@ -1,0 +1,27 @@
+--- a/inst/include/odelia/ode_step.hpp	2026-10-04 23:43:09.000000000 +0000
++++ b/inst/include/odelia/ode_step.hpp	2026-10-05 00:51:37.363952099 +0000
+@@ -485,8 +485,12 @@
+         continue;
+       }
+       const double piece = (to - from) * h;
+-      // At the step's start the part's rates are the step's own first ones.
+-      if (from == 0.0) {
++      // Probe: each piece's ratings take the branch of its own side of zero, the
++      // first piece's first rating included.
++      if constexpr (requires { system.set_piece_side(0); }) {
++        system.set_piece_side(((c % 2 == 0) == negative) ? -1 : 1);
++        rate(p, from, &own, piece_rates[0]);
++      } else if (from == 0.0) {
+         std::copy(k[0].begin() + first,
+                   k[0].begin() + first + static_cast<std::ptrdiff_t>(width),
+                   piece_rates[0].begin());
+@@ -500,6 +504,9 @@
+       step_end(own, piece_rates, piece, own);
+       from = to;
+     }
++    if constexpr (requires { system.set_piece_side(0); }) {
++      system.set_piece_side(0);
++    }
+     std::copy(own.begin(), own.end(), y.begin() + first);
+   }
+ 
