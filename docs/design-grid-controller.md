@@ -591,8 +591,8 @@ after the events reply):
      differs between its ends, which the fine grid bounds at about 1.5e-3 and
      item 4's gate will measure. The gates "`J` moves by at most 1e-8 as a sign
      change passes" and "a pair merging is continuous" cannot be read on
-     replays whose own noise is 1.9e-8; toggling one choice at a fixed trait
-     would read them.
+     replays whose own noise is 1.9e-8. On the build without that noise they
+     are read by bisection (*Finished*, below).
    - *The cost* is a fixed 0.5–0.7 ms a node step split, 12.5% of plain at `1e-3`
      and 7% at `3e-4` and `1e-4`. 92% of it is part evaluations, each of which
      rebuilds the whole field, the boundary node's leaf solve included (39%).
