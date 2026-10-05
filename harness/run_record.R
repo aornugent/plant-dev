@@ -7,14 +7,15 @@
 #   PLANT_LIB=... [REGIME=long-drought] [SEED=...] [TOL=1e-4] [ATOL=1e-4] \
 #     [NODES=108] [SHIFT=0] [TIMES=times.rds] [FORWARD=1] [PROGRAM=driver.rds] \
 #     [WEIGHT_SOIL=10] [WEIGHT_ACC=10] [WEIGHT=weight.rds] [WEIGHT_MAX=100] \
-#     [HMAX=15] [METHOD=ark] [SPLIT=1] [LMA_REL=1e-2] OUT=run.rds \
+#     [HMAX=15] [METHOD=ark] [SPLIT=1] [LMA_REL=1e-2] [STAND_ONLY=1] OUT=run.rds \
 #     Rscript harness/run_record.R
 #
 # ATOL is the absolute tolerance over the relative one: 1e-4 ties it as step 2
 # decided, and 1 is plant's default. SHIFT moves every introduction after the
 # first by that fraction of the node spacing. SEED replaces the regime's own.
 # TIMES reads the introductions from a file in place of NODES and SHIFT, and
-# FORWARD runs the stand alone, with no gradient and no invader. PROGRAM takes
+# FORWARD runs the stand alone, with no gradient and no invader, and STAND_ONLY
+# the stand with its gradient and no invader. PROGRAM takes
 # the stand's steps from a harness/ark_prototype.R OUT file on the same record and
 # introductions, each at the size the driver accepted, in place of plant's control.
 # INVADERS walks more invaders after the stand's own, each trait=factor (comma-
@@ -42,6 +43,7 @@ nodes <- as.integer(Sys.getenv("NODES", "108"))
 shift <- as.numeric(Sys.getenv("SHIFT", "0"))
 times_file <- Sys.getenv("TIMES")
 forward <- Sys.getenv("FORWARD") == "1"
+stand_only <- Sys.getenv("STAND_ONLY") == "1"
 out_file <- Sys.getenv("OUT")
 
 scen <- sprintf("%s, seed %d", regime, seed)
@@ -189,7 +191,8 @@ if (!is.null(scm)) {
   if (!is.null(g)) out$stand <- c(out$stand, g,
                                   list(swept_clamps = soil_clamps(plant:::census_clamp_counts_differentiated_tf24)))
   save()
-  if (!forward && isTRUE(phase("invader_run", function() { scm$run_mutant(p); TRUE }))) {
+  if (!forward && !stand_only &&
+      isTRUE(phase("invader_run", function() { scm$run_mutant(p); TRUE }))) {
     out$invader <- list(J = sum(scm$offspring_production), nodes = per_node(scm))
     save()
     gi <- phase("invader_gradient", function() gradient_of(scm, p))
