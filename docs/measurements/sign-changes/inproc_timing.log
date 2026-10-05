@@ -1,0 +1,11 @@
+J: split 12.668736189484, plain 12.669143057139
+split's stand: 83.4 s, 76.3 s CPU, 444 MB
+plain's stand: 80.8 s, 73.6 s CPU, 748 MB
+sweep 1, split: 271.3 s, 240.9 s CPU, peak 897 MB, d J / d lma -327.6558122683
+sweep 2, plain: 259.0 s, 232.1 s CPU, peak 897 MB, d J / d lma -327.2897388378
+sweep 3, split: 274.6 s, 245.1 s CPU, peak 906 MB, d J / d lma -327.6558122683
+sweep 4, plain: 260.2 s, 234.5 s CPU, peak 906 MB, d J / d lma -327.2897388378
+sweep 5, split: 265.4 s, 242.1 s CPU, peak 906 MB, d J / d lma -327.6558122683
+sweep 6, plain: 246.9 s, 226.9 s CPU, peak 906 MB, d J / d lma -327.2897388378
+on secs: pairs +4.8%, +5.5%, +7.5%; their mean +5.9%, sd 1.4%; the means' ratio +5.9%
+on cpu_secs: pairs +3.8%, +4.5%, +6.7%; their mean +5.0%, sd 1.5%; the means' ratio +5.0%

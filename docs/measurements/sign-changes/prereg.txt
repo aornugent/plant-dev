@@ -672,3 +672,17 @@ inproc_timing.R)
   more in themselves, which the profile's attribution misses. Between, both.
   This places the extra and times no build: S5 for the build is the fourteenth
   extension's, and a cure is timed as that one was.
+
+Result of the fifteenth extension (inproc_timing.log, inproc_report.R):
+between the readings.
+  In one process the split's sweep took 271.3, 274.6 and 265.4 s against
+  plain's 259.0, 260.2 and 246.9 s: +5.9%, the pairs +4.8%, +5.5% and +7.5%.
+  In CPU time +5.0%, the pairs +3.8%, +4.5% and +6.7%. Each arm's J and d J /
+  d lma are the timed runs' to every digit.
+  The pairs spread 1.4%, so the mean is good to about 0.9%. In CPU time the
+  difference is the split's own work, 4.0% of plain's, to within that; in wall
+  time it lies between. Either way it agrees with the fourteenth extension's
+  +7.3% (CPU +6.8%) to within the two runs' noise, so neither reading holds:
+  the split's sweep costs its own work and up to about 3% more, which no
+  function in the back-to-back profiles carries beyond the 2% a sweep's speed
+  moves between processes. S5 for the build stays the fourteenth extension's.

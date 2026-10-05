@@ -47,3 +47,23 @@ Inline frames overlap these by about 8%. A plain sweep profiled beside it on
 the same build (prof_plain_grad) took 59108 samples against the split's 63690:
 the split's pieces and their reverse pass come to about 6600, and the main
 steps of the two arms differ by about 2000 either way between runs.
+
+The cure's build (odelia 1e5a2d7, plant 91098156), profiled back to back alone
+on one core (taskset -c 3; dev/p21/prof_ab_*), samples at 250 Hz:
+                                   the sweep   the pieces   the reverse pass
+  the split on its pinned program      66660         2132               9265
+  plain on the split's program         65013                            8995
+  plain on its own                     63483                            8753
+On the split's own stacks, of 2132:
+  the pieces' ratings                                    1447
+    each node's own rates                                1129
+      its leaf's outputs                                  860
+    the light field installed from the reads              234
+    the quartic through the reads                         175
+  the unsplit end rated again on the tape                 422
+  the five reads of the rest of the patch                 102
+  the cuts                                            about 130
+With the reverse pass through them, about a fifth more, the pieces come to about
+2560 samples: 3.8% of the split's sweep, 4.0% of plain's. Plain's two sweeps
+differ by 2.4% in every function alike, as do the split's main steps from
+either, so a sweep's speed moves by about 2% between processes.
