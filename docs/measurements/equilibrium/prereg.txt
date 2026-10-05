@@ -47,3 +47,13 @@ after the runs above, by run_solvers.sh.
 P8. nleqslv reaches tol 1e-5 from b = 1 within 10 runs, the first (regnans's
     check that the species is kept) included.
 P9. dfsane reaches tol 1e-5 from b = 1 within 15 runs.
+
+Extension: the stand at b* replayed on its own program (pre-registered with the
+root-finders, before either ran). harness/equilibrium_replay.R runs the stand at
+b* adaptively, replays its recorded program (p$ode_times with p$ode_step_sizes)
+at b*, then runs lma moved by 1% alone both ways, at b* held.
+
+P10. The replay at b* costs at most 0.85 of the adaptive run and reproduces its
+     J to 1e-12 relative.
+P11. At lma x 1.01 the replay's ln J and the adaptive run's differ by less than
+     a tenth of epsilon/3 (8.4e-4): one grid serves a 1% move at b*.
