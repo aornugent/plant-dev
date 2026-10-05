@@ -728,18 +728,34 @@ after the events reply):
      the slope below puts the sweep 2.1e-5 off, about 2.5e-6 of it, patch
      survival's time. With the cuts held it is 7.5e-3 off. The sweep costs
      14.7% more than plain's (254 and 254 s against 217 and 226 s; S5 fails):
-     8.3% of it is the split's pieces, 90% of that the field each piece rating
-     rebuilds on the tape. A part rating that rebuilds only what it reads,
-     left from item 2, is the cure for both. The forward recording for a sweep
+     8.3% of it is the split's pieces. Read again on the split's own stacks,
+     half of that is the light field each piece rating rebuilds on the tape, a
+     quarter the whole state's dense output and its copy into the patch, and a
+     quarter the node's own rates; the 90% first recorded counted the forward's
+     field builds and the main steps' too. The forward recording for a sweep
      costs 4.6% more than `PLANT-102`'s, and nothing more where it keeps no
      rows; the profile puts the extra in the main steps' leaf solves beside the
      kept split records, by a route not traced.
+   - *The cure* (the thirteenth extension). Rebuilding only the knots a rating
+     reads leaves the whole state and the reduction over every node: about 1.4×
+     on the pieces, short of S5. So a split step reads the rest of the patch
+     once at five fractions of the step on the dense output, u = 0, ¼, ½, ¾ and 1:
+     the light field's knot data and the soil's state, which are all a node's
+     rates read of it. Each rating reads the quartic through the five at its own
+     u, with its own components in place.
+     - The soil's state is a quartic in u on the dense output, so it is read as
+       before, to roundoff. The light field is read to fifth order in the step,
+       the dense output's own, and a node's own shade no longer follows its
+       pieces within the step.
+     - The forward and the sweep read the same, so the sweep stays the run's
+       derivative, and a rating costs the node's own rates and a quartic.
    *The design of items 2 and 3.* One commitment: odelia does the arithmetic and
    plant names the parts.
    - *odelia.* A System that satisfies `SplitsSignChanges` supplies three
      things: the sign value of each part after an evaluation (for TF24, each
      node's net production), the width of a part, whose parts open the state,
-     and one part's rates and sign value at a given state. Only a double System
+     and what a part reads of the rest of a state with one part's rates and
+     sign value from its own components and those reads. Only a double System
      splits.
    - The solver splits each step its error estimate keeps, and every pinned
      step, before the end rate is handed on and the row recorded. It compares
@@ -756,8 +772,8 @@ after the events reply):
      auxiliary its rates change form at (TF24's net production), and names its
      nodes as parts when `ode_split_sign_changes` is on: a node's components are
      where `ode_state` writes them, and a part's rates are that node's alone, in
-     the field the dense output's state builds with the part's own components
-     spliced in. An evaluation in a recorded field names none, so invasions stay
+     the light field and soil a split step reads at its five fractions. An
+     evaluation in a recorded field names none, so invasions stay
      unsplit. `ode_splits` counts the node steps a run split. The tangent
      walks refuse a run that split; the sweep follows it (item 3).
    - *Recorded:* nothing new for item 2, since replays split again and

@@ -30,3 +30,20 @@ The split's sweep took 254 and 254 s against plain's 217 and 226 s, +14.7%.
 Each piece rating rebuilds the whole light field on the tape and the reverse
 pass walks it again, which is the part rating's rebuild the forward's own
 finish left (the design doc's item 2, *a part rebuilds only what it reads*).
+
+Corrected (the thirteenth extension). The counts above under the split are the
+whole profile's, so compute_environment's 4720 holds the forward's field builds
+(374) and the main steps' on the tape (1872) beside the pieces' (2474). On the
+split's own stacks (--focus=taped_split), of 5256:
+  the unsplit end rated again on the tape                 339
+  the pieces (integrate_pieces)                          4527
+    their ratings (Patch::part_rates)                    4051
+      the light field rebuilt                            2452
+      the state copied into the patch                     417
+      the node's own rates, its leaf's outputs among them 1165
+    the whole state's dense output                        838
+  the cuts' ratings                                       about 390
+Inline frames overlap these by about 8%. A plain sweep profiled beside it on
+the same build (prof_plain_grad) took 59108 samples against the split's 63690:
+the split's pieces and their reverse pass come to about 6600, and the main
+steps of the two arms differ by about 2000 either way between runs.

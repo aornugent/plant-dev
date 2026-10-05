@@ -545,3 +545,46 @@ Result of the twelfth extension (sweep_gates.log, sweep_profile.txt): S4 holds
   comes with the kept split records, by a route not traced.
   Split against plain, the elasticities differ by up to 1.1e-2 (a_dG1, -0.304
   against -0.292); lma by -9.5e-3 (0.11 eps), a_dG2 by +3.6e-3 (0.19 eps).
+
+Thirteenth extension: a part reads the rest of the patch at five fractions of
+the step (2026-10-05, written after the build and its tests, and before any run
+on the 40-year stand; reads_gates.sh, reads_gates.R)
+  The cure for S5. The twelfth extension's profile, read again on the split's
+  own stacks (sweep_profile.txt, corrected), puts about half the pieces' taped
+  cost in the light field each rating rebuilds, a quarter in the whole state's
+  dense output and its copy into the patch, and a quarter in the node's own
+  rates. The 90% first recorded counted the forward's field builds and the main
+  steps' too. Rebuilding only the knots a rating reads would keep the whole state
+  and the reduction over every node: about 1.4x on the pieces, short of S5.
+  The build: odelia ODELIA-54 (1e5a2d7) and plant PLANT-103 (91098156), with
+  phylloptim PHYLLOPTIM-17 (6b6f152). A split step reads what the parts read of
+  the rest of the state, the light field's knot data and the soil's state, once
+  at u = 0, 1/4, 1/2, 3/4 and 1 on the dense output, and each rating reads the
+  quartic through the five at its own u, with the part's own components. The
+  soil's state is a quartic in u on the dense output, so it is read as before,
+  to roundoff; the light field to fifth order in the step; and a node's own
+  shade no longer follows its pieces within the step. The forward and the sweep
+  read the same, so the sweep stays the run's derivative. The previous build,
+  PREV, is odelia 373f5b9 and plant 4f45b702 (lib_sw).
+  Arms (long drought, seed 31, 108 nodes, 1e-4, the tied tolerance): the build's
+  forward on the split's pinned program, PREV's, and plain's on its own, two
+  each (timed, alone, alternating); the build's sweep on the split's program and
+  plain's on its own, three each (timed, alone, alternating); the build's sweep
+  at r = 1e-3 and forward replays at r = +-1e-6 and 1e-3 +-1e-6 (central
+  differences in lma of 1e-6 of it); adaptive runs of the build and PREV at 1e-3
+  and 3e-4.
+  R1, the split's J barely moves: on the pinned program at r = 0, |ln J - ln J
+     of PREV| at most 1e-8. Fails above 1e-7.
+  R2, its accuracy holds: on adaptive runs at 1e-3 and 3e-4, |ln J - ln J of
+     PREV| under a tenth of the split's error against the reference there
+     (1.03e-4 and 2.05e-5, grid-dynamics §18). Fails above a half.
+  S4, as registered: the sweep's elasticity of J in lma against the central
+     difference's, at r = 0 and 1e-3, within 2e-3. Expected near 1e-5, patch
+     survival's time, as before.
+  S5, as registered, now three each: the sweep at most 6% over plain's. Fails
+     at 9% or more. Expected 4-5%: the pieces' taped cost falls to about a third,
+     most of what is left the node's own rates.
+  F, the forward at most 4% over plain's, the share item 2 registered for after
+     the rebuilds. Fails above 6%. Expected 2-3%.
+  Reported, not judged: the forward against PREV's and the node steps split;
+  every trait's elasticity, split against plain; the adaptive runs' steps.
