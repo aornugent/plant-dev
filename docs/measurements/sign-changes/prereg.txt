@@ -588,3 +588,50 @@ on the 40-year stand; reads_gates.sh, reads_gates.R)
      the rebuilds. Fails above 6%. Expected 2-3%.
   Reported, not judged: the forward against PREV's and the node steps split;
   every trait's elasticity, split against plain; the adaptive runs' steps.
+
+Result of the thirteenth extension (reads_gates.log; sweep_profile.txt's
+profiles): R1, R2 and S4 hold, S5 is neither and F fails.
+  R1: on the split's pinned program J is 12.668736189484 against PREV's
+  12.668736220509, -2.45e-9 in ln J, with the same 9247 node steps split. R2: on
+  adaptive runs ln J moves by -1.80e-8 at 1e-3 and -2.24e-8 at 3e-4, on the same
+  10999 and 12751 steps. S4: the sweep's elasticity in lma, -8.276268316 against
+  PREV's -8.276268027, lies -2.68e-4 and +1.77e-5 from central differences at
+  r = 0 and 1e-3, as before.
+  S5: the sweep took 281.3, 291.6 and 277.9 s against plain's 258.9, 272.1 and
+  267.7 s, +6.5%: neither. Each arm's own runs spread 5% on this machine, so
+  three each leave about 2% on the mean.
+  F: the forward took 81.3 and 83.4 s against plain's 76.2 and 78.4 s, +6.5%:
+  fails. At double a rating's cost is the node's own leaf solve, 62% of the
+  split's forward in the twelfth extension's profile against the light field's
+  18%, and this build leaves the solve as it was.
+  Profiled on the same stand (prof_rr_grad): the split's own work on the tape is
+  2020 samples of 66329 in the sweep, 3.0%, against 5256 of 63687 (8.3%). Of it
+  the node's rates are 1049 (its leaf's outputs 803), the unsplit end rated again
+  411, installing the light field 239, the quartic 162 and the five reads 98.
+  The reverse pass adds about 1000 over plain's, which puts the split at about
+  4.6% of plain's sweep.
+  PREV's arms first ran on a library holding no split (dev/lib_sw, built
+  2026-10-03), whose runs split nothing; R1 and R2 come from the arms run again
+  on PLANT-103's (dev/p21/lib_sw). PREV's timed forwards are the fourteenth
+  extension's.
+
+Fourteenth extension: the split's costs timed again on one core (2026-10-05,
+written after the thirteenth extension's runs and before any of these;
+reads_timing.sh, reads_timing.R)
+  Why: S5 read neither at +6.5% with each arm's runs spread 5%, the profile puts
+  the split at about 4.6% of plain's sweep, and F failed with PREV's forward
+  untimed on this machine.
+  The builds of the thirteenth extension, LIB and PREV (dev/p21/lib_sw). Every
+  run alone on one core (taskset -c 3), the arms alternating; each phase reports
+  its CPU time beside its wall time (harness/run_record.R).
+  Arms: the build's forward on the split's pinned program, PREV's, and plain's
+  on its own, two each; the build's sweep on the split's program and plain's on
+  its own, six each.
+  S5, as registered, on the wall time of six each: the sweep at most 6% over
+  plain's; fails at 9% or more. Expected 4-5%. Reported: the ratio in CPU time,
+  and each alternating pair's ratio with their spread.
+  F, as registered in the thirteenth extension: at most 4%, failing above 6%.
+  Expected 5-7%, since the forward's ratings still solve the leaf. Reported:
+  PREV's forward against plain's.
+  This is the last timing of item 3's cost: what S5 reads here is item 3's
+  result.

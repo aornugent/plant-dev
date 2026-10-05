@@ -106,6 +106,7 @@ if (Sys.getenv("SPLIT") == "1") ct$ode_split_sign_changes <- TRUE
 ev <- events(events_default(p), pulse_rows(sort(unique(knots))))
 
 clock <- function() proc.time()[["elapsed"]]
+cpu <- function() sum(proc.time()[c("user.self", "sys.self")])
 peak_mb <- function() {
   l <- grep("^VmHWM", readLines("/proc/self/status"), value = TRUE)
   as.numeric(gsub("[^0-9]", "", l)) / 1024
@@ -128,11 +129,13 @@ save <- function() if (nzchar(out_file)) saveRDS(out, out_file)
 # raised.
 phase <- function(name, f) {
   t0 <- clock()
+  c0 <- cpu()
   v <- tryCatch(f(), error = function(e) {
     out$failures[[name]] <<- conditionMessage(e)
     NULL
   })
-  out$phases[[name]] <<- list(secs = clock() - t0, peak_mb = peak_mb(), ok = !is.null(v))
+  out$phases[[name]] <<- list(secs = clock() - t0, cpu_secs = cpu() - c0,
+                              peak_mb = peak_mb(), ok = !is.null(v))
   save()
   v
 }
