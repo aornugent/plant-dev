@@ -686,3 +686,49 @@ between the readings.
   the split's sweep costs its own work and up to about 3% more, which no
   function in the back-to-back profiles carries beyond the 2% a sweep's speed
   moves between processes. S5 for the build stays the fourteenth extension's.
+
+Sixteenth extension: curvatures from chords of split gradients (item 4): the
+resident's row, the invader's, and the selection gradient's over moved
+residents (2026-10-05, written before any of these runs; curvature_rows.sh,
+curvature_rows.R)
+  Why: item 4's gate, and regnans, whose classification reads the mutant
+  Hessian and the convergence Jacobian, rows of the same kind. plant needs
+  nothing new for them: a pinned program, the stand's sweep and a walked
+  invader's.
+  The build of the thirteenth extension (LIB). Long drought, seed 31, 108
+  uniform nodes, the tied tolerance, splits on; lma alone moved to
+  theta0 e^{+-D}, not through the hyperparameterisation; the harness's birth
+  rate. Three grids: the programs of the build's adaptive split runs at tol
+  1e-4 (G0), 0.95e-4 and 1.05e-4 (the nudges). On G0, for D = 1e-2 and 3e-2:
+  the stand at theta0 e^{+-D}, each with its gradient and its own invader's;
+  and the stand at theta0 hosting invaders at theta0 e^{+-D} and at its own
+  traits, each with its gradient. On each nudged grid the same at D = 1e-2.
+  Run four at a time; nothing here is timed.
+  Rows, each d e_k / d ln lma over the 50 parameters, by (e_k(+D) - e_k(-D)) / 2D:
+    the resident's, from the moved stands' own gradients;
+    the invader's, from the invaders walked on the stand at theta0;
+    the selection gradient's, from each moved stand's own invader: the
+    convergence Jacobian at a fixed birth rate.
+  Each entry's eps is a tenth of its spread over eps-spread.md's eight records
+  (PLANT-98, D = 1e-2; dev/curv/spread_resident.rds, spread_invader.rds).
+  Entries the same on every record (S_D, a_f3) take none and are reported. The
+  selection gradient's row has no spread of its own: the invader's row's eps
+  stands in.
+  S6, the check: each row's lma entry at D = 1e-2 within eps/3 of the second
+  difference of ln J (the resident's) or ln J' (the invader's) over the same
+  three points.
+  S7, across D: every entry at 1e-2 within eps/3 of its value at 3e-2.
+  S8, the nudges: every entry at 1e-2 on each nudged grid within eps/3 of G0's.
+  Each holds when every entry with an eps passes, and fails otherwise, listing
+  the entries that do not, in eps.
+  Item 4 asks S6 to S8 of the resident's row. Expected: they hold, since the
+  splits make J smooth on a grid (grid-dynamics.md section 17).
+  The invader's walks stay unsplit, so its gradient jumps where a crossing
+  passes a stage, and a chord at 1e-2 spans many. Expected: S6 to S8 hold for
+  most entries. Before the splits its lma chord and second difference differed
+  by 2 eps at seed 31 (eps-spread.md), the first thing to read.
+  The selection gradient's row: S7 and S8 against the stand-in, reported, not
+  held.
+  Reported besides: each row at both D; for lma the second difference and the
+  combination 2 (ln J)'' - chord, which cancels the O(D^2) terms; the invader
+  at theta0 against the stand.
