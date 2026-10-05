@@ -1996,11 +1996,40 @@ extension; aornugent/plant#103, aornugent/odelia#54).
   0.19ε.
 - *The cost* (`sweep_profile.txt`). The split's sweep costs 14.7% more than
   plain's, against the 6% item 3 allows: 8.3% of the sweep is the split's
-  pieces, 90% of that the field each piece rating rebuilds on the tape, which
-  the reverse pass walks again. The forward recording for a sweep costs 4.6%
-  more than `PLANT-102`'s and nothing more where it keeps no rows. Its profile
-  puts the extra in the main steps' leaf solves beside the kept split records,
-  by a route not traced.
+  pieces. Read on their own stacks, half of that is the light field each piece
+  rating rebuilds on the tape, a quarter the whole state's dense output and its
+  copy into the patch, and a quarter the node's own rates; the 90% first
+  recorded counted the forward's field builds and the main steps' too. The
+  forward recording for a sweep costs 4.6% more than `PLANT-102`'s and nothing
+  more where it keeps no rows. Its profile puts the extra in the main steps'
+  leaf solves beside the kept split records, by a route not traced.
+- *The cure: the rest of the patch read at five fractions of the step* (the
+  thirteenth extension; `reads_gates.log`). Rebuilding only the knots a rating
+  reads would have left the state and the reduction over every node, about
+  1.4×.
+  - *What changed.* A split step reads what a node's rates read of the rest of
+    the patch, the light field's knot data and the soil's state, once at
+    u = 0, ¼, ½, ¾ and 1 on the dense output; each rating reads the quartic
+    through the five at its own u, with its own components. The soil's state is
+    a quartic on the dense output and comes back to roundoff; the light field is
+    read to the dense output's own order.
+  - *What it moved.* `ln J` by −2.4e-9 on the split's pinned program, and by
+    about −2e-8 on adaptive runs at `1e-3` and `3e-4`, on the same steps. The
+    sweep's elasticity in `lma` by −2.9e-7; S4 reads as before.
+  - *What it cost* (the fourteenth and fifteenth extensions;
+    `reads_timing.log`, `inproc_timing.log`, `sweep_profile.txt`). Alone on one
+    core and alternating, the sweep costs 7.3% more than plain's, six of each,
+    the pairs +4.2% to +9.2% (CPU time +6.8%): neither, as registered. The
+    forward costs 6.0% more, against 8.7% before. On the split's own stacks the
+    pieces take 3.2% of the sweep, about 3.8% with their reverse pass, which is
+    4.0% of plain's: their ratings two thirds of it, each node's own rates with
+    its leaf's outputs most of them; the unsplit end rated again on the tape a
+    fifth; the reads and the field installed from them the rest. That is about
+    what the method needs, twelve ratings a split part, the end rated again and
+    five reads a split step. Swept alternately in one process the two differ by
+    5.9% (CPU 5.0%), which agrees with both the 7.3% and the pieces' own 4.0%
+    within the runs' noise, and no function in the profiles carries the rest,
+    up to 3%, beyond the 2% a sweep's speed moves between processes.
 
 ## What the record supports, and what it does not
 

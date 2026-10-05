@@ -749,6 +749,18 @@ after the events reply):
        pieces within the step.
      - The forward and the sweep read the same, so the sweep stays the run's
        derivative, and a rating costs the node's own rates and a quartic.
+     - *Measured* (the thirteenth to fifteenth extensions; `reads_gates.log`,
+       `reads_timing.log`, `inproc_timing.log`). `ln J` moves by −2.4e-9 on
+       the split's pinned program and by about −2e-8 on adaptive runs at
+       `1e-3` and `3e-4`, which take the same steps; S4 holds as before. Alone
+       on one core and alternating, the sweep costs 7.3% more than plain's
+       (six each; CPU time +6.8%), so S5 reads neither, and the forward 6.0%
+       more, against 8.7% before. The pieces with their reverse pass are 4.0%
+       of plain's sweep, about what the method needs: twelve ratings a split
+       part, the end rated again and five reads a split step. Swept
+       alternately in one process the two differ by 5.9% (CPU 5.0%), which
+       agrees with both within the runs' noise; what carries the rest, up to
+       3%, is not placed.
    *The design of items 2 and 3.* One commitment: odelia does the arithmetic and
    plant names the parts.
    - *odelia.* A System that satisfies `SplitsSignChanges` supplies three
