@@ -1,0 +1,22 @@
+--- a/inst/include/odelia/ode_step.hpp
++++ b/inst/include/odelia/ode_step.hpp
+@@ -10,6 +10,7 @@
+ #include <utility>
+ #include <vector>
+ #include <cstddef>
++#include <cstdlib>
+ #include <XAD/XAD.hpp>
+ #include <odelia/adjoint.hpp>
+ #include <odelia/implicit_node.hpp>
+@@ -653,6 +654,11 @@
+     for (const part_split<solved_values>& part : solved.parts) {
+       std::vector<S> cuts;
+       for (std::size_t c = 0; c < part.cuts.size(); ++c) {
++        // Probe: PROBE_FROZEN=1 holds each cut where the run put it.
++        if (const char* held = std::getenv("PROBE_FROZEN"); held != nullptr && held[0] == '1') {
++          cuts.push_back(S(part.cuts[c]));
++          continue;
++        }
+         cuts.push_back(implicit_value<S>(
+             part.cuts[c], part.slopes[c], [&](const S& u) -> S {
+               dense_state(u, h, y0, k, end_rate, state);

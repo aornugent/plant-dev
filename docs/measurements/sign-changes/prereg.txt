@@ -487,3 +487,40 @@ Result of the eleventh extension (branch.log): B1 and B2 fail. At r = 0 the
   branch per side changes the rates a split node step takes, so J moves as a
   node step passes between split and unsplit. The smooth positive part stays,
   and the sweep routes each cut by the implicit function (item 3).
+
+Twelfth extension: the sweep through split steps (2026-10-05, written after the
+sweep's build and the probes that found its time term, and before any run on the
+40-year stand; sweep_gates.sh, sweep_gates.R, sweep_frozen.patch)
+  The build: odelia ODELIA-54 (373f5b9) and plant PLANT-103 (4f45b702), over
+  ODELIA-53 and PLANT-102 with phylloptim PHYLLOPTIM-17. The sweep tapes each
+  split node step's pieces at the ratings the run recorded. Each cut enters by
+  odelia's implicit node, minus the sign value's sensitivity over its rate of
+  change in the fraction of the step, a central difference of 1e-5 of the step
+  on the dense output. The stage times are held where the run rated them (the
+  user's choice, after the probes below).
+  Seen before registering, on 8 years of long drought (91 nodes, 3098 node steps
+  split), against central differences of lma that agree to 1e-9 from 1e-6 to
+  3e-8: the sweep was -1.17e-5 off with the cuts routed, +8.9e-9 with each piece
+  rating's derivative in time added, and -5.9e-3 with the cuts held. On
+  test-scm.R's dim season, whose light varies in time: 1.8e-3 routed and 2.6e-9
+  with the time term. On three years of seasonal rain without patch survival:
+  5.1e-9, the test's stand. Under constant rain 2.4e-7, where the unsplit sweep
+  is 3.6e-7 off.
+  Arms (long drought, seed 31, 108 nodes, 1e-4, the tied tolerance, STAND_ONLY):
+  the build's stand replaying the split's pinned program at r = 0 with its
+  sweep, twice (timed), and at r = 1e-3 with its sweep; forward replays at
+  r = +-1e-6 and 1e-3 +-1e-6, central differences in lma of 1e-6 of it; plain
+  replaying plain's pinned program at r = 0 with its sweep, twice (timed,
+  alternating with the build's); the build without the sweep's record
+  (PLANT-102 over ODELIA-53) replaying the split's program forward only, twice
+  (timed, alternating with the build's forward); and the probe
+  (sweep_frozen.patch) at r = 0 with the cuts held.
+  S4, the sweep is the derivative of the run: its elasticity of J in lma against
+     the central difference's, at r = 0 and at 1e-3, within 2e-3 (item 3's
+     gate). Expected near 1e-5 of the elasticity, patch survival's time. Fails
+     above 2e-3.
+  S5, the sweep through the splits costs at most 6% more than plain's (the
+     stand_gradient phase, alone, alternating, two each). Fails at 9% or more.
+  Reported, not judged: the held cuts' elasticity against the routed; the
+  forward's cost against PLANT-102's, the record and the cut slopes; every
+  trait's elasticity, split against plain.
