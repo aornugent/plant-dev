@@ -1,5 +1,6 @@
 # The invader at the stand's own traits, walked on the stand's recorded run at a
-# birth rate of 1, against the stand's own J / b, with splits off and on.
+# birth rate of 1, against the stand's own J / b, with splits off and on; then at
+# a birth rate of 0, as regnans walks its mutants, read per capita.
 #
 #   PLANT_LIB=... B=4.659319023 [TOL=1e-4] [ATOL=1e-4] [NODES=108] OUT=walk.rds \
 #     Rscript harness/walk_identity.R
@@ -34,9 +35,15 @@ for (split in c(FALSE, TRUE)) {
   splits <- scm$ode_splits
   scm$run_mutant(stand(1))
   Jw <- sum(scm$offspring_production)
+  scm$run_mutant(stand(0))
+  R0 <- scm$net_reproduction_ratios
+  J0 <- sum(scm$offspring_production)
   key <- if (split) "split" else "plain"
-  out[[key]] <- list(R = R, walked = Jw, gap = Jw / R - 1, splits = splits)
+  out[[key]] <- list(R = R, walked = Jw, gap = Jw / R - 1, splits = splits,
+                     walked_at_0 = R0, offspring_at_0 = J0)
   if (nzchar(out_file)) saveRDS(out, out_file)
   cat(sprintf("%-6s J/b %.12f  walked J' %.12f  gap %+.3e  (%d node steps split)\n",
               key, R, Jw, Jw / R - 1, splits))
+  cat(sprintf("       at birth rate 0: R' %.12f (%+.3e from J' at 1), offspring %g\n",
+              R0, R0 / Jw - 1, J0))
 }
