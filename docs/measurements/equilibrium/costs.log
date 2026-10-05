@@ -1,0 +1,13 @@
+forward 91 s; walk 0.77, invader sweep 2.21, stand sweep 2.88, replay 0.82 forwards; m 0.762
+            k = 1 k = 2
+regnans     529.6 860.4
+floor        79.6 161.4
+grid         73.7 151.2
+grid_sweeps  85.0 132.9
+
+hours at 91 s a forward:
+            k = 1 k = 2
+regnans      13.3  21.6
+floor         2.0   4.1
+grid          1.9   3.8
+grid_sweeps   2.1   3.3

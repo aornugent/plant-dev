@@ -1,0 +1,4 @@
+plain  J/b 0.999945976417  walked J' 0.999945976417  gap +6.661e-16  (0 node steps split)
+       at birth rate 0: R' 0.999945976417 (+0.000e+00 from J' at 1), offspring 0
+split  J/b 1.000000053858  walked J' 0.999923935067  gap -7.612e-05  (10841 node steps split)
+       at birth rate 0: R' 0.999923935067 (+0.000e+00 from J' at 1), offspring 0

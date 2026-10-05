@@ -1,0 +1,76 @@
+diff --git a/inst/include/plant/patch.h b/inst/include/plant/patch.h
+index c697853c..d5af981e 100644
+--- a/inst/include/plant/patch.h
++++ b/inst/include/plant/patch.h
+@@ -398,7 +398,9 @@ public:
+   void r_compute_environment() {compute_environment();}
+ 
+   void add_strategies(std::vector<strategy_type> strategies);
+-  void overwrite_strategies(std::vector<strategy_type> strategies);
++  // Take another community's parameters whole, as an invasion does: a patch whose
++  // species and parameters disagree rebinds to one its own validation refuses.
++  void overwrite_parameters(parameters_type p);
+ 
+ private:
+   // A patch whose species take the prepared strategies given, rather than
+@@ -583,9 +585,12 @@ Patch<T2,E2> Patch<T,E>::rebind_from() const {
+ }
+ 
+ template <typename T, typename E>
+-void Patch<T,E>::overwrite_strategies(std::vector<strategy_type> strategies) {
++void Patch<T,E>::overwrite_parameters(parameters_type p) {
++  parameters = p;
++  parameters.validate();
++  survival_weighting = parameters.disturbance;
+   species.clear();
+-  add_strategies(strategies);
++  add_strategies(parameters.strategies);
+ }
+ 
+ template <typename T, typename E>
+diff --git a/inst/include/plant/scm.h b/inst/include/plant/scm.h
+index d0fb90df..68d01445 100644
+--- a/inst/include/plant/scm.h
++++ b/inst/include/plant/scm.h
+@@ -813,7 +813,7 @@ void SCM<T, E>::run_mutant(parameters_type p) {
+     }
+   }
+   parameters = p;
+-  patch.overwrite_strategies(parameters.strategies);
++  patch.overwrite_parameters(parameters);
+   node_schedule = NodeSchedule(parameters.size());
+   node_schedule.r_set_max_time(parameters.max_patch_lifetime);
+   node_schedule.set_all_events(events);
+diff --git a/tests/testthat/test-scm.R b/tests/testthat/test-scm.R
+index be527f7d..397fa242 100644
+--- a/tests/testthat/test-scm.R
++++ b/tests/testthat/test-scm.R
+@@ -581,6 +581,28 @@ test_that("The sweep through a split run is the derivative of its map", {
+                tolerance = 1e-6)
+ })
+ 
++test_that("A sweep after a walk of several invaders gives each its own gradient", {
++  ## Invaders do not interact, so one sweep of their summed census gives each
++  ## invader's columns the gradient it has when walked alone.
++  p0 <- scm_base_parameters("TF24", "TF24_Env")
++  p0$max_patch_lifetime <- 1
++  p <- add_strategies(p0, trait_matrix(0.1978791, "lma"))
++  scm <- run_scm(p, NULL, Control(node_density_in_birth_date = TRUE),
++                 record_trajectory = TRUE)
++  invaders <- add_strategies(p0, trait_matrix(0.1978791 * c(0.9, 1.1), "lma"),
++                             birth_rate = c(1, 1))
++  scm$run_mutant(invaders)
++  both <- census_trait_gradient_tf24(scm, "offspring_production")$gradient[[1]]
++  alone <- unlist(lapply(1:2, function(i) {
++    q <- invaders
++    q$strategies <- q$strategies[i]
++    q$node_schedule_times <- q$node_schedule_times[i]
++    scm$run_mutant(q)
++    census_trait_gradient_tf24(scm, "offspring_production")$gradient[[1]]
++  }))
++  expect_equal(both, alone, tolerance = 1e-12)
++})
++
+ test_that("store_trajectory records one state per instruction", {
+   for (x in names(strategy_types)) {
+     e <- environment_types[[x]]

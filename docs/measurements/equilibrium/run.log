@@ -1,0 +1,17 @@
+secant   b 1  J 12.6687372  ln J - ln b +2.539e+00  86 s  14845 steps  9247 splits
+secant   b 12.6687372  J 2.006898209  ln J - ln b -1.843e+00  91 s  15085 steps  11926 splits
+secant   b 4.355336354  J 4.901572395  ln J - ln b +1.182e-01  89 s  14969 steps  10731 splits
+secant   b 4.644783976  J 4.670334795  ln J - ln b +5.486e-03  88 s  14981 steps  10836 splits
+secant   b 4.65935846  J 4.659289217  ln J - ln b -1.486e-05  87 s  14974 steps  10841 splits
+secant   b 4.659319023  J 4.659319274  ln J - ln b +5.381e-08  88 s  14972 steps  10841 splits
+fixed    b 2.006898209  J 8.368428031  ln J - ln b +1.428e+00  88 s  14884 steps  9973 splits
+fixed    b 8.368428031  J 2.891781915  ln J - ln b -1.063e+00  90 s  15031 steps  11437 splits
+fixed    b 2.891781915  J 6.565438192  ln J - ln b +8.199e-01  87 s  14945 steps  10286 splits
+fixed    b 6.565438192  J 3.551783662  ln J - ln b -6.144e-01  88 s  15013 steps  11207 splits
+fixed    b 3.551783662  J 5.686570896  ln J - ln b +4.707e-01  85 s  14960 steps  10495 splits
+fixed    b 5.686570896  J 3.990643214  ln J - ln b -3.542e-01  90 s  14981 steps  11092 splits
+[1] TRUE
+b_star   b 4.659319023  J 4.659319274  ln J - ln b +5.381e-08  91 s  14972 steps  10841 splits
+ift_held b 4.659319023  J 4.208370898  ln J - ln b -1.018e-01  90 s  14984 steps  10730 splits
+ift_moved b 4.40439732  J 4.393313481  ln J - ln b -2.520e-03  92 s  14954 steps  10656 splits
+[1] TRUE

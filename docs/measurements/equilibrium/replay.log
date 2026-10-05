@@ -1,0 +1,4 @@
+adaptive         lma x 1.00  J 4.65931927394  90 s  14972 steps  18433 attempts
+replay           lma x 1.00  J 4.65931927394  74 s  14972 steps  0 attempts
+adaptive_moved   lma x 1.01  J 4.20837089777  91 s  14984 steps  18456 attempts
+replay_moved     lma x 1.01  J 4.20842974808  75 s  14972 steps  0 attempts

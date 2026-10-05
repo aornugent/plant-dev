@@ -48,6 +48,6 @@ one <- function(role, lma_rel, program = NULL) {
 }
 base <- one("adaptive", 0)
 program <- list(times = base$ode_times, sizes = base$ode_step_sizes)
-one("replay", 0, program)
-one("adaptive_moved", 0.01)
-one("replay_moved", 0.01, program)
+invisible(one("replay", 0, program))
+invisible(one("adaptive_moved", 0.01))
+invisible(one("replay_moved", 0.01, program))
