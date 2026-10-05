@@ -23,6 +23,50 @@ error is `docs/grid-dynamics.md`. `docs/geometry.md` sets all three in one
 picture: the triangle the run lives on, its mesh, the metrics, the error and
 stability.
 
+## What the grid is for
+
+The grid serves the evolutionary analyses regnans builds from TF24
+(`docs/design-workflows.md`): a resident at its demographic equilibrium,
+invasion fitness and its landscape, the selection gradient, singular strategies
+and their classification, and assembly. Each strings together three kinds of
+run, all at the equilibrium birth rate `b*`, where `J(b*) = b*`: 4.659 on long
+drought, against `J(1) = 12.67` (`measurements/equilibrium.md`). Every number
+below this section was measured at `b = 1`, where a run costs 6% less and
+splits 9 247 node steps against 10 841.
+- *The resident's forward,* 91 s at `b*` (adaptive at `1e-4`, 108 nodes, splits
+  on). A secant in `ln b` reaches `b*` in 6 of them cold and about 4 from the
+  last candidate's, so each candidate in a search pays 4–6, and the secant needs
+  `J` smooth in `b`: it met no noise down to 5.4e-8.
+- *An invader's walk* on the resident's recorded steps, 0.77 of a forward.
+  Selection gradients, mutant Hessians and landscapes are walks: regnans
+  differences `ln R′` at a relative step of `1e-4`, over `2k + 1` invaders for a
+  gradient and `1 + 4k²` for a Hessian. Walks never split.
+- *A sweep,* 2.9 forwards for the resident and 2.2 for an invader. Once per
+  analysis, at the answer, it gives every parameter's elasticity, and with the
+  secant's slope every `d ln b*/d ln θ`. If two or more traits evolve, it
+  carries the selection gradient inside the loops too.
+
+The grid an analysis shares is the record of its resident's last equilibrium
+run, which every invader walks. A singular strategy in one trait, found and
+classified, costs 84 forwards at `b*`, or 60 with its walks forked over four
+cores (1.5–2.1 hours), and the answer's report about 7 more.
+
+What phase 3's items are for, in those terms:
+- *The splits* (item 2) are in every resident forward. *The sweep through
+  them* (item 3) is the report's, on a resident run at `b*`.
+- *Curvatures from the adjoint* (item 4) are the report's curvature rows.
+  regnans classifies by differences of walks.
+- *The soil stepped on its own and the window's weight* (items 5 and 7) cut the
+  cost of every forward and walk, paid 60–84 times an analysis; the 15-day cap
+  keeps an invader's walk from failing.
+- *The node rule* (item 6) sets every run's accuracy and its companion, and *the
+  diagnostics* (item 8) are the analysis's error estimate and its distance from
+  the grid's θ₀.
+- *The radius* (R6 below) decides whether a moved resident, the convergence
+  Jacobian's at regnans's step of `1e-3`, could replay its resident's grid
+  rather than choose its own steps. Unmeasured; the workflows' first
+  measurement.
+
 ## Where the arc starts
 
 - *ε is set* (`docs/measurements/eps-spread.md`): 0.025 in `ln J`; for each

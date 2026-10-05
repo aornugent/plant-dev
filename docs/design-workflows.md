@@ -439,9 +439,10 @@ pieces' ratings to replay them, and the end before the split to rebuild the
 dense output. A split costs 5.4% of a forward against none; recording for the
 sweep adds 0.6% of arithmetic, the slopes and the record, and 4.6% of wall
 time when rows are kept, by a route not traced (`sweep_profile.txt`).
-- *One inefficiency:* the split's sweep costs +14.7%, and 90% of that is the
-  whole light field rebuilt on the tape at each piece's rating. The forward
-  already rebuilds only what a part reads; the sweep should too.
+- *One inefficiency:* the split's sweep costs +14.7%, most of it the whole
+  state and light field each piece's rating rebuilds on the tape. The forward
+  rebuilds them too; it dropped only the newborn's leaf solve (#101). A part
+  rating that rebuilds only what it reads is item 3's cure.
 - *One alternative, already tested:* the survey's own suggestion, each piece on
   its one-sided branch of `P⁺`, as AMICI's Heaviside helpers do, so the sweep
   could hold the cuts. It is the eleventh extension's one branch per side
