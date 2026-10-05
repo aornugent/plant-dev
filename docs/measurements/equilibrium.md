@@ -103,3 +103,15 @@ seconds. The forward walk is right; the sweep never starts.
   split or not, and its offspring production is 0. regnans's convention reads
   `R′` correctly on this plant; a sweep of that walk's offspring production
   would be a sweep of zero.
+
+## regnans's own root-finders
+
+- **P8 fails:** regnans's `nleqslv` path, Broyden on `ln b` with its target
+  `J/b − 1`, reached `|ln J − ln b| = 3.7e-7` in 12 runs, against the 10
+  registered and the secant's 6 (`equilibrium/nleqslv.log`). Its first four runs
+  sit at `b = 1`: regnans's check that the species is kept, nleqslv's own
+  evaluation of the start, and a difference Jacobian whose step, 1.5e-8, moves
+  `J` by 1e-7. Then its steps on `J/b − 1`, which is exponential in `ln b`, fall
+  short from far away: `b` 1.83, 2.47, 3.37, 4.09, 4.52, 4.64, 4.6589, 4.65932.
+- **P9:** `dfsane` was still running when this was written; its first move went
+  to `b = 0.37`, away from `b*`.

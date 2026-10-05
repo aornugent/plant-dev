@@ -1,0 +1,13 @@
+nleqslv  run  1  b 1  J 12.6687372  ln J - ln b +2.539e+00
+nleqslv  run  2  b 1  J 12.6687372  ln J - ln b +2.539e+00
+nleqslv  run  3  b 1  J 12.6687372  ln J - ln b +2.539e+00
+nleqslv  run  4  b 1.000000015  J 12.6687371  ln J - ln b +2.539e+00
+nleqslv  run  5  b 1.83144791  J 8.870020899  ln J - ln b +1.578e+00
+nleqslv  run  6  b 2.465212295  J 7.314064102  ln J - ln b +1.088e+00
+nleqslv  run  7  b 3.366272521  J 5.907024318  ln J - ln b +5.623e-01
+nleqslv  run  8  b 4.086895946  J 5.137658917  ln J - ln b +2.288e-01
+nleqslv  run  9  b 4.51769023  J 4.769098399  ln J - ln b +5.416e-02
+nleqslv  run 10  b 4.644501624  J 4.670549919  ln J - ln b +5.593e-03
+nleqslv  run 11  b 4.658934114  J 4.659610372  ln J - ln b +1.451e-04
+nleqslv  run 12  b 4.659318181  J 4.659319911  ln J - ln b +3.715e-07
+nleqslv: 12 runs, root b 4.659318181, converged TRUE Function criterion near zero
