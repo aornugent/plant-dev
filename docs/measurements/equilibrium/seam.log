@@ -1,0 +1,4 @@
+ctrl$save_RK45_cache <- TRUE: ran
+  and it reaches the Control a run takes: FALSE
+run_scm(p, ctrl = ctrl, use_ode_times = FALSE): error: unused argument (use_ode_times = FALSE)
+run_scm(p, ctrl = ct, refine_schedule = TRUE), birth-date coordinate: error: refine_schedule() supports only the height coordinate; with node_density_in_birth_date, give the node schedule directly.
