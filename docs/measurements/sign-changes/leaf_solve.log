@@ -1,0 +1,15 @@
+new build: ln J at k = 0 2.539169356461
+  neighbouring changes less the smooth one: -1.2e-14 +2.6e-15 +1.3e-14 -4.5e-15 -6.7e-15 +7.0e-15
+  rms 8.49e-15
+T2 (rms at most 1e-13): holds
+T3 (within 1e-9 of the tight build's 2.539169356461): -2.46e-13, holds
+against the split build's 2.539170868131: -1.512e-06
+plain's replay alone: split build 75, 74 s, new build 84, 83 s; new over split 1.121
+exactly adjacent doubles instead (the first build, runs kept apart):
+  new build: ln J at k = 0 2.539169356461
+    neighbouring changes less the smooth one: -8.6e-15 +1.2e-15 +1.3e-14 -5.0e-15 -9.0e-15 +8.3e-15
+    rms 8.41e-15
+  T2 (rms at most 1e-13): holds
+  T3 (within 1e-9 of the tight build's 2.539169356461): -2.46e-13, holds
+  against the split build's 2.539170868131: -1.512e-06
+  plain's replay alone: split build 76, 76 s, new build 105, 104 s; new over split 1.375

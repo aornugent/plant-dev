@@ -328,3 +328,126 @@ Result of the seventh extension: W1 fails. On the split's pinned program and
   about 14 times as much a decade. If that ratio holds, the sharp cutoff sits
   about 0.0013 above 1e-5 and 0.018 (0.7 eps) above 1e-4. The width moves the
   answer by more than a third of eps, so it is a modelling choice for the user.
+
+Eighth extension: the leaf solve stopped at adjacent floats, as built
+(2026-10-04, written before the runs; leaf_solve.sh, leaf_solve.R)
+  phylloptim PHYLLOPTIM-17 stops every root-find once its bracket's ends are
+  adjacent doubles, and plant PLANT-100 stops TF24's newborn height the same
+  way. The tight build's patch did the same with a tolerance of 1e-15 + 4e-16
+  |x|, and also tightened the two searches, which the build leaves alone. On
+  the plain program at lma (1 + k 1e-12), k = -3..3, replayed on the build:
+  T2, the noise goes: neighbouring changes less the smooth one have rms at most
+     1e-13. T2 fails at 1e-10 or more (the searches, or something else, carry
+     noise the patch removed).
+  T3, the build is the tight build: ln J at k = 0 lies within 1e-9 of the tight
+     build's 2.539169356461. Fails beyond 1e-7.
+  Reported, not judged: plain's replay timed alone, the split build and the new
+  build alternating, two each, with nothing else running.
+
+Result of the eighth extension (leaf_solve.log, leaf_golden.log): T2 and T3
+  hold. On phylloptim PHYLLOPTIM-17 and plant PLANT-100 the replay noise in
+  ln J is 8.5e-15 rms against 2.7e-8 on the split build, and ln J at k = 0
+  lies 2.5e-13 from the tight build's, -1.51e-6 from the split build's. Timed
+  alone, plain's replay takes 84 and 83 s against 75 and 74 s, 1.12 times. The
+  build first stopped at exactly adjacent doubles: the same noise and ln J, at
+  1.38 times; its profile (gperftools, plain's replay) has the collar's
+  root-find calling the profit gradient 46% more often and the internal CO2
+  solve 67% more, so the stopping rule ends at 4 DBL_EPSILON relative instead.
+  On phylloptim's golden grid against its previous commit, no operating point
+  changes kind; interior collar optima move by at most 1e-10 and the
+  single-layer optimisers by 1.8e-8; where the collar is a bound of its
+  interval it moves by up to 3.2e-5 and profit by 1.3e-4, transpiration (tiny
+  at the wet bound) by up to 0.996 of itself.
+
+The pulse step (pulse_step.R, pulse_step.log; not registered): are the pairs
+  the scan missed real? On day 8684 the split's program is replayed to the
+  step's start, the one-day step taken once by Cash-Karp and net production
+  read on its dense output, and the day integrated in 512 classical
+  Runge-Kutta steps. Node 5 falls from +0.023 to -0.384 at u = 0.10 in the
+  fine integration, -0.381 at u = 0.109 on the dense output; nodes 6 and 7
+  likewise. The missed pairs are the model's, not the dense output's.
+
+Ninth extension: the split finished in the forward step (2026-10-04, written
+before the runs; final.sh, final.R, scan2_probe.patch)
+  The final build: phylloptim PHYLLOPTIM-17; plant PLANT-100, PLANT-101 (the
+  field build seats the newborn without rating it) and the split rebased on
+  them with SCM$ode_split_record; odelia's split searching the gaps beside a
+  reading within 2% of the readings' spread from zero, and recording each
+  node's steps split and searched and the slowest crossing. Long drought, 108
+  nodes, tied tolerance 1e-4, the split's pinned program at r = 0 unless said.
+  S1, no pair is missed: the dense output at u = k/32 (scan2_probe.patch) shows
+     no node step with more sign changes than the detection cut. Holds at none;
+     fails at 3 or more (the stage rule missed 6 or 7 a run).
+  S2, the split costs what the pieces read: plain's replay of its program and
+     the split's of its own, alone, alternating, two each; the split's extra
+     time at most 4% of plain's. Fails at 6% or more (6.9% before).
+  S3, the record adds up: its node counts sum to ode_splits.
+  Reported, not judged: ln J at r = 0 against the split build on PLANT-101
+  without the search; the nodes searched and split and the share of J they
+  carry; the slowest crossing; node 5's pair on day 8684 at r = -1e-3 and 0.
+
+Tenth extension: what a choice of the split moves (2026-10-04, written after
+the ninth extension's builds and before any of its runs; pair_birth.sh)
+  Item 2's gates "J moves by at most 1e-8 as a sign change passes from one step
+  to the next" and "a pair's birth is continuous" could not be read on replays
+  whose own noise was 1.9e-8. The final build's noise is 8.5e-15, so they are
+  read here, on the probe build (scan2_probe.patch) with each split logged and
+  the scan off.
+  The choices: from the scans' logs at r = 0 and r = -1e-3, the node steps split
+  at one and not the other. A pair's first cut is a node step with two cuts at
+  one r and none at the other. A passage is a node step with one cut at one r
+  and none at the other, whose node has the cut in the adjacent step at the
+  other r. Of each kind, the one whose node carries the most of J at r = 0
+  (ties: the earliest). If no pair differs, r = 0 against +1e-3 instead; if
+  none differs there, C1 is not measured.
+  The jump: bisect.sh brackets each choice's change to under 2e-9 in r. Replays
+  1e-7 outside each end give the slope either side; the jump is ln J's change
+  across the bracket less the mean slope times its width.
+  C1, a pair's first cut moves ln J by at most 1e-8. Fails at 1e-7 or more.
+  C2, a passage moves ln J by at most 1e-8. Fails at 1e-7 or more.
+  Reported, not judged: any other node step whose split differs between the
+  bracket's ends; the cuts at the side that splits.
+
+Result of the ninth extension's S1, on the build as registered (final_scan.log):
+  S1 fails. The scan shows 7 node steps at r = 0 and 6 at r = -1e-3 with a pair
+  of sign changes and no cut, the pairs the stage rule missed before (days 7063,
+  8536, 8569, 8684, 10119 and 12298), each just after the start of a step that
+  opens a pulse. The build cuts what the build without the search cuts: 9239
+  node steps at r = 0 and the same J to ten digits. All but one of the dips hold
+  the search's first or second value (u = 0.076 or 0.124), so there the search
+  never ran: a stage held the other sign where the dense output did not, and the
+  stage rule's branch left the search out. The first stage reads the state one
+  Euler step of a fifth from the start, which carries net production's fall past
+  the dip. odelia's next commit runs the search whenever the stage rule makes no
+  cut. The timed runs had not started.
+
+Re-test, written before it runs (2026-10-04): the final build with that commit
+  (final.sh with FINAL and PROBE rebuilt on it, OUTD final2; the build without
+  the search as before). S1 on its scans at r = 0 and -1e-3: holds at none, fails
+  at 3 or more. S2 and S3 are measured on this build only, and the tenth
+  extension runs on its probe.
+
+Result of the re-test (final.log): S1 holds, S2 is neither, S3 holds. No node
+  step at r = 0 or -1e-3 shows more sign changes on the scan than it was cut;
+  the one disagreement left is a pair cut at r = 0 narrower than the scan's
+  1/32. Node 24's pair on day 7063 is cut at u = 0.029 and 0.175, where the scan
+  put it. Plain's replay took 64 and 66 s, the split's 69 and 68 s: the split's
+  extra 5.4%, against 6.9% before and the 4% the gate allows. The record sums
+  to ode_splits, 9247. Every node but the last (a share of J of 1e-29) is split,
+  a median of 82 steps each; 417 node steps were searched, on 91 nodes, at most
+  13 on one. The slowest crossing is 0.0033 a year, on day 3152 at node 24 (0.6%
+  of J). Against the build without the search, ln J moves by -6.7e-9 and 8 more
+  node steps are split. Node 5's pair on day 8684 is cut at u = 0.0038 and 0.177
+  at r = 0; at r = -1e-3 it starts below zero and is cut once, at 0.18.
+
+Result of the tenth extension (pair_birth.log): C1 and C2 hold. Between r = 0
+  and -1e-3 on the re-test's scans, 5 pairs are first cut and 142 passages
+  move. The pair whose node carries the most of J is node 7's on day 1778 (1.0%
+  of J); the passage, node 2's from the step at day 2675.0 to the next (34%).
+  The pair's first cut, bracketed to 9.5e-10 about r = -2.2416e-4, moves ln J
+  by -4.7e-10 beside a slope of -8.27: at the lower end its cuts are at
+  u = 0.1528 and 0.1553, a dip 0.0025 of the step wide whose edge has just
+  passed the search's third value. The passage, bracketed to 9.5e-10 about
+  r = -4.8975e-4, moves ln J by +4.9e-11: at the lower end node 2 is cut at the
+  step's end, u = 1, and at the upper end in neither step. In neither bracket
+  does any other node step's split differ.

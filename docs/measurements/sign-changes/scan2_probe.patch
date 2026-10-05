@@ -1,0 +1,64 @@
+--- a/inst/include/odelia/ode_step.hpp
++++ b/inst/include/odelia/ode_step.hpp
+@@ -4,6 +4,8 @@
+ 
+ #include <algorithm>
+ #include <array>
++#include <cstdio>
++#include <cstdlib>
+ #include <cmath>
+ #include <limits>
+ #include <numeric>
+@@ -14,6 +16,15 @@
+ #include <odelia/adjoint.hpp>
+ #include <odelia/ode_interface.hpp>
+ 
++// Diagnostic only: ODELIA_SPLIT_LOG names a file each split appends a line to.
++inline std::FILE* split_log() {
++  static std::FILE* f = [] {
++    const char* path = std::getenv("ODELIA_SPLIT_LOG");
++    return path != nullptr ? std::fopen(path, "w") : nullptr;
++  }();
++  return f;
++}
++
+ namespace odelia {
+ namespace ode {
+ 
+@@ -470,10 +481,36 @@
+         }
+       }
+     }
++    // Diagnostic: P on the dense output at u = k / 32, logged where the number of
++    // sign changes it shows differs from the cuts the detection made.
++    if (std::FILE* f = split_log(); f != nullptr && std::getenv("ODELIA_SPLIT_SCAN") != nullptr) {
++      int changes = 0;
++      double prev = v0, deepest_other = 0.0, u_first = -1.0, u_last = -1.0;
++      for (int q = 1; q <= 32; ++q) {
++        const double u = q / 32.0;
++        const double v = q == 32 ? v1 : rate(p, u, nullptr, rates);
++        if ((v < 0.0) != (prev < 0.0)) {
++          ++changes;
++          if (u_first < 0.0) u_first = u;
++          u_last = u;
++        }
++        if ((v < 0.0) != negative && std::abs(v) > std::abs(deepest_other)) deepest_other = v;
++        prev = v;
++      }
++      if (changes != n_cuts) {
++        std::fprintf(f, "scan %.17g %.17g %zu %d %d %.17g %.17g %.17g %.17g %.17g\n", time, h, p,
++                     n_cuts, changes, u_first, u_last, v0, v1, deepest_other);
++      }
++    }
+     if (n_cuts == 0) {
+       continue;
+     }
+     ++splits.split[p];
++    if (std::FILE* f = split_log()) {
++      std::fprintf(f, "split %.17g %.17g %zu %d %.17g %.17g %.17g %.17g %d\n", time, h, p,
++                   n_cuts, cuts[0], n_cuts > 1 ? cuts[1] : -1.0, v0, v1,
++                   (v1 < 0.0) != negative ? 0 : 1);
++    }
+ 
+     std::copy(y_start.begin() + first,
+               y_start.begin() + first + static_cast<std::ptrdiff_t>(width),

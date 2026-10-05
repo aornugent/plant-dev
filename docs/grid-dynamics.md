@@ -1905,6 +1905,62 @@ jumps for the choices' own, and the residue for their sum. Neither holds.
   production near zero, where the smooth positive part keeps a node growing.
   That is inferred, not measured.
 
+**Finished** (the design doc's item 2, *Finished*; the eighth to tenth
+extensions in `prereg.txt`). Each change is its own commit and issue.
+
+- *The leaf solve and the newborn's height stop at roundoff*
+  (aornugent/phylloptim#17, aornugent/plant#100; TF24 v13; `leaf_solve.log`,
+  `leaf_golden.log`). Every root-find stops once its bracket's ends agree to 4
+  DBL_EPSILON relative. A replay's noise in `ln J` falls from 2.7e-8 to 8.5e-15
+  rms, `ln J` lies 2.5e-13 from the tight build's, −1.51e-6 from the split
+  build's, and a replay costs 1.12× as long alone (84 and 83 s against 75 and
+  74 s). Stopping at exactly adjacent doubles gave the same noise at 1.38×: the
+  collar's root-find called the profit gradient 46% more often. On phylloptim's
+  golden grid no operating point changes kind.
+- *The field build seats the newborn without rating it* (aornugent/plant#101).
+  The boundary node's leaf solve, 39% of the split's cost, was solved in every
+  field build and read by nothing on the birth-date coordinate. The run is bit
+  for bit the same. The uptake and the light field are still rebuilt for each
+  part.
+- *The pulse's dips are the model's* (`pulse_step.log`, not registered). On day
+  8684 node 5 falls from +0.023 to −0.384 at u = 0.10 in 512 classical
+  Runge–Kutta steps, and to −0.381 at u = 0.109 on the dense output.
+- *A pair inside a step is searched for beside a reading near zero*
+  (aornugent/odelia#53). As registered it fails S1 (`final_scan.log`):
+  the scan shows the 7 and 6 pairs a run the stage rule missed before, and the
+  build cuts what the build without the search cuts. Each dip opens a pulse's
+  step, and the first stage, one Euler step of a fifth from the start, carries
+  net production's fall past the dip and reads below zero where the dense
+  output does not. The stage rule then made no cut and left the search out. With
+  the search run whenever the stage rule cuts nothing (odelia `6335877`), S1
+  holds (`final.log`): no node step at r = 0 or −1e-3 shows more sign changes
+  than it was cut. Node 24's pair on day 7063 is cut at u = 0.029 and 0.175,
+  where the scan put it. Against the build without the search, 8 more node steps
+  are split and `ln J` moves by −6.7e-9.
+- *The record* (`SCM$ode_split_record`; `final.log`). It sums to `ode_splits`,
+  9247. Every node but the last (a share of `J` of 1e-29) is split, a median of
+  82 steps each and at most 186. The search ran on 417 node steps over 91 nodes,
+  at most 13 on one, and the 17 nodes it never ran on carry 3e-12 of `J`. The
+  slowest crossing at a cut is 0.0033 a year, on day 3152 at node 24, which
+  carries 0.6% of `J`. On this record nearly every node carrying `J` comes
+  within the threshold of zero many times, so the share near zero is all of it.
+- *The cost.* Alone and alternating, plain's replay of its program took 64 and
+  66 s and the split's of its own 69 and 68 s: the split's extra 5.4%, against
+  6.9% on the first build and the 4% the gate allows (neither, as registered). A
+  node step split now costs about 0.38 ms against 0.53. The uptake and the
+  light field are still rebuilt for each part rating; the newborn's leaf solve
+  was the part #101 removed.
+- *A choice's jump* (the tenth extension; `pair_birth.log`). With the replays'
+  noise gone, one choice's change can be read by bisecting `lma` to 1e-9. Of
+  the choices that differ between r = 0 and −1e-3, the pair on the node
+  carrying the most `J` (node 7 on day 1778, 1.0% of `J`) moves `ln J` by
+  −4.7e-10 where it is first cut, a dip 0.0025 of the step wide that has just
+  reached the search's third value. The passage on the node carrying the most
+  (node 2, 34%) moves it by +4.9e-11: the cut sits at the step's end, where the
+  pieces reduce to the step. Both are under the gate's 1e-8. The first build's
+  bisected jumps (−0.85e-8 for a passage, +0.74e-8 and −4.6e-8 for deep pairs
+  lost) lay inside that build's noise, and a deep pair is no longer missed.
+
 ## What the record supports, and what it does not
 
 - *Supported: a gradient run's cost is its rows and its sweeps.* The walk and

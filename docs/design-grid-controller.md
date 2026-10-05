@@ -596,39 +596,51 @@ after the events reply):
    - *The cost* is a fixed 0.5–0.7 ms a node step split, 12.5% of plain at `1e-3`
      and 7% at `3e-4` and `1e-4`. 92% of it is part evaluations, each of which
      rebuilds the whole field, the boundary node's leaf solve included (39%).
-   - *To finish it* (after the splits reply, `oracle-response-splits.md`, and
-     the tightened build's tests, `grid-dynamics.md` §18):
-     - *The leaf solve stops at adjacent floats* (the user's decision). Every
-       root-find and search in phylloptim's leaf, and plant's own for the
-       newborn's height, stops only once its bracket is two adjacent floats
-       (`measurements/sign-changes/tight_phylloptim.patch`,
-       `tight_plant.patch`). A replay's noise falls from 1.9e-8 to 1.1e-14, for
-       10% of a replay. It moves TF24's outputs (`ln J` by −1.5e-6 on long
-       drought), so it bumps TF24's model version and re-blesses phylloptim's
-       golden files and plant's pinned TF24 values. It lands as its own change
-       ahead of the rest. (The reply's alternative, one Newton step at the end
-       of each solve, does the same and suits a warm start; it is unmeasured.)
-     - *A part rebuilds only what it reads:* the chain from the dense output and
-       the light field from the nodes' interpolated heights, not the uptake and
-       not the newborn's leaf solve (39% of the split's cost). The reply puts the
-       split at about 3% of a forward instead of 7%. Gate: the same `J` to
-       roundoff, and the cost.
-     - *A pair inside a step is found without the stages' signs.* The stage rule
-       misses 6 or 7 pairs a run, in the first fifth of a step that opens a
-       pulse after three or more dry days. The reply's interior extrema need a
-       cheap reading of net production inside a step: it is not a polynomial on
-       the dense output, and each value is a single-node evaluation with its
-       leaf solve. Gate: none missed on the 32-point scan, and a pair's birth
-       continuous.
+   - *Finished* (after the splits reply, `oracle-response-splits.md`;
+     `grid-dynamics.md` §18, *Finished*; the eighth to tenth extensions in
+     `measurements/sign-changes/prereg.txt`). Each change is its own commit and
+     issue:
+     - *The leaf solve and the newborn's height stop at roundoff*
+       (aornugent/phylloptim#17, aornugent/plant#100; TF24 v13, TF24f v13.1).
+       Every root-find stops once its bracket's ends agree to 4 DBL_EPSILON
+       relative. A replay's noise falls from 2.7e-8 to 8.5e-15 in `ln J`,
+       `ln J` moves by −1.5e-6, and a replay costs 1.12× as long. Stopping at
+       exactly adjacent doubles costs 1.38× for the same noise. (The reply's
+       alternative, one Newton step at the end of each solve, is unmeasured.)
+     - *The field build seats the newborn without rating it*
+       (aornugent/plant#101), bit for bit. Of *a part rebuilds only what it
+       reads*, this is the newborn's leaf solve, 39% of the split's cost; the
+       chain from the dense output and the light field from the nodes'
+       interpolated heights are not built, and each part rating still rebuilds
+       the uptake and the light field.
+     - *A pair inside a step is searched for beside a reading near zero*
+       (aornugent/odelia#53). Where no stage holds the other sign on the dense
+       output, the gaps beside the reading nearest zero are searched if it is
+       within 2% of the readings' spread, by a golden section of at most four
+       dense-output values. As first built the search ran only where no stage
+       held the other sign at all, and the scan still showed the 7 pairs a run
+       the stage rule missed: the first stage, one Euler step from the start,
+       carries the pulse's fall past the dip. Run whenever the stage rule cuts
+       nothing, the scan shows none missed at the trait or 1e-3 below it, and
+       `ln J` moves by −6.7e-9.
+     - *Each run reports its splits* (aornugent/plant#102):
+       `SCM$ode_split_record` gives each node's steps split and steps searched,
+       and the slowest crossing at a cut. On long drought every node but the
+       last is split, a median of 82 steps; the search runs on 417 node steps;
+       the slowest crossing is 0.0033 a year.
+     - *The cost* is 5.4% over plain alone (69 and 68 s against 64 and 66 s),
+       against 6.9% before: inside the item's 6%, short of the 4% registered for
+       after the rebuilds. A node step split costs 0.38 ms against 0.53, and the
+       rebuilds above are what remain of it.
+     - *A choice's jump*, readable now the noise is gone (the tenth
+       extension): where a pair is first cut, `ln J` moves by −4.7e-10, and where
+       a sign change passes out of a step, by +4.9e-11, under the gate's 1e-8.
      - *The positive part in a part,* smooth or one branch per side: the user's
-       call. The reply holds a branch is not a change to the rates (under 1e-10
-       in `ln J`). With it the split time enters `J` only at the pair's order,
-       so the sweep may freeze it; without it item 3 must route it by the
-       implicit function. How a branch would bear on the wobble (below) is
+       call, still open. The reply holds a branch is not a change to the rates
+       (under 1e-10 in `ln J`). With it the split time enters `J` only at the
+       pair's order, so the sweep may freeze it; without it item 3 must route it
+       by the implicit function. How a branch would bear on the wobble is
        unknown: the wobble shrank when the turn was widened.
-     - *Diagnostics per run:* the nodes whose net production comes within a
-       threshold of zero inside a step, with their share of `J`; the node steps
-       split; the smallest rate of change of net production at a split.
 3. *Splits in the sweep.* Each part is a row of its own for its node's
    components, and the field values it read are fixed linear maps of the
    recorded stages. Each split time enters the tape by one implicit-function

@@ -1,0 +1,21 @@
+# final.R on the re-test: odelia with the search after a stage the dense output disagrees with, scan2_probe.patch for the scans
+r = 0: 9247 node steps split, 1 whose scan disagrees, 0 with more changes than cuts
+  node 5 on day 8684: 2 cut(s) at u = 0.003812, 0.1772
+r = -1e-3: 9254 node steps split, 0 whose scan disagrees, 0 with more changes than cuts
+  node 5 on day 8684: 1 cut(s) at u = 0.1815
+S1 (no pair missed at r = 0): holds
+plain's replay 64, 66 s, the split's 69, 68 s: the split's extra 5.4%
+S2 (at most 4%): neither
+S3 (the record adds up): sum 9247 against ode_splits 9247: holds
+nodes split 107 of 108, carrying 1.000 of J; searched 91 nodes (417 node steps), carrying 1.000 of J
+unsplit: node(s) 108, carrying 1.5e-29 of J; splits a node: median 82.5, at most 186; searched at most 13 on one node
+never searched: 17 nodes, carrying 2.8e-12 of J; the split's extra time a node step split: 0.379 ms
+the slowest crossing: |dP/dt| 0.0033 at day 3152.32, node 24
+  that node carries 0.0064 of J
+ln J at r = 0: final 2.539137243542, without the search 2.539137250265, difference -6.723e-09; node steps split 9247 against 9239
+
+# the timed runs, alone, alternating
+plain_1: long-drought, seed 31, tol 0.0001 (abs 1e-08), 108 nodes, shift 0: J 12.66914306, 14839 steps; 0 failures; 64 s
+split_1: long-drought, seed 31, tol 0.0001 (abs 1e-08), 108 nodes, shift 0: J 12.66873622, 14844 steps; 0 failures; 69 s
+plain_2: long-drought, seed 31, tol 0.0001 (abs 1e-08), 108 nodes, shift 0: J 12.66914306, 14839 steps; 0 failures; 66 s
+split_2: long-drought, seed 31, tol 0.0001 (abs 1e-08), 108 nodes, shift 0: J 12.66873622, 14844 steps; 0 failures; 68 s

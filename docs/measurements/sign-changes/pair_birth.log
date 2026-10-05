@@ -1,0 +1,40 @@
+# pair_birth.sh on the re-test's probe (lib_probe2) and scans (final2): the choices, the bisections, the jumps
+node steps split at r = 0 and not at r = -1e-3: 72; at -1e-3 and not at 0: 79
+pairs first cut between them: 5; passages: 142
+pair P=6 TA=4.8712 TB=4.8712 side=-1e-3 share=0.0102 day=1778.000 u1=0.05886 u2=0.2329
+passage P=1 TA=7.3288 TB=7.3339 side=-1e-3 share=0.3437 day=2675.025 u1=0.9956 u2=-1
+start: -1e-3 ?11, 0 ?
+round 1: [-0.00025, 0] ?11 -> ?  width 0.00025
+round 2: [-0.00025, -0.0001875] ?11 -> ?  width 6.25e-05
+round 3: [-0.000234375, -0.00021875] ?11 -> ?  width 1.56e-05
+round 4: [-0.00022656249999999998, -0.00022265625] ?11 -> ?  width 3.91e-06
+round 5: [-0.00022460937499999998, -0.0002236328125] ?11 -> ?  width 9.77e-07
+round 6: [-0.00022436523437499998, -0.00022412109374999998] ?11 -> ?  width 2.44e-07
+round 7: [-0.00022418212890624998, -0.00022412109374999998] ?11 -> ?  width 6.1e-08
+round 8: [-0.00022416687011718748, -0.00022415161132812497] ?11 -> ?  width 1.53e-08
+round 9: [-0.00022415924072265622, -0.0002241554260253906] ?11 -> ?  width 3.81e-09
+round 10: [-0.00022415924072265622, -0.00022415828704833981] ?11 -> ?  width 9.54e-10
+bracket [-0.00022415924072265622, -0.00022415828704833981]: J 12.692250804232158 -> 12.692250698221180, ln J change -8.352e-09; smooth change at d ln J/dr = -8.3: -7.915e-09
+pair (node 6, steps at 4.8712 and 4.8712):
+bracket [-0.00022415924072265622, -0.00022415828704833981], width 9.54e-10: ln J changes -8.3524e-09; slopes -8.269079 and -8.269079; jump -4.6641e-10
+node steps split at one end only: 6 4.871232876712
+node steps cut a different number of times: none
+  6 4.871232876712: lo 2 0.152784 0.155318
+start: -1e-3 A, 0 B
+round 1: [-0.0005, -0.00025] A -> B  width 0.00025
+round 2: [-0.0005, -0.0004375] A -> B  width 6.25e-05
+round 3: [-0.0005, -0.000484375] A -> B  width 1.56e-05
+round 4: [-0.0004921875, -0.00048828125] A -> B  width 3.91e-06
+round 5: [-0.000490234375, -0.0004892578125] A -> B  width 9.77e-07
+round 6: [-0.000489990234375, -0.0004897460937500001] A -> ?  width 2.44e-07
+round 7: [-0.00048980712890625, -0.0004897460937500001] A -> ?  width 6.1e-08
+round 8: [-0.0004897613525390625, -0.0004897460937500001] A -> ?  width 1.53e-08
+round 9: [-0.0004897537231445313, -0.0004897499084472657] A -> ?  width 3.81e-09
+round 10: [-0.0004897518157958986, -0.0004897508621215821] A -> ?  width 9.54e-10
+bracket [-0.0004897518157958986, -0.0004897508621215821]: J 12.720142704466383 -> 12.720142604868531, ln J change -7.830e-09; smooth change at d ln J/dr = -8.3: -7.915e-09
+passage (node 1, steps at 7.3288 and 7.3339):
+bracket [-0.0004897518157958986, -0.0004897508621215821], width 9.54e-10: ln J changes -7.8299e-09; slopes -8.261161 and -8.261925; jump +4.8889e-11
+node steps split at one end only: 1 7.328834941032
+node steps cut a different number of times: none
+  1 7.328834941032: lo 1 1 -1
+JOB DONE pair_birth 00:13:36

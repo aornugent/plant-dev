@@ -1,0 +1,38 @@
+operating_points.tsv: 3287 of 8064 values differ
+    e_up                   worst relative 0.996
+    uptake                 worst relative 0.996
+    transpiration          worst relative 0.996
+    gc                     worst relative 0.996
+    assim                  worst relative 0.996
+    ci                     worst relative 0.000159
+psi_stem_optima.tsv: 5055 of 98496 values differ
+    gc                     worst relative 0.996
+    assim                  worst relative 0.996
+    transpiration          worst relative 0.996
+    hydraulic_cost         worst relative 0.000153
+    profit                 worst relative 0.00013
+    lambda_emergent        worst relative 0.000125
+primitives.tsv: 12 of 1632 values differ
+    value                  worst relative 6.14e-16
+psi_stem_optima.tsv by solver and kind (before -> after): rows, rows moved over 1e-6, over 1e-2, worst relative
+    CF77        -               -> -                 192     0    0  0
+    CF77        unsolved        -> unsolved          384     0    0  1.09e-09
+    CMax        -               -> -                 192     0    0  0
+    CMax        unsolved        -> unsolved          384     0    0  1.09e-09
+    JS22        -               -> -                 192     0    0  0
+    JS22        unsolved        -> unsolved          384     0    0  6.08e-11
+    JW26        -               -> -                 192     0    0  0
+    JW26        unsolved        -> unsolved          384     0    0  4.02e-09
+    ProfitMax   -               -> -                 192     0    0  0
+    ProfitMax   unsolved        -> unsolved          384     0    0  1.77e-08
+    SOX         -               -> -                 192     0    0  0
+    SOX         unsolved        -> unsolved          384     0    0  1.23e-09
+    TF          -               -> -                 192     0    0  0
+    TF          unsolved        -> unsolved          384     0    0  1.09e-09
+    TF24_floor  -               -> -                 192     0    0  0
+    TF24_floor  unsolved        -> unsolved          384     0    0  1.09e-09
+    collar      boundary-soil   -> boundary-soil      32     8    4  0.996
+    collar      hydraulic-shutdown -> hydraulic-shutdown   120     0    0  0
+    collar      interior        -> interior           82     0    0  9.98e-11
+    collar      shade-death     -> shade-death       312    16    0  7.17e-05
+    collar      solver-refused  -> solver-refused     30     6    2  0.223

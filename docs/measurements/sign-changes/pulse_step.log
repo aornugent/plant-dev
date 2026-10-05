@@ -1,0 +1,6 @@
+step from t = 23.791780822 (day 8684.0000), h = 0.00273972603 (1.0000 d); patch at 23.791780822
+node 5: dense output min -0.3805 at u = 0.109; 512 steps min -0.384 at u = 0.1016; start 0.02294, end 33.27 (dense) 33.27 (512)
+node 6: dense output min -0.2458 at u = 0.109; 512 steps min -0.2493 at u = 0.1016; start 0.1536, end 33.07 (dense) 33.07 (512)
+node 7: dense output min -0.113 at u = 0.109; 512 steps min -0.1164 at u = 0.1016; start 0.2824, end 32.87 (dense) 32.87 (512)
+state at the step's end, Cash-Karp against 512 steps: max relative 7.22e-05
+exit 0
