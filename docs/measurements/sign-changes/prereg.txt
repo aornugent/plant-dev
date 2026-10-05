@@ -650,3 +650,25 @@ fails.
   against PREV's +8.0%.
   Pinned, plain's sweeps spread 1.8% (sd) where unpinned they spread 2.5%, and
   wall time exceeds CPU time by 7% to 11% in every run.
+
+Fifteenth extension: the split's sweep and plain's in one process (2026-10-05,
+written after three profiles and before this run; inproc_timing.sh,
+inproc_timing.R)
+  Why: S5's +7.3% is larger than the split's own share of its sweep by
+  profile. Pinned back to back on the build (dev/p21/prof_ab_*), the split's
+  taped pieces take 2132 of its sweep's 66660 samples, about 2560 with their
+  reverse pass: 3.8% of its sweep, 4.0% of plain's. Plain's sweep took 65013
+  samples on the split's program and 63483 on its own, every function about
+  2.4% apart, so runs in separate processes differ by about 2% and single
+  profiles cannot place the remaining 3%.
+  The build of the thirteenth extension (LIB). One process, alone on one core
+  (taskset -c 3), runs the split's stand on its pinned program and plain's on
+  its own, then sweeps them alternately, three each, keeping both recordings.
+  Each sweep reports its wall and CPU time and the process's memory after it.
+  Reading: within a point of 4.0%, the split's sweep costs its own work and the
+  fourteenth extension's extra 3% belongs to the process the split ran in; then
+  the memory the split's sweep holds (687 MB at its peak against plain's 552 MB)
+  is where it is looked for. Within a point of 7.3%, the split's main steps cost
+  more in themselves, which the profile's attribution misses. Between, both.
+  This places the extra and times no build: S5 for the build is the fourteenth
+  extension's, and a cure is timed as that one was.
