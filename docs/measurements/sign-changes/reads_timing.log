@@ -1,0 +1,7 @@
+S5 on secs (at most 6% over plain's): split 269.1, 259.5, 265.4, 269.6, 267.7, 268.6; plain 246.4, 243.2, 245.9, 250.2, 256.8, 249.0: +7.3%, neither
+  each pair +9.2, +6.7, +7.9, +7.8, +4.2, +7.9%; their mean +7.3%, sd 1.7%
+S5 on cpu_secs (at most 6% over plain's): split 243.0, 239.1, 248.8, 246.3, 243.9, 242.9; plain 225.8, 226.0, 225.8, 229.8, 234.7, 228.8: +6.8%
+  each pair +7.6, +5.8, +10.2, +7.2, +3.9, +6.2%; their mean +6.8%, sd 2.1%
+F on secs (at most 4% over plain's): split 75.7, 77.8; PREV 77.4, 80.0; plain 73.9, 70.8: +6.0%, fails; PREV +8.7% over plain's
+F on cpu_secs (at most 4% over plain's): split 68.7, 70.3; PREV 70.9, 71.3; plain 66.5, 65.2: +5.7%; PREV +8.0% over plain's
+J: split 12.668736189484, PREV 12.668736220509, plain 12.669143057139

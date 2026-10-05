@@ -635,3 +635,18 @@ reads_timing.sh, reads_timing.R)
   PREV's forward against plain's.
   This is the last timing of item 3's cost: what S5 reads here is item 3's
   result.
+
+Result of the fourteenth extension (reads_timing.log): S5 is neither and F
+fails.
+  S5: on one core the sweep took 269.1, 259.5, 265.4, 269.6, 267.7 and 268.6 s
+  against plain's 246.4, 243.2, 245.9, 250.2, 256.8 and 249.0 s: +7.3%, neither.
+  The alternating pairs read +4.2% to +9.2%, sd 1.7%, so the mean is good to
+  about 0.7%; in CPU time +6.8%. As registered, this is item 3's result for the
+  build: the split's sweep, 14.7% over plain's in the twelfth extension, is 7.3%
+  over it here, short of 6%.
+  F: the forward took 75.7 and 77.8 s against plain's 73.9 and 70.8 s, +6.02%,
+  over the registered 6%; PREV's took 77.4 and 80.0 s, +8.7%. On this machine
+  the build takes about a third off the split's forward. In CPU time +5.7%
+  against PREV's +8.0%.
+  Pinned, plain's sweeps spread 1.8% (sd) where unpinned they spread 2.5%, and
+  wall time exceeds CPU time by 7% to 11% in every run.
