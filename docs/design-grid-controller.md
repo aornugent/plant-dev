@@ -760,7 +760,7 @@ after the events reply):
        part, the end rated again and five reads a split step. Swept
        alternately in one process the two differ by 5.9% (CPU 5.0%), which
        agrees with both within the runs' noise; what carries the rest, up to
-       3%, is not placed.
+       3%, is not placed. The user accepts 7% for S5.
    *The design of items 2 and 3.* One commitment: odelia does the arithmetic and
    plant names the parts.
    - *odelia.* A System that satisfies `SplitsSignChanges` supplies three
@@ -953,7 +953,11 @@ gain, and each multiplies with the rows the arc saves.
   - the zero-depth pulses no longer split the descent (19%);
   - the crown's light quadrature comes off the tape (20–24%);
   - the collar's slope is stored with the recorded collar (8.5%);
-  - three smaller items follow.
+  - three smaller items follow;
+  - the rebinds at the introductions: 4.8% of the sweep at u108 and `1e-4` on
+    the split build, twice an introduction, nearly all of it each leaf's
+    vulnerability tables rebuilt at the active scalar. Cloning the tables
+    would take about two thirds of it (`perf-sweep.md` §5).
   - Check first that the invader's sweep has the same profile. The first item is
     #96, which lands before the splits (phase 3, item 1).
 - *The forward's and the walk's cost per row:* the inner solve warm-started as an
@@ -999,6 +1003,9 @@ gain, and each multiplies with the rows the arc saves.
   replies: finish the splits in the forward step, then build them in the sweep.
 - *The leaf solve stops at adjacent floats* (after the tightened build's
   tests), for 10% of a replay.
+- *Item 3's cost:* the sweep through a split run at 7.3% over plain's, against
+  S5's 6%, is accepted. The split's own work is 4.0% of plain's sweep, about
+  what the method needs.
 - *The wobble is held open* as a later investigation; the adjoint workflows go
   ahead with chords at r of `1e-2` or more.
 - *Names.* The *sign change* of a node's net production, and *splitting* that

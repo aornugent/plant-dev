@@ -124,6 +124,26 @@ checkpointing (each step is re-recorded once from stored states), and reusing th
 tape across stages (each stage is different arithmetic). The reverse, 9–10% of
 the time, shrinks only with the tape.
 
+## 5. The rebinds at the introductions, on the split build
+
+Long drought at u108 and `1e-4` under the tied tolerance, on the split build
+(odelia `1e5a2d7`, plant `91098156`), the knots already step targets (#96).
+Plain's sweep of its own pinned program took 63483 samples at 250 Hz
+(`sign-changes/sweep_profile.txt`, `dev/p21/prof_ab_plain`), 5288 of them, 8.3%,
+outside its step loop:
+- 3016 (4.8%) rebinding the patch to the active scalar, once for each range and
+  once for each introduction's own map, so about twice an introduction. Of it,
+  2104 rebuild the strategy, 1802 of those the leaf's cumulative vulnerability
+  integrals (incomplete gamma functions) for the roots and the transpiration
+  stream, and 779 copy the parameters.
+- About 1730 (2.7%) transpose the introductions' maps, each a taped evaluation of
+  the stand.
+
+The introductions are the insertion rows that remain, and §4's note under its
+first item applies to them: cloning the leaf rather than rebuilding its tables
+would take about two thirds of each rebind, about 3% of the sweep. The split's
+sweep pays the same.
+
 ## Not reached
 
 - *The whole-run u429 factor and the lumped comparator:* about 2–2.5 h of CPU
