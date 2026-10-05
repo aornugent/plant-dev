@@ -1,0 +1,13 @@
+dfsane   run  1  b 1  J 12.6687372  ln J - ln b +2.539e+00
+dfsane   run  2  b 1  J 12.6687372  ln J - ln b +2.539e+00
+dfsane   run  3  b 0.3678794412  J 20.98930563  ln J - ln b +4.044e+00
+dfsane   run  4  b 2.718281828  J 6.848609214  ln J - ln b +9.240e-01
+dfsane   run  5  b 3.157281715  J 6.178575895  ln J - ln b +6.714e-01
+dfsane   run  6  b 4.073026638  J 5.150450544  ln J - ln b +2.347e-01
+dfsane   run  7  b 4.489237334  J 4.791780312  ln J - ln b +6.522e-02
+dfsane   run  8  b 4.641070333  J 4.673164727  ln J - ln b +6.891e-03
+dfsane   run  9  b 4.65289011  J 4.664187971  ln J - ln b +2.425e-03
+dfsane   run 10  b 4.658469578  J 4.659963177  ln J - ln b +3.206e-04
+dfsane   run 11  b 4.659291117  J 4.659340401  ln J - ln b +1.058e-05
+dfsane   run 12  b 4.659319054  J 4.659319248  ln J - ln b +4.178e-08
+dfsane: 12 runs, root b 4.659319054, converged TRUE Successful convergence

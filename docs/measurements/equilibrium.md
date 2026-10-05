@@ -113,5 +113,7 @@ seconds. The forward walk is right; the sweep never starts.
   evaluation of the start, and a difference Jacobian whose step, 1.5e-8, moves
   `J` by 1e-7. Then its steps on `J/b − 1`, which is exponential in `ln b`, fall
   short from far away: `b` 1.83, 2.47, 3.37, 4.09, 4.52, 4.64, 4.6589, 4.65932.
-- **P9:** `dfsane` was still running when this was written; its first move went
-  to `b = 0.37`, away from `b*`.
+- **P9 holds:** `dfsane` reached `|ln J − ln b| = 4.2e-8` in 12 runs (at most 15
+  registered; `equilibrium/dfsane.log`). Its first two runs sit at `b = 1`, its
+  first move goes the wrong way, to `b = 0.37`, and its second to `e`; from there
+  it closes in. Both of regnans's root-finders take twice the secant's runs.

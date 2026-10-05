@@ -155,8 +155,8 @@ root-finding, and nothing else.
 - *The equilibrium:* a secant on `f(x) = ln J(e^x) − x`. From a cold start its
   first move is the iteration's, `b ← J(b)`, and every move is held to `e^±3`;
   from a previous `b*`, its second point is a Newton step on that solve's last
-  slope. regnans's own `nleqslv` path reaches the same `b*` in 12 runs, against
-  the secant's 6 (P8).
+  slope. regnans's own `nleqslv` and `dfsane` paths each reach the same `b*` in
+  12 runs, against the secant's 6 (P8, P9).
 - *Derivatives* are regnans's differences, as today. The Jacobian's two sides
   each take one run at `b*` to read `f₊` and one at `b* exp(−f₊/f′)`; the
   equilibrium's error left, `O(h²)`, cancels in the chord.
@@ -262,7 +262,7 @@ Jacobian has no ε of its own yet; the resident's curvature's, 1.16, stands in.
 - *the record kept on every equilibrium run, the last one walked:* R5 (a run a
   candidate) and R3 (one function walked);
 - *the secant in `ln b`,* with its cold first move and its `e^±3` hold: R5, 6
-  runs against 12 for `nleqslv` and about 47 for iteration;
+  runs against 12 for `nleqslv` or `dfsane` and about 47 for iteration;
 - *warm starts* from the previous `b*` and its slope, in regnans's one-trait
   search too: R5, 4 runs against 6;
 - *the Jacobian's two runs a side, and the singular resident's equilibrium
