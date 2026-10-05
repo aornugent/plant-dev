@@ -1,0 +1,32 @@
+The sweep through split steps and the forward that records for it, sampled by
+gperftools (2026-10-05). Built from odelia ODELIA-54 373f5b9 and plant
+PLANT-103 4f45b702, and PLANT-102 45c5d9c7 over ODELIA-53 6335877, -O2 -g,
+with phylloptim PHYLLOPTIM-17. Long drought, 108 nodes, 1e-4, the split's
+pinned program.
+
+  env PLANT_LIB=$LIB PLANT_TEST_LIB=$LIB FORWARD=1 ATOL=1e-4 NODES=108 TOL=1e-4 \
+    SPLIT=1 PROGRAM=program_split.rds bash scripts/profile-gradient.sh \
+    harness/profile_forward.R $DIR                # and STAND_ONLY=1 in place of FORWARD=1
+  google-pprof --text --cum $DIR/plant.so $DIR/gradient.prof
+
+The forward, the build against PLANT-102 (samples at 250 Hz):
+  total            18127 against 17292   (+835)
+  Step::step       16080 against 15364   (+716): the main steps' leaf solves
+  Step::split       1076 against   972   (+104): the cut slopes and the record
+Timed alone and alternating (sweep_gates.log and the runs beside it), the
+forward recording for a sweep costs 71 and 71 s against 68 and 67 s. Keeping no
+rows (record_trajectory = FALSE) the two cost 68 and 69 s against 68 and 70 s,
+and without splits 64 and 67 s against 64 and 66 s. So the extra is the main
+steps running beside the kept split records, not the split's arithmetic; why
+kept rows slow the leaf solves is not traced.
+
+The gradient, the build alone (samples at 250 Hz):
+  the sweep (Solver::solve_adjoint)              63687
+  Step::taped_split                               5256   8.3% of the sweep
+    Step::integrate_pieces (the pieces' ratings)  5076
+      Patch::part_rates                           4946
+        Patch::compute_environment                4720   the field, on the tape
+The split's sweep took 254 and 254 s against plain's 217 and 226 s, +14.7%.
+Each piece rating rebuilds the whole light field on the tape and the reverse
+pass walks it again, which is the part rating's rebuild the forward's own
+finish left (the design doc's item 2, *a part rebuilds only what it reads*).

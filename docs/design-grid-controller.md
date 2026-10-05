@@ -635,12 +635,14 @@ after the events reply):
      - *A choice's jump*, readable now the noise is gone (the tenth
        extension): where a pair is first cut, `ln J` moves by −4.7e-10, and where
        a sign change passes out of a step, by +4.9e-11, under the gate's 1e-8.
-     - *The positive part in a part,* smooth or one branch per side: the user's
-       call, still open. The reply holds a branch is not a change to the rates
-       (under 1e-10 in `ln J`). With it the split time enters `J` only at the
-       pair's order, so the sweep may freeze it; without it item 3 must route it
-       by the implicit function. How a branch would bear on the wobble is
-       unknown: the wobble shrank when the turn was widened.
+     - *The positive part in a part, smooth or one branch per side* (the
+       eleventh extension; `branch.log`). The reply held a branch is not a
+       change to the rates (under 1e-10 in `ln J`), and that the sweep could
+       then freeze the split times. Tested, it changes them: `ln J` moves by
+       −1.5e-3 at the trait, the fine grid's residual sd is 8.45× the smooth
+       arm's, and the curvature moves 8.2ε from r = `1e-2` to `1e-3` against
+       the smooth arm's 0.54ε, at the same cost. The smooth positive part stays,
+       so item 3 routes each split time by the implicit function.
 3. *Splits in the sweep.* Each part is a row of its own for its node's
    components, and the field values it read are fixed linear maps of the
    recorded stages. Each split time enters the tape by one implicit-function
@@ -654,6 +656,40 @@ after the events reply):
    them, which agree with a branch per side and differ at first order in the
    step without (the construction's own test, from the splits reply); and the
    sweep costs at most 6% more.
+   - *Built* on `PLANT-103` and odelia `ODELIA-54` (#103, odelia#54; the
+     twelfth extension in `measurements/sign-changes/prereg.txt`). The sweep
+     tapes each split node step's pieces at the run's recorded ratings, the
+     rest of the state read from the taped dense output, and each cut by
+     odelia's implicit node, its slope a central difference of 1e-5 of the step
+     on the dense output (two part ratings a cut in the forward). The tangent
+     walks still refuse a run that split.
+   - *Why the cuts move and the steps do not* (the user's question). A step
+     boundary is placed for accuracy, and moving it changes `J` only at the
+     method's order, so the sweep holds it. A cut is placed at the zero of net
+     production, and the piece after it takes its first rating there, at the
+     turn's centre whatever θ. Held while θ moves the zero, that rating reads
+     the turn off-centre with a stage's weight, and the gradient's error is
+     first order in the step again. For the same reason a replay relocates the
+     cuts: pinned at θ₀ they would sit off the zeros at θ.
+   - *The stage times are held* (the user's choice). A cut that moves moves its
+     pieces' stage times, and rates that read the time itself are
+     differentiated as if they did not. On the bank only patch survival does:
+     1.2e-5 of `d J / d lma` on 8 years of long drought. A forward difference
+     of each piece rating in time closed it to 8.9e-9 for 1.4% of the forward,
+     and is not built.
+   - *Measured* (the twelfth extension; `sweep_gates.log`,
+     `sweep_profile.txt`). The sweep's elasticity in `lma`, −8.276, lies
+     2.7e-4 and 1.8e-5 from central differences at r = 0 and `1e-3` (S4
+     holds); at r = 0 the central difference straddles a pair's first cut, and
+     the slope below puts the sweep 2.1e-5 off, about 2.5e-6 of it, patch
+     survival's time. With the cuts held it is 7.5e-3 off. The sweep costs
+     14.7% more than plain's (254 and 254 s against 217 and 226 s; S5 fails):
+     8.3% of it is the split's pieces, 90% of that the field each piece rating
+     rebuilds on the tape. A part rating that rebuilds only what it reads,
+     left from item 2, is the cure for both. The forward recording for a sweep
+     costs 4.6% more than `PLANT-102`'s, and nothing more where it keeps no
+     rows; the profile puts the extra in the main steps' leaf solves beside the
+     kept split records, by a route not traced.
    *The design of items 2 and 3.* One commitment: odelia does the arithmetic and
    plant names the parts.
    - *odelia.* A System that satisfies `SplitsSignChanges` supplies three
@@ -678,11 +714,13 @@ after the events reply):
      where `ode_state` writes them, and a part's rates are that node's alone, in
      the field the dense output's state builds with the part's own components
      spliced in. An evaluation in a recorded field names none, so invasions stay
-     unsplit. `ode_splits` counts the node steps a run split, and the sweep and
-     the tangent walks refuse a run that split until item 3.
+     unsplit. `ode_splits` counts the node steps a run split. The tangent
+     walks refuse a run that split; the sweep follows it (item 3).
    - *Recorded:* nothing new for item 2, since replays split again and
-     arrive at the same numbers. Item 3 records each part's evaluations, so the
-     sweep tapes them at the solutions found.
+     arrive at the same numbers. Item 3 records, for each split step, the end
+     the step reached before the split, and for each split part its cuts, each
+     cut's slope, the rating each cut was found at and each rating its pieces
+     made, so the sweep tapes them at the solutions found.
    - *Tests, with the change:* the dense output's order and its end against
      the step's solution, in odelia; in plant, a TF24 run with splits on, its
      replay bit for bit, and its error falling with `tol`, with every run

@@ -524,3 +524,24 @@ sweep's build and the probes that found its time term, and before any run on the
   Reported, not judged: the held cuts' elasticity against the routed; the
   forward's cost against PLANT-102's, the record and the cut slopes; every
   trait's elasticity, split against plain.
+
+Result of the twelfth extension (sweep_gates.log, sweep_profile.txt): S4 holds
+  and S5 fails. The sweep's elasticity of J in lma is -8.276268 at r = 0 and
+  -8.321815 at 1e-3, against central differences of -8.276000 and -8.321833:
+  -2.7e-4 and +1.8e-5, inside 2e-3. At r = 0 the central difference straddles
+  a split choice: the one-sided slopes above and below differ by +5.35e-4 where
+  the curvature allows -4.3e-5, a jump of about 5.8e-10 in ln J above the
+  trait, the size of a pair's first cut. Below it the sweep lies 3.7e-7 from
+  the one-sided slope, and with the curvature 2.1e-5 above the derivative, as
+  at 1e-3 (1.8e-5): about 2.5e-6 of it, patch survival's time. With the cuts
+  held the elasticity is -8.268753, 7.5e-3 from the routed.
+  The split's sweep took 254 and 254 s against plain's 217 and 226 s, +14.7%.
+  Profiled, 8.3% of the sweep is the split's pieces, 90% of that the field
+  each piece rating rebuilds on the tape, and the reverse pass walks it again.
+  The forward recording for a sweep costs 71 and 71 s against PLANT-102's 68
+  and 67 s, +4.6%; keeping no rows, 68 and 69 s against 68 and 70 s; without
+  splits, 64 and 67 s against 64 and 66 s. The profile puts the extra in the
+  main steps' leaf solves, 716 of the 835 samples more, not in the split: it
+  comes with the kept split records, by a route not traced.
+  Split against plain, the elasticities differ by up to 1.1e-2 (a_dG1, -0.304
+  against -0.292); lma by -9.5e-3 (0.11 eps), a_dG2 by +3.6e-3 (0.19 eps).

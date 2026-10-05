@@ -1960,6 +1960,47 @@ extensions in `prereg.txt`). Each change is its own commit and issue.
   pieces reduce to the step. Both are under the gate's 1e-8. The first build's
   bisected jumps (−0.85e-8 for a passage, +0.74e-8 and −4.6e-8 for deep pairs
   lost) lay inside that build's noise, and a deep pair is no longer missed.
+- *One branch per side* (the eleventh extension; `branch.log`). Each piece
+  takes net production where it is positive and 0 where it is negative. That
+  changes the rates: `ln J` moves by −1.5e-3 at the trait, the fine grid's
+  residual sd is 8.45× the smooth arm's, and the curvature moves 8.2ε from
+  r = `1e-2` to `1e-3` against 0.54ε, at the same cost. The smooth positive part
+  stays.
+
+**The sweep through the splits** (the design doc's item 3; the twelfth
+extension; aornugent/plant#103, aornugent/odelia#54).
+
+- *What it differentiates.* The split run's own map: each piece taped at the
+  run's ratings, each cut moving with the zero of net production by odelia's
+  implicit node. A cut is not a step boundary. It sits at the turn, and the
+  piece after it takes its first rating there, so a cut held while the traits
+  move the zero reads the turn off-centre with a stage's weight. On 8 years of
+  long drought (91 nodes, 3098 node steps split) the sweep's `d J / d lma` was
+  −5.9e-3 off central differences with the cuts held and −1.17e-5 routed.
+- *What it holds: the stage times.* Rates that read the time itself are
+  differentiated as if they did not. On the bank only patch survival does;
+  the 1.17e-5 above is it, since adding each piece rating's derivative in time
+  brought the sweep to 8.9e-9. test-scm.R's first check, on its dim season
+  whose light varies in time, could not fail: its values were near 1e-20,
+  where `expect_equal` reads a tolerance absolutely, and the sweep there was
+  1.8e-3 off. The test now sweeps three years of seasonal rain without patch
+  survival (5e-9; 2.4e-3 off with the cuts held). Under constant rain the
+  unsplit sweep is itself 3.6e-7 off central differences, not traced.
+- *On the 40-year stand* (`sweep_gates.log`). The sweep's elasticity in `lma`
+  lies 2.7e-4 and 1.8e-5 from central differences at r = 0 and `1e-3`, inside
+  item 3's 2e-3. At r = 0 the central difference straddles a pair's first cut
+  (the one-sided slopes differ by 5.35e-4 where the curvature allows
+  −4.3e-5); the slope below puts the sweep 2.1e-5 off, as at `1e-3`, about
+  2.5e-6 of it. With the cuts held it is 7.5e-3 off. Split against plain, the
+  elasticities differ by up to 1.1e-2 (`a_dG1`); `lma` by 0.11ε and `a_dG2` by
+  0.19ε.
+- *The cost* (`sweep_profile.txt`). The split's sweep costs 14.7% more than
+  plain's, against the 6% item 3 allows: 8.3% of the sweep is the split's
+  pieces, 90% of that the field each piece rating rebuilds on the tape, which
+  the reverse pass walks again. The forward recording for a sweep costs 4.6%
+  more than `PLANT-102`'s and nothing more where it keeps no rows. Its profile
+  puts the extra in the main steps' leaf solves beside the kept split records,
+  by a route not traced.
 
 ## What the record supports, and what it does not
 
