@@ -29,7 +29,7 @@ local({
   }
 })
 
-LIFETIME <- 40
+LIFETIME <- as.numeric(Sys.getenv("LIFETIME", "40"))
 LMA0 <- 0.32
 JTOL <- 1e-3
 SCEN <- "long-drought"
@@ -144,7 +144,7 @@ stand_at <- function(times, trait = "lma", factor = 1) {
 
 # The nested uniform ladder over [0, 39.63]: each level bisects the one below
 # it, and 108 nodes are spaced 40/108 apart.
-uniform_times <- function(n) seq(0, 107 * 40 / 108, length.out = n)
+uniform_times <- function(n) seq(0, 107 * LIFETIME / 108, length.out = n)
 
 # One run. `stops` are extra times the integrator lands on, entered as
 # zero-depth pulses beside the introductions; to hold the time grid across a

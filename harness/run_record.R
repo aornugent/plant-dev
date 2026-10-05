@@ -7,7 +7,9 @@
 #   PLANT_LIB=... [REGIME=long-drought] [SEED=...] [TOL=1e-4] [ATOL=1e-4] \
 #     [NODES=108] [SHIFT=0] [TIMES=times.rds] [FORWARD=1] [PROGRAM=driver.rds] \
 #     [WEIGHT_SOIL=10] [WEIGHT_ACC=10] [WEIGHT=weight.rds] [WEIGHT_MAX=100] \
-#     [HMAX=15] [METHOD=ark] [SPLIT=1] [LMA_REL=1e-2] [STAND_ONLY=1] OUT=run.rds \
+#     [HMAX=15] [METHOD=ark] [SPLIT=1] [LMA_REL=1e-2] [STAND_ONLY=1] \
+#     [TRAIT_REL=a_dG2=1e-2] [INVADERS_REL=lma=1e-3,lma=-1e-3] [INVADER_GRADIENTS=1] \
+#     [STAND_GRADIENT=0] [LIFETIME=8] OUT=run.rds \
 #     Rscript harness/run_record.R
 #
 # ATOL is the absolute tolerance over the relative one: 1e-4 ties it as step 2
@@ -30,6 +32,11 @@
 # where its net production changes sign (sign-changes), and LMA_REL runs the
 # stand, not its invaders, at its own lma (1 + LMA_REL), set after the
 # hyperparameterisation has derived the rest, as a gradient's partial moves it.
+# TRAIT_REL moves any traits so, each trait=rel (comma-separated), and
+# INVADERS_REL walks invaders at the stand's own traits so moved. With
+# INVADER_GRADIENTS=1 every invader walked takes its gradient, and
+# STAND_GRADIENT=0 skips the stand's. LIFETIME shortens the stand, and the
+# uniform introductions with it.
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -44,6 +51,8 @@ shift <- as.numeric(Sys.getenv("SHIFT", "0"))
 times_file <- Sys.getenv("TIMES")
 forward <- Sys.getenv("FORWARD") == "1"
 stand_only <- Sys.getenv("STAND_ONLY") == "1"
+stand_gradient_on <- Sys.getenv("STAND_GRADIENT", "1") != "0"
+invader_gradients <- Sys.getenv("INVADER_GRADIENTS") == "1"
 out_file <- Sys.getenv("OUT")
 
 scen <- sprintf("%s, seed %d", regime, seed)
@@ -59,13 +68,20 @@ p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
 p <- add_strategies(p, trait_matrix(LMA0, "lma"))
 lma_rel <- as.numeric(Sys.getenv("LMA_REL", "0"))
-if (lma_rel != 0) {
-  s <- p$strategies[[1]]
+# Each trait=rel in `spec` multiplies that trait by 1 + rel in q's strategy.
+moved <- function(q, spec) {
+  s <- q$strategies[[1]]
   sp_pars <- s$pars
-  sp_pars$lma <- sp_pars$lma * (1 + lma_rel)
+  for (kv in strsplit(strsplit(spec, ",")[[1]], "=")) {
+    sp_pars[[kv[1]]] <- sp_pars[[kv[1]]] * (1 + as.numeric(kv[2]))
+  }
   s$pars <- sp_pars
-  p$strategies[[1]] <- s
+  q$strategies[[1]] <- s
+  q
 }
+if (lma_rel != 0) p <- moved(p, sprintf("lma=%.17g", lma_rel))
+trait_rel <- Sys.getenv("TRAIT_REL")
+if (nzchar(trait_rel)) p <- moved(p, trait_rel)
 p$node_schedule_times <- list(times)
 program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))$st
 if (!is.null(program)) {
@@ -97,7 +113,8 @@ peak_mb <- function() {
 out <- list(
   setting = list(regime = regime, seed = seed, spec = RAIN_SPECS[[regime]], tol = tol,
                  tol_abs = ct$ode_tol_abs, nodes = nodes, shift = shift, lma = LMA0,
-                 lma_rel = lma_rel, split = Sys.getenv("SPLIT") == "1",
+                 lma_rel = lma_rel, trait_rel = trait_rel,
+                 split = Sys.getenv("SPLIT") == "1",
                  lifetime = LIFETIME, program = Sys.getenv("PROGRAM")),
   versions = list(plant = as.character(packageVersion("plant")),
                   odelia = as.character(packageVersion("odelia")),
@@ -187,7 +204,7 @@ if (!is.null(scm)) {
                     creation = creation_record(scm), soil = soil_record(scm),
                     forward_clamps = soil_clamps(plant:::census_clamp_counts_tf24))
   save()
-  g <- if (!forward) phase("stand_gradient", function() gradient_of(scm, p))
+  g <- if (!forward && stand_gradient_on) phase("stand_gradient", function() gradient_of(scm, p))
   if (!is.null(g)) out$stand <- c(out$stand, g,
                                   list(swept_clamps = soil_clamps(plant:::census_clamp_counts_differentiated_tf24)))
   save()
@@ -198,13 +215,25 @@ if (!is.null(scm)) {
     gi <- phase("invader_gradient", function() gradient_of(scm, p))
     if (!is.null(gi)) out$invader <- c(out$invader, gi,
                                        list(swept_clamps = soil_clamps(plant:::census_clamp_counts_differentiated_tf24)))
-    for (inv in strsplit(Sys.getenv("INVADERS", ""), ",")[[1]]) {
-      kv <- strsplit(inv, "=")[[1]]
-      q <- stand_at(times, kv[1], as.numeric(kv[2]))
-      if (isTRUE(phase(inv, function() { scm$run_mutant(q); TRUE }))) {
-        out$invaders[[inv]] <- list(J = sum(scm$offspring_production), nodes = per_node(scm))
+    # Each invader's walk, and its gradient where asked: those given as factors
+    # through the hyperparameterisation, then those moved alone.
+    walk <- function(name, q) {
+      if (isTRUE(phase(name, function() { scm$run_mutant(q); TRUE }))) {
+        out$invaders[[name]] <<- list(J = sum(scm$offspring_production), nodes = per_node(scm))
+        save()
+        if (invader_gradients) {
+          gi <- phase(paste(name, "gradient"), function() gradient_of(scm, q))
+          if (!is.null(gi)) out$invaders[[name]] <<- c(out$invaders[[name]], gi)
+        }
       }
       save()
+    }
+    for (inv in strsplit(Sys.getenv("INVADERS", ""), ",")[[1]]) {
+      kv <- strsplit(inv, "=")[[1]]
+      walk(inv, stand_at(times, kv[1], as.numeric(kv[2])))
+    }
+    for (inv in strsplit(Sys.getenv("INVADERS_REL", ""), ",")[[1]]) {
+      walk(paste0("rel:", inv), moved(p, inv))
     }
   }
 }
