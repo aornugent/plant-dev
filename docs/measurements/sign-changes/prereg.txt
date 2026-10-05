@@ -732,3 +732,37 @@ curvature_rows.R)
   Reported besides: each row at both D; for lma the second difference and the
   combination 2 (ln J)'' - chord, which cancels the O(D^2) terms; the invader
   at theta0 against the stand.
+
+Result of the sixteenth extension (curvature_rows.log, curvature_rows.R): for
+the resident's row S6 holds and S7 and S8 fail; the invader's fails S6 and S7
+and holds S8 but for two entries; the selection gradient's is reported.
+  The resident's row. lma's entry is -43.459 by the chord at 1e-2 against
+  -43.458 by the second difference (0.00 eps), -43.611 at 3e-2 (0.13 eps), and
+  -43.53 on either nudged grid (0.06 eps). Across D the entries move a median
+  0.13 eps and 41 of 48 stay within eps/3; the seven that do not are
+  rooting_depth_max (3.7 eps), omega (1.1), a_d0 (0.87), a_st3 (0.71), a_dG2
+  (0.40), storage_relaxation_offset (0.38) and a_l1 (0.36). Under the nudges
+  they move a median 0.06 eps, and 46 and 42 of 48 stay within eps/3; the
+  others are a_dG1 (0.72, 0.60), a_d0 (0.80), root_P50 (0.75),
+  recruitment_decay (0.41), storage_relaxation_offset (0.41, 0.36) and a_st3
+  (0.36). rooting_depth_max and omega repeat on the nudged grids to 0.3 eps,
+  so their entries bend over three percent of lma rather than vary with the
+  grid; those failing under the nudges vary with the grid by under an eps.
+  Every failing entry has a small spread over the eight records.
+  The invader's row. lma's chord at 1e-2 is -192.6 against -196.5 by the second
+  difference (1.01 eps), and -182.8 at 3e-2. Across D the entries move a
+  median 1.97 eps and 5 of 48 stay within eps/3. Under the nudges they move a
+  median 0.03 and 0.01 eps (lma -192.6, -192.7, -192.6), all within eps/3 but
+  a_d0 (3.2, 1.1 eps) and root_P50 (0.72). So the row repeats on any grid at
+  one D and depends on D: the invader's elasticity in lma is -21.87, -25.09,
+  -27.06, -28.95 and -32.84 at u = -0.03, -0.01, 0, 0.01 and 0.03, slopes of
+  -161, -197, -188 and -195 between them. Its chord and second difference
+  differ by 3.9 at 1e-2 and 2.9 at 3e-2, so the gap is not the chord's O(D^2)
+  term, which would grow ninefold.
+  The selection gradient's row. lma's entry is -91.29 at 1e-2 and -92.09 at
+  3e-2. Against the invader's eps as a stand-in, across D its entries move a
+  median 0.17 eps, 46 of 48 within eps/3 (a_d0 1.03, rooting_depth_max 0.87);
+  under the nudges 0.02 and 0.04 eps, 47 of 48 (a_d0 2.9 on the first,
+  root_P50 0.35 on the second).
+  The invader at theta0 lies 7.0e-5 above the stand in ln J. The grids took
+  14844, 14933 and 14718 steps and split 9247, 9246 and 9247 node steps.
