@@ -913,3 +913,17 @@ run; bank.sh, bank.R)
   too, the failure is the walk's own on this record and not the split's; if it
   runs, the split stand is the suspect again. Each arm is run again with steps
   capped at 15 days (HMAX=15), the floor's cap.
+  D4's arms (d4.log): on plain's stand the walk fails at the same instant,
+  with the same log density to every printed digit (2906420.333211 at year
+  2.962963), so the failure is the walk's own on this record, not the split's.
+  Capped at 15 days it runs on both stands (J' 9.741109e-20 beside plain's,
+  9.741115e-20 beside the split's), as phase 1c found under rule A (9.7e-20).
+  Both uncapped stands take a step of 27.08 days to year 2.953, the longest in
+  either run, past the 26.1 days at which Cash-Karp is unstable at the pool's
+  relaxation time; long-wet's and long drought's longest steps are 21.24 and
+  25.11 days (bank.R), and their walks at x 2 run on the fixed build.
+  D4 on dry, registered before dry's walks finish: dry's stands take a step of
+  26.93 days at year 35.512, past 26.1 (bank.R). If the invader at lma x 2
+  fails on dry's split base, D4's four arms are run on dry (walk_x2.R,
+  REGIME=dry): the failure is the walk's own if it fails on plain's stand too,
+  and the cap removes it if both capped arms run.

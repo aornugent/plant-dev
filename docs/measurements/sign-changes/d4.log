@@ -1,0 +1,9 @@
+# D4 (prereg.txt): walk_x2.R on episodic, seed 31, the invader at lma x 2, on the fixed build (odelia ODELIA-54 9144d99, plant PLANT-103 ae675637's compiled code).
+## split0_hnone
+split FALSE: J 1.978947903 over 9247 steps, 0 node steps split; walk: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=inf (log_density=2906420.333211, height=0.314960) at time=2.962963. The density derivative -d(growth)/d(height) - mortality can grow without bound when growth rate falls steeply with size under rapidly changing or extreme environmental forcing, driving density to overflow. Try a shorter max_patch_lifetime or less extreme environmental drivers.
+## split1_hnone
+split TRUE: J 1.978885608 over 9248 steps, 6210 node steps split; walk: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=inf (log_density=2906420.333211, height=0.314960) at time=2.962963. The density derivative -d(growth)/d(height) - mortality can grow without bound when growth rate falls steeply with size under rapidly changing or extreme environmental forcing, driving density to overflow. Try a shorter max_patch_lifetime or less extreme environmental drivers.
+## split0_h15
+split FALSE: J 1.978913269 over 9283 steps, 0 node steps split; walk: 9.741109e-20
+## split1_h15
+split TRUE: J 1.978873297 over 9283 steps, 6210 node steps split; walk: 9.741115e-20
