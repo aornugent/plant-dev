@@ -20,7 +20,7 @@ Section marks (§) are `grid-dynamics.md`'s.
 - *The judge's ranking.*
   1. The incumbent's per-node cut, moved into plant, with the invader walks
      fixed and one detection rule: about 490 lines against 1722.
-  2. A closed-form correction from values the step already rated: about 250
+  2. A closed-form correction from values the step already evaluated: about 250
      lines and 0.9% of a run, unmeasured on TF24. It takes first place if one
      two-hour check on TF24 holds.
 - *Halving the steps that hold a sign change* meets R1 and R2 on TF24 in about
@@ -103,8 +103,8 @@ map smooth in θ, and stay exact under the sweep.
 
 ### Prices
 
-- A node rating, with its leaf solve, costs about 15 µs.
-- A row costs about 4.4 ms, about 290 node ratings.
+- Evaluating one node's rates, with its leaf solve, costs about 15 µs.
+- A row costs about 4.4 ms, about 290 such node evaluations.
 - A gradient run pays every row about seven times: the forward, its sweep, and
   an invader's walk and its sweep.
 - *Long drought:* the 9247 node crossings fall in 726 steps (4.9% of rows),
@@ -126,14 +126,14 @@ Each family of designs attacks one factor of h²·a·ψ(u*).
 | | global step ends at crossings | 2.9–3.3× plain (archive, T12) |
 | | halve only the steps that hold a sign change | C and E; measured on TF24 |
 | ψ, made zero | cut the node's step at its crossing and integrate it again in pieces | the incumbent; A, D and F |
-| ψ, its leading term subtracted | a closed-form correction from values the step already rated | B |
+| ψ, its leading term subtracted | a closed-form correction from values the step already evaluated | B |
 | the average | chords at a wider r | helps R2 alone (plain at `3e-2`: 0.10ε); R1 still fails |
 
 ## 3. The candidates
 
 | | move | mechanism | evidence | cost per pass | lines | verdict |
 |---|---|---|---|---|---|---|
-| A [first thought] | one mechanism for every pass | one templated cut routine in odelia | none | about 4% | about 240 | killed: R7 fails silently; its sketch detects at the end before the end is rated, and drops the search the pulse pairs need |
+| A [first thought] | one mechanism for every pass | one templated cut routine in odelia | none | about 4% | about 240 | killed: R7 fails silently; its sketch detects at the end before the end is evaluated, and drops the search the pulse pairs need |
 | B | weaken exactness | add h·(∂F/∂σ)·K, where K is σ's quadrature error along the dense output's P | toy: nudge range 37× narrower than plain's, as narrow as a cut; TF24: K off 11% in J's window, against the dense output only | 0.9% | about 250 | survives, unmeasured on TF24 |
 | C | batch across the population | halve every step that holds a sign change | TF24: a_dG1 0.43 ε/3, R2 0.249ε, R4 1.6e-5 | forward +9.7–10.4% (+13.5% episodic), replays +4.8–5.2% (+6.7%) | about 110 | killed on R8 per pass |
 | D | move the boundary | the cut owned by plant; odelia exposes the dense output and integration in pieces | inherits the incumbent's TF24 record | the incumbent's | about 540 | survives; first with E's walker fix and F's bracket rule |
@@ -162,7 +162,7 @@ incumbent's per-node cut, re-homed and trimmed.
   goes: `RatesParts`, `part_reads`, `part_rates`, `sign_values_in`,
   `taped_split` and the runtime refusals.
 - *Walks stop splitting.* Each walk adds the resident's recorded end change,
-  bit-exact as (walk unsplit − resident unsplit) + resident split.
+  bit-exact as (walk's end before the split − resident's) + resident's split end.
   - J′ = J on the diagonal, at no runtime cost.
   - Off the diagonal the invader takes the resident's correction (3e-5 to 7e-5
     in ln J′), and its own crossings stay untreated, as today.
@@ -177,11 +177,11 @@ incumbent's per-node cut, re-homed and trimmed.
 **Second, and first if M2 holds: B, the closed-form correction.**
 - *What changes:* nothing is located, cut or integrated again. The kink's
   leading error term is corrected from the net production the step already
-  rated at its six stages and its end.
+  evaluated at its six stages and its end.
 - *How:*
   - P̂(u) is the derivative of the step's own dense output.
   - K = ∫σ(P̂) − Σ b_i σ(P_i).
-  - The end gains h·K·∂F/∂σ, and is rated again.
+  - The end gains h·K·∂F/∂σ, and its rates are evaluated again.
 - *Cost and size:* 0.9% a pass and about 250 lines. It deletes about 1.4k of
   the incumbent's lines. Walks run the same correction, so invaders' own
   crossings are treated too.
@@ -273,10 +273,48 @@ The user took the defaults to §6 and the plant-owned cut, for TF24 alone. This
 section maps the change onto the stack's issue branches before any code moves.
 It supersedes §7's names for D.
 
+### Vocabulary
+
+One word per thing. "Rating" is retired: the split work coined it for three
+different things, none of which it named.
+- It meant evaluating the whole System's rates ("the end rated again").
+- It meant evaluating one node's rates in a supplied field ("a node rating").
+- It meant what such an evaluation solved for, as stored ("ratings",
+  `at_cuts`).
+
+| word | what it is | in code |
+|---|---|---|
+| evaluation | one call of the System's right-hand side at a state and time: build the field, compute every node's and the soil's rates | `derivs` (unchanged) |
+| a node's rates in a field | one node's right-hand side, with the field supplied, not built; it also returns the node's net production | `node_rates_in_field` (plant; was `part_rates`) |
+| solved values | what an evaluation's inner searches found (each leaf's operating point, the newborn's height) and the field it built, stored so a replay or the sweep loads them instead of searching again | `solved_values_t`, `solved_row` (unchanged); a record's field is `solved` |
+| net production | TF24's P, which growth and the storage pool read through the smooth positive part | `net_mass_production_dt` (unchanged) |
+| sign value | the value a System reports for each block after every evaluation, at whose zero the block's rates change form; TF24's is net production | `sign_values` (unchanged) |
+| sign change | a zero of a block's sign value inside a step: its fraction u of the step, the slope in u there, and what the evaluation at u solved for | `sign_change {u, slope, solved}` (was the parallel `cuts`, `slopes` and `at_cuts`) |
+| block, node | the components split together; odelia says block and never node, and plant says node | was `part` |
+| split | integrating one block over a step in pieces that meet at its sign changes | `split_block`, `split_sign_changes`; "cut" leaves the code |
+| piece | one interval of a split, integrated with the step's tableau | `integrate_pieces` (unchanged) |
+| the end before the split | the state the tableau reaches before any block is split; its evaluation supplies the dense output's end rates | `at_state_before_split` (that evaluation's solved values), `state_before_split` (a block's components there); was `unsplit_end`, a name by negation |
+| the field at five fractions | the field (TF24's cohort reads) sampled at u = 0, ¼, ½, ¾ and 1 on the dense output, and the quartic through the samples at any u | odelia: `sample_fractions`, `sample_at`; was `read_fractions`, `reads_at` |
+| the step just taken | what odelia hands the System after a step: start state, stage rates, the end's rates before the split, the end and the sign values; with the dense output, the quartic, integration in pieces and the sign-change finder | `taken_step` |
+| recorded row | the row of the resident's recording that a walk follows | the walk's `seed` parameter becomes `recorded`, since "seed" also names an adjoint seed |
+| split as recorded | the sweep's split: at the recorded sign changes, each moving with the parameters by the implicit function, with the pieces' evaluations loading the forward's solved values | `split_as_recorded` (plant), `implicit_value` (odelia, unchanged) |
+| splits by block | committed split steps, counted per block; plant reports them per node | `splits_by_block()`, `SCM$ode_splits` |
+
+- One coupling the names do not show: evaluating a node's rates leaves the
+  System at that node's state, not the step's end.
+  - So `split_sign_changes` returns whether it evaluated anything, and odelia
+    then evaluates the end's rates again.
+  - That matters because the row's state is read off the System.
+- *Retired names:* `part`, `part_width`, `part_reads`, `part_rates`,
+  `RatesParts`, `part_split`, `cuts`, `slopes`, `at_cuts`, `ratings`,
+  `unsplit_end`, `read_fractions`, `reads_at`, `split_record`, `searched`,
+  `least_rate*`, `end_sign_values`, `field_recorded`, `taped_split` and
+  `ode_split_record`.
+
 ### Who owns what
 
-- *Plant owns the cut:* which node to try, the field a node reads, rating a
-  node in that field, the pieces, and the record. One plant body serves the
+- *Plant owns the split:* which node to try, the field a node reads, the
+  node's rates in that field, the pieces, and the record. One plant body serves the
   forward, at double, and the sweep, at the active scalar. So the two passes
   cannot disagree about how a node is split, which was the review's first
   finding.
@@ -284,11 +322,11 @@ It supersedes §7's names for D.
   - the dense output, the quartic through five reads, integration in pieces,
     and finding a sampled value's sign changes, all as numerics on the step
     just taken;
-  - when the System is asked, the end rated again, the counts, and what a walk
-    does.
+  - after the System is asked, the end's rates evaluated again; the counts;
+    and what a walk does.
 - *A walk takes the recorded run's splits.* For each block the resident split,
-  the walk's end becomes (walk's unsplit end − resident's unsplit end) +
-  resident's split end. On the diagonal that is the resident's end bit for bit.
+  the walk's end becomes (the walk's end before the split − the resident's) +
+  the resident's split end. On the diagonal that is the resident's end bit for bit.
   Off it, the invader carries the resident's correction, and its own crossings
   stay untreated, as today.
 
@@ -298,36 +336,38 @@ In `ode_interface.hpp`, replacing `part_split`'s parallel arrays:
 
 ```cpp
 // Where a block's sign value crossed zero, as a fraction of the step, its slope
-// in that fraction there, and the rating the crossing was located at.
+// in that fraction there, and what the evaluation at that fraction solved for.
 template <class Values> struct sign_change {
   double u = 0.0;
   double slope = 0.0;
-  Values rating{};
+  Values solved{};
 };
 
 // What a step recorded for one block it split: which block, where its components
 // start and what they were at the end before the split, its sign changes, then
-// each rating its pieces made, in order.
+// what each evaluation in its pieces solved for, in order.
 template <class Values> struct split_block {
   std::size_t block = 0;
   std::size_t first = 0;
-  std::vector<double> unsplit;
+  std::vector<double> state_before_split;
   std::vector<sign_change<Values>> sign_changes;
-  std::vector<Values> ratings;
+  std::vector<Values> solved;
 };
 ```
 
-- `solved_row` keeps `unsplit_end`, the evaluation at the end before the
-  split, and holds `std::vector<split_block<Values>> split_blocks`.
+- `solved_row` holds `at_state_before_split` (what the evaluation at the end
+  before the split solved for) and `std::vector<split_block<Values>>
+  split_blocks`.
 - `taken_step<S>` is the step just taken, handed to the System. It holds
   references to the start state, the stage rates, the end's rate before the
   split, the end, and the sign values at the start, the five stages and the
   end (empty at an active scalar). Its members are
-  `dense_state(u, first, out)`, `field_at(u, reads, out)`,
-  `integrate_pieces(first, cuts, rate, own)` and `sign_changes(block, value_at)`.
+  `dense_state(u, first, out)`, `sample_at(u, samples, out)`,
+  `integrate_pieces(first, split_at, rates, own)` and
+  `sign_changes(block, value_at)`.
 - `SplitsSignChanges`, at double, asks for `sign_values(out)` and
-  `split_sign_changes(step, record) -> bool`. The bool is true where the System
-  rated anything, so the end is rated again.
+  `split_sign_changes(step, record) -> bool`. The bool is true when the System
+  evaluated any node's rates, so odelia evaluates the end's rates again.
 - An active System asks for `split_as_recorded(step, record)`. Its absence on a
   System that splits is a compile error at the sweep, not a runtime refusal.
 
@@ -345,7 +385,8 @@ template <class Values> struct split_block {
 - *From plant:*
   - `field_recorded`, since walks never ask the System to split;
   - the dead `keep_field` restore;
-  - the birth-date loop in a node rating, if a test shows it redundant;
+  - the birth-date loop in `node_rates_in_field`, if a test shows it
+    redundant;
   - the restated read layout, in favour of TF24's `cohort_reads`;
   - `r_ode_split_record`. `ode_splits` becomes the per-node counts, and their
     sum is the total.
@@ -367,7 +408,7 @@ template <class Values> struct split_block {
 5. TF24f opts out, by deleting its inherited `sign_value_aux()`. Splits under
    `ode_method = "rodas"` are refused when the run is set up, where they were
    skipped silently.
-6. A cut whose slope reads exactly zero is held in the sweep, which otherwise
+6. A sign change whose slope reads exactly zero is held in the sweep, which otherwise
    stopped there.
 
 ### The sequence
@@ -401,7 +442,7 @@ extension of `measurements/sign-changes/prereg.txt`:
   - S4 within 2e-3;
   - the curvature at r = `1e-2` within 0.05ε of −43.44;
   - forward ≤ +6% and sweep ≤ +7.3% against plain, timed alone;
-- a walk's extra end rating on each split row is measured.
+- a walk's extra evaluation at the end of each split row is measured.
 
 ### Size, estimated by file (hand-written code, tests aside)
 
@@ -422,10 +463,11 @@ What shrinks most is not the line count:
 - three silent paths are gone: TF24f's unrecorded optimiser, Rodas, and a zero
   slope.
 
-### Questions, each with its default
+### Settled
 
-1. Rebuild the branches as fresh commits and force-push with lease, after
-   tagging the incumbent heads (`sign-changes-incumbent` on odelia `1e5a2d7`
-   and plant `91098156`)? Default: yes.
-2. Tangent walks keep refusing a run that split, unchanged. Default: yes.
-3. Take the cohort reads only if the gates above still hold. Default: yes.
+- *The branches.* Each issue branch is rebuilt from its base as fresh,
+  single-purpose commits and force-pushed with lease. The incumbent heads are
+  tagged `sign-changes-incumbent` first, so the measurements that cite them
+  stay fetchable. The user left the organisation to us.
+- *Tangent walks* keep refusing a run that split.
+- *The cohort reads* go in only if the gates still hold.
