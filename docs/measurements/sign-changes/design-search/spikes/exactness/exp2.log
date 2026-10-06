@@ -1,0 +1,20 @@
+endpoint tol 0.0001: lnJ quad-fit resid sd 5.81e-07 max 1.47e-06 | e1 lin-fit resid sd 0.000344 max 0.000719
+  chord at r=1e-2: -7.87271   second difference of lnJ at r=1e-2: -7.87044   2*quad coef: -7.87054
+  largest step-to-step departure of lnJ from the fit: 2.22e-07
+  CD elasticity vs d(fit)/du at u=0: 4.646524 vs 4.646745
+plain tol 0.0001: lnJ quad-fit resid sd 4.88e-07 max 1.25e-06 | e1 lin-fit resid sd 0.00048 max 0.000966
+  chord at r=1e-2: -7.89116   second difference of lnJ at r=1e-2: -7.87864   2*quad coef: -7.89502
+  largest step-to-step departure of lnJ from the fit: 2.49e-07
+  CD elasticity vs d(fit)/du at u=0: 4.647114 vs 4.647522
+bracket tol 0.0001: lnJ quad-fit resid sd 1.66e-06 max 3.92e-06 | e1 lin-fit resid sd 0.00617 max 0.0548
+  chord at r=1e-2: -7.87278   second difference of lnJ at r=1e-2: -7.81393   2*quad coef: -7.85422
+  largest step-to-step departure of lnJ from the fit: 3.69e-06
+  CD elasticity vs d(fit)/du at u=0: 4.646266 vs 4.647677
+dense2 tol 0.0001: lnJ quad-fit resid sd 5.96e-07 max 1.48e-06 | e1 lin-fit resid sd 0.000342 max 0.000723
+  chord at r=1e-2: -7.87462   second difference of lnJ at r=1e-2: -7.87345   2*quad coef: -7.87412
+  largest step-to-step departure of lnJ from the fit: 2.15e-07
+  CD elasticity vs d(fit)/du at u=0: 4.647049 vs 4.647266
+slope tol 0.0001: lnJ quad-fit resid sd 5.78e-07 max 1.44e-06 | e1 lin-fit resid sd 0.000342 max 0.000722
+  chord at r=1e-2: -7.87610   second difference of lnJ at r=1e-2: -7.87606   2*quad coef: -7.87641
+  largest step-to-step departure of lnJ from the fit: 2.14e-07
+  CD elasticity vs d(fit)/du at u=0: 4.647249 vs 4.647474

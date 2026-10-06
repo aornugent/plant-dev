@@ -1,0 +1,3 @@
+n=587  rms err/rms K_true: endpoint 0.215 bracket 0.175 dense2 0.012 dense1 0.200 dense3 0.008 | mean bias: endpoint +0.051 dense2 +0.004 dense1 -0.099 dense3 +0.002
+n=234  rms err/rms K_true: endpoint 0.430 bracket 0.240 dense2 0.008 dense1 0.037 dense3 0.007 | mean bias: endpoint +0.183 dense2 -0.001 dense1 -0.027 dense3 -0.000
+n=353  rms err/rms K_true: endpoint 0.039 bracket 0.148 dense2 0.013 dense1 0.230 dense3 0.008 | mean bias: endpoint -0.010 dense2 +0.006 dense1 -0.135 dense3 +0.003

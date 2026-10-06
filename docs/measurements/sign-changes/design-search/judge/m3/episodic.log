@@ -1,0 +1,4 @@
+episodic: steps 9247 (mean nodes alive 54.4); clamped evals 3251; 92 s
+  ends differ: 623 steps (6.74% of rows) hold 5255 node steps, 8.4 per crossing step (median 5); median h at them 1.328 d
+  any sign change over start, stages, end: 624 steps (6.75%), 5265 node steps
+  halving cost: replays +6.7% rows, forward +13.5% rows (one discarded attempt each)

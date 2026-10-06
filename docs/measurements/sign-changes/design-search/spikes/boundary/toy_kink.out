@@ -1,0 +1,19 @@
+h, arm, kappa = h |dP/dt| / eta with |dP/dt| ~ 6.3, converged g*, spread = max|g_k - g_0| over 8 nudges, err = max|g_k - g*|
+ 0.04  plain eta=0.0001 kappa= 2.5e+03  g*=-2.530982  spread=3.29e-02  err=2.92e-02
+ 0.04  plain eta=0.001  kappa= 2.5e+02  g*=-2.530890  spread=2.87e-02  err=2.65e-02
+ 0.04  plain eta=0.01   kappa=      25  g*=-2.527827  spread=1.33e-02  err=1.66e-02
+ 0.04  plain eta=0.1    kappa=     2.5  g*=-2.505847  spread=1.17e-03  err=1.25e-03
+ 0.04  lag eta=0.0001   kappa= 2.5e+03  g*=-2.562073  spread=2.07e-02  err=2.28e-02
+ 0.04  cut eta=0.0001   kappa= 2.5e+03  g*=-2.530982  spread=1.29e-05  err=4.14e-05
+ 0.02  plain eta=0.0001 kappa= 1.3e+03  g*=-2.530982  spread=1.57e-02  err=9.65e-03
+ 0.02  plain eta=0.001  kappa= 1.3e+02  g*=-2.530890  spread=1.44e-02  err=7.84e-03
+ 0.02  plain eta=0.01   kappa=      13  g*=-2.527827  spread=9.07e-03  err=5.66e-03
+ 0.02  plain eta=0.1    kappa=     1.3  g*=-2.505847  spread=1.32e-04  err=1.24e-04
+ 0.02  lag eta=0.0001   kappa= 1.3e+03  g*=-2.562073  spread=1.97e-02  err=1.39e-02
+ 0.02  cut eta=0.0001   kappa= 1.3e+03  g*=-2.530982  spread=7.49e-06  err=3.53e-05
+ 0.01  plain eta=0.0001 kappa= 6.3e+02  g*=-2.530982  spread=5.85e-03  err=6.97e-03
+ 0.01  plain eta=0.001  kappa=      63  g*=-2.530890  spread=4.80e-03  err=4.69e-03
+ 0.01  plain eta=0.01   kappa=     6.3  g*=-2.527827  spread=1.33e-03  err=1.68e-03
+ 0.01  plain eta=0.1    kappa=    0.63  g*=-2.505847  spread=4.41e-06  err=4.28e-06
+ 0.01  lag eta=0.0001   kappa= 6.3e+02  g*=-2.562073  spread=7.82e-03  err=5.62e-03
+ 0.01  cut eta=0.0001   kappa= 6.3e+02  g*=-2.530982  spread=4.70e-06  err=3.35e-05

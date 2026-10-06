@@ -1,0 +1,4 @@
+check: integrals of the two shapes: -1.27e-07 0 
+TF24 all       n= 7650  slope 0.253  slope+ 0.598
+TF24 t < 29.3  n= 4792  slope 0.112  slope+ 0.366
+TF24 t > 29.3  n= 2858  slope 0.322  slope+ 0.727

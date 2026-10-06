@@ -1,0 +1,7 @@
+eH: rms plain 1.42e-06 | slope_var 7.89e-08 (ratio of rms 0.055, median |m|/|plain| 0.034)
+eS: rms plain 5.65e-06 | slope_var 3.63e-07 (ratio of rms 0.064, median |m|/|plain| 0.096)
+eO: rms plain 2.62e-06 | slope_var 1.42e-07 (ratio of rms 0.054, median |m|/|plain| 0.034)
+dH: rms plain 5.19e-05 | slope_var 1.23e-06 (ratio of rms 0.024, median |m|/|plain| 0.013)
+dS: rms plain 0.000196 | slope_var 8.84e-06 (ratio of rms 0.045, median |m|/|plain| 0.045)
+dO: rms plain 9.2e-05 | slope_var 2.08e-06 (ratio of rms 0.023, median |m|/|plain| 0.013)
+node-steps: 587 

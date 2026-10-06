@@ -1,0 +1,17 @@
+== B at start
+eS: rms plain 5.65e-06 | slope_var 3.6e-07 (ratio of rms 0.064, median |m|/|plain| 0.088)
+dH: rms plain 5.19e-05 | slope_var 1.28e-06 (ratio of rms 0.025, median |m|/|plain| 0.014)
+dS: rms plain 0.000196 | slope_var 1.08e-05 (ratio of rms 0.055, median |m|/|plain| 0.047)
+dO: rms plain 9.2e-05 | slope_var 2.01e-06 (ratio of rms 0.022, median |m|/|plain| 0.014)
+== B at end
+eS: rms plain 5.65e-06 | slope_var 4.27e-07 (ratio of rms 0.076, median |m|/|plain| 0.102)
+dH: rms plain 5.19e-05 | slope_var 1.61e-06 (ratio of rms 0.031, median |m|/|plain| 0.014)
+dS: rms plain 0.000196 | slope_var 1.08e-05 (ratio of rms 0.055, median |m|/|plain| 0.038)
+dO: rms plain 9.2e-05 | slope_var 2.88e-06 (ratio of rms 0.031, median |m|/|plain| 0.014)
+== B at mean
+eS: rms plain 5.65e-06 | slope_var 3.63e-07 (ratio of rms 0.064, median |m|/|plain| 0.096)
+dH: rms plain 5.19e-05 | slope_var 1.23e-06 (ratio of rms 0.024, median |m|/|plain| 0.013)
+dS: rms plain 0.000196 | slope_var 8.84e-06 (ratio of rms 0.045, median |m|/|plain| 0.045)
+dO: rms plain 9.2e-05 | slope_var 2.08e-06 (ratio of rms 0.023, median |m|/|plain| 0.013)
+
+[exited with code 0]

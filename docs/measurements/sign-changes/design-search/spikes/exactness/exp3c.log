@@ -1,0 +1,6 @@
+slope 0.001 steps 437 evals 3722 lnJ -0.361539281158 corrected 1106 split 0 Kmax_far 0
+slope 0.0003 steps 520 evals 4205 lnJ -0.361486826325 corrected 987 split 0 Kmax_far 0
+slope 0.0001 steps 648 evals 5186 lnJ -0.361431942925 corrected 962 split 0 Kmax_far 0
+slope 3e-05 steps 808 evals 6584 lnJ -0.361428826406 corrected 1153 split 0 Kmax_far 0
+slope 1e-05 steps 1024 evals 8614 lnJ -0.361420545330 corrected 1487 split 0 Kmax_far 0
+done

@@ -1,0 +1,29 @@
+Pre-registered before any gradient result (02:29 UTC).
+Spike: plain reverse-mode elasticities (lib_rr, SPLIT=0) on the driver's seven
+programs at 1e-4 and its nudges (m1), and on the same programs with every step
+that holds a sign change (slq_<tol>.rds rows) cut into two equal steps (m2).
+Basis: steps around crossings go as sqrt(tol); plain's nudge sd fell 15-22x
+(storage traits) and 3-6x (lma-like) from 1e-4 to 1e-5, i.e. ~h_c^2.5 and h_c^1.4.
+Predictions for m2 against m1 (largest move from the 1e-4 run, eps/3, floored eps):
+  P1 storage traits (a_dG1, a_dG2, storage_relaxation_offset): 4-6x smaller;
+     a_dG1 ~0.3-0.4.
+  P2 lma-like (lma, TF24_cost_scale, a_l1): 2-2.6x smaller.
+  P3 no trait above 1 (R1 passes) at m2.
+  P4 R2: lma's second difference at r = 1e-2 over 9.5e-5, 1e-4, 1.05e-4 spreads
+     0.2-0.3 eps at m2 against ~0.5 at m1 (bar 1/3).
+Kill: if P4 exceeds 1/3 at m2, the step-level batch needs m >= 3, which costs
+more rows than R8 allows, and the per-node cut returns.
+
+Results (03:10 UTC; three tolerances 9.5e-5, 1e-4, 1.05e-4 so far; analyze.R):
+  m1 reproduces the record's plain arm: d_I 1.261 unfloored, a_dG2 0.906, lma 0.477,
+     storage_relaxation_offset 0.984, TF24_cost_scale 0.899; R2 spread 0.558 eps (s17: 0.56).
+  m2: max 0.399 eps/3 (a_dG1), no trait over 0.5; m1/m2 median 4.96 over the 23 traits
+     with m1 > 0.3. Storage traits fell 2.4-2.8x (P1's 4-6x missed), lma-like 3.9-6.2x
+     (P2's 2-2.6x exceeded): the split by trait class did not hold; the median did.
+  P3 holds. P4 holds: m2's second difference spreads 0.249 eps (bar 1/3), mean
+     -43.477 against the converged -43.45 (-0.023 eps).
+
+Final (03:45 UTC; all seven tolerances): m1 a_dG1 1.049 (the record's 1.048), one trait over 1;
+m2 max 0.427 (a_dG1), none over 0.5, median 0.064 against 0.265; m1/m2 median 3.2 over the
+23 traits with m1 > 0.3. P3 holds. R2 at m4 spreads 0.160 eps (m2 0.249). R4: m2's sweep is
+1.6e-5 from a central difference of half-width 1e-6, and 7.8e-4 at half-width 1e-3 (plain 3.1e-3).

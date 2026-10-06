@@ -1,0 +1,53 @@
+tol 9.5e-05 plain steps 226 lnJ 6.8979895600 grad -1.931479 curv -1.423 -1.476 -1.483 treated 0
+tol 9.5e-05 sub2  steps 226 lnJ 6.8979537008 grad -1.931852 curv -1.369 -1.396 -1.412 treated 611
+tol 9.5e-05 sub3  steps 226 lnJ 6.8979711764 grad -1.932017 curv -1.438 -1.435 -1.439 treated 611
+tol 9.5e-05 sub4  steps 226 lnJ 6.8979612822 grad -1.932030 curv -1.330 -1.370 -1.416 treated 611
+tol 9.5e-05 sub8  steps 226 lnJ 6.8979626505 grad -1.931641 curv -1.381 -1.389 -1.418 treated 611
+tol 9.5e-05 cut   steps 226 lnJ 6.8979636048 grad -1.931739 curv -1.418 -1.405 -1.421 treated 574
+tol 9.667e-05 plain steps 224 lnJ 6.8979791481 grad -1.930938 curv -1.492 -1.420 -1.449 treated 0
+tol 9.667e-05 sub2  steps 224 lnJ 6.8979736231 grad -1.931541 curv -1.427 -1.403 -1.419 treated 607
+tol 9.667e-05 sub3  steps 224 lnJ 6.8979668367 grad -1.931292 curv -1.411 -1.421 -1.427 treated 607
+tol 9.667e-05 sub4  steps 224 lnJ 6.8979666862 grad -1.931768 curv -1.353 -1.390 -1.424 treated 607
+tol 9.667e-05 sub8  steps 224 lnJ 6.8979656713 grad -1.931759 curv -1.423 -1.405 -1.422 treated 607
+tol 9.667e-05 cut   steps 224 lnJ 6.8979654858 grad -1.931740 curv -1.409 -1.403 -1.421 treated 570
+tol 9.833e-05 plain steps 223 lnJ 6.8980353729 grad -1.931188 curv -1.474 -1.500 -1.495 treated 0
+tol 9.833e-05 sub2  steps 223 lnJ 6.8979576052 grad -1.931941 curv -1.423 -1.427 -1.410 treated 596
+tol 9.833e-05 sub3  steps 223 lnJ 6.8979726059 grad -1.931144 curv -1.442 -1.416 -1.440 treated 596
+tol 9.833e-05 sub4  steps 223 lnJ 6.8979666061 grad -1.932024 curv -1.415 -1.428 -1.425 treated 596
+tol 9.833e-05 sub8  steps 223 lnJ 6.8979647930 grad -1.931813 curv -1.405 -1.408 -1.423 treated 596
+tol 9.833e-05 cut   steps 223 lnJ 6.8979647366 grad -1.931738 curv -1.414 -1.406 -1.421 treated 571
+tol 0.0001 plain steps 222 lnJ 6.8979681795 grad -1.932514 curv -1.334 -1.409 -1.459 treated 0
+tol 0.0001 sub2  steps 222 lnJ 6.8979682408 grad -1.931409 curv -1.338 -1.372 -1.414 treated 600
+tol 0.0001 sub3  steps 222 lnJ 6.8979671864 grad -1.931976 curv -1.395 -1.409 -1.421 treated 600
+tol 0.0001 sub4  steps 222 lnJ 6.8979671133 grad -1.931715 curv -1.404 -1.405 -1.424 treated 600
+tol 0.0001 sub8  steps 222 lnJ 6.8979628588 grad -1.931847 curv -1.486 -1.410 -1.418 treated 600
+tol 0.0001 cut   steps 222 lnJ 6.8979639521 grad -1.931740 curv -1.412 -1.403 -1.421 treated 571
+tol 0.0001017 plain steps 222 lnJ 6.8979277699 grad -1.932057 curv -1.404 -1.459 -1.426 treated 0
+tol 0.0001017 sub2  steps 222 lnJ 6.8979781268 grad -1.931739 curv -1.541 -1.465 -1.425 treated 596
+tol 0.0001017 sub3  steps 222 lnJ 6.8979747811 grad -1.931743 curv -1.520 -1.415 -1.418 treated 596
+tol 0.0001017 sub4  steps 222 lnJ 6.8979804220 grad -1.931865 curv -1.449 -1.412 -1.425 treated 596
+tol 0.0001017 sub8  steps 222 lnJ 6.8979730135 grad -1.931665 curv -1.421 -1.384 -1.416 treated 596
+tol 0.0001017 cut   steps 222 lnJ 6.8979750848 grad -1.931719 curv -1.397 -1.400 -1.421 treated 571
+tol 0.0001033 plain steps 221 lnJ 6.8980542711 grad -1.931895 curv -1.362 -1.427 -1.473 treated 0
+tol 0.0001033 sub2  steps 221 lnJ 6.8979713911 grad -1.932163 curv -1.451 -1.410 -1.425 treated 601
+tol 0.0001033 sub3  steps 221 lnJ 6.8979693533 grad -1.931540 curv -1.365 -1.369 -1.410 treated 601
+tol 0.0001033 sub4  steps 221 lnJ 6.8979764187 grad -1.932109 curv -1.433 -1.403 -1.423 treated 601
+tol 0.0001033 sub8  steps 221 lnJ 6.8979743613 grad -1.931662 curv -1.434 -1.409 -1.421 treated 601
+tol 0.0001033 cut   steps 221 lnJ 6.8979747894 grad -1.931724 curv -1.397 -1.403 -1.421 treated 570
+tol 0.000105 plain steps 219 lnJ 6.8978495804 grad -1.931239 curv -1.348 -1.377 -1.426 treated 0
+tol 0.000105 sub2  steps 219 lnJ 6.8979869463 grad -1.931062 curv -1.313 -1.357 -1.411 treated 600
+tol 0.000105 sub3  steps 219 lnJ 6.8979768745 grad -1.932368 curv -1.417 -1.398 -1.419 treated 600
+tol 0.000105 sub4  steps 219 lnJ 6.8979716057 grad -1.931591 curv -1.328 -1.379 -1.415 treated 600
+tol 0.000105 sub8  steps 219 lnJ 6.8979787203 grad -1.931699 curv -1.429 -1.411 -1.421 treated 600
+tol 0.000105 cut   steps 219 lnJ 6.8979780239 grad -1.931721 curv -1.416 -1.404 -1.421 treated 570
+$steps
+[1] 3488
+
+$cut
+      lnJ      grad      c1e2      c3e2 
+ 6.897963 -1.931727 -1.403258 -1.420763 
+
+$plain
+      lnJ      grad      c1e2      c3e2 
+ 6.897963 -1.931737 -1.404211 -1.420878 
+

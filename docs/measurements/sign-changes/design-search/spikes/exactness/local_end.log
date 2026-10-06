@@ -1,0 +1,8 @@
+eH: rms plain 1.42e-06 | endpoint 5.61e-07 (ratio of rms 0.394, median |m|/|plain| 0.103) bracket 3.27e-07 (ratio of rms 0.230, median |m|/|plain| 0.104)
+eS: rms plain 5.65e-06 | endpoint 2.33e-06 (ratio of rms 0.411, median |m|/|plain| 0.202) bracket 1.17e-06 (ratio of rms 0.206, median |m|/|plain| 0.180)
+eO: rms plain 2.62e-06 | endpoint 1.06e-06 (ratio of rms 0.403, median |m|/|plain| 0.103) bracket 5.9e-07 (ratio of rms 0.225, median |m|/|plain| 0.104)
+dH: rms plain 5.19e-05 | endpoint 5.83e-06 (ratio of rms 0.112, median |m|/|plain| 0.028) bracket 4.22e-06 (ratio of rms 0.081, median |m|/|plain| 0.037)
+dS: rms plain 0.000196 | endpoint 2.18e-05 (ratio of rms 0.111, median |m|/|plain| 0.070) bracket 1.56e-05 (ratio of rms 0.080, median |m|/|plain| 0.071)
+dO: rms plain 9.2e-05 | endpoint 9.53e-06 (ratio of rms 0.104, median |m|/|plain| 0.028) bracket 6.56e-06 (ratio of rms 0.071, median |m|/|plain| 0.036)
+node-steps: 587 
+done

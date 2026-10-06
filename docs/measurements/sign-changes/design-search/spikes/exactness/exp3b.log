@@ -1,0 +1,11 @@
+dense2 0.001 steps 435 evals 4063 lnJ -0.361185184345 corrected 1150 split 0 Kmax_far 0
+dense2 0.0003 steps 524 evals 4561 lnJ -0.361414998789 corrected 1009 split 0 Kmax_far 0
+dense2 0.0001 steps 640 evals 5419 lnJ -0.361379894009 corrected 962 split 0 Kmax_far 0
+dense2 3e-05 steps 804 evals 6943 lnJ -0.361418808497 corrected 1157 split 0 Kmax_far 0
+dense2 1e-05 steps 1016 evals 9112 lnJ -0.361419297669 corrected 1469 split 0 Kmax_far 0
+split 0.001 steps 434 evals 149615 lnJ -0.361072812386 corrected 0 split 1140 Kmax_far 0
+split 0.0003 steps 529 evals 132517 lnJ -0.361296358234 corrected 0 split 1002 Kmax_far 0
+split 0.0001 steps 642 evals 136978 lnJ -0.361397122305 corrected 0 split 1030 Kmax_far 0
+split 3e-05 steps 808 evals 158047 lnJ -0.361414541352 corrected 0 split 1183 Kmax_far 0
+split 1e-05 steps 1022 evals 193396 lnJ -0.361418152845 corrected 0 split 1444 Kmax_far 0
+done

@@ -1,0 +1,9 @@
+long-drought     steps 14844  node steps cut  9247  searched  417  nodes cut 107 of 108
+   nodes >= 1e-3 of J: 28, carrying 0.993 of J, holding 49.0% of the cuts; median step 0.27 days
+   slowest crossing |dP/dt| 0.0033 kg/yr^2 at day 3152.3, node 24 (share 0.0064); kappa there ~ 0.025 at the median step
+constant         steps  3355  node steps cut    41  searched    1  nodes cut  22 of 108
+   nodes >= 1e-3 of J: 1, carrying 1.000 of J, holding 0.0% of the cuts; median step 4.32 days
+   slowest crossing |dP/dt| 3.73e-05 kg/yr^2 at day 3065.3, node 23 (share 7.2e-26); kappa there ~ 0.0044 at the median step
+episodic         steps  9248  node steps cut  6210  searched  251  nodes cut 107 of 108
+   nodes >= 1e-3 of J: 36, carrying 0.996 of J, holding 60.0% of the cuts; median step 0.16 days
+   slowest crossing |dP/dt| 0.00142 kg/yr^2 at day 1281.6, node 10 (share 0.014); kappa there ~ 0.0064 at the median step

@@ -1,0 +1,9 @@
+all crossing node-steps      n= 7650  rms err / rms K_dense: slope 0.253  stage-quartic+end 0.255  stage-quartic 0.275  line 4.266 | bias slope -0.039  quartic+end +0.014
+h <= 0.25 d                  n= 2580  rms err / rms K_dense: slope 0.078  stage-quartic+end 0.037  stage-quartic 0.020  line 7.784 | bias slope -0.015  quartic+end -0.009
+middle third of h            n= 2525  rms err / rms K_dense: slope 0.271  stage-quartic+end 0.274  stage-quartic 0.296  line 3.681 | bias slope -0.067  quartic+end +0.028
+h > 1.70 d                   n= 2545  rms err / rms K_dense: slope 0.001  stage-quartic+end 0.003  stage-quartic 0.004  line 3.323 | bias slope +0.000  quartic+end +0.001
+born before 3.6, t < 25      n= 1005  rms err / rms K_dense: slope 0.103  stage-quartic+end 0.170  stage-quartic 0.202  line 4.039 | bias slope -0.016  quartic+end +0.018
+two or more roots on dense P n=   13  rms err / rms K_dense: slope 1.652  stage-quartic+end 7.731  stage-quartic 8.354  line 51.585 | bias slope +1.014  quartic+end +2.968
+kappa < 100                  n=  765  rms err / rms K_dense: slope 0.163  stage-quartic+end 0.127  stage-quartic 0.114  line 5.962 | bias slope -0.012  quartic+end +0.005
+steps h median 0.85 d; |s|/eta median 4.97e+04; roots>=2 share 0.002
+stage point-value error / swing: median 0.000, 90% 0.002

@@ -1,0 +1,8 @@
+eH: rms plain 1.42e-06 | smooth 5.56e-07 (ratio of rms 0.390, median |m|/|plain| 0.076) bracket 3.27e-07 (ratio of rms 0.230, median |m|/|plain| 0.104) split 1.72e-08 (ratio of rms 0.012, median |m|/|plain| 0.007)
+eS: rms plain 5.65e-06 | smooth 1.7e-06 (ratio of rms 0.300, median |m|/|plain| 0.169) bracket 1.17e-06 (ratio of rms 0.206, median |m|/|plain| 0.180) split 1.7e-07 (ratio of rms 0.030, median |m|/|plain| 0.036)
+eO: rms plain 2.62e-06 | smooth 9.2e-07 (ratio of rms 0.351, median |m|/|plain| 0.076) bracket 5.9e-07 (ratio of rms 0.225, median |m|/|plain| 0.104) split 2.77e-08 (ratio of rms 0.011, median |m|/|plain| 0.007)
+dH: rms plain 5.19e-05 | smooth 8.14e-06 (ratio of rms 0.157, median |m|/|plain| 0.031) bracket 4.22e-06 (ratio of rms 0.081, median |m|/|plain| 0.037) split 2.67e-06 (ratio of rms 0.051, median |m|/|plain| 0.049)
+dS: rms plain 0.000196 | smooth 2.6e-05 (ratio of rms 0.133, median |m|/|plain| 0.075) bracket 1.56e-05 (ratio of rms 0.080, median |m|/|plain| 0.071) split 1e-05 (ratio of rms 0.051, median |m|/|plain| 0.050)
+dO: rms plain 9.2e-05 | smooth 1.25e-05 (ratio of rms 0.136, median |m|/|plain| 0.031) bracket 6.56e-06 (ratio of rms 0.071, median |m|/|plain| 0.036) split 4.61e-06 (ratio of rms 0.050, median |m|/|plain| 0.048)
+node-steps: 587 
+done

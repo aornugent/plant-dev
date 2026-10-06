@@ -1,0 +1,4 @@
+1e-4: crossing steps 726, median h 0.862 d; non-crossing neighbours 330, median h 0.917 d; error ratio at crossing steps median 0.48 vs all 0.13
+  binding component index at crossing steps (top 5): 6:42 24:13 69:12 384:12 15:11 
+3e-5: crossing steps 1023, median h 0.602 d; non-crossing neighbours 346, median h 0.518 d; error ratio at crossing steps median 0.53 vs all 0.19
+  binding component index at crossing steps (top 5): 6:56 60:22 33:20 24:18 78:17 

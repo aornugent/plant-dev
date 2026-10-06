@@ -1,0 +1,5 @@
+m=1: sd dJ/dphi 3.261e-03  sd dJ/dlnb 2.644e-03  (means -0.004600 0.726200); crossing steps 24 of 600
+m=2: sd dJ/dphi 1.697e-03  sd dJ/dlnb 6.912e-04  (means -0.002341 0.725292); crossing steps 24 of 600
+m=4: sd dJ/dphi 5.683e-04  sd dJ/dlnb 1.735e-04  (means -0.002450 0.725047); crossing steps 24 of 600
+m=2: sd falls 1.92x for phi (moves the crossing), 3.83x for b (does not)
+m=4: sd falls 5.74x for phi (moves the crossing), 15.24x for b (does not)

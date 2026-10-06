@@ -1,0 +1,12 @@
+q = P'' h / P' over single cuts: quantiles
+    5%    10%    25%    50%    75%    90%    95% 
+0.0274 0.0606 0.1560 0.3570 0.6410 1.6100 2.3400 
+  q < 0.01: 2.0% of single cuts, 0.4% of the share-weighted proxy
+  q < 0.03: 5.3% of single cuts, 0.5% of the share-weighted proxy
+  q < 0.1: 16.8% of single cuts, 0.5% of the share-weighted proxy
+  q < 0.3: 43.6% of single cuts, 1.9% of the share-weighted proxy
+  q < 1: 83.0% of single cuts, 65.9% of the share-weighted proxy
+  q < 3: 98.1% of single cuts, 99.9% of the share-weighted proxy
+the 300 heaviest by proxy: q quantiles
+  10%   25%   50%   75%   90% 
+0.371 0.450 0.581 0.870 1.500 

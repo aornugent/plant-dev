@@ -1,0 +1,5 @@
+crossing steps 726; runs of consecutive crossing steps: 153; longest 16
+crossings whose nearer neighbouring step is a crossing step: 75.9%; both neighbours: 39.1%
+crossings per crossing step: median 7, mean 12.7, 90% 30.5, max 105; steps with 1 crossing 45
+nodes alive at crossing steps: median 59, mean 57.8; crossing nodes / alive: median 0.15
+mean nodes alive over all steps (row width) 54.4

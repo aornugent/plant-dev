@@ -1,0 +1,6 @@
+t < 29.3         n= 4792  slope 0.112  quartic+end 0.366  stage quartic 0.399
+t < 25           n= 3506  slope 0.111  quartic+end 0.230  stage quartic 0.272
+13.4 < t < 29.3  n= 3776  slope 0.112  quartic+end 0.372  stage quartic 0.406
+t > 29.3         n= 2858  slope 0.322  quartic+end 0.111  stage quartic 0.109
+weighted by the share of J still to be earned (all n=7650): slope 0.114  quartic+end 0.295  stage quartic 0.326
+crossing steps 714 of 14838 (4.8%); crossing node-steps 7650

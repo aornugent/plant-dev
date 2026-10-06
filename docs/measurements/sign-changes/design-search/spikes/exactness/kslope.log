@@ -1,0 +1,5 @@
+check: slope weights at u=0: 1 0 0 0 0 0 0  at u=1: 0 0 0 0 0 0 1 
+check: integral of slope weights over [0,1] (should be b, 0): 0.097885 0 0.402575 0.210437 0 0.289101 2e-06 
+all   n=587 rms err/rms K_true: slope 0.034 endpoint 0.215 bracket 0.175 | bias slope -0.021 endpoint +0.051
+long  n=234 rms err/rms K_true: slope 0.057 endpoint 0.430 bracket 0.240 | bias slope -0.039 endpoint +0.183
+short n=353 rms err/rms K_true: slope 0.021 endpoint 0.039 bracket 0.148 | bias slope -0.013 endpoint -0.010

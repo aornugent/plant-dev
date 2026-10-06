@@ -1,0 +1,10 @@
+bracket    rms second diff of e1 0.0152 | e1 resid from cubic sd 0.00607 | lnJ resid from quartic sd 1.1e-06 max |third diff| 7.32e-06
+           chords r=1e-2,5e-3,2.5e-3: -7.8728 -7.8749 -7.8821 | second differences: -7.8139 -7.7051 -7.2337
+dense2     rms second diff of e1 3.58e-05 | e1 resid from cubic sd 1.98e-05 | lnJ resid from quartic sd 2.34e-08 max |third diff| 1.05e-07
+           chords r=1e-2,5e-3,2.5e-3: -7.8746 -7.8765 -7.8725 | second differences: -7.8734 -7.8660 -7.8505
+endpoint   rms second diff of e1 3.46e-05 | e1 resid from cubic sd 1.79e-05 | lnJ resid from quartic sd 1.19e-08 max |third diff| 2.61e-08
+           chords r=1e-2,5e-3,2.5e-3: -7.8727 -7.8712 -7.8671 | second differences: -7.8704 -7.8658 -7.8595
+plain      rms second diff of e1 0.00027 | e1 resid from cubic sd 0.000455 | lnJ resid from quartic sd 4.53e-07 max |third diff| 1.98e-07
+           chords r=1e-2,5e-3,2.5e-3: -7.8912 -7.9400 -7.7002 | second differences: -7.8786 -7.7915 -7.5994
+slope      rms second diff of e1 3.55e-05 | e1 resid from cubic sd 1.88e-05 | lnJ resid from quartic sd 1.22e-08 max |third diff| 2.66e-08
+           chords r=1e-2,5e-3,2.5e-3: -7.8761 -7.8776 -7.8739 | second differences: -7.8761 -7.8724 -7.8661

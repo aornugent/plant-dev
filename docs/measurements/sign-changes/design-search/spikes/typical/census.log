@@ -1,0 +1,60 @@
+node steps split: 9247 
+by cuts n:
+, , inside = 0
+
+   ends_differ
+n   FALSE TRUE
+  1     0 9233
+  2     0    0
+
+, , inside = 1
+
+   ends_differ
+n   FALSE TRUE
+  1     0    0
+  2    14    0
+
+steps holding a split: 730 of 14844
+single cut, ends of opposite sign: 9233 (99.85%)
+kappa (secant) quantiles over single cuts:
+      0%     0.1%       1%       5%      10%      25%      50%      75% 
+4.86e-02 8.57e-02 3.25e-01 3.03e+00 3.03e+01 2.12e+03 4.87e+04 1.88e+05 
+     90%      99%     100% 
+3.28e+05 1.05e+06 1.24e+06 
+  kappa < 1: 257 node steps, carrying share-weighted 0.00102 of the sum
+  kappa < 3: 458 node steps, carrying share-weighted 0.00186 of the sum
+  kappa < 10: 669 node steps, carrying share-weighted 0.00307 of the sum
+  kappa < 30: 922 node steps, carrying share-weighted 0.00491 of the sum
+  kappa < 100: 1210 node steps, carrying share-weighted 0.00706 of the sum
+u1 of single cuts, deciles:
+      0%      10%      20%      30%      40%      50%      60%      70% 
+8.82e-05 9.69e-02 2.03e-01 3.07e-01 4.04e-01 5.04e-01 6.01e-01 7.07e-01 
+     80%      90%     100% 
+8.02e-01 9.05e-01 1.00e+00 
+h (days) at single cuts:
+    5%    25%    50%    75%    95% 
+0.0331 0.2050 1.0000 2.7400 5.0200 
+time of the splits: share before t = 25 (count): 0.4654483 
+share-weighted (node's share of J) fraction before t = 25: 0.6667261 
+down vs up among single cuts: 4625 4608 
+node steps holding 50/90/99% of the share^2 (h dP)^2 proxy: 25, 133, 310
+of the top 500 by proxy: single cut ends differ: 1  before t=25: 0.522 
+pairs and other non-single: 
+   ends_differ
+n   FALSE
+  2    14
+non-single node steps: 14, share-weighted proxy fraction 0.0000; in 12 distinct steps
+non-single: their nodes' shares (top):
+           3            5            6            7           24           29 
+0.1545663600 0.0310459762 0.0168328365 0.0102004835 0.0064293285 0.0010976295 
+          30           37 
+0.0007773419 0.0005200026 
+non-single: u1, u2 quantiles; dip width u2-u1:
+     0%     10%     50%     90%    100% 
+0.00381 0.02000 0.05150 0.10200 0.22700 
+    0%    10%    50%    90%   100% 
+0.0162 0.0484 0.1600 0.5400 0.8730 
+non-single: day of year at their steps (top days):
+
+ 8684  2218  2328  5408  7063  8536  8569  8667  9780 10115 10119 12298 
+    3     1     1     1     1     1     1     1     1     1     1     1 

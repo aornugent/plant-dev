@@ -1,0 +1,5 @@
+steps starting at a knot: 983 single cuts, 6.3% of the proxy; q median 1.53, 90% 3.06; up-crossings 95%
+steps not starting at a knot: 8250 single cuts, 93.7% of the proxy; q median 0.336, 90% 1.05; up-crossings 45%
+up-crossings: 4625, q median 0.407, 90% 2.26, proxy 5.4%
+down-crossings: 4608, q median 0.346, 90% 0.636, proxy 94.6%
+h (days) of crossing steps by class: knot 0.642  other 1.3 

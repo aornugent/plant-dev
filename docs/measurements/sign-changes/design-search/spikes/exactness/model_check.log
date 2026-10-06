@@ -1,0 +1,7 @@
+crossing node-steps 587
+plain's local error explained by -h B0 K_true: residual rms / rms  S 0.053  H 0.016
+K estimates against K_true: rms error / rms K_true  endpoint 0.215  bracket 0.175
+steps longer than 4 days (234): explained S 0.053 H 0.016; endpoint 0.430 bracket 0.240
+short steps (353): explained S 0.053 H 0.015; endpoint 0.039 bracket 0.148
+B_S's range over a step relative to |B_S| at the start: median 0.033, 90% 0.262
+done

@@ -1,0 +1,3 @@
+m1: sweep -8.267811, central difference -8.270862, gap 3.05e-03 (bar 2e-3)
+m2: sweep -8.282093, central difference -8.281310, gap -7.83e-04 (bar 2e-3)
+m2, half-width 1e-6: sweep -8.282093, central difference -8.282109, gap 1.64e-05 (bar 2e-3)

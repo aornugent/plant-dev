@@ -1,0 +1,8 @@
+source("toy.R")
+setup()
+th0 <- c(2, 0.35, 0.05)
+m <- Sys.getenv("METHOD", "split"); tol <- as.numeric(Sys.getenv("TOL", "1e-8"))
+a <- run_adaptive(th0, tol, m)
+r <- c(lnJ = replay(a$times, th0, m), sapply(1:3, function(k) elasticity(a$times, th0, k, m)))
+cat(m, tol, "steps", length(a$times) - 1, "\n"); print(signif(r, 10))
+saveRDS(list(r = r, times = a$times), sprintf("ref_%s_%s.rds", m, format(tol)))

@@ -1,0 +1,10 @@
+converged dQ/dtheta (cut, h = 1e-3): -0.5397150345
+h 0.100 plain    spread (sd over 32 offsets) 1.411e-02  mean error -3.067e-03  max |error| 2.319e-02
+h 0.100 correct  spread (sd over 32 offsets) 3.189e-04  mean error +1.981e-04  max |error| 7.801e-04
+h 0.100 cut      spread (sd over 32 offsets) 7.334e-06  mean error +4.642e-06  max |error| 1.776e-05
+h 0.050 plain    spread (sd over 32 offsets) 7.022e-03  mean error +8.605e-04  max |error| 1.486e-02
+h 0.050 correct  spread (sd over 32 offsets) 7.858e-05  mean error +1.696e-05  max |error| 2.145e-04
+h 0.050 cut      spread (sd over 32 offsets) 1.062e-05  mean error +3.887e-07  max |error| 5.526e-05
+h 0.025 plain    spread (sd over 32 offsets) 2.926e-03  mean error +1.425e-04  max |error| 5.652e-03
+h 0.025 correct  spread (sd over 32 offsets) 1.961e-05  mean error +4.439e-06  max |error| 4.895e-05
+h 0.025 cut      spread (sd over 32 offsets) 3.578e-07  mean error +1.850e-06  max |error| 2.298e-06

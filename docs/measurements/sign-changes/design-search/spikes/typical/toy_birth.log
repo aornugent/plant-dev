@@ -1,0 +1,15 @@
+depth d   width    plain error   correction (2 a side)   correction (3 a side)
+  1e-01  0.1897   -1.265e-02      +2.485e-02              +2.146e-02
+  1e-02  0.0600   -4.001e-04      +2.078e-03              +1.385e-03
+  1e-03  0.0190   -1.287e-05      +7.198e-04              -3.118e-04
+  1e-04  0.0060   -7.675e-07      +7.905e-04              -1.571e-06
+  1e-05  0.0019   -3.860e-07      +7.854e-04              -9.259e-07
+  1e-06  0.0006   -3.618e-07      +7.849e-04              -8.851e-07
+
+two-term, 3 a side: the corrected error (plain error + correction)
+  1e-01  plain -1.265e-02  corrected -1.919e-07
+  1e-02  plain -4.001e-04  corrected -2.430e-07
+  1e-03  plain -1.287e-05  corrected -2.125e-04
+  1e-04  plain -7.675e-07  corrected -2.214e-06
+  1e-05  plain -3.860e-07  corrected -1.304e-06
+  1e-06  plain -3.618e-07  corrected -1.246e-06
