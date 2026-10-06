@@ -1917,11 +1917,11 @@ extensions in `prereg.txt`). Each change is its own commit and issue.
   74 s). Stopping at exactly adjacent doubles gave the same noise at 1.38×: the
   collar's root-find called the profit gradient 46% more often. On phylloptim's
   golden grid no operating point changes kind.
-- *The field build seats the newborn without rating it* (aornugent/plant#101).
-  The boundary node's leaf solve, 39% of the split's cost, was solved in every
-  field build and read by nothing on the birth-date coordinate. The run is bit
-  for bit the same. The uptake and the light field are still rebuilt for each
-  part.
+- *The field build sets the newborn's initial state without computing its
+  rates* (aornugent/plant#101). The boundary node's leaf solve, 39% of the
+  split's cost, was solved in every field build and read by nothing on the
+  birth-date coordinate. The run is bit for bit the same. The uptake and the
+  light field are still rebuilt for each part.
 - *The pulse's dips are the model's* (`pulse_step.log`, not registered). On day
   8684 node 5 falls from +0.023 to −0.384 at u = 0.10 in 512 classical
   Runge–Kutta steps, and to −0.381 at u = 0.109 on the dense output.

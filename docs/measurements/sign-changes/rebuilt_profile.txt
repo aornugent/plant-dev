@@ -1,0 +1,37 @@
+The rebuilt split, sampled by gperftools (2026-10-06): long drought, 108 nodes,
+1e-4, the split's pinned program, each profile run beside the bank's jobs. The
+forward and the gradient on lib_rf (odelia ODELIA-54 1dc9efe, plant compiled as
+PLANT-103 90db1450); the walk on lib_fx, the fixed build (odelia ODELIA-54
+9144d99, plant compiled as PLANT-103 ae675637). The fix leaves the stand's
+forward and sweep bit for bit.
+
+  LIB=... PROGRAM=program_split.rds DIR=... bash rebuilt_profile.sh run
+  LIB=... PROGRAM=program_split.rds DIR=... bash rebuilt_profile.sh read
+each profile read with the LIB it ran on.
+
+The forward (FORWARD=1), 41176 samples:
+  the split (SolverInternal::split)               1961   4.8% of the forward
+    the pieces (Step::integrate_pieces)            875   45% of the split
+    locating the sign changes                      748   38%
+    the end evaluated again (derivs)               328   17%
+Nearly all of each is leaf solves. Locating, 1.8% of the forward, is the one
+share the method leaves to choose, through its iterations; the pieces and the
+end evaluated again are the split itself.
+
+The gradient (STAND_ONLY=1), 146790 samples, of which the sweep
+(Solver::solve_adjoint) 108620:
+  split_as_recorded                               2570
+  the end before the split, taped                  656
+  together                                        3226   3.0% of the sweep
+  the recording forward's split                   1830, of which locating 703
+The reverse pass over what the split taped runs inside the tape's own frames,
+so the profile does not place it.
+
+The walk at theta' = theta (STAND_GRADIENT=0), its forward and its sweep:
+  the walk (run_mutant)                          40058
+    its split (SolverInternal::take_recorded_splits)
+                                                  1330   3.3% of the walk
+      the pieces (Patch::take_recorded_splits)     990
+  the walk's sweep (Solver::solve_adjoint)      101459
+    split_as_recorded and the end before the split, taped
+                                                  2485   2.4% of the sweep

@@ -100,6 +100,18 @@ for (tag in names(records)) {
               pair("stand_gradient"), pair("invader_run"), pair("invader_gradient")))
 }
 
+cat("\nThe stand's longest step, which a walk takes as it is; the lma x 2 invader's pools are unstable\n")
+cat("past 26.1 days, Cash-Karp's limit at their relaxation time (grid-dynamics.md section 8); the\n")
+cat("floor caps steps at 15\n")
+for (tag in names(records)) for (kind in c("split", "plain")) {
+  x <- read_run(tag, kind)
+  if (is.null(x$stand$times)) next
+  h <- diff(x$stand$times) * 365
+  cat(sprintf("  %-13s %-6s %.2f days at year %.3f; %d steps over 26.1 days, %d over 15\n",
+              records[[tag]], kind, max(h), x$stand$times[-1][which.max(h)], sum(h > 26.1),
+              sum(h > 15)))
+}
+
 cat("\nThe invaders at lma x 0.5 and x 2 on the split base: J', and each walk's and gradient's outcome\n")
 for (tag in names(records)) {
   s <- read_run(tag, "split")

@@ -651,8 +651,8 @@ after the events reply):
        `ln J` moves by −1.5e-6, and a replay costs 1.12× as long. Stopping at
        exactly adjacent doubles costs 1.38× for the same noise. (The reply's
        alternative, one Newton step at the end of each solve, is unmeasured.)
-     - *The field build seats the newborn without rating it*
-       (aornugent/plant#101), bit for bit. Of *a part rebuilds only what it
+     - *The field build sets the newborn's initial state without computing its
+       rates* (aornugent/plant#101), bit for bit. Of *a part rebuilds only what it
        reads*, this is the newborn's leaf solve, 39% of the split's cost; the
        chain from the dense output and the light field from the nodes'
        interpolated heights are not built, and each part rating still rebuilds
@@ -761,8 +761,10 @@ after the events reply):
        alternately in one process the two differ by 5.9% (CPU 5.0%), which
        agrees with both within the runs' noise; what carries the rest, up to
        3%, is not placed. The user accepts 7% for S5.
-   *The design of items 2 and 3.* One commitment: odelia does the arithmetic and
-   plant names the parts.
+   *The design of items 2 and 3.* (Rebuilt as `design-sign-changes.md` §8 maps
+   it, plant owning the split and odelia the step's numerics, in its
+   vocabulary; §9 changed the walk.) One commitment: odelia does the arithmetic
+   and plant names the parts.
    - *odelia.* A System that satisfies `SplitsSignChanges` supplies three
      things: the sign value of each part after an evaluation (for TF24, each
      node's net production), the width of a part, whose parts open the state,
@@ -784,15 +786,16 @@ after the events reply):
      auxiliary its rates change form at (TF24's net production), and names its
      nodes as parts when `ode_split_sign_changes` is on: a node's components are
      where `ode_state` writes them, and a part's rates are that node's alone, in
-     the light field and soil a split step reads at its five fractions. An
-     evaluation in a recorded field names none, so invasions stay
-     unsplit. `ode_splits` counts the node steps a run split. The tangent
-     walks refuse a run that split; the sweep follows it (item 3).
-   - *Recorded:* nothing new for item 2, since replays split again and
-     arrive at the same numbers. Item 3 records, for each split step, the end
-     the step reached before the split, and for each split part its cuts, each
-     cut's slope, the rating each cut was found at and each rating its pieces
-     made, so the sweep tapes them at the solutions found.
+     the light field and soil a split step reads at its five fractions. A walk
+     integrates each invader node laid out as the run's in pieces at the run's
+     sign changes, held, in the run's recorded field. `ode_splits` counts the
+     node steps a run or walk split. The tangent walks refuse a run that split;
+     the sweep follows it (item 3).
+   - *Recorded,* for each split step: what the evaluation at the end before the
+     split solved for; the field at the five fractions, which a walk reads; and
+     for each split block its sign changes (each one's u, slope and what the
+     evaluation there solved for) and what each evaluation in its pieces solved
+     for, which the sweep loads at the solutions found.
    - *Tests, with the change:* the dense output's order and its end against
      the step's solution, in odelia; in plant, a TF24 run with splits on, its
      replay bit for bit, and its error falling with `tol`, with every run

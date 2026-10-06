@@ -9,7 +9,8 @@ found.
 - *Its files* are in `measurements/sign-changes/design-search/`: the ledger,
   the six candidates, the judge's verdict, and every spike's script and log.
 
-Section marks (§) are `grid-dynamics.md`'s.
+A bare section mark (§) is `grid-dynamics.md`'s in sections 1 to 5, and this
+note's own from section 6 on.
 
 **In short.**
 - *The problem.* A step's error at a crossing is h²·a·ψ(u*). ψ averages to
@@ -293,11 +294,11 @@ different things, none of which it named.
 | block, node | the components split together; odelia says block and never node, and plant says node | was `part` |
 | split | integrating one block over a step in pieces that meet at its sign changes | `split_block`, `split_sign_changes`; "cut" leaves the code |
 | piece | one interval of a split, integrated with the step's tableau | `integrate_pieces` (unchanged) |
-| the end before the split | the state the tableau reaches before any block is split; its evaluation supplies the dense output's end rates | `at_state_before_split` (that evaluation's solved values), `state_before_split` (a block's components there); was `unsplit_end`, a name by negation |
+| the end before the split | the state the tableau reaches before any block is split; its evaluation supplies the dense output's end rates | `at_state_before_split` (that evaluation's solved values); was `unsplit_end`, a name by negation. `state_before_split`, a block's components there, went with the carry (§9) |
 | the field at five fractions | the field a node reads (the light field's knot data, then the soil's state) sampled at u = 0, ¼, ½, ¾ and 1 on the dense output, and the quartic through the samples at any u | odelia: `sample_fractions`, `sample_at`; plant: `sample_field`, `field_samples`; was `read_fractions`, `reads_at` |
 | the step just taken | what odelia hands the System after a step: start state, stage rates, the end's rates before the split, the end and the sign values; with the dense output, the quartic, integration in pieces and the sign-change finder | `taken_step` |
 | recorded row | the row of the resident's recording that a walk follows | the walk's `seed` parameter becomes `recorded`, since "seed" also names an adjoint seed |
-| taking the recorded splits | a walk's end for each node the run split: (the walk's end − the run's before the split) + the run's end, on every invader laid out as the run's one species | `take_recorded_splits` (plant) |
+| taking the recorded splits | a walk's split: each node the run split, of every invader laid out as the run's one species, integrated in pieces at the run's sign changes, held, in the run's recorded field samples (§9; it replaced carrying the run's move) | `take_recorded_splits` (plant) |
 | split as recorded | the sweep's split: at the recorded sign changes, each moving with the parameters by the implicit function, with the pieces' evaluations loading the forward's solved values | `split_as_recorded` (plant), `implicit_value` (odelia, unchanged) |
 | splits by block | committed split steps, counted per block; plant reports them per node | `splits_by_block()`, `SCM$ode_splits` |
 
@@ -325,11 +326,12 @@ different things, none of which it named.
     just taken;
   - after the System is asked, the end's rates evaluated again; the counts;
     and when a walk takes the recorded splits.
-- *A walk takes the recorded run's splits.* For each node the resident split,
-  the walk's end becomes (the walk's end before the split − the resident's) +
-  the resident's split end. On the diagonal that is the resident's end bit for bit.
-  Off it, the invader carries the resident's correction, and its own crossings
-  stay untreated, as before.
+- *A walk takes the recorded run's splits.* (Replaced in §9: a walk now
+  integrates the invader's own nodes in pieces where the run split.) For each
+  node the resident split, the walk's end becomes (the walk's end before the
+  split − the resident's) + the resident's split end. On the diagonal that is
+  the resident's end bit for bit. Off it, the invader carries the resident's
+  correction, and its own crossings stay untreated, as before.
   - *Plant maps it,* because only plant knows which invader node copies which
     resident node. A walk of several invaders lays its state out unlike the
     resident's, so a position check in odelia would carry the correction onto
@@ -501,8 +503,9 @@ had placed in odelia. What shrinks is not the line count:
 - *The cohort reads* went in only if the gates held; they did not, and are out.
 - *The walk's mapping is plant's.* A walk of several invaders lays its state out
   unlike the resident's, so odelia cannot tell which invader node copies which
-  resident node. Plant carries a node's correction onto that node of every
-  invader species with the resident's node count at that row; the resident must
-  have one species, and a run of several carries none. Several resident
+  resident node. Plant splits that node of every invader species with the
+  resident's node count at that row, where the resident split it (§9; it
+  carried the resident's correction there before); the resident must have one
+  species, and a run of several keeps no splits for a walk. Several resident
   species would need each invader tied to the species it copies: the trigger
   for extending it.
