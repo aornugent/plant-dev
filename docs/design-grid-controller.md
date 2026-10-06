@@ -231,20 +231,23 @@ converges, and the implicit chain out of the norm does not (`grid-dynamics.md`
   fixed in the sweep: R2, R3 and the curvatures;
 - the 15-day cap: R5. Under Cash–Karp it protects every walk for at most 2.4% of
   the window's saving (phase 1c), so invader sub-steps are deleted;
-- an implicit chain: R7. The explicit chain takes ×10 but not ×100, and where
-  stability binds (constant rain) only the implicit chain pays: 60% against
-  4.7%;
+- the soil stepped on its own where the plants draw little (item 5): R7. The
+  explicit chain takes ×10 but not ×100. Where stability binds (constant rain),
+  the implicit chain paid (60% against 4.7%), and the soil stepped on its own
+  now pays as much, at 0.98 of its member evaluations. So it replaces the
+  implicit chain (`measurements/soil-alone/`, S3);
 - the node rule with its companion: R4 and R8;
 - a pilot: R7, for the window.
 
 *Deleted:* the PI law, the chain seeds and the chain guard (they cut forward cost
 only, and are even or worse in rows); the crossing, onset and transit caps; the
-stability margin; the held collar and the partition; class-switch events;
-refusals for kinks.
+stability margin; the held collar and the partition, whose coupling's error sat
+in no norm (`grid-dynamics.md` §13); class-switch events; refusals for kinks.
+Item 5 is not that partition: its coupling's error is in the norm.
 
 **What this settles:**
-- no partition, and no caps (the 15-day cap aside), seeds or margins in plant's
-  controller;
+- no partition whose coupling's error sits outside the norm, and no caps (the
+  15-day cap aside), seeds or margins in plant's controller;
 - one input to the controller, a weight per state;
 - an invader's refinements frozen per grid, so `J′(θ′)` is continuous on it;
 - the sweep differentiates the discrete model on the frozen grid, the dense
@@ -257,7 +260,8 @@ refusals for kinks.
 - *Invaders beyond the frozen refinements.* A θ′ outside the analysis range may
   need refinements the grid did not freeze. Cope: rebuild, as for a big move.
 - *Records where stability sets every step,* as under constant rain. Cope: the
-  implicit chain.
+  soil stepped on its own (item 5). Every step of the constant record takes it,
+  at 0.98 of the implicit chain's member evaluations.
 - *The build:* a dense output and the splits, in odelia's step and sweep.
 
 **Kill condition:** a component whose error can be neither weighted nor refined
@@ -412,6 +416,10 @@ pulsed record before the gate.
     from `1e-5` than bounded Cash–Karp at `3e-5` for 6–11% less. So at matched
     error bounded Cash–Karp wins on the pulsed records, and the implicit chain
     earns its place under constant rain, where stability binds.
+  - *Retired* (`measurements/soil-alone/`, S3). Under constant rain the soil
+    stepped on its own (1e) takes 0.98 of arkc's member evaluations, at
+    `J` +6.9e-8 against arkc's +1.6e-6. So one mechanism serves every record,
+    and `ark-step` and `ark-soil` are not merged.
 - *RODAS on the whole stand: assessed, not run.*
   - Selecting it is one line: odelia's solver takes its method at construction
     (`scm.h:548`).
@@ -532,6 +540,13 @@ with the later task of building general scheduling heuristics.
   which the driver cannot do. The threshold stays at 10% until it is tuned.
   Tuning includes making it tighten with the tolerance, which the error in `J`
   needs below `3e-5`.
+- *Settled for the build* (`measurements/soil-alone/`; designed in
+  `design-soil-alone.md`, the build being phase 3's item 5):
+  - the slope stays, recorded on the row;
+  - the end's uptake comes from the stage at t + h;
+  - under constant rain it matches ARK, which retires.
+  - Without the slope `J`'s error still stops falling below `3e-5`, so the
+    floor is not the slope's.
 
 ### Phase 2: the node axis
 
@@ -831,25 +846,147 @@ after the events reply):
      the nudges, against the invader's ε as a stand-in. With the mutant
      Hessian as the invader's row, both of regnans's classifying matrices are
      chords of a swept gradient (`design-workflows.md`).
-5. *The soil stepped on its own where the plants draw little* (1e). On steps
-   whose uptake is under 10% of the soil's budget, the soil is integrated on
-   its own under an extrapolated uptake with a corrector pass, and the
-   coupling's error enters the norm at the members' weight. Its inner steps are
-   held fixed in replays, so the sweep runs through them, and a split reads the
-   soil from them. Its threshold is tuned later, with the scheduling
-   heuristics.
-6. *The node rule from phase 2:* spread uniform nodes (D), each reported as the
-   two-rung extrapolation with the coarser run as its companion. It changes
-   plant's birth-date competition sum, and so every reference. Its finest rungs
-   need the crowns sorted by height, which waits for its own design turn (2b).
-   A split rebuilds the light field from every node, so the spread's 16 point
-   crowns per node raise the split's cost; one build with both measures it.
-   With it comes the invader's own rule, sparser introductions by its own share
-   of `J′` (`grid-dynamics.md` §14), with the full walk kept on the diagonal.
+5. *The soil stepped on its own where the plants draw little* (1e).
+   - *The item:* on steps whose uptake is under 10% of the soil's budget, the
+     soil is integrated on its own under an extrapolated uptake, with a
+     corrector pass, and the coupling's error enters the norm at the members'
+     weight. Its inner steps are held fixed in replays, so the sweep runs
+     through them, and a split reads the soil from them. Its threshold is tuned
+     later, with the scheduling heuristics.
+   - *Settled by three spikes,* registered before they ran
+     (`measurements/soil-alone/`):
+     - *S1, the slope stays.* The predictor keeps the driver's slope,
+       extrapolated from the last step, recorded on the row and held in replays
+       and the sweep. Holding the uptake at the step's start instead cost 5.8%
+       and 12.8% more rows.
+     - *S2, the end's uptake from the stage at t + h.* An attempt then costs six
+       evaluations, as an ordinary step does: 9% fewer member evaluations, with
+       `J` inside the bound.
+     - *S3, ARK retires.* Under constant rain the step takes 0.98 of arkc's
+       member evaluations, at `J` +6.9e-8, so it is the one soil mechanism.
+     - *The floor is not the slope's.* Without the slope too, `J`'s error stops
+       falling below `3e-5`: +2.2e-5, +1.6e-8 and +2.3e-5 at `1e-4`, `3e-5`
+       and `1e-5`, about 0.001ε. Q3 read it as the threshold's, held fixed as
+       the tolerance tightens, which is untested. The threshold's tuning stays
+       with the scheduling heuristics.
+   - *Designed* in `design-soil-alone.md`, under the system-design skill.
+     - *One commitment:* a step that takes the soil alone is a function of its
+       own row. Its instruction holds every choice the run made for it: that it
+       took the soil alone, the slope, and the inner steps as fractions of the
+       step.
+     - *odelia steps the block and the System names it,* in four hooks: where
+       the block is, whether this step takes it alone, its inputs, and its
+       rates under given inputs.
+     - *An invader's walk is untouched:* its evaluations load the run's field,
+       the soil included.
+     - *The split reads the soil through the step's dense output,* the block's
+       from the predictor's samples at the five fractions. So the split's guard
+       from §9 holds by structure.
+   - *The build:*
+     - odelia `ODELIA-55` on `ODELIA-54`: the step's forward and its recording
+       first become one body at any scalar;
+     - plant `PLANT-104` on `PLANT-103`: TF24's soil as the block, the share in
+       Control (0, off, by default), and the program's two new fields through
+       R;
+     - about 250 and 170 lines.
+   - *Gates,* G1–G7 there:
+     - the aligned driver's steps and `J`;
+     - replays and `J′ = J` to the bit;
+     - the sweep against central differences at r = `1e-3`, within 2e-3;
+     - Q3's pass, with the adjoint's elasticities, for both roles;
+     - the bank under the cap, with splits on;
+     - the cost, timed alone;
+     - off, bit for bit.
+   - *Depends on* item 7's setting (its path's first step), which is its
+     baseline.
+6. *The node rule from phase 2.*
+   - *The item:* spread uniform nodes (D), each reported as the two-rung
+     extrapolation with the coarser run as its companion. It changes plant's
+     birth-date competition sum, and so every reference. Its finest rungs need
+     the crowns sorted by height, which waits for its own design turn (2b).
+     With it comes the invader's own rule: sparser introductions by its own
+     share of `J′` (`grid-dynamics.md` §14), with the full walk kept on the
+     diagonal.
+   - *Decided:*
+     - D (2a);
+     - the sort, in principle (2b);
+     - the invader's sparser introductions, which kept 53–66% of its walk and
+       sweep at ≤ 0.17ε in `ln J′` (§14).
+   - *The path, in order:*
+     1. *The sort's design turn, then its build:* the crowns sorted by height
+        before the light field's sum, at no measurable cost and with no
+        tolerance.
+     2. *D in plant's competition sum.* Every reference changes, the FF16 guard
+        included. So the references are blessed again in a commit of their
+        own, with the move registered first. One build with the split measures
+        what the spread's 16 point crowns a node cost it: five field builds a
+        split step.
+     3. *The ladders of 2c:* wet, dry and episodic to u429, and the constant
+        record with its front nodes, for both roles and with the quarter-spacing
+        move. They pass with square-law ratios near 4, companions reporting
+        0.8–1.25 of the error, and the move under ε/3.
+     4. *The invader's own rule.* First, the walk finds the run's node by its
+        birth date rather than its position, and refuses an invader it cannot
+        map. Today a thinned invader matches no node and walks unsplit, with
+        nothing to say so (the split's guard, `design-sign-changes.md` §9).
+        Then the thinning, with the selection gradient and the diagonal
+        measured, which §14 left open.
+   - *With item 7:* rule A's thinning of the nodes after the window, ⌊√F(b)⌋
+     spacings apart, is a node rule, so it is built here, on D's lattice.
+   - *With item 5:* nothing. The soil is the nodes' environment, not a node.
+   - *Open:* B, graded nodes, stays an option.
 7. *The window's weight from a pilot,* through the state weights, and the
    15-day cap from 1c, which is plant's `ode_step_size_max`.
+   - *Decided* (1c, combined): Cash–Karp's setting.
+     - It is the soil and the accumulators ×10, rule A's weight, every weight
+       bounded at 100 (`ode_weight_max`), and the 15-day cap.
+     - On three pulsed records it saves 31–34% of a gradient run, every
+       gradient is finite and every walk runs.
+     - Rule A is F(t) = 1/clamp(R̂(t)/R₀, r_min, 1), with R₀ = 0.1, r_min = 0.01,
+       and R̂ the pilot's largest R over the stand and `lma`'s range ends
+       (`grid-dynamics.md` §8).
+   - *Built:* every mechanism, on `state-weights`: the soil's, the
+     accumulators' and the time's weights, their bound, and the cap.
+   - *Not built:* the setting named once, and the pilot that sets F.
+   - *The path:*
+     1. *The setting, named once.* G1 of the bank needs its cap on episodic and
+        dry (D4), and item 5 takes it as its baseline, so it comes first.
+        Plant's defaults today are a 5-year step bound, weights of 1 and no
+        weight bound.
+        - As TF24's defaults it would move TF24's references, and FF16's too,
+          since Control is shared.
+        - As one plant function that every run calls, nothing moves.
+        - The user's call; the default is the function.
+     2. *The pilot:* 54 uniform nodes at `1e-3`, which reads R within 10%
+        wherever R ≥ 1e-3, on every record, for 0.25–0.32 of a forward's
+        member-steps.
+        - The walks at `lma`'s range ends now run under the cap.
+        - A plant function turns the pilot's per-node offspring, and the two
+          walks', into `ode_weight_times` and `ode_weight_factors`.
+        - It saves 21–23% of rows on the pulsed records, and 1.9% under
+          constant rain. There the 53-node causal grid reads R within 1.1%.
+     3. *Gates:* 1c's combined pass in plant, with splits on, across the bank.
+        Both roles' gradients are finite, every walk over `lma` and `hmat`
+        ×0.5–×2 runs, and the accuracy and nudge tests pass.
+   - *With the split and item 5,* one place each:
+     - splits run after the error estimate keeps a step, whatever set its size
+       (§9);
+     - item 5's block is judged at the smallest weight outside it, the window's
+       factor included.
+   - *Open:* a shared grid's window must cover every invader of an analysis,
+     and one that reproduces later widens it (§8's caveats, unmeasured).
 8. *The diagnostics R8 asks for:* the companions' estimate, θ's distance from θ₀
    against the radius, the failures, and the chain's error.
+
+*From here,* with the split closed out (`design-sign-changes.md` §9):
+1. Item 7's setting (7.1), since item 5 takes it as its baseline and the bank's
+   G1 needs its cap.
+2. Item 5.
+3. Item 7's pilot (7.2) and item 6, in either order; item 6 starts with its
+   sort's design turn.
+4. Item 8.
+
+The stack's PRs and merges stay the user's call.
 
 Out of scope: the second-order adjoint, and splits at class switches, which
 carry nothing measurable on their own

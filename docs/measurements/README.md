@@ -64,7 +64,11 @@ spike is `field-adjoint-map.md`, with its patch, scripts and logs in
 pre-registration (`prereg.txt`, eighteen extensions with their diagnostics),
 each extension's scripts, patches and logs, the code review (`review/`), the
 bank of records (`bank.sh`, `bank.R`, `bank.log`) and the profiles
-(`rebuilt_profile.sh`, `rebuilt_profile.txt`).
+(`rebuilt_profile.sh`, `rebuilt_profile.txt`). `soil-alone/` holds the spikes
+that settled the shape of the build of the soil stepped on its own (S1–S3 and
+the tolerance ladder; `prereg.txt`, `run.sh`, `sa_harness.diff`, `report.R` and
+`report.log`). `docs/design-soil-alone.md` and `grid-dynamics.md` §15 read
+them.
 
 ## The half-order loss
 

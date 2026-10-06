@@ -1494,6 +1494,20 @@ it needs three things: the coupling's error judged at the members' weight, the
 inner steps held fixed in replays so that reverse mode can run through them,
 and a threshold that tightens with the tolerance.
 
+**After: three spikes for the build's shape** (`measurements/soil-alone/`,
+registered before they ran; designed in `design-soil-alone.md`).
+- *S1, the slope, kept.* Holding the predictor's uptake at the step's start
+  costs 5.8% more rows on long drought and 12.8% on episodic, past the
+  registered 5%. So the slope stays, recorded on the row.
+- *S2, the end's uptake from the stage at t + h, adopted.* It cuts member
+  evaluations by 9.3% and 8.7% on the same steps, with `J` inside the bound.
+- *S3, ARK retired.* Under constant rain the step flags every step, cuts rows by
+  64% against bounded Cash–Karp, and takes 0.98 of arkc's member evaluations
+  as built, at `J` +6.9e-8 against arkc's +1.6e-6.
+- *The floor in `J` is not the slope's.* Without it, the error is +2.2e-5,
+  +1.6e-8 and +2.3e-5 at `1e-4`, `3e-5` and `1e-5`. The reading above, a
+  threshold held fixed as the tolerance tightens, is still untested.
+
 ## 16. The node axis: graded, spread, and both
 
 **The question** (phase 2a of the design doc; a pre-registered pathfinder,
