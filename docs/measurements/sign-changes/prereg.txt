@@ -941,3 +941,8 @@ run; bank.sh, bank.R)
   build, the invader at theta' = theta with its gradient. Each build's gradient
   at 1e-4 is read against it, every entry in units of its eps (floored), the
   largest and the count over eps/3 reported. No expectation.
+  D4's arms on dry (d4.log): on plain's stand the walk fails too, at year
+  35.534854 against the split stand's 35.534857 (log density 67.94 and 67.91),
+  so dry's failure is also the walk's own. Capped at 15 days it runs on both
+  stands (J' 9.767685e-21 beside plain's, 9.766992e-21 beside the split's).
+  Dry's stands take one step of 26.93 days, to year 35.512.

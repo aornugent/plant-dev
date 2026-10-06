@@ -7,3 +7,12 @@ split TRUE: J 1.978885608 over 9248 steps, 6210 node steps split; walk: Non-fini
 split FALSE: J 1.978913269 over 9283 steps, 0 node steps split; walk: 9.741109e-20
 ## split1_h15
 split TRUE: J 1.978873297 over 9283 steps, 6210 node steps split; walk: 9.741115e-20
+# D4 on dry (prereg.txt): walk_x2.R on dry, seed 31, the invader at lma x 2, on the same build.
+## split0_hnone
+split FALSE: J 1.189644147 over 7362 steps, 0 node steps split; walk: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=320652989816590275657773088768.000000 (log_density=67.940157, height=0.310636) at time=35.534854. The density derivative -d(growth)/d(height) - mortality can grow without bound when growth rate falls steeply with size under rapidly changing or extreme environmental forcing, driving density to overflow. Try a shorter max_patch_lifetime or less extreme environmental drivers.
+## split1_hnone
+split TRUE: J 1.189555091 over 7365 steps, 9000 node steps split; walk: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=312428701661807063294210473984.000000 (log_density=67.914174, height=0.310636) at time=35.534857. The density derivative -d(growth)/d(height) - mortality can grow without bound when growth rate falls steeply with size under rapidly changing or extreme environmental forcing, driving density to overflow. Try a shorter max_patch_lifetime or less extreme environmental drivers.
+## split0_h15
+split FALSE: J 1.189648891 over 7377 steps, 0 node steps split; walk: 9.767685e-21
+## split1_h15
+split TRUE: J 1.189546107 over 7382 steps, 9000 node steps split; walk: 9.766992e-21

@@ -146,12 +146,12 @@ which plant ties to whether it sampled.
    refuse an invalid state. At lma × 2 on long-wet the invader holds ~1e-8 of
    storage where the run's moves reach 3e-4; 55 of 466 moves left it below
    zero, and its density overflowed at year 6.49. Long drought failed alike
-   (27.73). Episodic's walk fails at 2.96 with or without splits, on a 27-day
-   step past its pools' stability limit, and runs under a 15-day cap (D4,
-   `d4.log`). The alternative, now built: the invader's own node integrated
-   in pieces at the run's breaks, held, in the run's five recorded field
-   samples. The carry and `state_before_split` go; the row keeps the samples;
-   a walk's row records the blocks it split.
+   (27.73). Episodic's and dry's walks fail with or without splits (2.96 and
+   35.53), each on a 27-day step past its pools' stability limit, and run under
+   a 15-day cap (D4, `d4.log`). The alternative, now built: the invader's own
+   node integrated in pieces at the run's breaks, held, in the run's five
+   recorded field samples. The carry and `state_before_split` go; the row keeps
+   the samples; a walk's row records the blocks it split.
 
 ## Questions with defaults
 
