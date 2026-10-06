@@ -1,0 +1,12 @@
+4194 corrections over 71 split steps, years 3.5502 to 6.4820
+storage: 466 corrections, 55 leaving it below zero; carried / own from -3750 to 6566
+the last split step before the failure, year 6.482026:
+ block      name           v  before run_end     carried
+     0    height  1.3523e+00 9.41441 9.41459  1.3524e+00
+     0 mortality  9.1723e+00 0.46424 0.46424  9.1723e+00
+     0   storage -1.4837e-06 0.23424 0.23398 -2.6088e-04
+     1    height  1.1974e+00 8.28701 8.28699  1.1974e+00
+     1 mortality  5.6960e+00 0.48625 0.48625  5.6960e+00
+     1   storage  4.6696e-07 0.13313 0.13314  1.7168e-05
+D3a: split TRUE: J 18.40236196 over 18453 steps, 8972 node steps split; walk: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=inf (log_densit
+D3b (PLANT_DBG_NO_CARRY=1): split TRUE: J 18.40236196 over 18453 steps, 8972 node steps split; walk: 2.157626e-21

@@ -1,0 +1,20 @@
+# The walk in pieces (odelia ODELIA-54 9144d99, plant PLANT-103 ae675637; the C++ built as 3c046e22, whose later amends changed a test's tolerance and a commit message).
+## the pinned long-drought program, forward (run_record.R FORWARD=1 SPLIT=1 PROGRAM=program_split.rds)
+J 12.6687361894839, node steps split 9247
+## long-wet, the invader at lma x 2 (walk_x2.R SPLIT=1)
+split TRUE: J 18.40236196 over 18453 steps, 8972 node steps split; walk: 2.157625e-21
+## walk_three.R on the pinned program
+stand J 12.6687361894839 (9247 node steps split); walked alone 12.6687361894839, identical TRUE
+three: 28.1730483425095, 12.6687361894839, 4.7883728817414; the middle identical TRUE; the walk alone took 183.7 s
+## test-scm.R's seasonal stand, the invader at lma x f: split stand against plain
+lma x 1.0: split stand J 1.170588545e-12, J' 1.170588545e-12 (walk splits 168); plain stand J 1.171010358e-12, J' 1.171010358e-12; ratio 0.99963979
+lma x 1.1: split stand J 1.170588545e-12, J' 2.636442572e-13 (walk splits 168); plain stand J 1.171010358e-12, J' 2.637395629e-13; ratio 0.99963864
+lma x 1.5: split stand J 1.170588545e-12, J' 1.015828255e-15 (walk splits 168); plain stand J 1.171010358e-12, J' 1.015802768e-15; ratio 1.00002509
+lma x 2.0: split stand J 1.170588545e-12, J' 3.704386677e-18 (walk splits 168); plain stand J 1.171010358e-12, J' 3.703364901e-18; ratio 1.00027590
+## plant's tests on lib_fx
+tests103.log:TOTAL fail 1 err 0 skip 1 pass 385   (the far invader's tolerance was 1e-4 then; at 1e-3 it passes, in plant_fast's test-scm.R)
+plant_fast.log:TOTAL fail 0 err 0 skip 9 pass 4523
+plant_tf24.log:TOTAL fail 0 err 0 skip 0 pass 148
+plant_mutant.log:TOTAL fail 2 err 0 skip 0 pass 67   (the same two FF16 expectations fail before the fix)
+## odelia's suite on lib_fx
+odelia TOTAL tests: 71  failed: 0  errors: 5  skipped: 3 

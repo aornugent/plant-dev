@@ -1,0 +1,36 @@
+--- a/inst/include/plant/patch.h	2026-10-06 12:54:49.796256696 +0000
++++ b/inst/include/plant/patch.h	2026-10-06 13:12:35.464732039 +0000
+@@ -16,6 +16,7 @@
+ #include <algorithm>
+ #include <array>
+ #include <cmath>
++#include <cstdlib>
+ #include <concepts>
+ #include <limits>
+ #include <memory>
+@@ -1802,6 +1803,8 @@
+                                       const std::vector<double>& run_end,
+                                       std::vector<double>& y) const
+   requires NamesSignValue<T> {
++  static const bool dbg_print = std::getenv("PLANT_DBG_SPLIT") != nullptr;
++  static const bool dbg_skip = std::getenv("PLANT_DBG_NO_CARRY") != nullptr;
+   const size_t run_nodes = run_end.size() - environment.ode_size();
+   size_t at = 0;
+   for (const species_type& s : species) {
+@@ -1810,7 +1813,15 @@
+       for (const auto& block : recorded) {
+         for (size_t q = 0; q < block.state_before_split.size(); ++q) {
+           double& v = y[at + block.first + q];
+-          v = (v - block.state_before_split[q]) + run_end[block.first + q];
++          const double carried =
++            (v - block.state_before_split[q]) + run_end[block.first + q];
++          if (dbg_print) {
++            Rprintf("DBG %.9f %d %d %d %d %.17g %.17g %.17g %.17g\n",
++                    environment.time, (int) block.block, (int) block.first,
++                    (int) width, (int) q, v, block.state_before_split[q],
++                    run_end[block.first + q], carried);
++          }
++          if (!dbg_skip) v = carried;
+         }
+       }
+     }

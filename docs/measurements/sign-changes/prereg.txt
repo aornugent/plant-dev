@@ -874,3 +874,34 @@ run; bank.sh, bank.R)
   dry spells take net production through zero; on constant and long-wet, no
   expectation. G5: the split's resident moves no larger than plain's on the
   records where it splits most. G6: no expectation beyond long drought's 9247.
+  Diagnostic D1, registered before its runs (walk_x2.R): G1 failed for the
+  invader at lma x 2 on long-wet's split base, its walk stopping at year 6.49
+  on a non-finite node density. The same walk on plain's stand tells the walk's
+  failure from the split's carried correction: if it fails there too, the
+  failure is not the split's; if it runs, the carried correction is the
+  suspect. Each arm is run again with steps capped at 15 days (HMAX=15), the
+  floor's cap, which phase 1c found to stop lma x 2 walks raising.
+  D1's first arm: on plain's stand the walk runs (J' 2.16e-21), so the carried
+  correction is the suspect. Diagnostic D3, registered before its runs: a plant
+  built with two switches no commit carries, on the split stand of walk_x2.R,
+  lma x 2. D3a prints every correction the walk adds (the invader's end before,
+  the run's end before the split, the run's end, the invader's end after);
+  D3b walks without adding them, all else equal. If D3b runs and D3a's last
+  steps before year 6.49 show a correction that takes a component of the
+  invader's node past what its own step moved it, the correction sets the
+  blow-up off; if D3b fails too, the split stand's steps do, and the
+  correction is cleared.
+  D3's arms: D3a's corrections took the oldest invader node's storage from
+  -1.5e-6 to -2.6e-4 at year 6.482, the step before the failure, and left the
+  invader's storage below zero in 55 of 466; D3b walked to its end (J'
+  2.158e-21). The carried correction sets the blow-up off. Long drought's split
+  base failed the same way at lma x 2 (year 27.73).
+  Eighteenth extension, after the walk's fix (a walk integrates an invader's
+  own nodes in pieces where the run split, in the run's sampled field): the
+  split base and its nudge are run again on every record, on a plant with the
+  fix. G1 and G2 are read again, with G5's invader role; G3, G4 and G5's
+  resident role are the stand's, which the fix leaves bit for bit, checked on
+  the pinned program (J 12.6687361894839, 9247 node steps split). Expected: G1
+  holds on every record, the invaders at x 0.5 and x 2 included; G2 holds; the
+  invader at x 2 on long-wet has the fitness it has on plain's stand, within
+  1e-3 relative (2.158e-21).

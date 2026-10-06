@@ -1,0 +1,9 @@
+# D1 (prereg.txt): walk_x2.R on long-wet, seed 31, the invader at lma x 2, on lib_rf (PLANT-103 90db1450).
+## split0_hnone
+split FALSE: J 18.40288767 over 18456 steps, 0 node steps split; walk: 2.157656e-21
+## split1_hnone
+split TRUE: J 18.40236196 over 18453 steps, 8972 node steps split; walk: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=inf (log_density=512848565835.533752, height=1.352426) at time=6.490726. Th
+## split0_h15
+split FALSE: J 18.40287344 over 18455 steps, 0 node steps split; walk: 2.157713e-21
+## split1_h15
+split TRUE: J 18.40238538 over 18458 steps, 8972 node steps split; walk: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=inf (log_density=512516729024.937866, height=1.352419) at time=6.490726. Th

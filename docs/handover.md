@@ -721,9 +721,9 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 | `ark-soil` (no issue yet) | `4dc59a40` | TF24's soil drainage and infiltration stepped implicitly under `ode_method = "ark"`; 1 commit | `state-weights` | odelia `ark-step`, `f11e753` |
 | `sign-changes` (superseded by `PLANT-102`) | `abcfcc22` | the split's first build, which §18's first measurements ran on; 1 commit | `state-weights` | odelia `sign-changes`, `6a6ce45` |
 | `PLANT-100` (#100) | `ed372143` | TF24's newborn height found to roundoff, TF24 v13, linking phylloptim 0.9.1; 1 commit | `state-weights` | `a62e97c`, with phylloptim `PHYLLOPTIM-17` |
-| `PLANT-101` (#101) | `4103c0aa` | the field build seats the newborn without computing its rates; 1 commit | `PLANT-100` | the same |
-| `PLANT-102` (#102) | `b23cbb98` | each TF24 node's step split where its net production changes sign, under `ode_split_sign_changes`, with `SCM$ode_splits` by node; walks take the recorded splits; the sweep and the tangent walks refuse a run that split; 1 commit | `PLANT-101` | odelia `ODELIA-53`, `3e831d6` |
-| `PLANT-103` (#103) | `90db1450` | the sweep through a split run, through the forward's split body at the active scalar; 1 commit | `PLANT-102` | odelia `ODELIA-54`, `1dc9efe` |
+| `PLANT-101` (#101) | `4f8f7a2b` | the field build sets the newborn's initial state and density without computing its rates; 1 commit | `PLANT-100` | the same |
+| `PLANT-102` (#102) | `a2cb3df2` | each TF24 node's step split where its net production changes sign, under `ode_split_sign_changes`, with `SCM$ode_splits` by node; a walk integrates each invader's own nodes in pieces where the run split, in the run's recorded field samples; the sweep and the tangent walks refuse a run that split; 2 commits | `PLANT-101` | odelia `ODELIA-53`, `c14ebfd` |
+| `PLANT-103` (#103) | `ae675637` | the sweep through a split run, a walk's included, through the forward's split body at the active scalar; 1 commit | `PLANT-102` | odelia `ODELIA-54`, `9144d99` |
 
 - odelia 0.5.0 is `claude/trusting-curie-4i9n3l` and phylloptim 0.9.0 is
   `378b083`, both unreleased. A branch builds only against its own odelia.
@@ -737,19 +737,22 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 - odelia's `ark-step` (`f11e753`, on `state-weights`) adds `Method::ark` and the
   `HasStiffBlock` concept; plant's `ark-soil` needs it. `$DEV/lib_ark` holds
   both, with phylloptim `378b083`.
-- odelia's `ODELIA-53` (`3e831d6`, four commits on `state-weights`; odelia#53)
+- odelia's `ODELIA-53` (`c14ebfd`, six commits on `state-weights`; odelia#53)
   hands a System that splits the step just taken (`taken_step`: the dense
   output, the quartic through five samples, integration in pieces and the
   sign-change finder), evaluates the end's rates again after a split, counts
-  splits at commit, finds a pair by one rule, and lets a walk take the recorded
-  splits, refusing them at another scalar; plant's `PLANT-102` needs it.
-  `PLANT-100` to `PLANT-103` need phylloptim's `PHYLLOPTIM-17` (`7230dcb`,
-  phylloptim#17, version 0.9.1), whose root-finds stop at roundoff.
-  - odelia's `ODELIA-54` (`1dc9efe`, one commit on `ODELIA-53`; odelia#54)
+  splits at commit, finds a pair by one rule, keeps the five field samples on
+  the row, and has a walk split its own blocks where the run split, refusing a
+  split row at another scalar; plant's `PLANT-102` needs it. `PLANT-100` to
+  `PLANT-103` need phylloptim's `PHYLLOPTIM-17` (`300d229`, phylloptim#17,
+  version 0.9.1), whose root-finds stop at roundoff.
+  - odelia's `ODELIA-54` (`9144d99`, one commit on `ODELIA-53`; odelia#54)
     evaluates the end before the split in the sweep and asks the System to split
-    as recorded; plant's `PLANT-103` needs it. `$DEV/lib_53` holds `ODELIA-53`
-    with `PLANT-102`, and `$DEV/lib_rf` `ODELIA-54` with `PLANT-103`, both with
-    `PHYLLOPTIM-17`. The incumbent heads, odelia `1e5a2d7` and plant
+    as recorded, with the row's samples; plant's `PLANT-103` needs it.
+    `$DEV/lib_fx53` holds `ODELIA-53` with `PLANT-102`, and `$DEV/lib_fx`
+    `ODELIA-54` with `PLANT-103`, both with `PHYLLOPTIM-17`. `$DEV/lib_rf` holds
+    the stack before the walk changed (odelia `1dc9efe`, plant `90db1450`), which
+    carried the run's split onto an invader. The incumbent heads, odelia `1e5a2d7` and plant
     `91098156`, are on `archive/sign-changes-incumbent`; `$DEV/lib_rr`
     holds them with phylloptim `6b6f152` (0.9.0). `$DEV/p21/lib_sw` holds their
     first commits (odelia `373f5b9`, plant `4f45b702`), the thirteenth and
