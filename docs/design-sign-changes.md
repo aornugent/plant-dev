@@ -266,3 +266,166 @@ Every finalist's names say what happens, per `AGENTS.md`, and none keeps
   - `corrected_steps`;
   - `TF24_Strategy::positive_part_slopes`;
   - `ode_correct_positive_part`.
+
+## 8. The refactor to the plant-owned cut, mapped
+
+The user took the defaults to §6 and the plant-owned cut, for TF24 alone. This
+section maps the change onto the stack's issue branches before any code moves.
+It supersedes §7's names for D.
+
+### Who owns what
+
+- *Plant owns the cut:* which node to try, the field a node reads, rating a
+  node in that field, the pieces, and the record. One plant body serves the
+  forward, at double, and the sweep, at the active scalar. So the two passes
+  cannot disagree about how a node is split, which was the review's first
+  finding.
+- *odelia owns the step:*
+  - the dense output, the quartic through five reads, integration in pieces,
+    and finding a sampled value's sign changes, all as numerics on the step
+    just taken;
+  - when the System is asked, the end rated again, the counts, and what a walk
+    does.
+- *A walk takes the recorded run's splits.* For each block the resident split,
+  the walk's end becomes (walk's unsplit end − resident's unsplit end) +
+  resident's split end. On the diagonal that is the resident's end bit for bit.
+  Off it, the invader carries the resident's correction, and its own crossings
+  stay untreated, as today.
+
+### The data, first
+
+In `ode_interface.hpp`, replacing `part_split`'s parallel arrays:
+
+```cpp
+// Where a block's sign value crossed zero, as a fraction of the step, its slope
+// in that fraction there, and the rating the crossing was located at.
+template <class Values> struct sign_change {
+  double u = 0.0;
+  double slope = 0.0;
+  Values rating{};
+};
+
+// What a step recorded for one block it split: which block, where its components
+// start and what they were at the end before the split, its sign changes, then
+// each rating its pieces made, in order.
+template <class Values> struct split_block {
+  std::size_t block = 0;
+  std::size_t first = 0;
+  std::vector<double> unsplit;
+  std::vector<sign_change<Values>> sign_changes;
+  std::vector<Values> ratings;
+};
+```
+
+- `solved_row` keeps `unsplit_end`, the evaluation at the end before the
+  split, and holds `std::vector<split_block<Values>> split_blocks`.
+- `taken_step<S>` is the step just taken, handed to the System. It holds
+  references to the start state, the stage rates, the end's rate before the
+  split, the end, and the sign values at the start, the five stages and the
+  end (empty at an active scalar). Its members are
+  `dense_state(u, first, out)`, `field_at(u, reads, out)`,
+  `integrate_pieces(first, cuts, rate, own)` and `sign_changes(block, value_at)`.
+- `SplitsSignChanges`, at double, asks for `sign_values(out)` and
+  `split_sign_changes(step, record) -> bool`. The bool is true where the System
+  rated anything, so the end is rated again.
+- An active System asks for `split_as_recorded(step, record)`. Its absence on a
+  System that splits is a compile error at the sweep, not a runtime refusal.
+
+### What goes
+
+- *From odelia:*
+  - `RatesParts`, `part_width`, `part_reads` and `part_rates`;
+  - `Step::split`, whose orchestration goes to plant and whose numerics go to
+    `taken_step`;
+  - `taped_split`;
+  - `split_record` and its `searched` and `least_rate*` fields;
+  - `end_sign_values`;
+  - the parts-times-width layout check;
+  - the runtime refusal in the sweep.
+- *From plant:*
+  - `field_recorded`, since walks never ask the System to split;
+  - the dead `keep_field` restore;
+  - the birth-date loop in a node rating, if a test shows it redundant;
+  - the restated read layout, in favour of TF24's `cohort_reads`;
+  - `r_ode_split_record`. `ode_splits` becomes the per-node counts, and their
+    sum is the total.
+- *From phylloptim (#17):*
+  - the bisection's budget check, which can never fire;
+  - the history comment carrying issue tags.
+
+### What changes behaviour, each in its own commit with its measured effect
+
+1. One rule finds a pair inside a step (F). The stage reading leaning furthest
+   to the other sign is read on the dense output, with a golden search beside
+   it if needed. It replaces the deepest-stage and nearest-zero rules.
+2. Splits are counted when their step is committed (`push_step`), not before
+   the validity check.
+3. A walk takes the recorded run's splits, so J′ = J to the bit on the
+   diagonal.
+4. A node's field is TF24's cohort reads, water potentials in place of
+   moisture.
+5. TF24f opts out, by deleting its inherited `sign_value_aux()`. Splits under
+   `ode_method = "rodas"` are refused when the run is set up, where they were
+   skipped silently.
+6. A cut whose slope reads exactly zero is held in the sweep, which otherwise
+   stopped there.
+
+### The sequence
+
+There are no PRs yet. Each issue branch is rebuilt as a few single-purpose
+commits on its base and force-pushed with lease, after the incumbent heads are
+tagged so recorded measurements stay fetchable.
+
+| branch (issue) | commits | gate |
+|---|---|---|
+| `ODELIA-53` (#53) | the step handed to the System, its numerics moved verbatim; then one pair rule; then counts at commit; then walks take recorded splits | odelia's suite; the first commit bit for bit against the incumbent's toy runs |
+| `ODELIA-54` (#54) | the sweep rates the end reached first, then asks the System to replay | sweep against central differences on the toy |
+| `PLANT-100` (#100) | the phylloptim pin to 0.9.1 | bit for bit |
+| `PLANT-102` (#102) | TF24 nodes split in plant, with TF24f out, Rodas refused and counts per node; then the field as cohort reads | below |
+| `PLANT-103` (#103) | the replay at the active scalar, with a zero slope held | below |
+| `PHYLLOPTIM-17` (#17) | the budget check, the history comment, version 0.9.1 | phylloptim's suite |
+
+The plant-dev harness readers of `ode_splits` and `ode_split_record`
+(`run_record.R`, `walk_identity.R`, `equilibrium.R`, `final.R`) change with
+`PLANT-102`. The gates are registered before the runs as the seventeenth
+extension of `measurements/sign-changes/prereg.txt`:
+- off, every run repeats bit for bit, FF16 included;
+- the moved code repeats the incumbent's split run bit for bit: ln J
+  2.539137243542 on the pinned program, and the sweep's lma elasticity;
+- each behaviour change moves ln J by its measured amount, under 1e-8 for the
+  pair rule and the cohort reads, and the 32-point scan still finds no pair
+  uncut;
+- J′ = J bit for bit at θ′ = θ;
+- the incumbent's gates still hold:
+  - J 10× nearer the reference at `1e-4`;
+  - S4 within 2e-3;
+  - the curvature at r = `1e-2` within 0.05ε of −43.44;
+  - forward ≤ +6% and sweep ≤ +7.3% against plain, timed alone;
+- a walk's extra end rating on each split row is measured.
+
+### Size, estimated by file (hand-written code, tests aside)
+
+| | incumbent | after |
+|---|---|---|
+| odelia `ode_step.hpp` | +514 | about +275: the view and its numerics, about 110 lines of sign changes kept, the sweep's call |
+| odelia `ode_interface.hpp`, `ode_solver*.hpp` | +114 | about +100: the record, the concept, the hook, counts at commit, walks |
+| plant `patch.h`, `species.h`, `scm.h`, strategies, control | +180 | about +200: the orchestration moves in, and the read layout and the record's R binding go |
+| total | about 810 | about 575 |
+
+What shrinks most is not the line count:
+- one orchestration instead of two;
+- four System methods that let odelia drive plant's internals become two calls
+  that hand plant the step;
+- the record is one vector of crossings per block;
+- counts are taken where steps commit;
+- J′ = J holds on the diagonal;
+- three silent paths are gone: TF24f's unrecorded optimiser, Rodas, and a zero
+  slope.
+
+### Questions, each with its default
+
+1. Rebuild the branches as fresh commits and force-push with lease, after
+   tagging the incumbent heads (`sign-changes-incumbent` on odelia `1e5a2d7`
+   and plant `91098156`)? Default: yes.
+2. Tangent walks keep refusing a run that split, unchanged. Default: yes.
+3. Take the cohort reads only if the gates above still hold. Default: yes.
