@@ -1,0 +1,10 @@
+G1 (NEW102's forward is OLD's to the bit): J 12.6687361894839 against 12.6687361894839; node steps split 9247 against 9247, the same on every node: TRUE; holds
+   NEW's forward, the body the sweep shares: J 12.6687361894839, identical to OLD's TRUE, node by node TRUE
+G2 (the sweep is OLD's to the bit): 50 of 50 entries identical; J TRUE; holds
+   the elasticity in lma: -8.276268316
+G3 (off is OLD off to the bit): forward J 12.6691430571393 against 12.6691430571393; the plain sweep's 50 entries identical TRUE; holds
+G4, the pair rule and the counts at commit: ln J moves 0.000e+00 (G1); holds
+G4, the cohort reads: ln J moves +1.065e-06, splitting 9258 node steps against 9247 (on 11 nodes); fails, so they stay out
+G5 (J' = J): the stand 12.6687361894839, walked alone 12.6687361894839 (TRUE), as the middle of three 12.6687361894839 (TRUE), the three 28.17256448, 12.66873619, 4.787907273; holds
+G6: the forward, split 118.6, 118.0 s, plain 113.6, 115.4 s: +3.3%, holds (at most 6%); the sweep, split 335.9, 338.2, 366.8 s, plain 326.7, 331.2, 360.4 s: +2.2%, holds (at most 7.3%)
+    the walk of the split stand's recording 113.5 s over 14844 rows, the plain stand's 110.3 s over 14839: +2.9% a row

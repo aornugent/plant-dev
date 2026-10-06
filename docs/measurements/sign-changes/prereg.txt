@@ -805,3 +805,35 @@ run before this text was written, and are marked; rebuild.sh, rebuild.R)
   was written, so neither is an expectation here.
   Not rerun: the 32-point scan of the thirteenth extension. Where G1 holds,
   every step splits where OLD's did, so its dense outputs and its cuts are OLD's.
+
+Result of the seventeenth extension (rebuild.log, rebuild.R): every gate holds
+but G4's for the cohort reads, which stay out.
+  G1. PLANT-102's forward on the pinned split program gives OLD's offspring
+  production, 12.6687361894839, to the bit over the same 14844 steps, and
+  splits 9247 node steps, the same on every node. NEW's forward, through the
+  body the sweep shares, gives the same.
+  G2. The stand's sweep gives all 50 of OLD's gradient entries to the bit; the
+  elasticity in lma is -8.276268316.
+  G3. With splits off NEW repeats OLD off to the bit: offspring production
+  12.6691430571393 on the plain program, and every entry of its sweep.
+  G4. The pair rule and the counts at commit move nothing on the pinned
+  program (G1). The cohort reads move ln J by +1.07e-6 and split 11 node steps
+  more (9258 against 9247, on 11 nodes): the quartic through five water
+  potentials is not the potential of the quartic through five moistures, by
+  enough to move pairs. They fail, and stay out (cohort_reads.patch).
+  G5. Walked on the split stand's recording, the stand's own strategy has its
+  offspring production to the bit, alone and as the middle of three invaders
+  at lma x 0.95, 1 and 1.05 (28.17, 12.67 and 4.79).
+  G6. Alone and alternating, the forward costs 3.3% more than plain's (118.6
+  and 118.0 s against 113.6 and 115.4 s), and the stand's sweep 2.2% more
+  (335.9, 338.2 and 366.8 s against 326.7, 331.2 and 360.4 s). Every run, plain's
+  too, took 1.3 to 1.5 times the thirteenth extension's on the same programs, so
+  these compare with each other and not with that extension's 6.0% and 7.3%.
+  The walk of the split stand's recording took 2.9% more a row than the plain
+  stand's, one run each; it evaluates one more time on each row that split
+  (726 of 14844 rows on OLD's census).
+  The gates ran on plant 3f4aed4e (PLANT-103) and d295f5c3 (PLANT-102), which
+  were then reworded before the push, as 90db1450 and b23cbb98 (with PLANT-101
+  4103c0aa). Every changed line is a comment except one, in test-control.R's
+  list of Control's fields, which gains ode_split_sign_changes. The compiled
+  code is the same, so these numbers stand for the pushed commits.

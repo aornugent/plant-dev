@@ -32,7 +32,7 @@ for (split in c(FALSE, TRUE)) {
   ct$ode_split_sign_changes <- split
   scm <- run_scm(stand(b), env, ct, events = ev, record_trajectory = TRUE)
   R <- sum(scm$offspring_production) / b
-  splits <- scm$ode_splits
+  splits <- sum(scm$ode_splits)
   scm$run_mutant(stand(1))
   Jw <- sum(scm$offspring_production)
   scm$run_mutant(stand(0))

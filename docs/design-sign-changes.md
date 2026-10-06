@@ -294,9 +294,10 @@ different things, none of which it named.
 | split | integrating one block over a step in pieces that meet at its sign changes | `split_block`, `split_sign_changes`; "cut" leaves the code |
 | piece | one interval of a split, integrated with the step's tableau | `integrate_pieces` (unchanged) |
 | the end before the split | the state the tableau reaches before any block is split; its evaluation supplies the dense output's end rates | `at_state_before_split` (that evaluation's solved values), `state_before_split` (a block's components there); was `unsplit_end`, a name by negation |
-| the field at five fractions | the field (TF24's cohort reads) sampled at u = 0, ¼, ½, ¾ and 1 on the dense output, and the quartic through the samples at any u | odelia: `sample_fractions`, `sample_at`; was `read_fractions`, `reads_at` |
+| the field at five fractions | the field a node reads (the light field's knot data, then the soil's state) sampled at u = 0, ¼, ½, ¾ and 1 on the dense output, and the quartic through the samples at any u | odelia: `sample_fractions`, `sample_at`; plant: `sample_field`, `field_samples`; was `read_fractions`, `reads_at` |
 | the step just taken | what odelia hands the System after a step: start state, stage rates, the end's rates before the split, the end and the sign values; with the dense output, the quartic, integration in pieces and the sign-change finder | `taken_step` |
 | recorded row | the row of the resident's recording that a walk follows | the walk's `seed` parameter becomes `recorded`, since "seed" also names an adjoint seed |
+| taking the recorded splits | a walk's end for each node the run split: (the walk's end − the run's before the split) + the run's end, on every invader laid out as the run's one species | `take_recorded_splits` (plant) |
 | split as recorded | the sweep's split: at the recorded sign changes, each moving with the parameters by the implicit function, with the pieces' evaluations loading the forward's solved values | `split_as_recorded` (plant), `implicit_value` (odelia, unchanged) |
 | splits by block | committed split steps, counted per block; plant reports them per node | `splits_by_block()`, `SCM$ode_splits` |
 
@@ -308,7 +309,7 @@ different things, none of which it named.
 - *Retired names:* `part`, `part_width`, `part_reads`, `part_rates`,
   `RatesParts`, `part_split`, `cuts`, `slopes`, `at_cuts`, `ratings`,
   `unsplit_end`, `read_fractions`, `reads_at`, `split_record`, `searched`,
-  `least_rate*`, `end_sign_values`, `field_recorded`, `taped_split` and
+  `least_rate*`, `field_recorded`, `taped_split`, `require_unsplit` and
   `ode_split_record`.
 
 ### Who owns what
@@ -323,12 +324,20 @@ different things, none of which it named.
     and finding a sampled value's sign changes, all as numerics on the step
     just taken;
   - after the System is asked, the end's rates evaluated again; the counts;
-    and what a walk does.
-- *A walk takes the recorded run's splits.* For each block the resident split,
+    and when a walk takes the recorded splits.
+- *A walk takes the recorded run's splits.* For each node the resident split,
   the walk's end becomes (the walk's end before the split − the resident's) +
   the resident's split end. On the diagonal that is the resident's end bit for bit.
   Off it, the invader carries the resident's correction, and its own crossings
-  stay untreated, as today.
+  stay untreated, as before.
+  - *Plant maps it,* because only plant knows which invader node copies which
+    resident node. A walk of several invaders lays its state out unlike the
+    resident's, so a position check in odelia would carry the correction onto
+    none of them, and the answer would hang on the batching.
+  - Every invader species with as many nodes as the resident at that row takes
+    the resident node's correction. The resident must have one species; a run
+    of several carries none, since no invader node is then known to copy one of
+    its nodes.
 
 ### The data, first
 
@@ -365,9 +374,12 @@ template <class Values> struct split_block {
   `dense_state(u, first, out)`, `sample_at(u, samples, out)`,
   `integrate_pieces(first, split_at, rates, own)` and
   `sign_changes(block, value_at)`.
-- `SplitsSignChanges`, at double, asks for `sign_values(out)` and
-  `split_sign_changes(step, record) -> bool`. The bool is true when the System
-  evaluated any node's rates, so odelia evaluates the end's rates again.
+- `SplitsSignChanges`, at double, asks for `sign_values(out)`,
+  `split_sign_changes(step, record) -> bool` and `take_recorded_splits(recorded,
+  run_end, y)`. The bool is true when the System evaluated any node's rates, so
+  odelia evaluates the end's rates again. A walk at another scalar, which has no
+  `take_recorded_splits`, refuses a row that split; it would otherwise walk the
+  step unsplit.
 - An active System asks for `split_as_recorded(step, record)`. Its absence on a
   System that splits is a compile error at the sweep, not a runtime refusal.
 
@@ -391,83 +403,106 @@ template <class Values> struct split_block {
   - `r_ode_split_record`. `ode_splits` becomes the per-node counts, and their
     sum is the total.
 - *From phylloptim (#17):*
-  - the bisection's budget check, which can never fire;
   - the history comment carrying issue tags.
+  - The bisection's budget check could never fire. It stays and now fires
+    (`>=`, as `uniroot_smooth()`'s), since the check is a guarantee.
 
 ### What changes behaviour, each in its own commit with its measured effect
 
-1. One rule finds a pair inside a step (F). The stage reading leaning furthest
-   to the other sign is read on the dense output, with a golden search beside
-   it if needed. It replaces the deepest-stage and nearest-zero rules.
+1. One rule finds a pair inside a step (F). Of the readings at the ends and at
+   the four stages strictly inside, the one leaning furthest to the other sign
+   is read on the dense output, with a golden search beside it if needed. It
+   replaces the deepest-stage and nearest-zero rules. *Built:* it moves nothing
+   on the pinned program, and on a toy it finds a dip the two rules missed, a
+   stage reading just short of zero where the dense output holds the other
+   sign. The ends must be among the readings: seven of long drought's 14 pairs
+   sit beside a near-zero start.
 2. Splits are counted when their step is committed (`push_step`), not before
-   the validity check.
+   the validity check. *Built*, with a toy that refuses a split end once.
 3. A walk takes the recorded run's splits, so J′ = J to the bit on the
-   diagonal.
+   diagonal. *Built:* to the bit on long drought, alone and as the middle of
+   three invaders.
 4. A node's field is TF24's cohort reads, water potentials in place of
-   moisture.
-5. TF24f opts out, by deleting its inherited `sign_value_aux()`. Splits under
-   `ode_method = "rodas"` are refused when the run is set up, where they were
-   skipped silently.
-6. A sign change whose slope reads exactly zero is held in the sweep, which otherwise
-   stopped there.
+   moisture. *Out:* it moved ln J by +1.07e-6 and split 11 node steps more,
+   against a gate of 1e-8.
+5. TF24f opts out, by deleting its inherited `sign_value_aux()`. *Built.*
+   Splits under `ode_method = "rodas"` were to be refused when the run is set
+   up, but plant cannot select the Rosenbrock stepper, so there is nothing to
+   refuse. The tangent walks' refusal moved into odelia, where a walk at another
+   scalar refuses a row that split.
+6. A sign change whose slope reads exactly zero is held in the sweep, which
+   otherwise stopped there. *Built*; no TF24 run here produces one.
 
 ### The sequence
 
-There are no PRs yet. Each issue branch is rebuilt as a few single-purpose
-commits on its base and force-pushed with lease, after the incumbent heads are
-tagged so recorded measurements stay fetchable.
+Each issue branch was rebuilt as single-purpose commits on its base and
+force-pushed with lease. The incumbent heads are kept on the branches
+`archive/sign-changes-incumbent` of odelia and plant, since the proxy refuses
+tag pushes.
 
 | branch (issue) | commits | gate |
 |---|---|---|
-| `ODELIA-53` (#53) | the step handed to the System, its numerics moved verbatim; then one pair rule; then counts at commit; then walks take recorded splits | odelia's suite; the first commit bit for bit against the incumbent's toy runs |
-| `ODELIA-54` (#54) | the sweep rates the end reached first, then asks the System to replay | sweep against central differences on the toy |
-| `PLANT-100` (#100) | the phylloptim pin to 0.9.1 | bit for bit |
-| `PLANT-102` (#102) | TF24 nodes split in plant, with TF24f out, Rodas refused and counts per node; then the field as cohort reads | below |
-| `PLANT-103` (#103) | the replay at the active scalar, with a zero slope held | below |
-| `PHYLLOPTIM-17` (#17) | the budget check, the history comment, version 0.9.1 | phylloptim's suite |
+| `ODELIA-53` (#53) | `dc40d5f` the step handed to the System, its numerics moved verbatim, and walks that take the recorded splits; `480417a` one pair rule; `b907afb` counts at commit; `3e831d6` a walk at another scalar refuses a row that split | odelia's suite; the toys' runs bit for bit against the incumbent's |
+| `ODELIA-54` (#54) | `1dc9efe` the sweep evaluates the end before the split, then asks the System to split as recorded | the toy against central differences; its adjoints bit for bit against the incumbent's |
+| `PHYLLOPTIM-17` (#17) | `7230dcb` the budget check fires, the history comment goes, version 0.9.1 | phylloptim's suite |
+| `PLANT-100` (#100) | `ed372143` the pin to phylloptim 0.9.1 | bit for bit |
+| `PLANT-101` (#101) | `4103c0aa`, rebased onto it, its title and comments in the vocabulary above | bit for bit |
+| `PLANT-102` (#102) | `b23cbb98` TF24 nodes split in plant, TF24f out, counts per node, walks carried onto each invader | the seventeenth extension; plant's suite |
+| `PLANT-103` (#103) | `90db1450` the split at the active scalar, through the forward's body, a zero slope held | the seventeenth extension; plant's suite |
 
-The plant-dev harness readers of `ode_splits` and `ode_split_record`
-(`run_record.R`, `walk_identity.R`, `equilibrium.R`, `final.R`) change with
-`PLANT-102`. The gates are registered before the runs as the seventeenth
-extension of `measurements/sign-changes/prereg.txt`:
-- off, every run repeats bit for bit, FF16 included;
-- the moved code repeats the incumbent's split run bit for bit: ln J
-  2.539137243542 on the pinned program, and the sweep's lma elasticity;
-- each behaviour change moves ln J by its measured amount, under 1e-8 for the
-  pair rule and the cohort reads, and the 32-point scan still finds no pair
-  uncut;
-- J′ = J bit for bit at θ′ = θ;
-- the incumbent's gates still hold:
-  - J 10× nearer the reference at `1e-4`;
-  - S4 within 2e-3;
-  - the curvature at r = `1e-2` within 0.05ε of −43.44;
-  - forward ≤ +6% and sweep ≤ +7.3% against plain, timed alone;
-- a walk's extra evaluation at the end of each split row is measured.
+The plant-dev harness readers of `ode_splits` and `ode_split_record` changed
+with `PLANT-102` (`run_record.R`, `walk_identity.R`); `final.R` reads the
+incumbent's saved runs and is left as it was. The gates were registered as the
+seventeenth extension of `measurements/sign-changes/prereg.txt`, and all hold
+but the cohort reads':
+- the forward and the sweep repeat the incumbent's to the bit on the pinned
+  program: offspring production 12.6687361894839, 9247 node steps split on the
+  same nodes, and all 50 gradient entries (the elasticity in `lma`
+  −8.276268316). The incumbent's accuracy gates (J 10× nearer the reference at
+  `1e-4`, S4, the curvature at r = `1e-2`) hold with them, by identity;
+- off, every run repeats the incumbent's off to the bit, forward and sweep;
+- J′ = J to the bit, alone and among three invaders;
+- the forward costs 3.3% more than plain's and the sweep 2.2% more, alone and
+  alternating; a walk of a split recording 2.9% more a row (one run each);
+- plant's full suite passes on `PLANT-102` (4732 expectations) and `PLANT-103`
+  (4733), but for `test-mutant.R`'s two FF16 expectations, which fail on the
+  base too, and `test-control.R`'s list of Control's fields, which lacked the
+  switch; the list is fixed in `PLANT-102` and passes.
 
-### Size, estimated by file (hand-written code, tests aside)
+### Size, by file (hand-written code, tests aside)
 
-| | incumbent | after |
+| | incumbent | rebuilt |
 |---|---|---|
-| odelia `ode_step.hpp` | +514 | about +275: the view and its numerics, about 110 lines of sign changes kept, the sweep's call |
-| odelia `ode_interface.hpp`, `ode_solver*.hpp` | +114 | about +100: the record, the concept, the hook, counts at commit, walks |
-| plant `patch.h`, `species.h`, `scm.h`, strategies, control | +180 | about +200: the orchestration moves in, and the read layout and the record's R binding go |
-| total | about 810 | about 575 |
+| odelia `ode_step.hpp`, `ode_interface.hpp`, `ode_solver*.hpp` | +598 −30 | +494 −41 |
+| plant `patch.h`, `species.h`, `scm.h`, strategies, control | +172 | +321 |
+| total | about 770 | about 815 |
 
-What shrinks most is not the line count:
-- one orchestration instead of two;
-- four System methods that let odelia drive plant's internals become two calls
-  that hand plant the step;
+The estimate of 575 was wrong. The orchestration moved into plant rather than
+shrinking, and plant gained the walk's mapping onto invaders, which the plan
+had placed in odelia. What shrinks is not the line count:
+- one orchestration instead of two, the forward and the sweep sharing one body;
+- the three methods by which odelia drove a node (`part_width`, `part_reads`
+  and `part_rates`) become three that hand plant a step or a row
+  (`split_sign_changes`, `take_recorded_splits` and `split_as_recorded`), so
+  odelia no longer reads plant's layout;
 - the record is one vector of crossings per block;
 - counts are taken where steps commit;
-- J′ = J holds on the diagonal;
-- three silent paths are gone: TF24f's unrecorded optimiser, Rodas, and a zero
-  slope.
+- J′ = J holds on the diagonal, for every invader on the resident's schedule;
+- two silent paths are gone: TF24f's unrecorded optimiser and a zero slope; a
+  walk at another scalar now refuses where it walked a split step unsplit.
 
 ### Settled
 
 - *The branches.* Each issue branch is rebuilt from its base as fresh,
   single-purpose commits and force-pushed with lease. The incumbent heads are
-  tagged `sign-changes-incumbent` first, so the measurements that cite them
-  stay fetchable. The user left the organisation to us.
-- *Tangent walks* keep refusing a run that split.
-- *The cohort reads* go in only if the gates still hold.
+  kept on `archive/sign-changes-incumbent` first, so the measurements that cite
+  them stay fetchable. The user left the organisation to us.
+- *Tangent walks* keep refusing a run that split, now in odelia.
+- *The cohort reads* went in only if the gates held; they did not, and are out.
+- *The walk's mapping is plant's.* A walk of several invaders lays its state out
+  unlike the resident's, so odelia cannot tell which invader node copies which
+  resident node. Plant carries a node's correction onto that node of every
+  invader species with the resident's node count at that row; the resident must
+  have one species, and a run of several carries none. Several resident
+  species would need each invader tied to the species it copies: the trigger
+  for extending it.

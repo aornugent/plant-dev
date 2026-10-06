@@ -202,7 +202,6 @@ if (!is.null(scm)) {
   out$stand <- list(J = sum(scm$offspring_production), times = scm$ode_times,
                     sizes = scm$ode_step_sizes, attempts = scm$ode_step_attempts,
                     splits = if (!is.null(scm$ode_splits)) scm$ode_splits,
-                    split_record = if (!is.null(scm$ode_split_record)) scm$ode_split_record,
                     nodes = per_node(scm), event_log = unclass(scm$event_log),
                     creation = creation_record(scm), soil = soil_record(scm),
                     forward_clamps = soil_clamps(plant:::census_clamp_counts_tf24))

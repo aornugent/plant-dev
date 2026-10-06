@@ -1,0 +1,43 @@
+diff --git a/inst/include/plant/patch.h b/inst/include/plant/patch.h
+index 67454504..dae00eca 100644
+--- a/inst/include/plant/patch.h
++++ b/inst/include/plant/patch.h
+@@ -427,8 +427,8 @@ private:
+   void compute_environment();
+   void compute_rates();
+ 
+-  // The field a node reads at each of the step's five sample fractions: the light
+-  // field's knot data, then the environment's own state.
++  // The field a node reads at each of the step's five sample fractions: the
++  // environment's cohort reads.
+   template <class Step>
+   void sample_field(const Step& step,
+                     std::array<std::vector<value_type>, 5>& field);
+@@ -1789,10 +1789,8 @@ void Patch<T,E>::sample_field(const Step& step,
+     const double u = step.sample_fractions[m];
+     step.dense_state(u, 0, state);
+     set_ode_state(state.begin(), step.time + u * step.h);
+-    field[m].resize(environment.light_availability.knot_data_size() +
+-                    environment.ode_size());
+-    environment.ode_state(
+-      environment.light_availability.knot_data(field[m].begin()));
++    field[m].resize(environment.n_cohort_reads());
++    environment.cohort_reads(field[m].begin());
+   }
+ }
+ 
+@@ -1802,12 +1800,9 @@ Patch<T,E>::node_rates_in_field(size_t node, const std::vector<value_type>& own,
+                                 const std::vector<value_type>& field,
+                                 double time, std::vector<value_type>& rates)
+   requires NamesSignValue<T> {
+-  util::check_length(field.size(),
+-                     environment.light_availability.knot_data_size() +
+-                       environment.ode_size());
++  util::check_length(field.size(), environment.n_cohort_reads());
+   environment.time = time;
+-  environment.set_ode_state(
+-    environment.light_availability.set_knot_data(field.begin()));
++  environment.set_cohort_reads(field.begin());
+   for (species_type& s : species) {
+     s.set_new_node_birth_date(time);
+   }
