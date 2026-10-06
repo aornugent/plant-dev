@@ -40,7 +40,9 @@ splits 9 247 node steps against 10 841.
 - *An invader's walk* on the resident's recorded steps, 0.77 of a forward.
   Selection gradients, mutant Hessians and landscapes are walks: regnans
   differences `ln R′` at a relative step of `1e-4`, over `2k + 1` invaders for a
-  gradient and `1 + 4k²` for a Hessian. Walks never split.
+  gradient and `1 + 4k²` for a Hessian. A walk splits its nodes where the
+  resident split, in the resident's recorded field (`design-sign-changes.md`
+  §9).
 - *A sweep,* 2.9 forwards for the resident and 2.2 for an invader. Once per
   analysis, at the answer, it gives every parameter's elasticity, and with the
   secant's slope every `d ln b*/d ln θ`. If two or more traits evolve, it
@@ -116,7 +118,10 @@ persisted format with outside consumers.
     `grid-dynamics.md` §13).
 - **R5, never fails** over the trait range, for residents and invaders. On
   episodic the lma ×2 invader raises on rule A's steps of 31–38 days, where its
-  pools are unstable past 26. A 15-day cap prevents it (phase 1c).
+  pools are unstable past 26. A 15-day cap prevents it (phase 1c). The tied
+  tolerance alone takes such a step on episodic and dry (27 days), where the
+  same walk raises with splits or without and runs capped
+  (`design-sign-changes.md` §9, D4).
 - **R6, shared:** one grid per local analysis, rebuilt on big moves in θ. The
   floor's grid holds the resident's gradients over `lma` ×0.95–×1.1.
   - Where one grid's radius is shorter than the analysis, several grids or a
@@ -511,7 +516,7 @@ phase 4 finds the invader's curvatures short. For R5, 1c's cap suffices.
 
 **1e. The soil stepped on its own where the plants draw little** (a pathfinder;
 `grid-dynamics.md` §15). It was not in the arc as first written. The user has
-decided that it joins the build (phase 3, item 2), and that tuning it belongs
+decided that it joins the build (phase 3, item 5), and that tuning it belongs
 with the later task of building general scheduling heuristics.
 - *How it works:* when the uptake at a step's start is under 10% of the soil's
   water budget, the soil is integrated on its own under an uptake extrapolated
@@ -592,11 +597,10 @@ after the events reply):
    - The state's rates are evaluated again at the corrected end state, which
      the next step starts from.
    - A replay of the resident repeats the forward's splits bit for bit, since
-     it evaluates every node again. An invader walk evaluates in the fields the
-     resident recorded, and a part's stages fall where no field was recorded, so
-     invader walks stay unsplit until workflow 2's design. At the resident's
-     traits an invader's `J′` then differs from the split `J` by the split's
-     own correction, about 1e-5 in `ln J`.
+     it evaluates every node again. (As built, an invader walk integrates each
+     node the resident split in pieces at the resident's sign changes, held, in
+     the field the resident recorded at five fractions of the step, so at the
+     resident's traits `J′` = `J` to the bit: `design-sign-changes.md` §9.)
    - Gates: `J`'s error falls with `tol`; `J` moves by at most 1e-8 as a sign
      change passes from one step to the next; a pair of sign changes merging is
      continuous; the forward costs at most 6% more; and halving only the split

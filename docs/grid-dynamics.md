@@ -1705,6 +1705,9 @@ candidate.
 
 ## 18. The split, built into plant's step
 
+(Rebuilt as the plant-owned split, `design-sign-changes.md` §8, and closed out
+in its §9: the review, the bank of records and the walk in pieces.)
+
 **Built** (odelia and plant, branch `sign-changes`, over `state-weights`; the
 design doc's phase 3, item 2). Where a node's net production changes sign inside
 a step the error estimate keeps, the node is integrated again in pieces between

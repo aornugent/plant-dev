@@ -751,11 +751,11 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
     as recorded, with the row's samples; plant's `PLANT-103` needs it.
     `$DEV/lib_fx53` holds `ODELIA-53` with `PLANT-102`, and `$DEV/lib_fx`
     `ODELIA-54` with `PLANT-103`, both with `PHYLLOPTIM-17`. `$DEV/lib_rf` holds
-    the stack before the walk changed (odelia `1dc9efe`, plant `90db1450`), which
-    carried the run's split onto an invader. The incumbent heads, odelia `1e5a2d7` and plant
-    `91098156`, are on `archive/sign-changes-incumbent`; `$DEV/lib_rr`
-    holds them with phylloptim `6b6f152` (0.9.0). `$DEV/p21/lib_sw` holds their
-    first commits (odelia `373f5b9`, plant `4f45b702`), the thirteenth and
+    the stack before the walk changed (odelia `1dc9efe`, plant `90db1450`),
+    which carried the run's split onto an invader. The incumbent heads, odelia
+    `1e5a2d7` and plant `91098156`, are on `archive/sign-changes-incumbent`;
+    `$DEV/lib_rr` holds them with phylloptim `6b6f152` (0.9.0). `$DEV/p21/lib_sw`
+    holds their first commits (odelia `373f5b9`, plant `4f45b702`), the thirteenth and
     fourteenth extensions' PREV; `$DEV/lib_sw` is `state-weights`, which splits
     nothing. `$DEV/p21/lib_frozen` holds the first commits with
     `docs/measurements/sign-changes/sweep_frozen.patch`, whose `PROBE_FROZEN=1`
@@ -805,6 +805,10 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ### Outstanding
 
+- **G1 needs the 15-day cap at the tied tolerance too.** On episodic and dry the
+  walk at `lma` × 2 raises with splits or without, on one stand step of about
+  27 days, past the 26.1 days its pools can take, and runs capped at 15
+  (`design-sign-changes.md` §9, D4). The cap is item 7's.
 - **The constant record's spot-check runs are on uniform nodes,** so their `J`
   and gradients are artefacts. The resolved schedule exists now, `const_Gbf16`
   (150 nodes, step 4's second reply); what remains is its tolerance companion.

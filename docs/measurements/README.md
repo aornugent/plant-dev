@@ -59,7 +59,12 @@ question. The field adjoint map's
 spike is `field-adjoint-map.md`, with its patch, scripts and logs in
 `field-adjoint-map/`. The spread canopy's, the node rule's candidate D, is
 `canopy-spread.md`, with its patches, scripts, runs and logs in
-`canopy-spread/`.
+`canopy-spread/`. `sign-changes/` holds the split's record, which
+`docs/design-sign-changes.md` and `grid-dynamics.md` §17–§19 read: its
+pre-registration (`prereg.txt`, eighteen extensions with their diagnostics),
+each extension's scripts, patches and logs, the code review (`review/`), the
+bank of records (`bank.sh`, `bank.R`, `bank.log`) and the profiles
+(`rebuilt_profile.sh`, `rebuilt_profile.txt`).
 
 ## The half-order loss
 

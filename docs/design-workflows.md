@@ -301,9 +301,12 @@ more traits.
 - *The Jacobian at small steps,* if adaptive runs' own step choices dominate
   there. Cope: regnans's step at `1e-2`, where the chord is measured, or B's
   replays for the moved residents.
-- *Invaders stay unsplit.* At the stand's own traits the walk is −7.6e-5 off the
-  stand's `J/b` (0.003ε of `ln J`, P12); a walk that split would need fields
-  at the split's stages, which no run records.
+- *Invaders split only where the stand split.* A walk integrates each node the
+  stand split in pieces at the stand's sign changes, held, in the field the
+  stand recorded, so at the stand's own traits `J′` = `J` to the bit
+  (`design-sign-changes.md` §9; before, the walk was −7.6e-5 off, P12). An
+  invader's own sign changes elsewhere stay untreated; at θ′ = θ the change
+  moved its gradient by up to 0.38ε.
 - *Memory:* 0.45 GB a recorded run, per fork. Over an assembly regnans keeps
   every step's community in its history, and each community's fitness function
   holds its resident's record. Cope: the history keeps a community and drops its
