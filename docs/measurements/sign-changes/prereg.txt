@@ -946,3 +946,10 @@ run; bank.sh, bank.R)
   so dry's failure is also the walk's own. Capped at 15 days it runs on both
   stands (J' 9.767685e-21 beside plain's, 9.766992e-21 beside the split's).
   Dry's stands take one step of 26.93 days, to year 35.512.
+  D5's result (d5.log): against the run at 1e-5 the walk in pieces' gradient
+  at 1e-4 has its largest entry 0.076 eps off (root_P50) and its median 0.005,
+  the carrying walk's 0.305 and 0.018; 41 of 48 entries lie nearer with the
+  pieces. The reference walks in pieces itself. D5b, registered before its run:
+  the same reference on the carrying build (lib_rf) at 1e-5. If the walk in
+  pieces at 1e-4 lies nearer that reference too, the result does not rest on
+  the reference sharing its method.

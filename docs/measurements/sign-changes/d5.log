@@ -1,0 +1,7 @@
+reference: J' 1.978899612; 50 entries, 48 with an eps
+ln J' against the reference: carrying -7.08e-06, in pieces -7.08e-06
+  carrying, against 1e-5     largest 0.305 eps (root_P50), 0 over eps/3, 1 over eps/6, median 0.018
+  in pieces, against 1e-5    largest 0.076 eps (root_P50), 0 over eps/3, 0 over eps/6, median 0.005
+  in pieces, against carrying largest 0.381 eps (root_P50), 1 over eps/3, 2 over eps/6, median 0.022
+entries the walk in pieces holds nearer the reference: 41 of 48
+JOB DONE d5.R
