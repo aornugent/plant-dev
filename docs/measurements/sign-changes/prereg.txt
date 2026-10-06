@@ -766,3 +766,42 @@ and holds S8 but for two entries; the selection gradient's is reported.
   root_P50 0.35 on the second).
   The invader at theta0 lies 7.0e-5 above the stand in ln J. The grids took
   14844, 14933 and 14718 steps and split 9247, 9246 and 9247 node steps.
+
+Seventeenth extension: the split rebuilt with plant owning the node, against the
+build it replaces (2026-10-06; design-sign-changes.md section 8 stated these
+gates at 0173a2d and a2d3eb7, before any run; G1 and the cohort reads of G4 were
+run before this text was written, and are marked; rebuild.sh, rebuild.R)
+  Why: the rebuild moves the split's orchestration from odelia into plant and
+  must change no number it does not mean to.
+  The builds. NEW: odelia ODELIA-54 1dc9efe, phylloptim 0.9.1, plant PLANT-103
+  3f4aed4e. NEW102, the forward alone: odelia ODELIA-53 3e831d6, plant
+  PLANT-102 d295f5c3. OLD: the thirteenth extension's LIB (odelia 1e5a2d7,
+  plant 91098156, kept on archive/sign-changes-incumbent), whose runs are on
+  disk (dev/p21/reads). Long drought, seed 31, 108 uniform nodes, the tied
+  tolerance at 1e-4, the thirteenth extension's pinned programs.
+  G1, the forward repeats OLD's: offspring production on the pinned split
+  program the same double, and the node steps split the same on every node.
+  Run on NEW102 before this text.
+  G2, the sweep repeats OLD's: every entry of the stand's gradient of offspring
+  production on the pinned split program the same double as OLD's grad_t1.
+  G3, off repeats OLD off: the plain program with splits off on NEW gives
+  OLD's fwdplain_t1 offspring production to the bit; the FF16 reference tests
+  pass.
+  G4, each behaviour change moves ln J on the pinned split program by under
+  1e-8: the pair rule and the counts at commit, read off G1; the cohort reads,
+  on a build of NEW102 whose nodes read TF24's cohort reads, which go in only
+  if this holds. The cohort reads were run before this text.
+  G5, J' = J: walked on the pinned split stand's recording, the stand's own
+  strategy has its offspring production to the bit, alone, and as the middle
+  of three invaders at lma x 0.95, 1 and 1.05.
+  G6, the timings, alone and alternating as the thirteenth extension's: the
+  forward on the split program against plain's, two each, at most 6% over; the
+  stand's sweep, three each, at most 7.3% over; the walk of the split stand's
+  recording against the plain stand's, one each, reported, with the rows the
+  split's walk evaluates again.
+  Expected: G2, G3 and G5 hold, since NEW's numerics are OLD's moved; G6 as
+  OLD's, within the noise of a shared machine. Section 8 expected G1 to hold,
+  and the cohort reads to move ln J by under 1e-8; both had been run when this
+  was written, so neither is an expectation here.
+  Not rerun: the 32-point scan of the thirteenth extension. Where G1 holds,
+  every step splits where OLD's did, so its dense outputs and its cuts are OLD's.
