@@ -905,3 +905,11 @@ run; bank.sh, bank.R)
   holds on every record, the invaders at x 0.5 and x 2 included; G2 holds; the
   invader at x 2 on long-wet has the fitness it has on plain's stand, within
   1e-3 relative (2.158e-21).
+  Diagnostic D4, registered before its runs (walk_x2.R, REGIME=episodic, on the
+  fixed build): G1 fails again for the invader at lma x 2 on episodic's split
+  base, at year 2.963 with log density 2906420.333211 at height 0.314960, the
+  same to every printed digit as with the carried correction. The same walk on
+  plain's stand tells the walk's failure from the split's: if it fails there
+  too, the failure is the walk's own on this record and not the split's; if it
+  runs, the split stand is the suspect again. Each arm is run again with steps
+  capped at 15 days (HMAX=15), the floor's cap.
