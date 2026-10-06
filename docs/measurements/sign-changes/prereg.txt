@@ -927,3 +927,7 @@ run; bank.sh, bank.R)
   fails on dry's split base, D4's four arms are run on dry (walk_x2.R,
   REGIME=dry): the failure is the walk's own if it fails on plain's stand too,
   and the cap removes it if both capped arms run.
+  Dry's split base failed G1 for the invader at lma x 2 (year 35.535, log
+  density 67.9, height 0.311), and D4's arms run on dry. Registered before the
+  constant record's walks run: if the invader at lma x 2 fails on its split
+  base, D4's four arms are run on it too (REGIME=constant), read the same way.
