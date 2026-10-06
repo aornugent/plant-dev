@@ -931,3 +931,13 @@ run; bank.sh, bank.R)
   density 67.9, height 0.311), and D4's arms run on dry. Registered before the
   constant record's walks run: if the invader at lma x 2 fails on its split
   base, D4's four arms are run on it too (REGIME=constant), read the same way.
+  Diagnostic D5, registered before its run: the walk's change leaves J' = J to
+  the bit but moves the invader's gradient at theta' = theta on the split base,
+  by up to 0.38 eps (episodic, root_P50; eps floored at 0.01 as OBJECTIVES.md
+  sets), 0.07 eps on long-wet and 0.017 eps on long drought. The carrying
+  walk's sweep differentiated each split step's walk before the split, and the
+  walk in pieces' sweep differentiates its pieces with the sign changes held.
+  The reference: run_record.R on episodic's split base at 1e-5 on the fixed
+  build, the invader at theta' = theta with its gradient. Each build's gradient
+  at 1e-4 is read against it, every entry in units of its eps (floored), the
+  largest and the count over eps/3 reported. No expectation.
