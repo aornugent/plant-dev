@@ -953,3 +953,12 @@ run; bank.sh, bank.R)
   the same reference on the carrying build (lib_rf) at 1e-5. If the walk in
   pieces at 1e-4 lies nearer that reference too, the result does not rest on
   the reference sharing its method.
+  D5b's result (d5.log): against the carrying walk at 1e-5 the carrying walk at
+  1e-4 lies nearer (largest 0.169 eps against 0.213, 11 of 48 entries nearer
+  with the pieces). Each walk lies nearer the run at 1e-5 made its own way, so
+  neither reference settles D5. Post hoc, not registered: on 43 of 48 entries
+  the two walks approach each other from opposite sides between 1e-4 and 1e-5,
+  their gap falling to a median 0.32 of itself (0.381 eps to 0.136 on
+  root_P50). If each error falls by that same factor, their meeting point puts
+  the walk in pieces at 1e-4 within 0.119 eps (median 0.010) and the carrying
+  walk within 0.263 (median 0.017).

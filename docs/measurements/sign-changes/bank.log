@@ -1,0 +1,77 @@
+# The eighteenth extension's gates (bank.R) over bank.sh's runs. On the fixed build (lib_fx): every record's split base and nudge, and every run on dry and constant. On lib_rf: long-wet's, long drought's and episodic's other runs, which the fix leaves bit for bit.
+G1, never fails: runs with a failure, or unfinished
+  epi   split  lma=2: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=inf (log_density=2906420.333211, height=0.314960) at time=2.962963. The density derivative -d(growth)/d(height) - mortality can grow without bound when growth rate falls steeply with size under rapidly changing or extreme environmental forcing, driving density to overflow. Try a shorter max_patch_lifetime or less extreme environmental drivers.
+  dry   split  lma=2: Non-finite cohort density in the SCM size-density (characteristic) equations: species 1 has a node with density=312428701661807063294210473984.000000 (log_density=67.914174, height=0.310636) at time=35.534857. The density derivative -d(growth)/d(height) - mortality can grow without bound when growth rate falls steeply with size under rapidly changing or extreme environmental forcing, driving density to overflow. Try a shorter max_patch_lifetime or less extreme environmental drivers.
+
+G2, J' = J, and G3, the sweep against the replays' central difference in lma
+  record        J' - J       sweep          difference     gap        
+  constant      0            -18.366618856  -18.366615265  -3.59e-06  
+  long-wet      0            -7.987405153   -7.988256429   8.51e-04   
+  episodic      0            -8.667389184   -8.668936832   1.55e-03   
+  dry           0            -13.119463810  -13.120502024  1.04e-03   
+  long-drought  0            -8.276259748   -8.277570496   1.31e-03   
+
+G4, ln J against the reference at 1e-6 (split forward)
+  record        ln J ref         split       split x1.05 plain       plain x1.05
+  constant      0.185717812228   1.39e-09    2.47e-09    1.63e-09    2.63e-09   
+  long-wet      2.912472868845   6.16e-06    2.65e-06    3.47e-05    7.53e-05   
+  episodic      0.682537457881   -3.60e-06   -4.07e-06   2.79e-05    5.93e-06   
+  dry           0.173597570797   -1.82e-05   -3.35e-05   5.67e-05    6.68e-05   
+  long-drought  2.539134522058   2.80e-06    -4.24e-06   3.66e-05    2.19e-05   
+
+G5, the nudge (tol x1.05): entries over eps/6, of those with an eps, and the largest
+  constant      split  resident   0 of 49 over eps/6; largest 0.000 eps (rooting_depth_max), median 0.000
+  constant      split  invader   43 of 49 over eps/6; largest 70796338141026.047 eps (rooting_depth_max), median 1542205981550.087
+  constant      plain  resident   0 of 49 over eps/6; largest 0.000 eps (rooting_depth_max), median 0.000
+  constant      plain  invader   43 of 49 over eps/6; largest 70793091191132.750 eps (rooting_depth_max), median 1530671555383.520
+  long-wet      split  resident   0 of 49 over eps/6; largest 0.043 eps (d_I), median 0.012
+  long-wet      split  invader    0 of 49 over eps/6; largest 0.030 eps (rooting_depth_max), median 0.001
+  long-wet      plain  resident   1 of 49 over eps/6; largest 0.253 eps (a_d0), median 0.022
+  long-wet      plain  invader    0 of 49 over eps/6; largest 0.134 eps (a_d0), median 0.014
+  episodic      split  resident   0 of 49 over eps/6; largest 0.082 eps (TF24_cost_scale), median 0.015
+  episodic      split  invader    0 of 49 over eps/6; largest 0.061 eps (a_d0), median 0.002
+  episodic      plain  resident   9 of 49 over eps/6; largest 0.444 eps (omega), median 0.046
+  episodic      plain  invader    1 of 49 over eps/6; largest 0.304 eps (a_d0), median 0.009
+  dry           split  resident   0 of 49 over eps/6; largest 0.137 eps (TF24_cost_scale), median 0.028
+  dry           split  invader    0 of 49 over eps/6; largest 0.019 eps (root_c), median 0.002
+  dry           plain  resident   5 of 49 over eps/6; largest 0.369 eps (omega), median 0.083
+  dry           plain  invader    1 of 49 over eps/6; largest 0.168 eps (a_d0), median 0.004
+  long-drought  split  resident   0 of 49 over eps/6; largest 0.092 eps (a_d0), median 0.020
+  long-drought  split  invader    0 of 49 over eps/6; largest 0.053 eps (a_d0), median 0.002
+  long-drought  plain  resident   9 of 49 over eps/6; largest 0.516 eps (a_dG1), median 0.091
+  long-drought  plain  invader    0 of 49 over eps/6; largest 0.112 eps (a_d0), median 0.007
+
+G6, the splits and each phase's time (s) on a shared machine, split against plain
+  record        splits   nodes  stand run       stand gradient  walk            walk gradient  
+  constant      41       22     90/58           98/90           52/47           85/81          
+  long-wet      8972     107    668/219         783/550         187/232         460/495        
+  episodic      6210     107    104/107         267/445         82/199          217/443        
+  dry           9000     108    82/80           253/414         66/64           223/323        
+  long-drought  9247     107    569/550         793/551         135/129         404/412        
+
+The stand's longest step, which a walk takes as it is; the lma x 2 invader's pools are unstable
+past 26.1 days, Cash-Karp's limit at their relaxation time (grid-dynamics.md section 8); the
+floor caps steps at 15
+  constant      split  11.26 days at year 19.424; 0 steps over 26.1 days, 0 over 15
+  constant      plain  11.29 days at year 25.720; 0 steps over 26.1 days, 0 over 15
+  long-wet      split  21.24 days at year 8.433; 0 steps over 26.1 days, 10 over 15
+  long-wet      plain  21.24 days at year 8.433; 0 steps over 26.1 days, 10 over 15
+  episodic      split  27.08 days at year 2.953; 5 steps over 26.1 days, 102 over 15
+  episodic      plain  27.08 days at year 2.953; 5 steps over 26.1 days, 102 over 15
+  dry           split  26.93 days at year 35.512; 1 steps over 26.1 days, 45 over 15
+  dry           plain  26.93 days at year 35.512; 1 steps over 26.1 days, 45 over 15
+  long-drought  split  25.11 days at year 8.485; 0 steps over 26.1 days, 14 over 15
+  long-drought  plain  25.11 days at year 8.485; 0 steps over 26.1 days, 14 over 15
+
+The invaders at lma x 0.5 and x 2 on the split base: J', and each walk's and gradient's outcome
+  constant      lma=0.5  J' 65553.101    gradient ok
+  constant      lma=2    J' 2.1398202e-21 gradient ok
+  long-wet      lma=0.5  J' 2681.5309    gradient ok
+  long-wet      lma=2    J' 2.1576254e-21 gradient ok
+  episodic      lma=0.5  J' 541.05756    gradient ok
+  episodic      lma=2    J' none         gradient not run
+  dry           lma=0.5  J' 789.84291    gradient ok
+  dry           lma=2    J' none         gradient not run
+  long-drought  lma=0.5  J' 1876.8709    gradient ok
+  long-drought  lma=2    J' 2.0445901e-21 gradient ok
+JOB DONE bank.R

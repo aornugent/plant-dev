@@ -27,6 +27,10 @@ note's own from section 6 on.
 - *Halving the steps that hold a sign change* meets R1 and R2 on TF24 in about
   110 lines. It loses on runtime per pass: a forward costs 10–13.5%, against
   the 6% bar.
+- *Built* as the plant-owned split (§8) and closed out (§9). Across the bank of
+  rainfall records J′ = J to the bit, the sweep matches central differences,
+  and `ln J` lies 3 to 13 times nearer the reference than without splits. A
+  walk now integrates an invader's own nodes in pieces where the run split.
 
 ## 1. The problem as mathematics
 
@@ -509,3 +513,263 @@ had placed in odelia. What shrinks is not the line count:
   species, and a run of several keeps no splits for a walk. Several resident
   species would need each invader tied to the species it copies: the trigger
   for extending it.
+
+## 9. Closing out: the review, the bank, the cost, the next steps
+
+The rebuilt stack was reviewed under the code-review skill, run on the bank of
+rainfall records, profiled again, and walked through the spec's next steps.
+- *The bank* found the invader at `lma` × 2 failing its walk.
+  - On long-wet and long drought the split caused it: the walk carried the
+    run's move onto a state of another scale. That changed one decision: a
+    walk now integrates an invader's own nodes in pieces where the run split.
+    It replaces §8's *A walk takes the recorded run's splits*, the vocabulary's
+    old *taking the recorded splits*, and `state_before_split`.
+  - On episodic and dry the walk fails by itself, with splits or without: one
+    of the stand's steps is longer than the invader's pools can take. The
+    spec's 15-day cap removes it.
+- *The review* asked for that change and for comments the cold read misread.
+  Both are made.
+- *The cost:* the split is 4.8% of the forward's samples and 3.0% of the
+  sweep's, nearly all of it what the method must compute. Nothing changed.
+- *The next steps:* four are one place and five leaky, each leaky one for want
+  of one guard.
+
+### The heads
+
+| branch (issue) | head | since §8 |
+|---|---|---|
+| `ODELIA-53` (#53) | `c14ebfd` | the hooks' comments say what the bodies do (`237915b`); a walk splits its own blocks where the run split them (`c14ebfd`) |
+| `ODELIA-54` (#54) | `9144d99` | the sweep hands the System the row's samples too |
+| `PHYLLOPTIM-17` (#17) | `300d229` | the root-finder's stopping comment says what it tests |
+| `PLANT-100` (#100) | `ed372143` | unchanged |
+| `PLANT-101` (#101) | `4f8f7a2b` | its comments say what the bodies do |
+| `PLANT-102` (#102) | `a2cb3df2` | its comments say what the bodies do (`abf3eba8`); the walk in pieces (`a2cb3df2`) |
+| `PLANT-103` (#103) | `ae675637` | the sweep reads the row's samples, and a walk's sweep tapes its pieces |
+
+### The walk, changed
+
+- *What failed.* The eighteenth extension's G1 (`measurements/sign-changes/
+  prereg.txt`). The invader at `lma` × 2, walked on the split base, raised on
+  every record the carrying build reached: on long-wet at year 6.49, its
+  density overflowing (log density 5.1e11); on long drought at 27.73 (7.1e4);
+  on episodic at 2.96 (2.9e6). On `test-scm.R`'s three-year seasonal stand the
+  same invader's fitness came out −3.9e-16. On the fixed build long-wet and
+  long drought run, and episodic and dry raise (dry at 35.53): those two are
+  the walk's own (below).
+- *Why, on long-wet* (D1 and D3, registered before their runs; `walk_x2.R`,
+  `walk_x2.log`, `d3.log`):
+  - On plain's stand the walk runs (J′ 2.158e-21). Capping steps at 15 days
+    does not help: the split stand's walk fails at the same instant.
+  - Walked on the split stand without the carried move, it runs (J′
+    2.158e-21). So the carried move sets the blow-up off.
+  - The move was the run's, from its end before the split to its end after it,
+    added to the invader's node. At twice the run's `lma` the invader starves:
+    it holds about 1e-8 of storage where the run's moves reach 3e-4. 55 of 466
+    moves left its storage below zero, which a walk's fixed steps never refuse.
+    At year 6.482 the oldest node's storage went from −1.5e-6 to −2.6e-4, and
+    the next step its density overflowed.
+- *The change.* The run's row keeps the field at the five sample fractions,
+  each sample in its own slot, as an evaluation keeps its field. An invasion
+  takes those fields as it takes the stages'. A walk of a step the run split:
+  1. ends the step at the state before the split, evaluated as the run's was;
+  2. integrates each node, of every invader laid out as the run's one species,
+     in pieces at the run's sign changes, held, with its own rates in the run's
+     field;
+  3. records the blocks it split. They count, and its sweep tapes them with
+     the sign changes held.
+  - `state_before_split` goes, and so does the carry. The run's own strategy
+    still walks back to its fitness to the bit, alone and as the middle of
+    three invaders.
+  - It is the clean sheet's walk (*The review*, below). R7 and R3 could not
+    tell it from the carry; OBJECTIVES' *never fails* could.
+- *Verified* on the fixed build (`walk_fix.log`):
+  - the stand's forward on the pinned program repeats to the bit (offspring
+    production 12.6687361894839, 9247 node steps split). The split stands of
+    long-wet, long drought and episodic, run on both builds, agree to the bit,
+    so their stand results stand;
+  - on long-wet the walk at `lma` × 2 runs: J′ 2.157625e-21, against
+    2.157656e-21 beside the unsplit run;
+  - in plant's tests, on the seasonal stand, the far invader's fitness is the
+    one it has beside the unsplit run, within 1e-3 where the split moves the
+    run's own by 4e-4. An invader at 1.5 × `lma` walked there sweeps to its
+    central differences within 1e-6.
+- *Episodic's and dry's failures are the walk's own* (D4, registered before
+  its runs; `d4.log`).
+  - On plain's stand the same walk fails at the same instant: on episodic with
+    the same log density to every printed digit (2906420.333211 at year
+    2.962963), on dry at year 35.5349 (log density 67.94 against the split
+    stand's 67.91).
+  - Episodic's stands take a step of 27.08 days to year 2.953 and dry's one of
+    26.93 days to 35.512, the longest in each run. Cash–Karp is unstable on a
+    pool past 3.73 relaxation times: 26.1 days for this invader's
+    (`grid-dynamics.md` §8). Long-wet's and long drought's longest steps are
+    21.2 and 25.1 days.
+  - Capped at 15 days, the floor's cap, the walk runs on both stands: on
+    episodic J′ 9.741109e-20 beside plain's and 9.741115e-20 beside the
+    split's, as phase 1c found under rule A (9.7e-20); on dry 9.767685e-21 and
+    9.766992e-21.
+  - So G1 holds on both under the cap the spec already sets (item 7), and fails
+    without it, whether or not the run splits.
+
+### The review
+
+Under the code-review skill at tier 3, for the odelia–plant boundary: a clean
+sheet and a cold read, each by an agent blind to the diff. The record is
+`measurements/sign-changes/review/`.
+- *Verdict:* approve with changes, both made: the comments the cold read
+  misread, and the walk.
+- *The clean sheet,* from §8's ledger alone: about 235 lines, against the
+  stack's 410 in odelia and 300 in plant. It differs in four places.
+  1. *The field.* The sketch reads the stage reads' interpolant; the stack
+     builds the field at five fractions on the dense output. The five samples
+     hold `ln J` within 2.4e-9 of a field built at every evaluation. Explicit
+     stages are first-order values of the state, so the stage reads hold the
+     field to O(h²) between the abscissae (unmeasured). Kept.
+  2. *The break.* The sketch puts it where the next piece's first evaluation
+     reads P = 0; the stack at the zero on the dense output. The sketch's
+     locate integrates a piece per iterate, six evaluations against one. Its
+     reason is a misfit flipping that reading across the switch. That needs a
+     hard switch, and TF24's positive part is smooth. Kept. It stays a
+     candidate for R2's untraced residue, which falls like 1/r, as kinks in
+     J(θ) would.
+  3. *The walk.* The sketch integrates the invader's own nodes in pieces at the
+     run's breaks; the stack carried the run's move. Taken (above).
+  4. *The record.* The sketch keeps no state; the stack now keeps the five
+     samples, and no longer the state before the split.
+- *The cold read* predicted each of 39 elements from its signature before
+  reading its body. 11 missed, and each comment now says what the body does.
+  The misses that are behaviour, not wording, are the finding and the question
+  below.
+- *Decisions reopened:*
+  - D1, plant orchestrating the split, and D2, the whole end evaluated again:
+    settled by the user's decision with R12, and by R4.
+  - D3, five samples a split step: settled by R8 (2% of the split's cost).
+  - D4, the carried walk: overturned by the bank.
+  - D5, a run of several species dropping its splits silently, and D6, no
+    split outside Cash–Karp, silently: the question and the finding below.
+- *What must always be true:* the sweep tapes the map the forward took, a
+  walk's included. Structure keeps it:
+  - one plant body at either scalar (`sample_field`, `node_value_at`,
+    `split_node`);
+  - the forward's sign changes and solved values replayed in order, their
+    count checked.
+  One convention is left: `split_sign_changes` returns true wherever it moved
+  the System's state, which plant ties to whether it sampled.
+- *Finding.* Splits stop silently outside Cash–Karp. Merging `ark-step` and
+  `ark-soil` makes that reachable: a run asking for ARK and splits would split
+  nothing, with every number finite. With that merge, plant refuses
+  `ode_split_sign_changes` under any `ode_method` but rkck, where Control is
+  checked.
+- *Question, with its default.* Why does a run of several species drop its
+  splits for a walk silently? Default: keep dropping them, and report it with
+  R8's diagnostics when they are built.
+
+### The bank
+
+The eighteenth extension (`measurements/sign-changes/prereg.txt`; `bank.log`,
+from `bank.R` over `bank.sh`'s runs): every record at seed 31, 108 uniform
+nodes, the tied tolerance at `1e-4`, with splits and without; the split base
+and its nudge on the fixed build.
+
+| record | node steps split | G1 | G2, J′ − J | G3, sweep − central difference | G4, `ln J` − reference, split / plain | G5, resident entries over ε/6, split / plain (largest) |
+|---|---|---|---|---|---|---|
+| constant | 41 | holds | 0 | −3.6e-6 | 1.4e-9 / 1.6e-9 | 0 / 0 (0.000ε / 0.000ε) |
+| long-wet | 8972 | holds | 0 | 8.5e-4 | 6.2e-6 / 3.5e-5 | 0 / 1 (0.04ε / 0.25ε) |
+| episodic | 6210 | × 2 raises, uncapped | 0 | 1.6e-3 | −3.6e-6 / 2.8e-5 | 0 / 9 (0.08ε / 0.44ε) |
+| dry | 9000 | × 2 raises, uncapped | 0 | 1.0e-3 | −1.8e-5 / 5.7e-5 | 0 / 5 (0.14ε / 0.37ε) |
+| long drought | 9247 | holds | 0 | 1.3e-3 | 2.8e-6 / 3.7e-5 | 0 / 9 (0.09ε / 0.52ε) |
+
+- *G1, never fails.* Every run finishes, every walk at `lma` × 0.5 runs with its
+  gradient, and so does × 2 on constant, long-wet and long drought. On
+  episodic and dry the walk at × 2 raises with splits or without, on one step
+  of about 27 days, and runs under the 15-day cap (D4, above).
+- *G2, J′ = J,* to the bit on every record.
+- *G3, the sweep is the split map's derivative:* within S4's 2e-3 of the
+  replays' central difference in `lma` on every record.
+- *G4, `ln J` against the split at `1e-6`.* On every record that crosses, the
+  split lies 3 to 13 times nearer than plain, and at `1.05e-4` too, as
+  expected on episodic, dry and long drought. Every error is at most 0.003ε.
+  Constant rain crosses at 41 node steps, and the two arms are alike.
+- *G5, the nudge.* Each entry's move under `tol` × 1.05, in units of its ε
+  as `spot_check.R` reads it (without OBJECTIVES' floor of 0.01, so stricter).
+  The split's resident moves no entry past ε/6 on any record, against up to 9
+  of 49 for plain's (0.52ε). Its invader at θ′ = θ moves none on the four
+  records that cross, against up to one for plain's (0.30ε). On constant the
+  invader's gradient is −1.4e17 on both arms, the uniform nodes' artefact
+  already on record (`measurements/spot-check.md`), and the nudge moves it by
+  about 1e13ε on both.
+- *G6, the splits and the cost:* the node steps split are in the table; the
+  phase times in `bank.log` ran beside up to six other jobs, so they are
+  reported, not compared.
+- *The invader's gradient, under the walk's change* (D5 and D5b, registered
+  before their runs; `d5.log`). J′ = J holds to the bit, but at θ′ = θ the
+  walk's change moves the invader's gradient by up to 0.38ε (episodic's
+  `root_P50`; 0.07ε on long-wet, 0.017ε on long drought). Each walk's
+  gradient at `1e-4` lies nearer the run at `1e-5` made its own way, so
+  neither reference settles which is nearer the limit.
+  - Post hoc: on 43 of 48 entries the two approach each other from opposite
+    sides between `1e-4` and `1e-5`, their gap falling to a median 0.32 of
+    itself.
+  - If each error falls by that factor, their meeting point puts the walk in
+    pieces within 0.12ε (median 0.010ε) and the carrying walk within 0.26ε
+    (median 0.017ε). Both lie within ε/3; the walk in pieces about twice as
+    near.
+
+### The cost
+
+Profiles of long drought's pinned program at `1e-4`, by gperftools, beside the
+bank's jobs (`rebuilt_profile.txt`, `rebuilt_profile.sh`):
+- The split is 4.8% of the forward's samples: the pieces 45%, locating the sign
+  changes 38%, the end evaluated again 17%. Nearly all of it is leaf solves.
+- Locating, 1.8% of the forward, is the one share the method leaves to choose,
+  through its iterations. Nothing changed.
+- In the sweep the split tapes 3.0% of the samples. The reverse pass over what
+  it taped runs inside the tape's own frames, which the profile does not place.
+- A walk now pays for its pieces: 3.3% of a walk's samples and 2.4% of its
+  sweep's.
+- The bank's phase times ran beside up to six other jobs, so they are reported,
+  not compared.
+
+### The next steps, walked through the split
+
+The review's change simulation walks a planned change through the code and
+lists every site it must edit or remember. It classifies the change:
+- *one place:* the edit alone suffices;
+- *leaky:* the edit is in one place, but it must remember a fact from
+  elsewhere that nothing at the edit site shows;
+- *shotgun:* several edits must agree.
+
+The first review, of the incumbent, called two changes leaky.
+- *Splitting invaders,* because the split rebuilt the field from the System's
+  own state, while an invader reads a recorded one.
+- *The multirate soil,* because the split read the soil from the step's own
+  interpolation.
+- Node rule D was one place.
+
+Walked again through the rebuilt code:
+
+| next step (the spec's item) | what the split needs of it | class |
+|---|---|---|
+| 5, the soil stepped on its own (multirate) | `sample_field` reads every component, the soil's too, through `taken_step::dense_state`, the members' Cash–Karp step. The soil's samples must come from its own inner steps, as item 5 says, and `SplitsSignChanges` names Cash–Karp's `taken_step` | leaky: the multirate step must serve the whole state's dense output, the soil's from its inner steps |
+| 6, node rule D | a block is a node, and nothing counts nodes. The split samples the field five times a split step, not once an evaluation, so the spread's 16-point crowns cost it five field builds a split step | one place |
+| 6, the invader's own sparser introductions | `take_recorded_splits` finds the invader's copy of a run's node by position, where the invader has the run's node count; a thinned invader matches none and walks unsplit, silently | leaky |
+| 7, the window's weight and the 15-day cap | splits run after the error estimate keeps a step, whatever set its size; the cap is also what episodic's and dry's walks at `lma` × 2 need (D4) | one place |
+| 8, R8's diagnostics | the per-node counts are there (`SCM$ode_splits`), walks' included | one place |
+| ARK for the constant record (`ark-step`, `ark-soil`) | `split()` runs only under Cash–Karp and returns silently otherwise | leaky: a run asking for both splits nothing, with every number finite (the review's finding) |
+| several resident species (regnans's assembly) | `run_mutant` drops a run's blocks and samples when it has several species, and `take_recorded_splits`'s layout match assumes one | leaky: two sites encode one resident species |
+| invaders split at their own sign changes | a walk's pieces read the run's recorded samples; its own sign changes would be found in them and moved in its sweep by the implicit function, as `split_as_recorded` does for a non-zero slope. odelia must hand the walk every step, not only those the run split | leaky; not planned |
+| the acceptance suite | the switch is a Control field; the split's own tests are in odelia and `test-scm.R` | one place |
+
+- *Leaky, then, means a fact to remember at the edit,* which each leaky row
+  names. Each takes one guard where the fact lives:
+  - the multirate soil: the step type the concept names gives the whole
+    state's dense output;
+  - sparser introductions: the walk finds the run's node by its birth date, not
+    its position, and refuses an invader it cannot map;
+  - ARK: the refusal in the finding above;
+  - several resident species: each invader tied to the species it copies (§8,
+    *Settled*).
+- *Splitting invaders is no longer leaky as the first review found it.* The
+  split no longer rebuilds the field from the System's own state: a walk reads
+  the run's samples. What stays leaky is splitting at the invader's own sign
+  changes, which no planned step needs.

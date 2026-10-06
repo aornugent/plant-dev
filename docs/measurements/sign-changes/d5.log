@@ -1,3 +1,5 @@
+# D5 (prereg.txt): episodic's split base, the invader at theta' = theta; the carrying walk (lib_rf) and the walk in pieces (lib_fx) at 1e-4.
+## against the walk in pieces at 1e-5
 reference: J' 1.978899612; 50 entries, 48 with an eps
 ln J' against the reference: carrying -7.08e-06, in pieces -7.08e-06
   carrying, against 1e-5     largest 0.305 eps (root_P50), 0 over eps/3, 1 over eps/6, median 0.018
@@ -5,3 +7,19 @@ ln J' against the reference: carrying -7.08e-06, in pieces -7.08e-06
   in pieces, against carrying largest 0.381 eps (root_P50), 1 over eps/3, 2 over eps/6, median 0.022
 entries the walk in pieces holds nearer the reference: 41 of 48
 JOB DONE d5.R
+## D5b, against the carrying walk at 1e-5
+reference: J' 1.978899612; 50 entries, 48 with an eps
+ln J' against the reference: carrying -7.08e-06, in pieces -7.08e-06
+  carrying, against 1e-5     largest 0.169 eps (root_P50), 0 over eps/3, 1 over eps/6, median 0.011
+  in pieces, against 1e-5    largest 0.213 eps (root_P50), 0 over eps/3, 1 over eps/6, median 0.011
+  in pieces, against carrying largest 0.381 eps (root_P50), 1 over eps/3, 2 over eps/6, median 0.022
+entries the walk in pieces holds nearer the reference: 11 of 48
+JOB DONE d5.R
+## post hoc, both walks at both tolerances
+post hoc: 43 of 48 entries approach each other from opposite sides; the gap's
+  factor r has median 0.323; where 0 < r < 1 (44), the extrapolated limit puts
+  in pieces at 1e-4          largest 0.119 eps (root_P50), 0 over eps/3, 0 over eps/6, median 0.010
+  carrying at 1e-4           largest 0.263 eps (root_P50), 0 over eps/3, 1 over eps/6, median 0.017
+JOB DONE d5.R
+## the two walks at 1e-5 against each other
+  in pieces, against carrying largest 0.136 eps (root_P50), 0 over eps/3, 0 over eps/6, median 0.007
