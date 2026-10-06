@@ -50,5 +50,6 @@ for (tol in c("1e-4", "3e-5", "1e-5")) {
   if (!is.null(x)) cat(sprintf("   %-6s %+.3e  rows %.0f\n", tol, eJ(x, "long-drought"), rows(x)))
 }
 show("constant", list(bnd = here_run("bnd_constant"), mrw = here_run("mrw_constant"),
-                      s12 = here_run("s12_constant"), arkc = here_run("arkc_constant")))
+                      s2 = here_run("s2_constant"), s12 = here_run("s12_constant"),
+                      arkc = here_run("arkc_constant")))
 cat("JOB DONE report.R\n")

@@ -48,3 +48,35 @@ design (2026-10-06, before any run; run.sh, report.R, sa_harness.diff)
   Expected: S1 costs rows, since its predictor misses the uptake's trend: within
   5% on long drought, more on episodic. S2 saves about a seventh of a flagged
   step's evaluations at no cost in J. S3: no expectation.
+  Added after the twelve runs, before it ran (decides nothing): S2 on the constant
+  record at 3e-5, the variant the rules above leave the build with, read beside S3's
+  arms for its cost and J.
+
+Results (2026-10-06, report.log; each run's log in DEV/soil_alone/logs):
+  - S1 fails. Its rows are 394 727 against mrw's 373 188 on long drought (+5.8%)
+    and 259 178 against 229 673 on episodic (+12.8%), past the 5%; J stays inside
+    the bound (+4.9e-7, +2.6e-5). The predictor held at u0 misses the uptake's
+    trend, its coupling error grows, and the steps shorten (8 496 against 7 693,
+    5 601 against 4 764). So the build keeps mrw's extrapolation and records the
+    slope on the row, held in replays and in the sweep.
+  - S2 passes. Member evaluations are 2 693 628 against mrw's 2 970 350 on long
+    drought (-9.3%) and 1 719 990 against 1 884 945 on episodic (-8.7%), the steps
+    within two of mrw's (7 693 and 7 693; 4 766 and 4 764), and J inside the bound
+    (+2.50e-5, +7.43e-5). The build takes the end's uptake from the stage at
+    t + h: six evaluations a flagged attempt, as an ordinary step.
+  - S3 passes, on mrw since S1 failed: 1 408 616 member evaluations against arkc's
+    1 228 821 (1.15x, under 1.2x), J +7.0e-8 against the bound 2.524e-4 (arkc's
+    +1.6e-6). The build proposes the soil stepped on its own as the one soil
+    mechanism, and ARK's branches (odelia ark-step, plant ark-soil) retire.
+    Under constant rain every step is flagged (1 399 of 1 399) and rows fall 64.1%
+    against bnd's (arkc 63.1%). S12 takes 1 740 429 (1.42x arkc's): the slope is
+    worth most there.
+  - The added run: S2 on the constant record takes 1 209 819 member evaluations,
+    0.98 of arkc's, on mrw's steps (1 399), J +6.9e-8.
+  - The ladder: S12's J/J* - 1 on long drought is +2.15e-5, +1.6e-8 and +2.31e-5
+    at 1e-4, 3e-5 and 1e-5 (rows 312 519, 394 762, 539 265). Its error does not
+    fall with the tolerance, as mrw's did not in Q3 (+2.6e-5 at 3e-5, +2.7e-5 at
+    1e-5), so the floor is not the slope's, and the value near zero at 3e-5 is a
+    crossing; it also puts S1's and S12's smaller errors at 3e-5 inside the floor.
+    Q3's reading, a share threshold held fixed as the tolerance tightens, is still
+    untested.
