@@ -837,3 +837,40 @@ but G4's for the cohort reads, which stay out.
   4103c0aa). Every changed line is a comment except one, in test-control.R's
   list of Control's fields, which gains ode_split_sign_changes. The compiled
   code is the same, so these numbers stand for the pushed commits.
+
+Eighteenth extension: the rebuilt split across the bank (2026-10-06, before any
+run; bank.sh, bank.R)
+  Why: every measurement of the split so far is on long drought, and the
+  objectives ask for any record, for residents and invaders.
+  The build: dev/lib_rf, odelia ODELIA-54 1dc9efe, phylloptim 7230dcb (0.9.1)
+  and plant PLANT-103 3f4aed4e, whose compiled code is 90db1450's.
+  The records: the bank (constant, long-wet, episodic, dry, long drought), seed
+  31, lifetime 40, lma 0.32, 108 uniform nodes, birth date, the tied tolerance,
+  each record's knots as step targets.
+  The runs, each record: run_record.R at 1e-4 with the stand's gradient and the
+  invader at theta' = theta with its gradient (the base), with splits and
+  without; the same at 1.05e-4 (the nudge), both arms; with splits, the base
+  also walks invaders at lma x 0.5 and x 2 with their gradients; with splits, a
+  forward at 1e-6 (the reference); and two forwards of the split base's own
+  program at lma (1 +/- 1e-3), after the hyperparameterisation, as the
+  gradient's partial moves it (the replays).
+  G1, never fails: every run finishes with no phase raising, both arms, the
+  invaders at x 0.5 and x 2 included.
+  G2, J' = J: on each record the invader at theta' = theta walked on the split
+  base's recording has the stand's offspring production to the bit.
+  G3, the sweep is the split map's derivative: on each record the split base's
+  elasticity of J in lma lies within 2e-3 of the replays' central difference,
+  the bound S4 set on long drought.
+  G4, J's error against the reference at 1e-4 and 1.05e-4, each arm, in ln J,
+  reported: one J is one draw, so the two tolerances are two draws an arm.
+  G5, the nudge: spot_check.R's check of each arm's nudge against its base,
+  every entry of both roles' gradients in units of its eps; reported: the
+  entries over eps/6 and the largest, per role and arm.
+  G6, the splits and the cost: the node steps split and the nodes split per
+  record, and each phase's time against plain's, on a machine running three
+  jobs, reported and not gated.
+  Expected: G1, G2 and G3 hold on every record, as on long drought. G4: the
+  split nearer the reference than plain on long drought, dry and episodic, whose
+  dry spells take net production through zero; on constant and long-wet, no
+  expectation. G5: the split's resident moves no larger than plain's on the
+  records where it splits most. G6: no expectation beyond long drought's 9247.
