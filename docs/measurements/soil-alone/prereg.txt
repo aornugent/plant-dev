@@ -1,0 +1,50 @@
+The soil stepped on its own (the spec's item 5): spikes that settle the build's
+design (2026-10-06, before any run; run.sh, report.R, sa_harness.diff)
+  Why: the build ports the driver's multirate step as Q3 left it (mrw,
+  pathfinders/soil-control/q3), and three of its choices decide the build's
+  shape. Each can be read off a few driver runs:
+  S1, a predictor from the step's own start. mrw extrapolates the uptake over
+    the step from the last accepted step's, u0 + h (u0 - u_prev) / h_prev, so a
+    step's map reads the step before it, which the reverse sweep's one-row map
+    cannot carry. MR_SLOPE=0 holds the predictor's uptake at u0.
+  S2, the end's uptake from the stage at t + h. mrw evaluates the whole stand
+    once more at the members' end, 7 evaluations a flagged attempt against 6.
+    MR_U1=stage takes the end's uptake from Cash-Karp's stage at c = 1, whose
+    5th-order weight is zero.
+  S12: both.
+  S3, constant rain. ARK's implicit soil holds the constant record (60-67% of a
+    gradient run, against the soil weight's 5%), where the soil's stability
+    binds 91% of Cash-Karp's steps. If the soil stepped on its own takes that
+    gain as well, one mechanism serves every record and ARK's two unmerged
+    branches retire.
+  The build: the driver on lib_sw (state-weights, no splits): harness/
+  ark_prototype.R with pathfinders/soil-control/harness.diff, q3/mr_harness.diff,
+  q3/mrw_harness.diff and sa_harness.diff (MR_SLOPE, MR_U1; off, it is mrw).
+  The setting: bounded Cash-Karp as in Q3 (tol 3e-5, absolute 1e-4 tol, soil
+  weight 10, rule A, a 15-day cap, weights bounded at 100), MR_SHARE 0.1 and
+  MR_COUPLE member; long drought and episodic on 108 uniform introductions, the
+  constant record on its resolved grid const_Gbf16 (150).
+  Runs: S1, S2 and S12 on long drought and episodic at 3e-5; S12 on long drought
+  at 1e-4 and 1e-5; on the constant record at 3e-5, bnd, mrw, S12 and arkc
+  (METHOD=ark SOIL_EST=chain, the same weights).
+  Read (report.R): rows (members summed over accepted steps), steps, member
+  evaluations, flagged steps and J/J* - 1, against mrw's and bnd's (Q3's runs on
+  long drought and episodic). J*: long drought 12.6687135, episodic 1.978902094,
+  constant 289.273896201 (Cash-Karp at 1e-8 on const_Gbf16).
+  Decision rules:
+  - S1: the build's predictor reads only the step's own start if S1's rows lie
+    within 5% of mrw's on both records and |J/J* - 1| within Q3's bound,
+    max(2 |bnd's|, 0.01 eps) = 2.524e-4. Otherwise the build keeps mrw's
+    extrapolation and records the slope on the row as an input held in the
+    sweep.
+  - S2: the build takes the end's uptake from the stage at t + h if S2's member
+    evaluations fall below mrw's and |J/J* - 1| stays within the bound on both
+    records.
+  - S3: if the soil stepped on its own (S12, or mrw where S1 or S2 fails) takes
+    no more than 1.2 times arkc's member evaluations on the constant record, with
+    |J/J* - 1| within max(2 |bnd's|, 0.01 eps) there, the build proposes it as the
+    one soil mechanism and ARK's branches retire. Otherwise ARK keeps constant
+    rain, and the two refuse each other.
+  Expected: S1 costs rows, since its predictor misses the uptake's trend: within
+  5% on long drought, more on episodic. S2 saves about a seventh of a flagged
+  step's evaluations at no cost in J. S3: no expectation.

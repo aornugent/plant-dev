@@ -1,0 +1,37 @@
+--- a/harness/ark_prototype.R
++++ b/harness/ark_prototype.R
+@@ -245,6 +245,10 @@
+ MR <- method == "ck" && MR_SHARE > 0 && !nzchar(Sys.getenv("PROGRAM"))
+ # MR_COUPLE=member judges the coupling's error at the members' weight, not the soil's.
+ MR_COUPLE_MEMBER <- Sys.getenv("MR_COUPLE") == "member"
++# MR_SLOPE=0 holds the predictor's uptake at the step's start; MR_U1=stage takes the end's
++# uptake from the stage at t + h, sparing the evaluation at the members' end.
++MR_SLOPE <- Sys.getenv("MR_SLOPE", "1") != "0"
++MR_U1_STAGE <- Sys.getenv("MR_U1") == "stage"
+ # WEIGHT_MAX bounds each state's weight once the soil's or accumulators' weight and the
+ # schedule's factor multiply it, as plant's ode_weight_max: the level is multiplied once by
+ # min(base x factor, WEIGHT_MAX).
+@@ -435,7 +439,7 @@
+ attempt_mr <- function(t, y, k1, h) {
+   blk <- soil(y)
+   u0 <- sv$uptake
+-  slope <- if (is.finite(sv$h_prev)) (u0 - sv$uptake_prev) / sv$h_prev else 0 * u0
++  slope <- if (MR_SLOPE && is.finite(sv$h_prev)) (u0 - sv$uptake_prev) / sv$h_prev else 0 * u0
+   u1p <- pmax(0, u0 + h * slope)
+   thp <- chain_at(y[blk], t, h, function(s) u0 + (u1p - u0) * (s - t) / h, c(tb$c[2:6], 1))
+   k <- list(k1)
+@@ -451,8 +455,12 @@
+   }
+   y1 <- combine(y, tb$b, k, h)
+   y1[blk] <- thp[[6]]
+-  if (is.null(rates(y1, t + h))) return(NULL)
+-  u1 <- tail(patch$ode_aux, 5)
++  if (MR_U1_STAGE) {
++    u1 <- up[which(tb$c == 1), ]
++  } else {
++    if (is.null(rates(y1, t + h))) return(NULL)
++    u1 <- tail(patch$ode_aux, 5)
++  }
+   thc <- chain_at(y[blk], t, h, function(s) u0 + (u1 - u0) * (s - t) / h, 1)[[1]]
+   y1[blk] <- thc
+   at_end <- rates(y1, t + h)
