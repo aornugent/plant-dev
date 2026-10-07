@@ -234,3 +234,13 @@ Results (2026-10-07; gates.R and bank5.R, on the libraries the amendments name):
   - G7 holds: off104 against bnd, J and every time and size bit for bit on long
     drought (12567 times) and episodic (8211), and off104_split against
     off105_split (12565).
+  - G6 holds, timed with nothing else on the machine (c6a1, c6b1, c6a2, c6b2,
+    alternated; bank5.R): alone's time over bnd's, the mean of the two pairs,
+    0.580 for the stand's run (51.1 and 47.2 s against 85.4 and 83.9), 0.661 for
+    its gradient, 0.590 for the invader's walk and 0.636 for its gradient; 0.632
+    for the whole (376 s against 596). The forward falls as the rows do (-42%
+    against -41.5%), the sweep somewhat less (-34% to -36%). The profile of the
+    alone forward: the block's inner steps and their rates (Step::alone_ends,
+    Step::integrate_pieces, alone_rates) hold 99 of 12472 samples, 0.79% (at
+    most 1%). gates.sh first read only pprof's total line, so its read is now
+    the focused set's count (the same profile, read again).

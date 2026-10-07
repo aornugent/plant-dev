@@ -118,11 +118,14 @@ case "${1:-plant}" in
       WEIGHT=$DEV/window/rule_A/weight_long-drought.rds WEIGHT_MAX=100 HMAX=15 SHARE=0.1 \
       FORWARD=1 bash scripts/profile-gradient.sh harness/profile_forward.R \
       "$G/profile/alone_fwd" > "$G/profile/alone_fwd.out" 2>&1)
-    for focus in . alone_ends; do
-      echo "$focus: $(google-pprof --text --cum --focus="$focus" \
-        "$G/profile/alone_fwd/plant.so" "$G/profile/alone_fwd/gradient.prof" 2>/dev/null |
-        sed -n 1p)" >> "$G/profile/alone_fwd.read"
-    done
+    # A focused profile's first line is the whole profile's total; the samples
+    # under the focus are its top entry's cumulative count.
+    prof="$G/profile/alone_fwd/plant.so $G/profile/alone_fwd/gradient.prof"
+    total=$(google-pprof --text $prof 2>/dev/null | sed -n 's/^Total: \([0-9]*\).*/\1/p')
+    inner=$(google-pprof --text --cum --focus='alone_ends|integrate_pieces|alone_rates' $prof \
+      2>/dev/null | sed -n 2p | awk '{print $4}')
+    echo "the block's inner steps and their rates: $inner of $total samples" \
+      > "$G/profile/alone_fwd.read"
     ;;
 esac
 echo "JOB DONE gates ${1:-plant} $(date +%T)" >> "$G/queue.out"

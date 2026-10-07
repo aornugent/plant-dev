@@ -889,7 +889,7 @@ after the events reply):
        the share in Control (0, off, by default), and the program's two new
        fields through R;
      - its departures and first runs: `design-soil-alone.md`, *As built*.
-   - *Gates,* G1–G7 there. G1–G5 and G7 hold; G6, the cost, is timed alone.
+   - *Gates,* G1–G7 there, and every one holds.
      The gates found two defects, each fixed in its own branch before the
      reruns: the slope emptied at every knot, and a program given with events
      replayed as a grid of times.
@@ -902,7 +902,8 @@ after the events reply):
      - G5: the bank under the cap with splits on: nothing fails, the sweep is
        within 2e-3 of the replays and `ln J` within 5.8e-5 of the bank's split
        at `1e-6` on all five records;
-     - G6: the cost, timed alone;
+     - G6: timed alone, a gradient run takes 0.63 of bnd's time, the forward
+       0.58, and the soil's inner steps 0.79% of the forward's profile;
      - G7: off, bit for bit.
    - *Depends on* item 7's setting (its path's first step), which is its
      baseline.
@@ -924,8 +925,11 @@ after the events reply):
         before the light field's sum, at no measurable cost and with no
         tolerance.
         - *Built:* aornugent/plant#107 (`PLANT-107` `9c9a3bfd`, on `PLANT-106`).
-          S1 holds, bit for bit on 108 introductions; S2, the crossed rung timed
-          alone, is pending (`measurements/node-rule/prereg.txt`).
+          S1 holds, bit for bit on 108 introductions. S2, the crossed rung at
+          429 timed alone, takes 0.97 of the walk's forward; its `J` differs by
+          2.3e-12, past the registered 1e-12, from the sum's association carried
+          by the step control after step 2944 of 13563
+          (`measurements/node-rule/prereg.txt`).
      2. *D in plant's competition sum.* Every reference changes, the FF16 guard
         included. So the references are blessed again in a commit of their
         own, with the move registered first. One build with the split measures

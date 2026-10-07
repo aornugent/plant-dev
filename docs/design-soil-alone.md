@@ -556,7 +556,7 @@ the 15-day cap. Rule A's window comes on top, with a share of 0.1.
 | G7, off | a share of 0: every run bit for bit, the FF16 guard and the split's tests included |
 
 *Results* (`measurements/soil-alone/prereg.txt`, read by `gates.R` and
-`bank5.R`). G1–G5 and G7 hold. Two defects were found on the way and fixed in
+`bank5.R`). Every gate holds. Two defects were found on the way and fixed in
 their own branches before the reruns: the slope kept across a knot
 (`27a0def`) and a program given with events (`91bf8b59`).
 
@@ -567,7 +567,7 @@ their own branches before the reruns: the slope kept across a knot
 | G3 | the adjoint 2.38e-4 from central differences (at most 2e-3); a replay's `ln J` under 1e-12 moves of `lma` on a line to 4.6e-15 rms |
 | G4 | rows −41.5% and −44.8% against bnd, attempts −39.8% and −42.0%; `J` +2.5e-5 and +6.9e-5 from `J*`; every elasticity within 0.063ε. Constant rain: 0.97× arkc's rows, −64% against bnd |
 | G5 | on all five records: no failure, `J′ = J`, the sweep within 2e-3 of the replays (at most 1.99e-3, episodic), `ln J` within 5.8e-5 of the bank's split at `1e-6`, the nudge under ε/6 (at most 0.078ε); 51–100% of steps taken alone |
-| G6 | timed alone; pending |
+| G6 | alone over bnd, timed alone: 0.58 of the forward's time and 0.64–0.66 of the sweep's, 0.63 of a gradient run; the soil's inner steps 0.79% of the forward's profile |
 | G7 | bit for bit against `PLANT-104` |
 
 ## Order

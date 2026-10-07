@@ -150,3 +150,16 @@ the walk as built rather than on its probe patch, which was never run.
   most 0.10 eps (b 0.1) and 0.04 eps (union 0.03); b 0.1 saves 23-52% and union
   0.03 21-27%, so (iv) may fail for union 0.03; (iii), which no emulation
   could reach, is the measurement this registration exists for.
+
+Results of the sort (2026-10-07; sort.R):
+  - S1 holds: at 108 introductions J (12.668453565787859) and all 12567 steps'
+    times and sizes bit for bit across the two builds.
+  - S2's identity fails as registered: at 429, J differs by 2.3e-12 relative
+    (at most 1e-12; 1e-14 expected). Each build repeats itself bit for bit. The
+    two take the same 13563 steps, identical through step 2944 (t = 6.98); from
+    there their times differ by at most 4.9e-9, the field sum's association
+    carried forward by the step control's sizes. That is 2x10^5 times below the
+    4.7e-7 a one-ulp change of the absolute tolerance moves J (grid-dynamics.md
+    §6), so it is the reassociation the gate names, and no defect.
+  - S2's time holds: the sort's forward is 352.1 and 357.8 s against the walk's
+    363.0 and 367.9, 0.971 of it, where 0.80-0.85 was expected.
