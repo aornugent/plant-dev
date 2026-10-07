@@ -467,10 +467,11 @@ inside the bound, and it is the reference G1 compares plant against.
 
 ## As built
 
-*odelia `ODELIA-55`* (five commits on `ODELIA-54`, odelia#55): `b70259d` one
+*odelia `ODELIA-55`* (six commits on `ODELIA-54`, odelia#55): `b70259d` one
 step body; `0e7009e` the concept and the record; `45a3156` the step taken alone;
 `bed4c9c` the solver's part; `f156142` the predictor's samples at the System's
-scalar. Departures from the map:
+scalar; `27a0def` the slope kept across an insertion that leaves the state as it
+was. Departures from the map:
 - *The forward chooses the inner steps, then takes the step as a replay does.*
   `Step::alone_ends` picks them, and the step runs the passes over the chosen
   list, so a step has one mode and the forward is a replay of its own record.
@@ -486,12 +487,17 @@ scalar. Departures from the map:
   commit; `integrate_pieces` gained the hook that keeps the block at each stop.
 - *The step's error estimate is written once* (`step_error`), for the step and
   the inner steps.
-- *Tests:* `test-step-alone.R`, 28 expectations. On the store toy the run takes
+- *The slope survives a knot* (`27a0def`, found by G1's smoke). plant lands each
+  zero pulse as an entry, which sets the state from the System, and that emptied
+  the inputs the slope is taken from, so the first step after every knot took a
+  slope of zero where the driver kept the trend. Only a state that changed now
+  empties them: an introduction's, or a pulse's that is not zero.
+- *Tests:* `test-step-alone.R`, 31 expectations. On the store toy the run takes
   27 to 771 steps where Cash–Karp takes 1 519 to 3 995 (tol `1e-4` to `1e-9`),
   as accurately; the sweep matches central differences of the replayed program
   to 7e-8; a walk at the tangent scalar refuses a row taken alone.
 
-*plant `PLANT-105`* (three commits on `PLANT-104`, aornugent/plant#105):
+*plant `PLANT-105`* (four commits on `PLANT-104`, aornugent/plant#105):
 - *`9b4b6658`:* the soil's rates at any scalar (`conductivity`,
   `infiltration_excess`, `alone_rates`), bit for bit.
 - *`9f20f9ba`:* the patch's hooks behind a concept on the environment; the uptake
@@ -505,6 +511,11 @@ scalar. Departures from the map:
   pinned replay would have stepped the soil past its stability limit there.
 - *No `SCM$ode_alone`:* the counts are `ode_alone_steps`' lengths (R9), so no
   accessor stores them twice.
+- *`91bf8b59`:* a program given with events is replayed by its sizes and
+  records, found by G2's first replay. With events, which every harness run
+  passes, the schedule took the ODE times alone as a grid, so a replay of a run
+  that took the soil alone stepped the soil coupled at the run's long steps,
+  unrefused: `J` 1.5e-22 against 12.669. Times alone are still a grid.
 
 *What the build's first runs showed* (`control_tf24`, splits on;
 `measurements/soil-alone/plant/`, not registered gates):

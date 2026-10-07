@@ -145,3 +145,58 @@ PHYLLOPTIM-17, in $DEV/lib_105. The gates are design-soil-alone.md's G1-G7.
   for bit. alone_long-drought on lib_105 (J 12.6689044, 7670 steps) is kept as
   alone_long-drought_lib105. The driver runs (drv_<rec>) read plant only for the
   rates, on lib_105b.
+  Amended before the chain's reruns (2026-10-07, 11:45): the chain's replays
+  (rep, up, down, k1, k2, k-1, k-2) took the program as a grid of times. Given
+  events, as every harness run is, plant's make_node_schedule passed
+  p$ode_times alone and dropped the sizes and, since PLANT-105, the soil's
+  records, so each replay stepped the soil coupled at the run's long steps:
+  rep's J was 1.5e-22 against the run's 12.669. On a 3-year smoke the same
+  program installed through set_ode_steps, events given, replayed the run bit
+  for bit. PLANT-105 now carries a program's sizes and records on the events
+  path as on the plain one (PLANT_FIX), with a test, and the chain reruns on
+  $DEV/lib_105c: that plant, with odelia and phylloptim as in lib_105b. Its base
+  run reruns too and must repeat lib_105b's bit for bit, since no program
+  reaches it; lib_105b's is kept as alone_split_long-drought_lib105b. Every
+  other run takes no program and stands. off104_<rec> and off104_split halted
+  loading odelia from lib_ctl, which holds plant alone; they run on
+  $DEV/lib_104: lib_fx's odelia (ODELIA-54, every header) and phylloptim, with
+  lib_ctl's plant (PLANT-104, whose shared object is PLANT-103's byte for byte).
+
+G5 and G6 (registered 2026-10-07, 11:55, after G1-G4's results and before any
+G5 or G6 run; gates.sh bank and gates.sh cost, bank5.R):
+  G5, the bank: the split's bank gates (design-sign-changes.md §9) with the
+  soil alone, on the five records at seed 31 and 108 uniform introductions
+  (constant's too, as the bank's references are), at the gates' setting with
+  SHARE=0.1 and SPLIT=1, on $DEV/lib_105c. Runs, for each record:
+  - b5_<rec>: the stand and its gradient, the invader at the stand's traits and
+    its gradient, and walks at lma x 0.5 and x 2 with their gradients
+    (INVADERS=lma=0.5,lma=2, INVADER_GRADIENTS=1).
+  - b5up_<rec> and b5down_<rec>: b5's program, records included, replayed at
+    LMA_REL = +-1e-3, forward only.
+  - b5n_<rec>: b5 at TOL=3.15e-5 (x 1.05), the stand and the invader at its
+    traits with their gradients, no walks.
+  Gates (bank5.R):
+  - G5.1, never fails: every run finishes; both roles' gradients are finite
+    on every record; every walk at x 0.5 and x 2 runs, with a finite gradient.
+  - G5.2: J' = J to the bit at the stand's traits, on every record.
+  - G5.3: the sweep's lma elasticity within 2e-3 of the replays' central
+    difference, on every record.
+  - G5.4: |ln J - ln J_ref| at most 0.01 eps (2.52e-4), J_ref the bank's split
+    at 1e-6 ($DEV/bank/runs/<tag>_ref.rds).
+  - G5.5, the nudge: no resident entry moves past eps/6, each entry's eps as
+    bank.R reads it; nor the invader's at theta' = theta on the four records
+    that cross (on uniform nodes constant's invader gradient is the artefact on
+    record, -1.4e17).
+  - Reported: steps, steps alone, node steps split, rows and phase times (beside
+    other jobs, so not compared).
+  Expected: every gate holds, as the split did on the bank and the soil alone
+  did in G1-G4.
+  G6, the cost, run with nothing else on the machine: long drought at the gates'
+  setting, splits off, alone_long-drought's setting and bnd_long-drought's, each
+  twice, alternated (alone, bnd, alone, bnd): c6a1, c6b1, c6a2, c6b2, each the
+  stand, its gradient, the invader at its traits and its gradient. Read: each
+  phase's time, alone's over bnd's, averaged over the two pairs. Then a
+  gperftools profile of the alone forward (FORWARD=1): the share of samples
+  under Step::alone_ends, the block's inner steps and their rates, at most 1%.
+  Expected: the forward and the sweep fall about as the rows do, 40%; the inner
+  steps take well under 1%.

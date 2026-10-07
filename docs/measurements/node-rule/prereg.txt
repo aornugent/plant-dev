@@ -1,0 +1,25 @@
+Item 6, the node rule (design-grid-controller.md, item 6): its build's gates,
+each registered before its runs.
+
+The sort (6.1; registered 2026-10-07, 12:05, before any run on the build).
+  The build: plant PLANT-107 (the crowns sorted tallest first in the birth-date
+  field build, on PLANT-106) with odelia ODELIA-55 (27a0def) and phylloptim as in
+  $DEV/lib_105c, in $DEV/lib_sort; against $DEV/lib_105c (PLANT-105, which walks
+  every node at every knot once two cohorts cross).
+  The setting: harness/run_record.R on long drought, the forward alone
+  (FORWARD=1), TOL=3e-5, ATOL=1e-4, WEIGHT_SOIL=10, rule A's
+  weight_long-drought.rds, WEIGHT_MAX=100, HMAX=15, splits off.
+  Runs (sort.sh):
+  - s108_sort and s108_walk: 108 uniform introductions, where no field build
+    holds a crossing (§16), on each build.
+  - s429_sort and s429_walk: 429 uniform introductions, where 79% of builds hold
+    one, on each build, timed with nothing else on the machine, each twice,
+    alternated (sort, walk, sort, walk).
+  Gates (sort.R):
+  - S1, identity: s108's J and every step's time and size bit for bit across the
+    two builds.
+  - S2, the crossed rung: s429's J within 1e-12 relative across the builds,
+    which differ only in how the field's sum associates; and the sort's forward
+    at most the walk's time. Reported: the time saved, against the probe's 23%
+    of a forward for the walk.
+  Expected: S1 bit for bit; S2's J within 1e-14, and the forward 15-20% faster.
