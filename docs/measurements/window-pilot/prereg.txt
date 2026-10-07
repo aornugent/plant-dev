@@ -1,6 +1,6 @@
 Item 7's gates (7.3, design-grid-controller.md item 7, step 3): the window's
 weight from a pilot, computed in plant by control_window(). Registered
-2026-10-07, 13:40, before any run; pilot.sh, read by pilot7.R.
+2026-10-07, 13:05, before any run; pilot.sh, read by pilot7.R.
 
 The build: $DEV/lib_106, plant PLANT-106 (4dd30b7a: control_window, in R, on
 PLANT-105 91bf8b59) with odelia and phylloptim as in $DEV/lib_105c. Its compiled
@@ -29,7 +29,7 @@ Gates (pilot7.R):
   - P2, accuracy: |ln J - ln J_ref| at most 0.01 eps (2.52e-4), J_ref the bank's
     split at 1e-6; and every entry of both roles within eps/3 of G5's b5_<rec>,
     whose window is the harness's rule A, constant's invader excepted as in P3
-    (amended before any run, 13:50).
+    (amended before any run, 13:06).
   - P3, the nudge: no resident entry moves past eps/6 between p7 and p7n; nor
     the invader's at theta' = theta on the four records that cross (constant's
     invader gradient on uniform nodes is the artefact on record).

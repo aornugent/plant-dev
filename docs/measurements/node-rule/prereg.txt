@@ -1,7 +1,7 @@
 Item 6, the node rule (design-grid-controller.md, item 6): its build's gates,
 each registered before its runs.
 
-The sort (6.1; registered 2026-10-07, 12:05, before any run on the build).
+The sort (6.1; registered 2026-10-07, 11:46, before any run on the build).
   The build: plant PLANT-107 (the crowns sorted tallest first in the birth-date
   field build, on PLANT-106) with odelia ODELIA-55 (27a0def) and phylloptim as in
   $DEV/lib_105c, in $DEV/lib_sort; against $DEV/lib_105c (PLANT-105, which walks
@@ -24,7 +24,7 @@ The sort (6.1; registered 2026-10-07, 12:05, before any run on the build).
     of a forward for the walk.
   Expected: S1 bit for bit; S2's J within 1e-14, and the forward 15-20% faster.
 
-D's references (6.2; registered 2026-10-07, 13:05, before the re-bless commit).
+D's references (6.2; registered 2026-10-07, 12:53, before the re-bless commit).
   The build: plant PLANT-108 at 77cbb5e3 (the spread, with the boundary interval
   formed at the close) with odelia and phylloptim as in $DEV/lib_105c, in
   $DEV/lib_D2; each move is against $DEV/lib_sort (PLANT-107).
@@ -82,7 +82,7 @@ D's references (6.2; registered 2026-10-07, 13:05, before the re-bless commit).
     extrapolation from its second and third, at a third of the cost. The height
     coordinate, plant's default, does not move.
 
-The ladders (6.3, design-grid-controller.md 2c; registered 2026-10-07, 13:03,
+The ladders (6.3, design-grid-controller.md 2c; registered 2026-10-07, 13:05,
 before any run; ladder.sh, read by ladder.R).
   The build: $DEV/lib_109 (plant PLANT-109 4219616f, the spread blessed and the
   walk by birth date, on odelia ODELIA-55 27a0def, phylloptim as in lib_105c).

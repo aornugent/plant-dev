@@ -132,7 +132,7 @@ PHYLLOPTIM-17, in $DEV/lib_105. The gates are design-soil-alone.md's G1-G7.
   Expected: G1 holds bit for bit unless an attempt sits at 1.1 within an ulp;
   G2, G3 and G7 hold; G4's rows fall about 40% on both records, as S2's did, and
   every elasticity holds, as mrw's did in Q3 (0.11 eps at most).
-  Amended before the reruns (2026-10-07, 11:20): the G1 smoke (20 introductions,
+  Amended before the reruns (2026-10-07, 11:12): the G1 smoke (20 introductions,
   3 years) put plant's steps off the driver's at the tenth, the first after a
   knot. Plant lands each zero pulse as an entry that sets the state anew, which
   emptied the slope; the driver keeps the slope across pulses and resets it only
@@ -145,7 +145,7 @@ PHYLLOPTIM-17, in $DEV/lib_105. The gates are design-soil-alone.md's G1-G7.
   for bit. alone_long-drought on lib_105 (J 12.6689044, 7670 steps) is kept as
   alone_long-drought_lib105. The driver runs (drv_<rec>) read plant only for the
   rates, on lib_105b.
-  Amended before the chain's reruns (2026-10-07, 11:45): the chain's replays
+  Amended before the chain's reruns (2026-10-07, 11:46): the chain's replays
   (rep, up, down, k1, k2, k-1, k-2) took the program as a grid of times. Given
   events, as every harness run is, plant's make_node_schedule passed
   p$ode_times alone and dropped the sizes and, since PLANT-105, the soil's
@@ -162,7 +162,7 @@ PHYLLOPTIM-17, in $DEV/lib_105. The gates are design-soil-alone.md's G1-G7.
   $DEV/lib_104: lib_fx's odelia (ODELIA-54, every header) and phylloptim, with
   lib_ctl's plant (PLANT-104, whose shared object is PLANT-103's byte for byte).
 
-G5 and G6 (registered 2026-10-07, 11:55, after G1-G4's results and before any
+G5 and G6 (registered 2026-10-07, 11:46, after G1-G4's results and before any
 G5 or G6 run; gates.sh bank and gates.sh cost, bank5.R):
   G5, the bank: the split's bank gates (design-sign-changes.md §9) with the
   soil alone, on the five records at seed 31 and 108 uniform introductions
