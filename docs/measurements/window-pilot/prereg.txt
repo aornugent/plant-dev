@@ -38,3 +38,34 @@ Gates (pilot7.R):
 Expected: P1-P3 hold, as G5 did on the harness's weights; the factors agree
 with the harness's within a factor of 2 where R >= 1e-3, and the rows within a
 few per cent of b5's.
+
+Results (2026-10-07; pilot7.R, and cost.R for the pilot's cost; every run on
+$DEV/lib_106, each log in $DEV/window_pilot/logs):
+  - P1 holds on all five records: every run finishes, both roles' gradients are
+    finite, and every walk at lma and hmat x0.5 and x2 runs with a finite
+    gradient, episodic's lma x2 included.
+  - P2 holds: ln J is +2.5e-7 (constant) to +5.8e-5 (dry) from the bank's 1e-6
+    split, under 2.52e-4, and against b5 the largest entry moves 0.004 eps
+    (dry's resident recruitment_decay).
+  - P3 holds: no resident entry passes eps/6 (the largest 0.079 eps, dry's
+    omega), nor the invader's on the four pulsed records (0.040 eps, episodic's
+    a_d0). Constant's invader, not gated, has 43 of 49 over.
+  - The windows: the factors agree with the harness's within |ln| 0.03-0.12 on
+    four records. Episodic's differ by up to e^2.46 (8.33 against 97.2 at
+    t = 33.6) and by more than e^0.5 over 13.4 of its 40 years. The harness's
+    pilot lost its lma x2 walk, which raised ("Non-finite cohort density"), so
+    its R-hat is the stand's and lma x0.5's. Plant's walk runs under the cap,
+    and lma x2 earns late on episodic, its R falling to 0.01 at 33.9 years
+    (grid-dynamics.md's windows): plant's factor puts R-hat at 0.012 at 33.6,
+    the harness's at 1.0e-3. So episodic's window stays open longer and p7
+    takes 10.4% more rows than b5 there; elsewhere p7's rows are within 0.1% of
+    b5's.
+  - The pilot's cost: 130 774-313 529 accepted rows, 0.84-1.00 of the harness
+    pilot's, and 0.40 (dry), 0.62 (episodic), 0.66 (long drought), 0.80
+    (long-wet) and 1.37 (constant) of p7's, against the spec's 0.25-0.32. The
+    pilot costs what it did; the runs it serves cost less. The 0.25-0.32 was
+    against the tied forward at 3e-5, which had neither the window nor the soil
+    alone, and the soil alone cuts a forward to 0.36 of its rows under constant
+    rain and 0.55-0.59 on long drought and episodic. The pilot takes neither, so
+    it pays what the runs no longer pay, most under constant rain. A pilot with
+    the soil alone is unmeasured.

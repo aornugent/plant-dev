@@ -1018,6 +1018,16 @@ after the events reply):
      3. *Gates:* 1c's combined pass in plant, with splits on, across the bank.
         Both roles' gradients are finite, every walk over `lma` and `hmat`
         ×0.5–×2 runs, and the accuracy and nudge tests pass.
+        - *Held,* on all five records (`measurements/window-pilot/`). `ln J` is
+          within 5.8e-5 of the bank's 1e-6 split, every entry within 0.004ε of
+          G5's on the harness's window, and no nudge moves a gated entry past 0.08ε.
+        - The factors match the harness's within |ln| 0.12, except on episodic.
+          There the harness's pilot lost its raising `lma` ×2 walk, plant's runs
+          it, and the window stays open longer for 10.4% more rows.
+        - The pilot costs what the harness's did, 0.84–1.00 of its rows. The
+          runs it serves now step the soil alone, so it costs 0.40–0.80 of one
+          on the pulsed records and 1.37 under constant rain. A pilot with the
+          soil alone is unmeasured.
    - *With the split and item 5,* one place each:
      - splits run after the error estimate keeps a step, whatever set its size
        (§9);
