@@ -847,8 +847,10 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   field anomaly, and spread uniform nodes report their error on long drought:
   ratios 3.6–3.9 and companions 0.93–1.09 over 49 quantities, and the invader's
   `lma` on two more seeds. Single spread rungs are coarse, so the rule reports
-  the two-rung extrapolation. Wet and dry are not run to u429, the constant
-  record still needs front nodes. The resident's sweep ran 1.7–3.4× slower:
+  the two-rung extrapolation. On plant's build (6.3) wet and dry pass to u429;
+  episodic needs rungs under its dry spells (u429 and finer), and the constant
+  record's gradients need its bulk refined with its front. The resident's sweep
+  ran 1.7–3.4× slower:
   in CPU the spread costs 3–8%, and the rest was load and, at u429, the light
   field's fallback path when two nodes' heights fall out of order by a
   millimetre, which the lumped build takes too at a sixteenth of the cost
