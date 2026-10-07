@@ -81,3 +81,41 @@ D's references (6.2; registered 2026-10-07, 13:05, before the re-bless commit).
     the anchor lumped's second halving (within 1e-5) matches the spread's
     extrapolation from its second and third, at a third of the cost. The height
     coordinate, plant's default, does not move.
+
+The ladders (6.3, design-grid-controller.md 2c; registered 2026-10-07, 13:40,
+before any run; ladder.sh, read by ladder.R).
+  The build: $DEV/lib_109 (plant PLANT-109 4219616f, the spread blessed and the
+  walk by birth date, on odelia ODELIA-55 27a0def, phylloptim as in lib_105c).
+  The setting: harness/run_record.R at the gates' (TOL=3e-5, ATOL=1e-4,
+  WEIGHT_SOIL=10, rule A's weight_<rec>.rds, WEIGHT_MAX=100, HMAX=15), SHARE=0.1
+  and SPLIT=1: the stand and its gradient, and the invader at its traits and its
+  gradient.
+  Runs:
+  - long-wet, dry and episodic: u108, u215, u429 (NODES), and the introductions
+    moved a quarter spacing (SHIFT=0.25) at u215 and u429: s215, s429.
+  - constant, on its causal grid with front nodes (graded_times.R): Gbf8,
+    Gbf16, Gbf32 (102, 150, 246 introductions, the front every 1/8, 1/16 and
+    1/32 day), and Gbf16 and Gbf32 with each introduction after the first moved
+    a quarter of the way to the next (the last a quarter of the spacing before
+    it): cs_Gbf16, cs_Gbf32.
+  Quantities: ln J and each elasticity of both roles, in eps (eps.csv, floored
+  at 0.01 as OBJECTIVES.md says; S_D and a_f3 dropped as structural).
+  Gates, per record and role:
+  - L1, the square law: over resolved quantities, the median ratio of
+    successive moves r = (Q_c - Q_m)/(Q_m - Q_f) (coarse, middle, fine rungs)
+    in [3.0, 5.3], and under 10% of them negative. Resolved: |Q_m - Q_f| at
+    least 3x the tol nudge's move on that record (G5's b5n at u108).
+  - L2, the companion: the median over resolved quantities of the middle rung's
+    estimate (Q_c - Q_m)/3 over its error Q_m - ref, ref the fine pair's
+    extrapolation Q_f + (Q_f - Q_m)/3, in [0.8, 1.25].
+  - L3, the move: the reported answer, the fine pair's extrapolation, moves
+    under the quarter-spacing shift by less than eps/3 for every quantity: the
+    shifted pair's extrapolation against the unshifted's.
+  - Reported: each rung's rows and phase times, and every quantity over eps/3
+    in L3 by name.
+  Expected: L1 and L2 hold on the three pulsed records, as the pathfinder's
+  probe build gave on long-wet and long drought (ratios 3.6-4.4, companions
+  0.93-1.09); L3 holds. On constant the front's spacing is the only rung
+  that moves; the invader converged at 1/16 day lumped, and the resident's d_I
+  and a_f1 moved without shrinking, so L1 may fail there for the resident, and
+  is reported either way.

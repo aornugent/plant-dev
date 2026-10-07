@@ -1,0 +1,39 @@
+Item 7's gates (7.3, design-grid-controller.md item 7, step 3): the window's
+weight from a pilot, computed in plant by control_window(). Registered
+2026-10-07, 13:40, before any run; pilot.sh, read by pilot7.R.
+
+The build: $DEV/lib_106, plant PLANT-106 (4dd30b7a: control_window, in R, on
+PLANT-105 91bf8b59) with odelia and phylloptim as in $DEV/lib_105c. Its compiled
+code is lib_105c's, so G5's runs (b5_<rec>, the harness's rule A weights) and
+the bank's split at 1e-6 are this model's.
+
+The pilot, per record (harness/pilot_window.R): control_tf24(1e-3) on the
+birth-date coordinate, 54 uniform introductions on the pulsed records and the
+53-node causal grid const_Gb on constant (uniform introductions lump its
+founders), with the invaders at lma x0.5 and x2 walked on its recording;
+control_window(pilot, those two), R0 = 0.1, r_min = 0.01, written as
+run_record.R's weight table: w_<rec>.rds.
+
+Runs, per record (long-wet, long-drought, dry, episodic, constant), on u108 as
+G5's: harness/run_record.R at the gates' setting (TOL=3e-5, ATOL=1e-4,
+WEIGHT_SOIL=10, WEIGHT_MAX=100, HMAX=15) with WEIGHT=w_<rec>.rds, SHARE=0.1 and
+SPLIT=1.
+  - p7_<rec>: the stand and its gradient, the invader at its traits and its
+    gradient, and walks at lma and hmat x0.5 and x2, each with its gradient
+    (INVADERS=lma=0.5,lma=2,hmat=0.5,hmat=2, INVADER_GRADIENTS=1).
+  - p7n_<rec>: p7 at TOL=3.15e-5 (x1.05), the stand and the invader at its
+    traits with their gradients, no walks.
+Gates (pilot7.R):
+  - P1, never fails: every run finishes; both roles' gradients are finite; every
+    walk at lma and hmat x0.5 and x2 runs, with a finite gradient.
+  - P2, accuracy: |ln J - ln J_ref| at most 0.01 eps (2.52e-4), J_ref the bank's
+    split at 1e-6; and every entry of both roles within eps/3 of G5's b5_<rec>,
+    whose window is the harness's rule A.
+  - P3, the nudge: no resident entry moves past eps/6 between p7 and p7n; nor
+    the invader's at theta' = theta on the four records that cross (constant's
+    invader gradient on uniform nodes is the artefact on record).
+  - Reported: the pilot's rows against p7's; each window's factors against the
+    harness's (the largest |ln| ratio over t); p7's rows against b5's.
+Expected: P1-P3 hold, as G5 did on the harness's weights; the factors agree
+with the harness's within a factor of 2 where R >= 1e-3, and the rows within a
+few per cent of b5's.
