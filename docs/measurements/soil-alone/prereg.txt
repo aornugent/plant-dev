@@ -200,3 +200,37 @@ G5 or G6 run; gates.sh bank and gates.sh cost, bank5.R):
   under Step::alone_ends, the block's inner steps and their rates, at most 1%.
   Expected: the forward and the sweep fall about as the rows do, 40%; the inner
   steps take well under 1%.
+
+Results (2026-10-07; gates.R and bank5.R, on the libraries the amendments name):
+  - G1 holds bit for bit: long drought 7691 steps, 5129 taken alone, J
+    12.6690279655 on both; episodic 4764 steps, 3056 alone, J 1.97903788352.
+  - G2 holds: the replay repeats the run's J (12.6691860717093) and its 7692
+    times and sizes bit for bit; J' = J to the bit on long drought and episodic.
+  - G3 holds: lma's elasticity -8.27776886 by the adjoint against -8.27800695
+    by central differences, 2.38e-4 apart (at most 2e-3); ln J's residual from a
+    line over k x 1e-12 has rms 4.63e-15 (at most 1e-13).
+  - G4 holds on both records. Long drought: rows 373097 against bnd's 637276
+    (-41.5%), attempts -39.8%, J/J* - 1 +2.48e-5 (bnd -2.05e-5); the largest
+    elasticity move 0.063 eps (resident a_dG2; bnd 0.023). Episodic: rows
+    -44.8%, attempts -42.0%, J/J* - 1 +6.86e-5 (bnd +6.61e-6); the largest
+    0.045 eps (resident lma; bnd 0.025). Constant: 179266 rows against bnd's
+    499195 (-64.1%) and arkc's 183883 (0.97x).
+  - G5 holds on all five records:
+    - G5.1: every run finishes, and every gradient, both roles' and both
+      walks', is finite;
+    - G5.2: J' = J to the bit on every record;
+    - G5.3: the sweep against the replays' difference, at most 2e-3: constant
+      -8.97e-6, long-wet 6.65e-4, episodic 1.99e-3, dry 1.27e-3, long drought
+      2.38e-4;
+    - G5.4: ln J against the bank's split at 1e-6, at most 2.52e-4: constant
+      +2.52e-7, long-wet +3.67e-5, episodic +4.51e-5, dry +5.83e-5, long
+      drought +3.82e-5;
+    - G5.5: no resident entry moves past eps/6 under the nudge (the largest
+      0.078 eps, dry's omega), nor any invader entry on the four records that
+      cross (the largest 0.040 eps); constant's invader is not gated;
+    - reported: 51% to all of the steps taken alone (constant all 1998,
+      long-wet 5706 of 8066, episodic 3057 of 4768, dry 3324 of 6558, long
+      drought 5129 of 7691), and 41 to 9245 node steps split.
+  - G7 holds: off104 against bnd, J and every time and size bit for bit on long
+    drought (12567 times) and episodic (8211), and off104_split against
+    off105_split (12565).
