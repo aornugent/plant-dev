@@ -221,3 +221,36 @@ run; split_cost.sh, read by split_cost.R).
   probe build (perf-sweep.md), and the split costs at most 3 points more on
   the spread than on lumped: its five field builds a split step are few among
   a run's field builds.
+
+Results of the ladders (2026-10-07; ladder.R, and ladder_why.R with
+episodic.sh for the two records that miss; every ladder run on $DEV/lib_109,
+three at a time beside the thinning, so their seconds are not timings):
+  - Long-wet and dry hold L1-L3 for both roles: ratios 3.95 and 3.77 on
+    long-wet, 3.47 and 3.95 on dry, at most 5% negative; companions 0.87-0.99;
+    the move at most 0.251 eps (dry's resident rooting_depth_max).
+  - Episodic fails L1 and L2 for both roles and holds L3 (0.257 eps). The
+    resident's ratio is 0.77 (18% negative, companion 0.19), the invader's
+    -0.01 (51% negative, companion -0.00).
+    - J moves +0.0058 from u108 to u215 and +0.0076 to u429, so its error is not
+      yet falling there. Lumped (lib_sort, forward only) moves +0.0069 and
+      +0.0078, so the spread does not carry it.
+    - At u857 J moves +0.0016 on both builds, 4.8 times less than the rung
+      before: episodic enters the square law between u429 and u857.
+    - With the coarse rung's weights held, its nodes' nrr moves at a ratio of
+      1.50 on episodic, against 4.12 on dry and 3.26 on long-wet: the field its
+      founders see is what is still coarse.
+    - The turn sits where the spacing passes episodic's dry spells: a median of
+      31 days (mean 47.5), against 34 days at u429 and 17 at u857; dry's and
+      long-wet's median is 9. Which part of the field resolves there is not
+      isolated.
+  - Constant fails L1 and L2 for the resident (ratio 1.65, companion 0.41), as
+    registered as possible, and L3 for both roles: the resident's a_l1 moves
+    0.769 eps, the invader's entries up to 3.0 eps with 35 of them past eps/3.
+    - Its J falls at the square law (moves -0.0055 and -0.0013); its gradients
+      do not.
+    - The rungs refine only the front. All three share their 33 introductions
+      after the first year, spaced 0.06-5.9 years, and the shift moves those by
+      up to 539 days. So constant's L3 measures where the unrefined bulk sits,
+      which moves its gradients by up to 3 eps; as registered, the test cannot
+      separate that from the front.
+  - The expectation held on long-wet and dry only.

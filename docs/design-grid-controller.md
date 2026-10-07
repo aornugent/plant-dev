@@ -954,6 +954,17 @@ after the events reply):
         record with its front nodes, for both roles and with the quarter-spacing
         move. They pass with square-law ratios near 4, companions reporting
         0.8–1.25 of the error, and the move under ε/3.
+        - *Measured* (`measurements/node-rule/`): long-wet and dry pass for both
+          roles.
+        - Episodic's error is not yet falling over u108–u429, on lumped and
+          spread alike. It falls 4.8× from u429 to u857, once the spacing is
+          under its dry spells (median 31 days, against dry's 9). So `J`'s
+          two-rung report holds from u429 up (the gradients at u857 are not
+          run), and a ladder's own ratio (0.76 here) flags a pair that is too
+          coarse.
+        - Constant's `J` falls at the square law but its gradients do not. The
+          shift moves them up to 3ε through its bulk after the first year, which
+          no rung refines.
      4. *The invader's own rule.* First, the walk finds the run's node by its
         birth date rather than its position, and refuses an invader it cannot
         map. Today a thinned invader matches no node and walks unsplit, with
