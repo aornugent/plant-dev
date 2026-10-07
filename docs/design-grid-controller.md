@@ -885,7 +885,8 @@ after the events reply):
    - *The build:*
      - odelia `ODELIA-55` on `ODELIA-54`: the step's forward and its recording
        first become one body at any scalar;
-     - plant `PLANT-104` on `PLANT-103`: TF24's soil as the block, the share in
+     - plant `PLANT-105` on `PLANT-104` (the number its issue takes): TF24's
+       soil as the block, the share in
        Control (0, off, by default), and the program's two new fields through
        R;
      - about 250 and 170 lines.
@@ -938,8 +939,9 @@ after the events reply):
 7. *The window's weight from a pilot,* through the state weights, and the
    15-day cap from 1c, which is plant's `ode_step_size_max`.
    - *Decided* (1c, combined): Cash–Karp's setting.
-     - It is the soil and the accumulators ×10, rule A's weight, every weight
-       bounded at 100 (`ode_weight_max`), and the 15-day cap.
+     - It is the tied tolerance (the absolute at 1e-4 of the relative), the
+       soil ×10 (the accumulators keep a weight of 1), rule A's weight, every
+       weight bounded at 100 (`ode_weight_max`), and the 15-day cap.
      - On three pulsed records it saves 31–34% of a gradient run, every
        gradient is finite and every walk runs.
      - Rule A is F(t) = 1/clamp(R̂(t)/R₀, r_min, 1), with R₀ = 0.1, r_min = 0.01,
@@ -947,7 +949,9 @@ after the events reply):
        (`grid-dynamics.md` §8).
    - *Built:* every mechanism, on `state-weights`: the soil's, the
      accumulators' and the time's weights, their bound, and the cap.
-   - *Not built:* the setting named once, and the pilot that sets F.
+   - *Built since:* the setting named once, `control_tf24(tol, base)`
+     (aornugent/plant#104, `PLANT-104` `8ba5f7d0`, on `PLANT-103`).
+   - *Not built:* the pilot that sets F.
    - *The path:*
      1. *The setting, named once.* G1 of the bank needs its cap on episodic and
         dry (D4), and item 5 takes it as its baseline, so it comes first.
@@ -956,7 +960,17 @@ after the events reply):
         - As TF24's defaults it would move TF24's references, and FF16's too,
           since Control is shared.
         - As one plant function that every run calls, nothing moves.
-        - The user's call; the default is the function.
+        - *Decided* (the user): the function, now. Once the setting stops
+          changing, after the pilot (2) and the tuning of item 5's threshold,
+          it becomes plant's defaults in one commit that blesses the
+          references again, and the function goes.
+        - *Built:* `control_tf24(tol = 3e-5, base = Control())`, beside
+          `control_accurate()` (aornugent/plant#104, `PLANT-104` `8ba5f7d0`).
+          It sets the relative tolerance, the absolute one at 1e-4 of it, the
+          soil's weight 10, the bound 100 and the 15-day cap, and nothing
+          else; the window's weights stay the caller's. The new harnesses and
+          gates call it, and the recorded measurements keep their scripts as
+          they ran.
      2. *The pilot:* 54 uniform nodes at `1e-3`, which reads R within 10%
         wherever R ≥ 1e-3, on every record, for 0.25–0.32 of a forward's
         member-steps.
@@ -1142,6 +1156,13 @@ gain, and each multiplies with the rows the arc saves.
   later, since there may be cases where grading helps (2a).
 - *The multirate soil step (1e)* is in the build. Tuning it, its threshold
   included, waits for the later task of building general scheduling heuristics.
+  - Its design (`design-soil-alone.md`) is accepted with its defaults: the
+    program's two list fields with the setter's length check, ARK's branches
+    kept on the forks unmerged and marked retired, and the threshold's tuning
+    deferred now that the floor is measured at 0.001ε.
+- *Cash–Karp's setting is named once,* as a plant function (item 7, step 1).
+  Once it stops changing it becomes plant's defaults, the references blessed
+  again in one commit.
 - *The crowns' height sort* is agreed in principle, and is designed in a turn of
   its own before it is built (2b).
 - *The acceptance suite* is part of the design; its build waits for the user's

@@ -413,7 +413,11 @@ The split reads the whole state's dense output through `taken_step::dense_state`
   - the record holds one slope per block component, with every stop among the
     ends.
 
-### plant: `PLANT-104`, on `PLANT-103`
+### plant: `PLANT-105`, on `PLANT-104`
+
+The branch takes its issue's number when it is filed, 105 if nothing comes first.
+It stacks on `PLANT-104` (aornugent/plant#104, `control_tf24()`), whose setting is
+its baseline.
 
 | commit | what | gate |
 |---|---|---|
@@ -458,8 +462,9 @@ inside the bound, and it is the reference G1 compares plant against.
 ## Gates
 
 Each gate is registered in `measurements/soil-alone/` before the build's runs.
-Every run uses bounded Cash–Karp's setting: soil and accumulators ×10, rule A,
-the 15-day cap, weights bounded at 100, and a share of 0.1.
+Every run uses bounded Cash–Karp's setting, `control_tf24()`: the tied
+tolerance, the soil ×10 (the accumulators keep 1), weights bounded at 100 and
+the 15-day cap. Rule A's window comes on top, with a share of 0.1.
 
 | gate | what passes |
 |---|---|
@@ -475,12 +480,15 @@ the 15-day cap, weights bounded at 100, and a share of 0.1.
 
 1. Item 7's setting, named once (`design-grid-controller.md`, item 7, step 1).
    It is this item's baseline, and the bank's G1 needs its cap on episodic and
-   dry.
-2. `ODELIA-55`, then `PLANT-104`, then the driver aligned.
+   dry. *Built:* `control_tf24()` (aornugent/plant#104, `PLANT-104`
+   `8ba5f7d0`).
+2. `ODELIA-55`, then `PLANT-105`, then the driver aligned.
 3. G1–G7.
 4. Then item 7's pilot and item 6, in either order.
 
 ## Questions with defaults
+
+*Settled:* the user took all three defaults (2026-10-07).
 
 - *Q1, the program's R form.* Two list fields beside `ode_times` and
   `ode_step_sizes`, or one `ode_program` list replacing all four? *Default:* the
