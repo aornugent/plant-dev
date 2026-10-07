@@ -10,8 +10,10 @@ eps_of <- function(trait) {
 }
 verdict <- function(ok) if (isTRUE(ok)) "holds" else "FAILS"
 rel <- function(a, b) max(abs(a - b) / pmax(abs(b), 1e-300))
-for (tag in c(ld = "long-drought", epi = "episodic")) {
-  f <- file.path(O, sprintf("thin_%s.rds", names(tag)))
+records <- c(ld = "long-drought", epi = "episodic")
+for (key in names(records)) {
+  tag <- records[[key]]
+  f <- file.path(O, sprintf("thin_%s.rds", key))
   if (!file.exists(f)) { cat("==", tag, "not run yet\n"); next }
   x <- readRDS(f)
   cat(sprintf("== %s: the stand's J %.10g\n", tag, x$stand$J))

@@ -966,7 +966,21 @@ after the events reply):
           introduced where the run introduced no node refused by name. A thinned
           invader at the stand's traits keeps every member's fitness and split
           count to the bit.
-        - *Not yet run:* the thinning's measurement.
+        - *Measured, the thinning* (`measurements/node-rule/`, long drought and
+          episodic). The walk is exact: in 36 thinned walks every kept member
+          matches the full walk to the bit, and `J′` repeats from its own nodes
+          to 9e-16. The emulation misses by 1.2e-7, because a split newest node
+          integrates its merged interval's establishment on its own pieces.
+        - Rule b at 0.1, each invader's own share of `J′` (the rule decided
+          above), saves 36–64% of the walk and sweep and keeps `ln J′` within
+          0.13ε. But it moves an elasticity 0.74ε: `recruitment_decay`'s is
+          minus `J`'s mean birth date, which leans on the late births b spaces
+          widest.
+        - One schedule from the nine walks' shares at 0.03 keeps every entry
+          within 0.24ε. It saves 48% on long drought but 22% on episodic, under
+          the registered 30%.
+        - *Open, the user's call:* the rule decided above fails the elasticities.
+          Build the union schedule, or keep the full walk.
    - *With item 7:* rule A's thinning of the nodes after the window, ⌊√F(b)⌋
      spacings apart, is a node rule, so it is built here, on D's lattice.
    - *With item 5:* nothing. The soil is the nodes' environment, not a node.

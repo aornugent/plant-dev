@@ -163,3 +163,37 @@ Results of the sort (2026-10-07; sort.R):
     §6), so it is the reassociation the gate names, and no defect.
   - S2's time holds: the sort's forward is 352.1 and 357.8 s against the walk's
     363.0 and 367.9, 0.971 of it, where 0.80-0.85 was expected.
+
+Results of the thinning (2026-10-07; thin_read.R, and merged.R for (i)'s miss;
+both records on $DEV/lib_109, beside the ladders' three lanes on four cores, so
+(iv) is a ratio of back-to-back times in one process under that load):
+  - (i) fails as registered on both rules and records, and the walk is exact.
+    Every kept member's net reproduction ratio and split count equal the full
+    walk's to the bit, in all 36 thinned walks. J' misses the emulation by up
+    to 1.2e-7 relative, past the 1e-12, but J' from the thinned walk's own
+    per-node data repeats it to 8.9e-16. The miss is the emulation's: it sums a
+    merged interval's establishment from the full walk's parts, which holds
+    only where no node splits. A newest node that splits recomputes the
+    newborn's establishment at its pieces' stages, in the sampled field, so a
+    merged interval is the same integral on another quadrature: unmerged
+    intervals match to the bit, merged ones by up to 5.4e-4. On the three-year
+    stand of test-mutant.R, splits off, every merged interval matches to 4e-16;
+    splits on, one of 28 or 42 is off, by up to 3.4e-4 (merged.R).
+  - Rule b 0.1: (ii) holds (ln J' at most 0.127 eps on long drought, 0.087 on
+    episodic); (iii) fails on both, at 0.740 and 0.716 eps, recruitment_decay
+    the worst entry in 16 of the 18 walks; (iv) holds, 63.9% and 35.8% saved.
+    The thinned diagonal moves ln J' 0.163 and 0.043 eps and its elasticities
+    0.747 and 0.251 eps.
+  - Rule union 0.03: (ii) holds (0.008 and 0.014 eps); (iii) holds (0.143 and
+    0.235 eps, recruitment_decay); (iv) holds on long drought, 48.2%, and fails
+    on episodic, 21.8%. Its thinned diagonal moves nothing past 0.009 eps.
+  - recruitment_decay scales the establishment probability by
+    exp(-recruitment_decay t) (tf24_strategy.h), so its elasticity, at 0, is
+    minus J's mean birth date: it weights the late births, which rule b spaces
+    widest, more than J' does.
+  - The thinned stand's invader's sweep against central differences of thinned
+    walks: lma 1.6e-4 and 4.7e-5 apart, a_dG2 4.5e-6 and 3.5e-6, on long
+    drought and episodic.
+  - Against the expectation: ln J' moved more under rule b (0.127 eps against
+    0.10) and less under the union (0.014 against 0.04); the savings in time
+    exceed the emulation's in rows, except the union's on episodic.
