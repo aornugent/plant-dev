@@ -271,3 +271,24 @@ run alone, alternated as registered):
     forward.
   - Each build repeats its J to the ten digits logged: 12.66902797 plain and
     12.66918607 split on lumped, 12.80880543 and 12.80888573 on the spread.
+
+The shared schedule from the pilot (1b's quick test; registered 2026-10-07, 23:13,
+before any run; pilot_thin.R, read by pilot_thin_read.R).
+  The schedule: the pilot (54 introductions at 1e-3, the soil alone) walks the
+  stand and lma x0.5 and x2. Each walk's share of J' per unit birth date is read
+  log-linearly onto the run's 108 introductions; their largest, at 0.03, picks
+  one subset by emulate.R's rule_b, as the nine walks' union did.
+  The run and the cases: thin.R's setting, build ($DEV/lib_109) and nine
+  invaders, each walked and swept on that subset, on long drought and episodic;
+  against thin_<rec>.rds's full walks.
+  Gates, over the eight invaders off the diagonal:
+  - never fails: every walk and sweep runs;
+  - (ii) |d ln J'| < eps/3, and (iii) every elasticity within eps/3, of the full
+    walk's;
+  - (v) the selection gradient, central differences of the stand's invader at a
+    relative step of 1e-4 (regnans's) on the subset, within eps/3 of the full
+    walk's sweep, in lma and a_dG2.
+  Reported: the rows saved against the full schedule, beside the nine walks'
+  union's (rows, not seconds, so the load does not enter).
+  Expected: close to the nine walks' union; hmat x2, which earns late and is
+  not among the pilot's walks, is the likeliest to miss (iii).
