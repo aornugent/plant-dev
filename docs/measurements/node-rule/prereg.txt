@@ -82,7 +82,7 @@ D's references (6.2; registered 2026-10-07, 13:05, before the re-bless commit).
     extrapolation from its second and third, at a third of the cost. The height
     coordinate, plant's default, does not move.
 
-The ladders (6.3, design-grid-controller.md 2c; registered 2026-10-07, 13:40,
+The ladders (6.3, design-grid-controller.md 2c; registered 2026-10-07, 13:03,
 before any run; ladder.sh, read by ladder.R).
   The build: $DEV/lib_109 (plant PLANT-109 4219616f, the spread blessed and the
   walk by birth date, on odelia ODELIA-55 27a0def, phylloptim as in lib_105c).
@@ -120,7 +120,7 @@ before any run; ladder.sh, read by ladder.R).
   and a_f1 moved without shrinking, so L1 may fail there for the resident, and
   is reported either way.
 
-The thinning (6.4; registered 2026-10-07, 14:00, before any run; thin.R, read by
+The thinning (6.4; registered 2026-10-07, 13:09, before any run; thin.R, read by
 thin_read.R). The invader-thinning pathfinder's step 2 (its prereg.txt), run on
 the walk as built rather than on its probe patch, which was never run.
   The build: $DEV/lib_109 (plant PLANT-109: the walk finds an invader's node by
