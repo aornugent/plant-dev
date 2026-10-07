@@ -67,8 +67,9 @@ bank of records (`bank.sh`, `bank.R`, `bank.log`) and the profiles
 (`rebuilt_profile.sh`, `rebuilt_profile.txt`). `soil-alone/` holds the spikes
 that settled the shape of the build of the soil stepped on its own (S1–S3 and
 the tolerance ladder; `prereg.txt`, `run.sh`, `sa_harness.diff`, `report.R` and
-`report.log`). `docs/design-soil-alone.md` and `grid-dynamics.md` §15 read
-them.
+`report.log`), and in `plant/` the scripts of the build's first runs on
+`PLANT-105` (`R_LIBS=$DEV/lib_105 Rscript <script>`), which are not registered
+gates. `docs/design-soil-alone.md` and `grid-dynamics.md` §15 read them.
 
 ## The half-order loss
 

@@ -334,19 +334,19 @@ Then each attempt:
 
 ### What a row records
 
-`instruction` gains two fields:
+`instruction` gains one field, as built:
 
 ```cpp
-  // A step that took the System's block alone: its predictor's input slope, and
-  // where each inner step of either pass ended, as a fraction of the step.
-  std::vector<double> alone_slope;
-  std::vector<double> alone_steps;
+struct alone_steps { std::vector<double> slope; std::vector<double> ends; };
+struct instruction { double time; double step_size; bool insertion = false;
+                     alone_steps alone{}; };
 ```
 
-- The predictor's ends run to the first 1, and the corrector's follow it. Every
-  stop is among the predictor's ends, written from the same constants.
-- A `step_record` is an instruction, so the recording carries both fields, and
-  `schedule()` hands them to plant with the times and sizes.
+- A non-empty `slope` is the flag. `ends` are where the inner steps ended, as
+  fractions of the step; both passes take the same ones (as built, below).
+  Every stop is among them, written from the same constants.
+- A `step_record` is an instruction, so the recording carries the field, and
+  `schedule()` hands it to plant with the times and sizes.
 - Long drought holds about 37 ends a step taken alone, and the constant record
   about 12, each step with 5 slopes.
 
@@ -441,11 +441,17 @@ its baseline.
 
 ### The driver, aligned (plant-dev)
 
-`sa_harness.diff` gains the build's choices:
+`sa_harness.diff` gains the build's choices (the last three as built, below):
 - the predictor stops at the sample fractions;
 - the inner steps are taken in fractions of the step;
 - the first inner rates are the step's own;
-- the defect comes from the rates' difference.
+- the defect comes from the rates' difference;
+- the corrector takes the predictor's inner steps;
+- the inner steps are chosen by odelia's step control (`OdeControl`) at `1e-9`
+  and `1e-13`: grown only under half the tolerance, by 0.9 r^(-1/6) up to 5,
+  and shrunk by 0.9 r^(-1/5) down to 0.2, the size carried across stops, the
+  first try reaching the first stop;
+- a step's inner steps never go below the solver's smallest step.
 
 The line already stops at zero. Its cost lies within 1% of S2's and its `J`
 inside the bound, and it is the reference G1 compares plant against.
@@ -458,6 +464,68 @@ inside the bound, and it is the reference G1 compares plant against.
   the store toy.
 - The handover marks them retired. Deleting the branches is the user's call
   (Q2).
+
+## As built
+
+*odelia `ODELIA-55`* (five commits on `ODELIA-54`, odelia#55): `b70259d` one
+step body; `0e7009e` the concept and the record; `45a3156` the step taken alone;
+`bed4c9c` the solver's part; `f156142` the predictor's samples at the System's
+scalar. Departures from the map:
+- *The forward chooses the inner steps, then takes the step as a replay does.*
+  `Step::alone_ends` picks them, and the step runs the passes over the chosen
+  list, so a step has one mode and the forward is a replay of its own record.
+- *One list of inner steps serves both passes.* The corrector takes the
+  predictor's, so the record holds one list and the gap between the passes is a
+  difference of inputs alone.
+- *Odelia's own step control chooses them*, rather than a second controller,
+  floored at the solver's smallest step. A block that is not finite there throws
+  `util::DomainError`, which the outer step rejects, so a failing block stops the
+  run with its reason rather than looping. Both the floor and the comparison
+  with the piece asked for were found by a toy that failed at every inner step.
+- *The dense output's block* landed with the step (commit 3), not as a fifth
+  commit; `integrate_pieces` gained the hook that keeps the block at each stop.
+- *The step's error estimate is written once* (`step_error`), for the step and
+  the inner steps.
+- *Tests:* `test-step-alone.R`, 28 expectations. On the store toy the run takes
+  27 to 771 steps where Cash–Karp takes 1 519 to 3 995 (tol `1e-4` to `1e-9`),
+  as accurately; the sweep matches central differences of the replayed program
+  to 7e-8; a walk at the tangent scalar refuses a row taken alone.
+
+*plant `PLANT-105`* (three commits on `PLANT-104`, aornugent/plant#105):
+- *`9b4b6658`:* the soil's rates at any scalar (`conductivity`,
+  `infiltration_excess`, `alone_rates`), bit for bit.
+- *`9f20f9ba`:* the patch's hooks behind a concept on the environment; the uptake
+  held at the working scalar and handed back with the other active values;
+  `ode_soil_alone_share`, default 0. `control_tf24()` does not set it, so it
+  stays the coupled baseline (bnd) that G4 compares against.
+- *`146d9862`:* the program through R. `set_ode_steps` takes the four fields
+  together and refuses records whose count differs from the sizes', or a row with
+  one of slope and inner steps. `program()` now replays each interval's last
+  step by its record: a step to the end never takes the soil alone, so a
+  pinned replay would have stepped the soil past its stability limit there.
+- *No `SCM$ode_alone`:* the counts are `ode_alone_steps`' lengths (R9), so no
+  accessor stores them twice.
+
+*What the build's first runs showed* (`control_tf24`, splits on;
+`measurements/soil-alone/plant/`, not registered gates):
+- one year under wet constant rain (3 m/yr), where the soil binds bnd's steps:
+  116 steps against 189 at `1e-4`, and `J`'s error falls with the tolerance
+  (2.5e-6, 4.0e-7 and 2.4e-7 at `1e-4`, `3e-5` and `1e-5`) before flattening
+  (R10);
+- three years of seasonal rain, whose steps the nodes bind (178 of 208): no
+  saving. The coupling error, judged at the members' weight and so ten times
+  tighter than the soil's under `control_tf24`, binds 88 steps, and the run
+  takes 211;
+- at `1e-7` on three-year constant-rain stands the coupling error, of lower
+  order than Cash–Karp's, binds most steps (700 of 841 at 1 m/yr, 612 of 792 at
+  3), so the saving belongs to the loose tolerances the gates run at;
+- the sweep of `lma` through steps taken alone matches central differences of
+  the replayed program to 2e-11 without splits and 3e-8 with them
+  (`sweep_dbg3.R`). Under seasonal light the split sweep lies 3.7e-3 from them
+  with the soil coupled or alone (`sweep_dbg.R`): it evaluates a piece's
+  time-dependent drivers at held times. That is `PLANT-103`'s, and open.
+- the full serial suite passes but for "mutant method works", whose two
+  expectations fail on `PLANT-104` with the same numbers.
 
 ## Gates
 

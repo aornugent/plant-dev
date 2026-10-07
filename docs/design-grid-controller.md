@@ -882,14 +882,13 @@ after the events reply):
      - *The split reads the soil through the step's dense output,* the block's
        from the predictor's samples at the five fractions. So the split's guard
        from §9 holds by structure.
-   - *The build:*
-     - odelia `ODELIA-55` on `ODELIA-54`: the step's forward and its recording
-       first become one body at any scalar;
-     - plant `PLANT-105` on `PLANT-104` (the number its issue takes): TF24's
-       soil as the block, the share in
-       Control (0, off, by default), and the program's two new fields through
-       R;
-     - about 250 and 170 lines.
+   - *The build, done:*
+     - odelia `ODELIA-55` (`f156142`) on `ODELIA-54`: the step's forward and
+       its recording first become one body at any scalar;
+     - plant `PLANT-105` (`146d9862`) on `PLANT-104`: TF24's soil as the block,
+       the share in Control (0, off, by default), and the program's two new
+       fields through R;
+     - its departures and first runs: `design-soil-alone.md`, *As built*.
    - *Gates,* G1–G7 there:
      - the aligned driver's steps and `J`;
      - replays and `J′ = J` to the bit;
