@@ -28,7 +28,8 @@ Gates (pilot7.R):
     walk at lma and hmat x0.5 and x2 runs, with a finite gradient.
   - P2, accuracy: |ln J - ln J_ref| at most 0.01 eps (2.52e-4), J_ref the bank's
     split at 1e-6; and every entry of both roles within eps/3 of G5's b5_<rec>,
-    whose window is the harness's rule A.
+    whose window is the harness's rule A, constant's invader excepted as in P3
+    (amended before any run, 13:50).
   - P3, the nudge: no resident entry moves past eps/6 between p7 and p7n; nor
     the invader's at theta' = theta on the four records that cross (constant's
     invader gradient on uniform nodes is the artefact on record).
