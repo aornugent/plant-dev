@@ -292,3 +292,25 @@ before any run; pilot_thin.R, read by pilot_thin_read.R).
   union's (rows, not seconds, so the load does not enter).
   Expected: close to the nine walks' union; hmat x2, which earns late and is
   not among the pilot's walks, is the likeliest to miss (iii).
+
+Results of the shared schedule from the pilot (2026-10-07; pilot_thin_read.R; both
+records on $DEV/lib_109, run two at a time):
+  - The pilot's schedule keeps 52 of 108 introductions on both records (the
+    nine walks' union 54 and 58, sharing 39 and 44 of them) and saves 25.0% of
+    a walk's rows on long drought and 24.0% on episodic (the union's 23.9% and
+    19.0%).
+  - Never fails holds: every walk and sweep ran.
+  - (ii) holds: ln J' at most 0.034 eps (long drought) and 0.008 eps
+    (episodic).
+  - (iii) holds on episodic (0.136 eps) and fails on long drought: lma x0.5's
+    recruitment_decay moves 0.425 eps (hmat x0.5's 0.295, everything else
+    under 0.23). recruitment_decay is the worst entry in 15 of the 18 walks,
+    as under rule b: the schedule follows J''s shares and that elasticity
+    weights the late births.
+  - (v) holds: the selection gradient by differences on the schedule lies
+    within 0.004 eps of the full walk's sweep in lma and 0.001 eps in a_dG2 on
+    both records.
+  - Against the expectation: the miss is lma x0.5, which the pilot walks, not
+    hmat x2. The rows saved (24-25%) are about half the union's time saved in
+    thin.R (48% on long drought), which was timed under load and includes the
+    sweep; rows are the measure here.

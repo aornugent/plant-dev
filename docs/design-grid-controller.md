@@ -949,6 +949,8 @@ after the events reply):
           case, while on the anchor lumped's second halving alone matches it at
           a third of the cost. The height coordinate, plant's default, does not
           move.
+        - *Decided* (the user): D applies to every strategy on the birth-date
+          coordinate.
         - *Measured,* the split's cost with the spread, timed alone on long
           drought: the split costs no more on the spread than on lumped (+5.0%
           of the gradient against +9.1%). The spread itself costs the gradient
@@ -993,8 +995,13 @@ after the events reply):
         - One schedule from the nine walks' shares at 0.03 keeps every entry
           within 0.24ε. It saves 48% on long drought but 22% on episodic, under
           the registered 30%.
-        - *Open, the user's call:* the rule decided above fails the elasticities.
-          Build the union schedule, or keep the full walk.
+        - *Measured, the shared schedule chosen from the pilot's three walks:*
+          24–25% of a walk's rows saved, nothing fails, and the selection
+          gradient by differences on it within 0.004ε of the full sweep. One
+          entry misses on long drought: `lma` ×0.5's `recruitment_decay`, 0.43ε.
+        - *Decided* (the user): the full walk stays the default; the shared
+          schedule is the candidate, its miss the birth-date weighting its
+          shares lack.
    - *With item 7:* rule A's thinning of the nodes after the window, ⌊√F(b)⌋
      spacings apart, is a node rule, so it is built here, on D's lattice.
    - *With item 5:* nothing. The soil is the nodes' environment, not a node.
