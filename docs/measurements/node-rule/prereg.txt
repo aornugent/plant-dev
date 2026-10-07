@@ -23,3 +23,59 @@ The sort (6.1; registered 2026-10-07, 12:05, before any run on the build).
     at most the walk's time. Reported: the time saved, against the probe's 23%
     of a forward for the walk.
   Expected: S1 bit for bit; S2's J within 1e-14, and the forward 15-20% faster.
+
+D's references (6.2; registered 2026-10-07, 13:05, before the re-bless commit).
+  The build: plant PLANT-108 at 77cbb5e3 (the spread, with the boundary interval
+  formed at the close) with odelia and phylloptim as in $DEV/lib_105c, in
+  $DEV/lib_D2; each move is against $DEV/lib_sort (PLANT-107).
+  Found before the re-bless: D's first build (f2bcb490) put the crowns of the
+  boundary interval, from the newest node to the boundary node, in the field the
+  boundary node is evaluated in. That field then read the boundary node left by
+  the evaluation before, which the reverse sweep's tape does not tie to the
+  traits: the ladder's adjoint and forward tangent disagreed by up to 4.2e-4 of a
+  column's peak (1.omega; birth-size columns only), against 1e-15 on PLANT-107.
+  Forming the whole boundary interval at the close (77cbb5e3, amended into D's
+  commit) restores 1.5e-14 and moves no value at the digits the tests read.
+  Its full suite: 4763 pass, 24 fail, two of them the known FF16 "mutant method
+  works". The other 22, each blessed again:
+  - test-canopy-methods.R, deep-crown's FF16 birth-date anchor: 17.1406 ->
+    18.0109.
+  - test-strategy-ff16.R, offspring arrival on the birth-date coordinate: one
+    species 17.1406 -> 18.0109 and ode_times[100] 4.272467 -> 4.270877; two
+    species 12.04839, 16.59379 -> 12.07168, 16.76472, and 269 -> 265 steps.
+  - test-density-coordinate.R:
+    - each coordinate's rule: the birth-date rule written out by hand becomes
+      the spread's (8 failures, at 0.3 and 0.7 of the canopy top; at the ground
+      the two rules agree);
+    - size-only convergence: FF16's gap after one halving 3.90e-3 -> 5.26e-3,
+      ratio 2.42 -> 2.81; its bound 5e-3 -> 6e-3; K93's holds (1.22e-3);
+    - the coarser schedule: the birth-date answer's move under a halving
+      1.76e-4 -> 3.78e-3, against the height coordinate's 5.65e-3, so the
+      claim no longer holds. The spread's claim replaces it: its moves fall at
+      the square law (7.08e-2 then 1.84e-2, ratio 3.86);
+    - multi-species convergence: FF16's second species' gap after one halving
+      7.65e-3 -> 4.99e-2, past the 1e-2 bound. Every species' ratio is 3.77 to
+      4.00, so the ratio's bound rises from 2 to 3 and FF16's absolute bound
+      goes; K93's 2e-3 holds (1.57e-3).
+  - test-gradient-ladder-whole-run-difference.R: the whole-run difference
+    captured again on the spread, as it is whenever the model it differences
+    changes (1920 differenced rows, 20 refused, as before). Per regime the
+    median row moves 6e-7 to 5e-6 of its metric's scale and the largest,
+    theta's, 0.04 to 1.43, on two introductions a species; each row's spread is
+    3e-14 to 2e-13 of the scale. The sweep must agree with it within the
+    capture's own spread, as the test asserts.
+  What the spread trades, on FF16's birth-date coordinate over halvings of the
+  default schedule ($DEV/D/ff16):
+  - the deep-crown anchor (lma 0.0825, birth rate 20): lumped 17.1406, 17.2416,
+    17.2252, 17.2253, 17.2252; spread 18.0109, 17.3922, 17.2645, 17.2349,
+    17.2276. Both reach 17.2252 (the spread's two finest, extrapolated:
+    17.22519). Lumped is -0.49% at the default schedule and within 1e-5 after
+    two halvings; the spread is +4.6%, its moves falling 4.85, 4.33 and 4.04 a
+    halving.
+  - the size-only case (lma 0.08, birth rate 1): lumped -2.2e-4, -4.0e-5,
+    -8.7e-6, -2.2e-6; spread +5.1e-3, +1.3e-3, +3.3e-4, +8.2e-5 (ratios 3.86,
+    3.97). Extrapolated from the spread's first and second halvings it is within
+    2.4e-6, in 1.7 s, against lumped's 2.2e-6 after three halvings, in 4.3 s.
+  - So on FF16 the spread's raw error at the default schedule is 9-25x
+    lumped's, on the square law; lumped's is smaller and of no fixed order. The
+    height coordinate, plant's default, does not move.
