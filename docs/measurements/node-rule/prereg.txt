@@ -243,6 +243,10 @@ three at a time beside the thinning, so their seconds are not timings):
       31 days (mean 47.5), against 34 days at u429 and 17 at u857; dry's and
       long-wet's median is 9. Which part of the field resolves there is not
       isolated.
+    - Not the founders' early growth: at three years their height is as smooth
+      in birth date on episodic as on dry, linear interpolation from every 34,
+      68 and 135 days missing it by 0.03%, 0.10% and 0.33% on both
+      (episodic_heights.R; the first node 4.435 m against 4.481 m).
   - Constant fails L1 and L2 for the resident (ratio 1.65, companion 0.41), as
     registered as possible, and L3 for both roles: the resident's a_l1 moves
     0.769 eps, the invader's entries up to 3.0 eps with 35 of them past eps/3.
