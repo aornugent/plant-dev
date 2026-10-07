@@ -1057,8 +1057,12 @@ after the events reply):
           on the pulsed records and 1.37 under constant rain.
         - A pilot with the soil alone reads the same window, within |ln| 0.06,
           for 0.31–0.53 of the rows on four records but 0.91 on dry. That misses
-          the registered 0.8 on every record, so the pilot stays as gated;
-          adopting it anyway is the user's call.
+          the registered 0.8 on every record, so the pilot stays as gated.
+        - *Decided* (the user): the pilot steps the soil alone, and runs only
+          where the window pays. Under constant rain the window saves about 2%
+          and the soil stepped alone already does ARK's work there (0.97 of
+          arkc's rows), so that record takes no pilot. Built by
+          `control_tf24()` setting the share (`PLANT-105`), not yet done.
    - *With the split and item 5,* one place each:
      - splits run after the error estimate keeps a step, whatever set its size
        (§9);
