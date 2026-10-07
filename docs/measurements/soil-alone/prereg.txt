@@ -80,3 +80,68 @@ Results (2026-10-06, report.log; each run's log in DEV/soil_alone/logs):
     crossing; it also puts S1's and S12's smaller errors at 3e-5 inside the floor.
     Q3's reading, a share threshold held fixed as the tolerance tightens, is still
     untested.
+
+The build's gates (2026-10-07, registered before any gate run; gates.sh,
+gates.R): plant PLANT-105 (146d9862) on odelia ODELIA-55 (f156142) and phylloptim
+PHYLLOPTIM-17, in $DEV/lib_105. The gates are design-soil-alone.md's G1-G7.
+  The setting, every run unless named: harness/run_record.R on 108 uniform
+  introductions (t_u108), TOL=3e-5, ATOL=1e-4, WEIGHT_SOIL=10, rule A's window
+  (WEIGHT=weight_<record>.rds), WEIGHT_MAX=100, HMAX=15: control_tf24() with rule
+  A. "bnd" leaves the share at 0; "alone" sets SHARE=0.1. Splits off unless
+  named. The five traits are Q3's: lma, d_I, a_dG1, a_dG2, omega; eps is
+  eps.csv's, floored at 0.01, per role.
+  Runs:
+  - ref_<rec>, bnd at TOL=1e-5; bnd_<rec>; alone_<rec>: each the stand and its
+    gradient, and the invader with the stand's traits and its gradient, on long
+    drought and episodic.
+  - alone_constant and bnd_constant, the stand alone (FORWARD=1) on the constant
+    record's resolved grid (t_const_Gbf16).
+  - alone_split_<rec>: alone with SPLIT=1, the stand and its gradient and the
+    invader, on long drought and episodic. From long drought's, its program
+    with the records: rep (FORWARD=1, the program itself), up and down
+    (LMA_REL=+-1e-3), and k1, k2, km1, km2 (LMA_REL=k x 1e-12).
+  - off104_<rec> and off104_split: bnd's stand alone (FORWARD=1) on PLANT-104
+    ($DEV/lib_ctl with $DEV/lib_fx), long drought and episodic, and long
+    drought with SPLIT=1; off105_split the same on lib_105.
+  - drv_<rec>: the driver aligned to the build (aligned.diff over
+    sa_harness.diff, MR_SHARE=0.1, MR_U1=stage, the block's weight the least
+    outside it) on lib_105, long drought and episodic, splits off.
+  Gates (gates.R):
+  - G1, the port: drv_<rec> against alone_<rec>'s stand: every accepted step's
+    time and size the same, the same steps taken alone, and J equal or within
+    1e-12 relative, on both records.
+  - G2, identity: rep's J and every time and size bit for bit against
+    alone_split_long-drought's; on both alone_split runs J' = J to the bit.
+  - G3, the sweep: alone_split_long-drought's lma elasticity by the adjoint
+    within 2e-3 of the central difference (ln J(up) - ln J(down)) / (log1p(1e-3)
+    - log1p(-1e-3)); and the rms of ln J's residual from a line through the five
+    replays at k = -2..2 (k = 0 the run) at most 1e-13.
+  - G4, Q3's pass: on each record, alone's rows (members summed over accepted
+    steps) and attempts below bnd's; |J/J* - 1| at most 2.524e-4 (J* long
+    drought 12.6687135, episodic 1.978902094, on TF24 v12, which v13 moves by
+    about 1.5e-6); and every one of the five traits' elasticities, for each role,
+    within eps/3 of ref's and within bnd's own distance from ref plus 0.1 eps.
+    Under constant rain, alone's rows at most 1.2 times the driver's arkc's
+    (arkc_constant, S3).
+  - G5, the bank: registered with its runs, after G1-G4.
+  - G6, the cost: registered with its runs, timed alone after the rest.
+  - G7, off: off104_<rec> against bnd_<rec>'s stand, and off104_split against
+    off105_split: J and every time and size bit for bit. The FF16 guard and the
+    split's tests passed in PLANT-105's suite (4786 expectations; the two of
+    "mutant method works" fail on PLANT-104 alike).
+  Expected: G1 holds bit for bit unless an attempt sits at 1.1 within an ulp;
+  G2, G3 and G7 hold; G4's rows fall about 40% on both records, as S2's did, and
+  every elasticity holds, as mrw's did in Q3 (0.11 eps at most).
+  Amended before the reruns (2026-10-07, 11:20): the G1 smoke (20 introductions,
+  3 years) put plant's steps off the driver's at the tenth, the first after a
+  knot. Plant lands each zero pulse as an entry that sets the state anew, which
+  emptied the slope; the driver keeps the slope across pulses and resets it only
+  at an introduction. ODELIA-55 now keeps the slope across an insertion that
+  leaves the state as it was (27a0def), and every run from here uses
+  $DEV/lib_105b: odelia at that commit, phylloptim as in lib_105, plant
+  PLANT-105 (146d9862) rebuilt against it. The runs at a share of 0 already on
+  lib_105 stand (ref_long-drought, ref_episodic, bnd_long-drought): no step takes
+  the soil alone there, so the change cannot reach them, which a smoke checks bit
+  for bit. alone_long-drought on lib_105 (J 12.6689044, 7670 steps) is kept as
+  alone_long-drought_lib105. The driver runs (drv_<rec>) read plant only for the
+  rates, on lib_105b.

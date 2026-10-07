@@ -7,7 +7,7 @@
 #   PLANT_LIB=... [REGIME=long-drought] [SEED=...] [TOL=1e-4] [ATOL=1e-4] \
 #     [NODES=108] [SHIFT=0] [TIMES=times.rds] [FORWARD=1] [PROGRAM=driver.rds] \
 #     [WEIGHT_SOIL=10] [WEIGHT_ACC=10] [WEIGHT=weight.rds] [WEIGHT_MAX=100] \
-#     [HMAX=15] [METHOD=ark] [SPLIT=1] [LMA_REL=1e-2] [STAND_ONLY=1] \
+#     [HMAX=15] [METHOD=ark] [SPLIT=1] [SHARE=0.1] [LMA_REL=1e-2] [STAND_ONLY=1] \
 #     [TRAIT_REL=a_dG2=1e-2] [INVADERS_REL=lma=1e-3,lma=-1e-3] [INVADER_GRADIENTS=1] \
 #     [STAND_GRADIENT=0] [LIFETIME=8] OUT=run.rds \
 #     Rscript harness/run_record.R
@@ -29,7 +29,9 @@
 # with the error weights (state-weights). METHOD names plant's stepper, "ark"
 # for the implicit soil chain (ark-soil). Each run keeps the soil's clamp
 # tallies on the forward run and on each sweep. SPLIT=1 splits each node's step
-# where its net production changes sign (sign-changes), and LMA_REL runs the
+# where its net production changes sign (sign-changes), SHARE steps the soil
+# alone on each step whose uptake is under that share of the water moving
+# through it (PLANT-105), and LMA_REL runs the
 # stand, not its invaders, at its own lma (1 + LMA_REL), set after the
 # hyperparameterisation has derived the rest, as a gradient's partial moves it.
 # TRAIT_REL moves any traits so, each trait=rel (comma-separated), and
@@ -83,10 +85,18 @@ if (lma_rel != 0) p <- moved(p, sprintf("lma=%.17g", lma_rel))
 trait_rel <- Sys.getenv("TRAIT_REL")
 if (nzchar(trait_rel)) p <- moved(p, trait_rel)
 p$node_schedule_times <- list(times)
-program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))$st
+program <- if (nzchar(Sys.getenv("PROGRAM"))) readRDS(Sys.getenv("PROGRAM"))
+# A plant that steps the soil alone records each step's slope and inner steps
+# beside its size, and replays a program only with them; a driver's has none.
+records_alone <- "ode_alone_slopes" %in% names(p)
 if (!is.null(program)) {
-  p$ode_times <- c(0, program$time)
-  p$ode_step_sizes <- c(NaN, program$h)
+  p$ode_times <- c(0, program$st$time)
+  p$ode_step_sizes <- c(NaN, program$st$h)
+  if (records_alone) {
+    none <- rep(list(numeric(0)), nrow(program$st))
+    p$ode_alone_slopes <- c(list(numeric(0)), if (is.null(program$alone_slopes)) none else program$alone_slopes)
+    p$ode_alone_steps <- c(list(numeric(0)), if (is.null(program$alone_steps)) none else program$alone_steps)
+  }
 }
 ct <- control()
 ct$ode_tol_rel <- tol
@@ -103,6 +113,7 @@ if (nzchar(Sys.getenv("WEIGHT_MAX"))) ct$ode_weight_max <- as.numeric(Sys.getenv
 if (nzchar(Sys.getenv("HMAX"))) ct$ode_step_size_max <- as.numeric(Sys.getenv("HMAX")) / 365
 if (nzchar(Sys.getenv("METHOD"))) ct$ode_method <- Sys.getenv("METHOD")
 if (Sys.getenv("SPLIT") == "1") ct$ode_split_sign_changes <- TRUE
+if (nzchar(Sys.getenv("SHARE"))) ct$ode_soil_alone_share <- as.numeric(Sys.getenv("SHARE"))
 ev <- events(events_default(p), pulse_rows(sort(unique(knots))))
 
 clock <- function() proc.time()[["elapsed"]]
@@ -115,7 +126,7 @@ out <- list(
   setting = list(regime = regime, seed = seed, spec = RAIN_SPECS[[regime]], tol = tol,
                  tol_abs = ct$ode_tol_abs, nodes = nodes, shift = shift, lma = LMA0,
                  lma_rel = lma_rel, trait_rel = trait_rel,
-                 split = Sys.getenv("SPLIT") == "1",
+                 split = Sys.getenv("SPLIT") == "1", share = Sys.getenv("SHARE"),
                  lifetime = LIFETIME, program = Sys.getenv("PROGRAM")),
   versions = list(plant = as.character(packageVersion("plant")),
                   odelia = as.character(packageVersion("odelia")),
@@ -205,6 +216,10 @@ if (!is.null(scm)) {
                     nodes = per_node(scm), event_log = unclass(scm$event_log),
                     creation = creation_record(scm), soil = soil_record(scm),
                     forward_clamps = soil_clamps(plant:::census_clamp_counts_tf24))
+  if (records_alone) {
+    out$stand$alone_slopes <- scm$ode_alone_slopes
+    out$stand$alone_steps <- scm$ode_alone_steps
+  }
   save()
   g <- if (!forward && stand_gradient_on) phase("stand_gradient", function() gradient_of(scm, p))
   if (!is.null(g)) out$stand <- c(out$stand, g,

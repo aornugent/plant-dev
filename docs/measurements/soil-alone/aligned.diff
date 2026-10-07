@@ -1,0 +1,255 @@
+--- /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/soil_alone/harness/ark_prototype.R	2026-10-06 20:37:29.051836192 +0000
++++ harness/ark_prototype.R	2026-10-07 10:53:42.104713779 +0000
+@@ -432,51 +432,167 @@
+   th <- y[soil(y)]
+   out <- K_sat * (pmin(pmax(th, 0), theta_s) / theta_s)^q
+   inflow <- c(rain_at(t) * max(0, 1 - (th[1] / theta_s)^b_inf), out[-5])
+-  sum(abs(u)) / sum(abs(inflow) + abs(out) + abs(u))
++  taken <- 0
++  moving <- 0
++  for (i in seq_along(th)) {
++    a <- abs(u[i])
++    taken <- taken + a
++    moving <- moving + (abs(inflow[i]) + abs(out[i]) + a)
++  }
++  taken / moving
++}
++
++# The build's step taken alone (aligned.diff): odelia's stops and inner step
++# control at 1e-9, one list of inner steps for both passes, plant's soil rates,
++# and the coupling's error through them, each in the build's order of operations.
++STOPS <- c(1 / 5, 0.25, 0.3, 0.5, 3 / 5, 0.75, 7 / 8, 1)
++AH <- c(1 / 5, 0.3, 3 / 5, 1, 7 / 8)
++ALONE_TOL <- 1e-9
++# TF24_Environment::alone_rates: the layers under infiltration and drainage, less
++# uptake u, held at the residual moisture where compute_rates holds them.
++alone_rates <- function(t, th, u) {
++  out <- K_sat * (pmin(pmax(th, 0), theta_s) / theta_s)^q
++  water_in <- c(rain_at(t) * max(0, 1 - (th[1] / theta_s)^b_inf), out[-5])
++  r <- (water_in - out - u) / dz
++  r[th <= theta_res & !(r > 0)] <- 0
++  r
++}
++# OdeControl::adjust_step_size at ALONE_TOL, in fractions of the step: the size it
++# returns and its shrink flag, which, as odelia's, keeps its last value where a
++# step over tolerance cannot shrink.
++inner <- new.env()
++inner_adjust <- function(step, y, yerr, dydt, smin) {
++  rmax <- .Machine$double.xmin
++  for (i in seq_along(y)) {
++    level <- ALONE_TOL * (1 * abs(y[i]) + 0 * abs(step * dydt[i])) + 1e-4 * ALONE_TOL
++    r <- abs(yerr[i]) / abs(level)
++    if (!is.finite(r)) {
++      inner$shrank <- TRUE
++      return(max(step * 0.2, smin))
++    }
++    if (r > rmax) rmax <- r
++  }
++  if (rmax > 1.1) {
++    f <- 0.9 / rmax^(1 / 5)
++    if (f < 0.2) f <- 0.2
++    hn <- step * f
++    if (hn < smin) hn <- smin
++    if (hn < step) {
++      inner$shrank <- TRUE
++      step <- hn
++    }
++  } else if (rmax < 0.5) {
++    f <- 0.9 / rmax^(1 / 6)
++    if (f > 5) f <- 5 else if (f < 1) f <- 1
++    step <- step * f
++    if (step > 1) step <- 1
++    inner$shrank <- FALSE
++  } else {
++    inner$shrank <- FALSE
++  }
++  step
++}
++# Step::alone_ends: where the predictor's inner steps end, chosen at ALONE_TOL
++# under the inputs on the line from u0 to `to`; NULL where the block is not finite
++# at the solver's smallest step, which rejects the step.
++alone_ends <- function(t, h, own, r0, u0, to) {
++  rates <- function(u, b) alone_rates(t + u * h, b, u0 + (to - u0) * u)
++  smin <- ct$ode_step_size_min / h
++  inner$shrank <- FALSE
++  r <- list(r0)
++  ends <- numeric(0)
++  from <- 0
++  piece <- 1
++  for (stop in STOPS) {
++    while (from < stop) {
++      end <- min(from + piece, stop)
++      for (i in 2:6) {
++        r[[i]] <- rates(from + AH[i - 1] * (end - from),
++                        combine(own, tab$ACK[i, ], r, (end - from) * h))
++      }
++      nxt <- combine(own, tab$bCK, r, (end - from) * h)
++      err <- combine(0, tab$bCK - tab$dCK, r, (end - from) * h)
++      asked <- piece
++      piece <- inner_adjust(end - from, nxt, err, r[[1]], smin)
++      if (inner$shrank) {
++        if (!(piece < asked)) return(NULL)
++        next
++      }
++      ends <- c(ends, end)
++      from <- end
++      own <- nxt
++      if (from < 1) r[[1]] <- rates(from, own)
++    }
++  }
++  ends
++}
++# Step::integrate_pieces over the inner steps' ends, the block's rates at the
++# step's start its own: the block at the end and, where kept, at each stop.
++alone_pass <- function(t, h, own, r0, u0, to, ends, keep) {
++  rates <- function(u, b) alone_rates(t + u * h, b, u0 + (to - u0) * u)
++  at <- list()
++  r <- list()
++  from <- 0
++  for (to_u in ends) {
++    if (!(to_u > from)) next
++    r[[1]] <- if (from == 0) r0 else rates(from, own)
++    for (i in 2:6) {
++      r[[i]] <- rates(from + AH[i - 1] * (to_u - from),
++                      combine(own, tab$ACK[i, ], r, (to_u - from) * h))
++    }
++    own <- combine(own, tab$bCK, r, (to_u - from) * h)
++    if (keep && length(at) < length(STOPS) && to_u == STOPS[length(at) + 1]) {
++      at[[length(at) + 1]] <- own
++    }
++    from <- to_u
++  }
++  list(end = own, at = at)
+ }
+ 
+-# One multirate attempt from (t, y), whose rates are k1 (MR_SHARE).
++# One multirate attempt from (t, y), whose rates are k1 (MR_SHARE), as the build
++# takes it (aligned.diff).
+ attempt_mr <- function(t, y, k1, h) {
+   blk <- soil(y)
+   u0 <- sv$uptake
+   slope <- if (MR_SLOPE && is.finite(sv$h_prev)) (u0 - sv$uptake_prev) / sv$h_prev else 0 * u0
+-  u1p <- pmax(0, u0 + h * slope)
+-  thp <- chain_at(y[blk], t, h, function(s) u0 + (u1p - u0) * (s - t) / h, c(tb$c[2:6], 1))
++  to <- u0 + h * slope
++  to[(to < 0) != (u0 < 0)] <- 0
++  ends <- alone_ends(t, h, y[blk], k1[blk], u0, to)
++  if (is.null(ends)) return(NULL)
++  n$chain_substeps <- n$chain_substeps + length(ends)
++  pred <- alone_pass(t, h, y[blk], k1[blk], u0, to, ends, TRUE)
++  at <- function(u) pred$at[[match(u, STOPS)]]
+   k <- list(k1)
+   up <- matrix(0, 6, 5)
+   up[1, ] <- u0
+   for (i in 2:6) {
+     Y <- combine(y, tb$A[i, ], k, h)
+-    Y[blk] <- thp[[i - 1]]
++    Y[blk] <- at(AH[i - 1])
+     ki <- rates(Y, t + tb$c[i] * h)
+     if (is.null(ki)) return(NULL)
+     k[[i]] <- ki
+     up[i, ] <- tail(patch$ode_aux, 5)
+   }
++  u1 <- up[5, ]
+   y1 <- combine(y, tb$b, k, h)
+-  y1[blk] <- thp[[6]]
+-  if (MR_U1_STAGE) {
+-    u1 <- up[which(tb$c == 1), ]
+-  } else {
+-    if (is.null(rates(y1, t + h))) return(NULL)
+-    u1 <- tail(patch$ode_aux, 5)
+-  }
+-  thc <- chain_at(y[blk], t, h, function(s) u0 + (u1 - u0) * (s - t) / h, 1)[[1]]
+-  y1[blk] <- thc
++  y1[blk] <- alone_pass(t, h, y[blk], k1[blk], u0, u1, ends, FALSE)$end
+   at_end <- rates(y1, t + h)
+   if (is.null(at_end)) return(NULL)
+   yerr <- combine(0, tb$b - tb$d, k, h)
+-  lin <- outer(1 - tb$c, u0) + outer(tb$c, u1)
+-  defect <- h * colSums(tb$b * abs(up - lin)) / dz
+-  yerr[blk] <- pmax(abs(thc - thp[[6]]), defect)
+-  if (MR_COUPLE_MEMBER) {
+-    f <- if (is.null(WEIGHT)) 1 else WEIGHT$weight[findInterval(t, WEIGHT$t)]
+-    yerr[blk] <- yerr[blk] * min(TOL_SOIL * f, WEIGHT_MAX) / min(f, WEIGHT_MAX)
++  w <- c(0, tb$b[3], tb$b[4], 0, tb$b[6])
++  e <- numeric(length(blk))
++  for (i in 1:5) {
++    if (w[i] == 0) next
++    ti <- t + AH[i] * h
++    b <- at(AH[i])
++    e <- e + h * w[i] * abs(alone_rates(ti, b, up[i + 1, ]) -
++                            alone_rates(ti, b, u0 + (u1 - u0) * AH[i]))
+   }
++  yerr[blk] <- pmax(abs(y1[blk] - at(1)), e)
+   n$mr_attempts <- n$mr_attempts + 1
+   list(y = y1, yerr = yerr, rates = at_end, P = production(y1), K = klass(y1),
+        Pst = NULL, Kst = NULL, uptake = tail(patch$ode_aux, 5),
+-       soil_est = c(max(abs(yerr[blk])), NA), diag = NULL)
++       soil_est = c(max(abs(yerr[blk])), NA), diag = NULL, ends = ends, slope = slope)
+ }
+ 
+ stage_reader <- function(t, y, k1, h) {
+@@ -814,7 +930,9 @@
+     w[soil(y)] <- TOL_SOIL
+     w[length(y) - 4:0] <- TOL_ACC
+     if (!is.null(WEIGHT)) w <- w * WEIGHT$weight[findInterval(sv$t, WEIGHT$t)]
+-    level <- level * pmin(w, WEIGHT_MAX)
++    w <- pmin(w, WEIGHT_MAX)
++    if (isTRUE(ctl$alone)) w[soil(y)] <- min(w[-soil(y)])
++    level <- level * w
+   }
+   if (TOL_POOL != 1 || TOL_POOL_ABS != 1) {
+     pool <- 9 * (seq_len((length(y) - 10) %/% 9) - 1) + 6
+@@ -912,6 +1030,7 @@
+ steps$uptake <- matrix(NA_real_, 60000, 5)
+ steps$entry_uptake <- matrix(NA_real_, 0, 6)
+ steps$mr <- logical(60000)
++steps$ends <- list()
+ # Each accepted step's largest soil error estimate: the pair's embedded one, and the
+ # chain alone's where SOIL_EST=chain.
+ steps$soil_est <- matrix(NA_real_, 60000, 2, dimnames = list(NULL, c("embedded", "chain")))
+@@ -1051,6 +1170,7 @@
+   cap <- cap_at(t0, h)
+   h <- min(h, cap[1])
+   mr_here <- MR && start_share(t0, sv$y, sv$uptake) < MR_SHARE
++  ctl$alone <- mr_here
+   if (is.finite(CHAIN_GUARD)) {
+     for (g in 1:20) {
+       he <- min(h, remaining)
+@@ -1156,6 +1276,7 @@
+     sv$h_prev <- h
+     if (steps$k > length(steps$mr)) steps$mr <- c(steps$mr, logical(length(steps$mr)))
+     steps$mr[steps$k] <- mr_here
++    if (mr_here) steps$ends[[steps$k]] <- a$ends
+     if (mr_here) n$mr_steps <- n$mr_steps + 1
+     sv$uptake <- a$uptake
+     down <- sv$P > 0 & a$P < 0
+@@ -1336,7 +1457,7 @@
+                  regime = REGIME, rain = rain_record(REGIME), knots = pulses,
+                  counts = as.list(n), secs = secs, st = st, weight = WEIGHT,
+                  uptake = steps$uptake[seq_len(steps$k), , drop = FALSE], entry_uptake = steps$entry_uptake,
+-                 mr = steps$mr[seq_len(steps$k)],
++                 mr = steps$mr[seq_len(steps$k)], ends = steps$ends,
+                  soil_est = steps$soil_est[seq_len(steps$k), , drop = FALSE],
+                  diag = if (SOIL_DIAG) diag_log$rows(), ref = if (COUPLED_REF > 0) ref_log$rows(),
+                  by_node = data.frame(time = sp$node_times, weight = w[-length(w)],
+--- /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/soil_alone/harness/long_drought.R	2026-10-06 20:37:29.018544125 +0000
++++ harness/long_drought.R	2026-10-07 10:53:04.040609102 +0000
+@@ -29,7 +29,7 @@
+   }
+ })
+ 
+-LIFETIME <- 40
++LIFETIME <- as.numeric(Sys.getenv("LIFETIME", "40"))
+ LMA0 <- 0.32
+ JTOL <- 1e-3
+ SCEN <- "long-drought"
+@@ -144,7 +144,7 @@
+ 
+ # The nested uniform ladder over [0, 39.63]: each level bisects the one below
+ # it, and 108 nodes are spaced 40/108 apart.
+-uniform_times <- function(n) seq(0, 107 * 40 / 108, length.out = n)
++uniform_times <- function(n) seq(0, 107 * LIFETIME / 108, length.out = n)
+ 
+ # One run. `stops` are extra times the integrator lands on, entered as
+ # zero-depth pulses beside the introductions; to hold the time grid across a
