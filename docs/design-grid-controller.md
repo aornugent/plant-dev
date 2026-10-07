@@ -883,20 +883,27 @@ after the events reply):
        from the predictor's samples at the five fractions. So the split's guard
        from §9 holds by structure.
    - *The build, done:*
-     - odelia `ODELIA-55` (`f156142`) on `ODELIA-54`: the step's forward and
+     - odelia `ODELIA-55` (`27a0def`) on `ODELIA-54`: the step's forward and
        its recording first become one body at any scalar;
-     - plant `PLANT-105` (`146d9862`) on `PLANT-104`: TF24's soil as the block,
+     - plant `PLANT-105` (`91bf8b59`) on `PLANT-104`: TF24's soil as the block,
        the share in Control (0, off, by default), and the program's two new
        fields through R;
      - its departures and first runs: `design-soil-alone.md`, *As built*.
-   - *Gates,* G1–G7 there:
-     - the aligned driver's steps and `J`;
-     - replays and `J′ = J` to the bit;
-     - the sweep against central differences at r = `1e-3`, within 2e-3;
-     - Q3's pass, with the adjoint's elasticities, for both roles;
-     - the bank under the cap, with splits on;
-     - the cost, timed alone;
-     - off, bit for bit.
+   - *Gates,* G1–G7 there. G1–G5 and G7 hold; G6, the cost, is timed alone.
+     The gates found two defects, each fixed in its own branch before the
+     reruns: the slope emptied at every knot, and a program given with events
+     replayed as a grid of times.
+     - G1: plant takes the aligned driver's 7691 steps on long drought, 5129 of
+       them alone, and its `J`, bit for bit;
+     - G2: replays and `J′ = J` to the bit;
+     - G3: the sweep 2.38e-4 from central differences at r = `1e-3`;
+     - G4: rows −41.5% and −44.8% against bnd on long drought and episodic,
+       every elasticity within 0.063ε, both roles;
+     - G5: the bank under the cap with splits on: nothing fails, the sweep is
+       within 2e-3 of the replays and `ln J` within 5.8e-5 of the bank's split
+       at `1e-6` on all five records;
+     - G6: the cost, timed alone;
+     - G7: off, bit for bit.
    - *Depends on* item 7's setting (its path's first step), which is its
      baseline.
 6. *The node rule from phase 2.*
@@ -916,11 +923,29 @@ after the events reply):
      1. *The sort's design turn, then its build:* the crowns sorted by height
         before the light field's sum, at no measurable cost and with no
         tolerance.
+        - *Built:* aornugent/plant#107 (`PLANT-107` `9c9a3bfd`, on `PLANT-106`).
+          S1 holds, bit for bit on 108 introductions; S2, the crossed rung timed
+          alone, is pending (`measurements/node-rule/prereg.txt`).
      2. *D in plant's competition sum.* Every reference changes, the FF16 guard
         included. So the references are blessed again in a commit of their
         own, with the move registered first. One build with the split measures
         what the spread's 16 point crowns a node cost it: five field builds a
         split step.
+        - *Built:* aornugent/plant#108 (`PLANT-108`: `77cbb5e3`, and the
+          references blessed again in `68f7f7fd`, each move registered first).
+        - *Found by the suite's referees:* the first build put the boundary
+          interval's crowns in the field the boundary node is evaluated in, read
+          from a boundary node not yet set, so the sweep lost the newborn's size
+          (the adjoint 4.2e-4 from the tangent). That interval is now formed at
+          the close, and the two agree to 1.5e-14.
+        - *What it trades,* measured on FF16's birth-date coordinate: its raw
+          error at the default schedule is 9–25× lumped's (the deep-crown
+          anchor +4.6% against −0.49%), on the square law. Extrapolated over
+          two rungs it matches lumped in 40% of lumped's time on the size-only
+          case, while on the anchor lumped's second halving alone matches it at
+          a third of the cost. The height coordinate, plant's default, does not
+          move.
+        - *Not yet measured:* the split's cost with the spread.
      3. *The ladders of 2c:* wet, dry and episodic to u429, and the constant
         record with its front nodes, for both roles and with the quarter-spacing
         move. They pass with square-law ratios near 4, companions reporting
@@ -931,6 +956,13 @@ after the events reply):
         nothing to say so (the split's guard, `design-sign-changes.md` §9).
         Then the thinning, with the selection gradient and the diagonal
         measured, which §14 left open.
+        - *Built, the walk:* aornugent/plant#109 (`PLANT-109` `4219616f`, on
+          `PLANT-108`). An empty entry at each recorded insertion the invader
+          skips; each split node's copy found by its birth date; an invader
+          introduced where the run introduced no node refused by name. A thinned
+          invader at the stand's traits keeps every member's fitness and split
+          count to the bit.
+        - *Not yet run:* the thinning's measurement.
    - *With item 7:* rule A's thinning of the nodes after the window, ⌊√F(b)⌋
      spacings apart, is a node rule, so it is built here, on D's lattice.
    - *With item 5:* nothing. The soil is the nodes' environment, not a node.
@@ -950,7 +982,8 @@ after the events reply):
      accumulators' and the time's weights, their bound, and the cap.
    - *Built since:* the setting named once, `control_tf24(tol, base)`
      (aornugent/plant#104, `PLANT-104` `8ba5f7d0`, on `PLANT-103`).
-   - *Not built:* the pilot that sets F.
+   - *Built since:* the pilot that sets F, `control_window(pilot, invaders,
+     base, R0, r_min)` (aornugent/plant#106, `PLANT-106` `4dd30b7a`).
    - *The path:*
      1. *The setting, named once.* G1 of the bank needs its cap on episodic and
         dry (D4), and item 5 takes it as its baseline, so it comes first.

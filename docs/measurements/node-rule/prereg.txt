@@ -77,5 +77,7 @@ D's references (6.2; registered 2026-10-07, 13:05, before the re-bless commit).
     3.97). Extrapolated from the spread's first and second halvings it is within
     2.4e-6, in 1.7 s, against lumped's 2.2e-6 after three halvings, in 4.3 s.
   - So on FF16 the spread's raw error at the default schedule is 9-25x
-    lumped's, on the square law; lumped's is smaller and of no fixed order. The
-    height coordinate, plant's default, does not move.
+    lumped's, on the square law; lumped's is smaller and of no fixed order. On
+    the anchor lumped's second halving (within 1e-5) matches the spread's
+    extrapolation from its second and third, at a third of the cost. The height
+    coordinate, plant's default, does not move.
