@@ -119,6 +119,11 @@ before any run; ladder.sh, read by ladder.R).
   that moves; the invader converged at 1/16 day lumped, and the resident's d_I
   and a_f1 moved without shrinking, so L1 may fail there for the resident, and
   is reported either way.
+  Amended 2026-10-07, 16:17, after cs_Gbf16 and cs_Gbf32 refused to start and
+  before any run of the amended grids: the last introduction moved a quarter of
+  the spacing before it lands at 40.0049, past the patch's 40 years, so it
+  moves a quarter of the way to the patch's end instead, as each other moves a
+  quarter of the way to the next.
 
 The thinning (6.4; registered 2026-10-07, 13:09, before any run; thin.R, read by
 thin_read.R). The invader-thinning pathfinder's step 2 (its prereg.txt), run on

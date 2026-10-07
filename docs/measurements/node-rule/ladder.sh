@@ -10,11 +10,11 @@ H="$(cd "$(dirname "$0")/../../.." && pwd)"
 L=$DEV/lib_109
 mkdir -p "$O/runs" "$O/logs"
 # The constant record's moved grids: each introduction after the first a quarter
-# of the way to the next, the last a quarter of the spacing before it.
+# of the way to the next, the last a quarter of the way to the patch's end.
 for g in Gbf16 Gbf32; do
   [ -f "$O/t_const_${g}_q.rds" ] || Rscript -e "t <- readRDS('$DEV/window/t/graded/t_const_$g.rds')
-    d <- diff(t); t[-1] <- t[-1] + c(d[-1], d[length(d)]) / 4
-    stopifnot(!is.unsorted(t, strictly = TRUE)); saveRDS(t, '$O/t_const_${g}_q.rds')"
+    d <- diff(c(t, 40)); t[-1] <- t[-1] + d[-1] / 4
+    stopifnot(!is.unsorted(t, strictly = TRUE), max(t) < 40); saveRDS(t, '$O/t_const_${g}_q.rds')"
 done
 one() {  # name record [VAR=value ...]
   local name=$1 rec=$2; shift 2
