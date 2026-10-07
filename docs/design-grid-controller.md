@@ -949,7 +949,10 @@ after the events reply):
           case, while on the anchor lumped's second halving alone matches it at
           a third of the cost. The height coordinate, plant's default, does not
           move.
-        - *Not yet measured:* the split's cost with the spread.
+        - *Measured,* the split's cost with the spread, timed alone on long
+          drought: the split costs no more on the spread than on lumped (+5.0%
+          of the gradient against +9.1%). The spread itself costs the gradient
+          10.8% and the forward 3%.
      3. *The ladders of 2c:* wet, dry and episodic to u429, and the constant
         record with its front nodes, for both roles and with the quarter-spacing
         move. They pass with square-law ratios near 4, companions reporting

@@ -254,3 +254,16 @@ three at a time beside the thinning, so their seconds are not timings):
       which moves its gradients by up to 3 eps; as registered, the test cannot
       separate that from the front.
   - The expectation held on long-wet and dry only.
+
+Results of the split's cost with the spread (2026-10-07; split_cost.R; every
+run alone, alternated as registered):
+  - The forward: the spread costs +3.0% plain and +1.4% split, inside the
+    repeats' 3%; the split costs +9.8% on lumped and +8.1% on the spread.
+  - The gradient: the spread costs +10.8% plain, past the 3-8% expected, and
+    +6.7% split; the split costs +9.1% on lumped and +5.0% on the spread, the
+    repeats within 4.6%.
+  - So the split costs no more on the spread than on lumped, as expected, and
+    the spread's own cost is in the sweep: 10.8% there, against 3% in the
+    forward.
+  - Each build repeats its J to the ten digits logged: 12.66902797 plain and
+    12.66918607 split on lumped, 12.80880543 and 12.80888573 on the spread.
