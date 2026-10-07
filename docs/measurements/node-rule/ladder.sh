@@ -12,7 +12,7 @@ mkdir -p "$O/runs" "$O/logs"
 # The constant record's moved grids: each introduction after the first a quarter
 # of the way to the next, the last a quarter of the spacing before it.
 for g in Gbf16 Gbf32; do
-  [ -f "$O/t_const_${g}_q.rds" ] || Rscript -e "t <- readRDS('$DEV/window/t/t_const_$g.rds')
+  [ -f "$O/t_const_${g}_q.rds" ] || Rscript -e "t <- readRDS('$DEV/window/t/graded/t_const_$g.rds')
     d <- diff(t); t[-1] <- t[-1] + c(d[-1], d[length(d)]) / 4
     stopifnot(!is.unsorted(t, strictly = TRUE)); saveRDS(t, '$O/t_const_${g}_q.rds')"
 done
@@ -38,7 +38,7 @@ export O H L DEV
     echo "s215_$rec $rec NODES=215 SHIFT=0.25"
     echo "u108_$rec $rec NODES=108"
   done
-  for g in Gbf32 Gbf16 Gbf8; do echo "c_$g constant TIMES=$DEV/window/t/t_const_$g.rds"; done
+  for g in Gbf32 Gbf16 Gbf8; do echo "c_$g constant TIMES=$DEV/window/t/graded/t_const_$g.rds"; done
   for g in Gbf32 Gbf16; do echo "cs_$g constant TIMES=$O/t_const_${g}_q.rds"; done
 } | xargs -P "${1:-3}" -L 1 bash -c 'one "$@"' _
 echo "JOB DONE ladder $(date +%T)" >> "$O/queue.out"

@@ -28,7 +28,7 @@ export -f pilot one
 export O H L DEV
 records="long-wet long-drought dry episodic constant"
 for rec in $records; do
-  if [ "$rec" = constant ]; then echo "$rec TIMES=$DEV/window/t/t_const_Gb.rds"; else echo "$rec NODES=54"; fi
+  if [ "$rec" = constant ]; then echo "$rec TIMES=$DEV/window/t/graded/t_const_Gb.rds"; else echo "$rec NODES=54"; fi
 done | xargs -P "${1:-3}" -L 1 bash -c 'pilot "$@"' _
 for rec in $records; do
   echo "p7_$rec $rec INVADERS=lma=0.5,lma=2,hmat=0.5,hmat=2 INVADER_GRADIENTS=1"
