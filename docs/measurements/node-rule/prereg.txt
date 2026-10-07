@@ -197,3 +197,22 @@ both records on $DEV/lib_109, beside the ladders' three lanes on four cores, so
   - Against the expectation: ln J' moved more under rule b (0.127 eps against
     0.10) and less under the union (0.014 against 0.04); the savings in time
     exceed the emulation's in rows, except the union's on episodic.
+
+The split's cost with the spread (6.2; registered 2026-10-07, 15:51, before any
+run; split_cost.sh, read by split_cost.R).
+  The builds: $DEV/lib_sort (PLANT-107, lumped) and $DEV/lib_D2 (PLANT-108 at
+  77cbb5e3, the spread), which differ by the spread alone.
+  The setting: harness/run_record.R on long drought, 108 uniform introductions
+  (t_u108), at the gates' setting (TOL=3e-5, ATOL=1e-4, WEIGHT_SOIL=10, rule
+  A's weight_long-drought.rds, WEIGHT_MAX=100, HMAX=15) with the soil alone
+  (SHARE=0.1): the stand and its gradient (STAND_ONLY=1).
+  Runs: splits on and off on each build, each twice, in the order split lumped,
+  split spread, plain lumped, plain spread, then again, with nothing else on
+  the machine, after the ladders.
+  Reported: the stand's run and its gradient, each the two repeats' mean
+  seconds; what the spread costs with splits on and off, and what the split
+  costs on each build.
+  Expected: the spread costs 3-8% with splits off, as its CPU did on the
+  probe build (perf-sweep.md), and the split costs at most 3 points more on
+  the spread than on lumped: its five field builds a split step are few among
+  a run's field builds.
