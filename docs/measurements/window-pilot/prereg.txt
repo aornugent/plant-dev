@@ -85,3 +85,12 @@ serves step it (SHARE=0.1 in harness/pilot_window.R): w_soil_<rec>.rds.
   Expected: about 0.4 of the pilot's rows under constant rain, where the soil
   alone cuts a forward to 0.36, and 0.6-0.9 on the pulsed records, where the
   pilot's looser tolerance leaves the soil less to bind.
+Results (2026-10-07; cost.R; each log in $DEV/window_pilot/logs/pilot_soil_*):
+  - The pilot with the soil alone takes 0.31 of the pilot's rows under
+    constant rain (42 981), 0.44 on long-wet, 0.48 on episodic, 0.53 on long
+    drought and 0.91 on dry (118 469 against 130 774).
+  - Its factors lie within |ln| 0.018-0.059 of the pilot's wherever both are
+    under 100 (episodic's the widest).
+  - The decision fails on dry's rows, past the 0.8, so the pilot stays as
+    gated, as registered. It reads the same window on every record at 0.31-0.91
+    of the rows; adopting it anyway is the user's call.

@@ -1040,8 +1040,11 @@ after the events reply):
           it, and the window stays open longer for 10.4% more rows.
         - The pilot costs what the harness's did, 0.84–1.00 of its rows. The
           runs it serves now step the soil alone, so it costs 0.40–0.80 of one
-          on the pulsed records and 1.37 under constant rain. A pilot with the
-          soil alone is unmeasured.
+          on the pulsed records and 1.37 under constant rain.
+        - A pilot with the soil alone reads the same window, within |ln| 0.06,
+          for 0.31–0.53 of the rows on four records but 0.91 on dry. That misses
+          the registered 0.8 on every record, so the pilot stays as gated;
+          adopting it anyway is the user's call.
    - *With the split and item 5,* one place each:
      - splits run after the error estimate keeps a step, whatever set its size
        (§9);
