@@ -69,3 +69,19 @@ $DEV/lib_106, each log in $DEV/window_pilot/logs):
     rain and 0.55-0.59 on long drought and episodic. The pilot takes neither, so
     it pays what the runs no longer pay, most under constant rain. A pilot with
     the soil alone is unmeasured.
+
+The pilot with the soil alone (registered 2026-10-07, 15:50, after the results
+above and before any run; pilot.sh soil, read by cost.R). The pilot of the
+gates above with the soil stepped alone at a share of 0.1, as the runs it
+serves step it (SHARE=0.1 in harness/pilot_window.R): w_soil_<rec>.rds.
+  Measured, per record: its accepted rows against the pilot's, and its factors
+  against the pilot's, the largest |ln| ratio where both are under 100.
+  Decision, fixed now: if on every record it takes at most 0.8 of the pilot's
+  rows and its factors lie within |ln| 0.12 of the pilot's, the pilot steps the
+  soil alone. P1-P3 are not run again: a window that close moves the answers
+  less than the harness's did, whose window differed from plant's by up to
+  e^2.46 on episodic with every entry within 0.004 eps. Otherwise the pilot
+  stays as gated.
+  Expected: about 0.4 of the pilot's rows under constant rain, where the soil
+  alone cuts a forward to 0.36, and 0.6-0.9 on the pulsed records, where the
+  pilot's looser tolerance leaves the soil less to bind.

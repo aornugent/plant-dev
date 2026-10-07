@@ -4,10 +4,11 @@
 # (t, weight).
 #
 #   PLANT_LIB=... [REGIME=long-drought] [NODES=54] [TIMES=t.rds] [TOL=1e-3] \
-#     [R0=0.1] [R_MIN=0.01] OUT=weight.rds Rscript harness/pilot_window.R
+#     [SHARE=0.1] [R0=0.1] [R_MIN=0.01] OUT=weight.rds Rscript harness/pilot_window.R
 #
 # The pilot runs at control_tf24(TOL)'s setting, on the birth-date coordinate.
-# TIMES reads the introductions from a file in place of NODES.
+# TIMES reads the introductions from a file in place of NODES; SHARE steps the
+# soil alone where the members draw under that share of it.
 local({
   here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) "harness")
   source(file.path(here, "long_drought.R"))
@@ -22,6 +23,7 @@ out_file <- Sys.getenv("OUT")
 
 p <- stand_at(times)
 ct <- control_tf24(tol, Control(node_density_in_birth_date = TRUE))
+if (nzchar(Sys.getenv("SHARE"))) ct$ode_soil_alone_share <- as.numeric(Sys.getenv("SHARE"))
 ev <- events(events_default(p), pulse_rows(sort(unique(active_knots(scen)))))
 t0 <- proc.time()[["elapsed"]]
 pilot <- run_scm(p, mkenv(scen), ct, events = ev, record_trajectory = TRUE)

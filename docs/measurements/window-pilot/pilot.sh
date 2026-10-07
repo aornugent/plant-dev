@@ -2,6 +2,7 @@
 # Item 7's gates (prereg.txt here, 2026-10-07): each record's pilot read into the
 # window's weights by plant's control_window(), then the gate runs on them.
 #   DEV=... bash pilot.sh [lanes]       # read with pilot7.R
+#   DEV=... bash pilot.sh soil          # the pilot with the soil alone, read by cost.R
 set -u
 : "${DEV:?}"
 O=$DEV/window_pilot
@@ -27,6 +28,18 @@ one() {  # name record [VAR=value ...]
 export -f pilot one
 export O H L DEV
 records="long-wet long-drought dry episodic constant"
+if [ "${1:-}" = soil ]; then
+  for rec in $records; do
+    [ -f "$O/w_soil_$rec.rds" ] && continue
+    times=NODES=54
+    [ "$rec" = constant ] && times=TIMES=$DEV/window/t/graded/t_const_Gb.rds
+    (cd "$H" && env PLANT_LIB=$L REGIME=$rec TOL=1e-3 SHARE=0.1 $times OUT="$O/w_soil_$rec.rds" \
+      Rscript harness/pilot_window.R > "$O/logs/pilot_soil_$rec.log" 2>&1)
+    echo "done pilot_soil_$rec $? $(date +%T)" >> "$O/queue.out"
+  done
+  echo "JOB DONE pilot soil $(date +%T)" >> "$O/queue.out"
+  exit 0
+fi
 for rec in $records; do
   if [ "$rec" = constant ]; then echo "$rec TIMES=$DEV/window/t/graded/t_const_Gb.rds"; else echo "$rec NODES=54"; fi
 done | xargs -P "${1:-3}" -L 1 bash -c 'pilot "$@"' _
