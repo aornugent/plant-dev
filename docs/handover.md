@@ -818,11 +818,10 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
 
 ### Outstanding
 
-- **G1 needs the 15-day cap at the tied tolerance too.** On episodic and dry the
-  walk at `lma` × 2 raises with splits or without, on one stand step of about
-  27 days, past the 26.1 days its pools can take, and runs capped at 15
-  (`design-sign-changes.md` §9, D4). The cap is item 7's, first on the spec's
-  path (7.1).
+- **The 15-day cap is in the setting,** `control_tf24()`. Episodic's and dry's
+  walks at `lma` × 2 raised on one stand step of about 27 days, past the 26.1
+  days their pools take (`design-sign-changes.md` §9, D4); under the cap every
+  walk of item 5's bank runs (G5).
 - **The constant record's spot-check runs are on uniform nodes,** so their `J`
   and gradients are artefacts. The resolved schedule exists now, `const_Gbf16`
   (150 nodes, step 4's second reply); what remains is its tolerance companion.
@@ -853,8 +852,10 @@ On `aornugent/plant`, over `develop`'s `95256cf3`:
   in CPU the spread costs 3–8%, and the rest was load and, at u429, the light
   field's fallback path when two nodes' heights fall out of order by a
   millimetre, which the lumped build takes too at a sixteenth of the cost
-  (`docs/measurements/perf-sweep.md`). Whether to change plant's birth-date competition sum for it is
-  the user's call.
+  (`docs/measurements/perf-sweep.md`). It is now plant's birth-date
+  competition sum (`PLANT-108`). Its price on FF16 is the user's call: there its
+  raw error at the default schedule is 9-25x lumped's, on the square law, and
+  the height coordinate does not move (`measurements/node-rule/prereg.txt`).
 - **De2's and Gn2's invader phases were lost to a restart;** their coarse rungs
   settle the edges, so they were not rerun.
 - **Whether to build a node rule for records whose canopy is never thinned:**
