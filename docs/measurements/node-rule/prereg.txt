@@ -119,3 +119,34 @@ before any run; ladder.sh, read by ladder.R).
   that moves; the invader converged at 1/16 day lumped, and the resident's d_I
   and a_f1 moved without shrinking, so L1 may fail there for the resident, and
   is reported either way.
+
+The thinning (6.4; registered 2026-10-07, 14:00, before any run; thin.R, read by
+thin_read.R). The invader-thinning pathfinder's step 2 (its prereg.txt), run on
+the walk as built rather than on its probe patch, which was never run.
+  The build: $DEV/lib_109 (plant PLANT-109: the walk finds an invader's node by
+  its birth date and takes the run's splits there).
+  The setting: control_tf24(3e-5) on the birth-date coordinate with splits on
+  and the soil alone at a share of 0.1, rule A's weight_<rec>.rds, 108 uniform
+  introductions, on long drought and episodic.
+  Cases: the stand's own invader (the diagonal) and lma and hmat at x0.5, 0.7,
+  1.4 and 2, each walked and swept on the full schedule, then on each rule's
+  subset of it: "b 0.1", the root law's spacing from that invader's own full
+  walk at scale 0.1, and "union 0.03", one schedule from the nine full walks'
+  largest shares at scale 0.03 (emulate.R's rule_b). Each invader's schedule
+  is chosen from this build's full walks, not the pathfinder's.
+  Gates, per record and rule, over the eight invaders off the diagonal:
+  - (i) exact: every kept member's net reproduction ratio and split count equal
+    the full walk's to the bit, and J' equals the emulation from the full
+    walk's per-node data to 1e-12 relative;
+  - (ii) |d ln J'| < eps/3 against the full walk;
+  - (iii) every elasticity moves less than eps/3 against the full walk's (each
+    invader eps from eps.csv, floored at 0.01);
+  - (iv) the walk and sweep's time falls by at least 30%, the median over the
+    eight.
+  Reported: the diagonal, whose full walk must repeat J to the bit and whose
+  thinned walk no longer does; the thinned stand's invader's sweep against
+  central differences of thinned walks in lma and a_dG2.
+  Expected, from step 1's emulation on these records: (i) holds; ln J' moves at
+  most 0.10 eps (b 0.1) and 0.04 eps (union 0.03); b 0.1 saves 23-52% and union
+  0.03 21-27%, so (iv) may fail for union 0.03; (iii), which no emulation
+  could reach, is the measurement this registration exists for.
