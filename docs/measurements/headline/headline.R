@@ -50,7 +50,7 @@ if (config == "develop") {
   ct <- control_window(pilot, list(stand_at(pt, "lma", 0.5), stand_at(pt, "lma", 2)),
                        base = base)
   out$pilot_secs <- clock() - t0
-  p <- stand_at(uniform_times(108))
+  p <- stand_at(uniform_times(as.integer(Sys.getenv("NODES", "108"))))
   t0 <- clock()
   scm <- run_scm(p, mkenv(scen), ct, events = knots(p), record_trajectory = TRUE)
   out$forward_secs <- clock() - t0

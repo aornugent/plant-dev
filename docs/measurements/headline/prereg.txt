@@ -32,3 +32,14 @@ Expected: the stack within eps/3 of the floor on most entries and within eps on
 all, for 0.15-0.3 of its time; develop's forward of the same order as the
 stack's, its J off the floor by the coordinate's node error, and its gradient
 some 98 forwards.
+
+Amendment (registered 2026-10-08, 03:33, after the results below were read and
+before these runs): two runs to place them.
+  - stack_u215_long-drought: the stack on 215 uniform introductions (NODES=215),
+    timed alone. With the 108-node run it gives the spread's two-rung answer,
+    Q215 + (Q215 - Q108)/3, against which the floor and the stack at 108 are
+    each measured.
+  - develop-settings_long-drought: the stack's build (lib_109) under develop's
+    configuration (Control(), 108 nodes, forward only). If its J is near
+    develop's, develop's J differs from the floor's by the default settings
+    (the height coordinate); if near the floor's, by the model.
