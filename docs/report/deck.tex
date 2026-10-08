@@ -31,7 +31,7 @@
 \newcommand{\roadmap}[1]{%
   \def\rmcurrent{#1}%
   \footnotesize
-  \begin{tabular}{@{}rL{0.29\textwidth}L{0.37\textwidth}L{0.22\textwidth}@{}}
+  \begin{tabular}{@{}rL{0.28\textwidth}L{0.35\textwidth}L{0.24\textwidth}@{}}
     \toprule
     & what was built & the problem it fixes & in plant \\
     \midrule
@@ -39,14 +39,19 @@
     \rmrow{2}{Every derivative from one reverse pass}{98 runs per gradient by differences}{\texttt{stand\_gradient()}}
     \rmrow{3}{Invaders run on the resident's recorded steps}{an invader's fitness jumped as its own steps moved}{\texttt{run\_mutant()}}
     \rmrow{4}{A cohort's step cut where its net production changes sign}{gradients shaped like staircases}{\texttt{ode\_split\_sign\_changes}}
-    \rmrow{5}{TF24's step settings in one preset}{wasted steps, refused gradients, failed invaders}{\texttt{control\_tf24()}}
+    \rmrow{5}{Tolerance factors, and TF24's preset}{wasted steps, refused gradients, failed invaders}{\texttt{control\_tf24()}}
     \rmrow{6}{The soil stepped on its own}{the soil's stability set 93\% of the steps}{\texttt{ode\_soil\_alone\_share}}
-    \rmrow{7}{Tolerance loosened once fitness is earned}{late steps spent accuracy on nothing}{\texttt{control\_window()}}
-    \rmrow{8}{Leaf area spread between nodes}{a run could not estimate its own error}{the birth-date light field}
+    \rmrow{7}{A tolerance factor that rises as fitness is earned, read from a pilot}{late steps spent accuracy on nothing}{\texttt{control\_window()}}
+    \rmrow{8}{Each interval's leaf area on eight interpolated crowns}{a run could not estimate its own error}{the birth-date light field}
     \rmrow{9}{Each run reports its error and failures}{no error estimate; one failure ended an analysis}{\texttt{diagnose\_scm()}}
     \bottomrule
   \end{tabular}}
 \usepackage{colortbl}
+
+% A crown of profile Q, drawn with its top at (x, h): \crown{x}{h}{half-width}{tint}.
+\newcommand{\crown}[4]{\fill[accent!#4] (#1,#2) .. controls (#1+#3,#2-0.15) and (#1+0.7*#3,#2-0.75) .. (#1,#2-1.0)
+  .. controls (#1-0.7*#3,#2-0.75) and (#1-#3,#2-0.15) .. (#1,#2);}
+\newcommand{\stem}[2]{\draw[accent!60!black] (#1,#2-1.0) -- (#1,0);}
 
 \title{Fitness gradients for TF24 in plant}
 \subtitle{What changed in plant, odelia and phylloptim, what it costs and what it buys}
@@ -572,55 +577,90 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
 \end{frame}
 
 %% ===========================================================================
-\begin{frame}{Part 5 of 9: TF24's step settings in one preset}
+\begin{frame}{Part 5 of 9: tolerance factors, and TF24's preset}
   \roadmap{5}
 \end{frame}
 
-\begin{frame}{How plant decides a step is accurate enough, and what a weight does}
+\begin{frame}{How plant accepts a step, and what a tolerance factor does}
   \small
   plant's integrator accepts a step when, for every state $y_i$, its estimated error is below
   its allowed error:
   \[
-    |\text{error}_i| \;\le\; w_i \,\big(\texttt{tol\_rel}\,|y_i| + \texttt{tol\_abs}\big)
+    |\text{error}_i| \;\le\; f_i(t)\,\big(\texttt{tol\_rel}\,|y_i| + \texttt{tol\_abs}\big)
   \]
   \begin{itemize}
-    \item $w_i$ is a weight per state, new in this work and 1 by default. A weight of 10 lets that
-      state carry ten times the error, so it takes fewer, longer steps.
-    \item Each weight can also change over the run: part 7 raises them late in the patch's life.
-    \item \texttt{control\_tf24(tol)} sets TF24's values for these knobs once, so every run
-      of an analysis uses the same ones. plant's \texttt{Control()} defaults do not change.
+    \item $f_i(t)$ is the state's \textbf{tolerance factor}, new in this work and 1 by default.
+      A factor of 10 lets that state carry ten times the error, so it stops forcing short
+      steps. Nothing else changes: the same equations, the same stepper.
+    \item A factor can be fixed for a state, or vary with patch age $t$. This work uses both:
+      \begin{itemize}
+        \item the soil layers' factor, fixed at 10 (next slide);
+        \item a factor on every state that rises late in the patch's life, read from a pilot
+          run (part 7);
+        \item a cap of 100 on their product, for every state (the slide after next).
+      \end{itemize}
   \end{itemize}
-  \src{odelia \texttt{OdeControl::adjust\_step\_size}; \texttt{state-weights}.}
+  \src{odelia \texttt{OdeControl::adjust\_step\_size}. In \texttt{Control}: \texttt{ode\_weight\_soil},
+    \texttt{ode\_weight\_times} and \texttt{\_factors}, \texttt{ode\_weight\_max}; to be renamed for tolerance factors.}
 \end{frame}
 
-\begin{frame}{What \texttt{control\_tf24()} sets, and why each value}
+\begin{frame}{The soil's tolerance factor: 10}
+  \small
+  \begin{itemize}
+    \item On long drought the soil's stability limit forces 16\,447 of the run's 17\,684 steps,
+      yet the soil carries little of $J$'s error.
+    \item With the soil layers' factor at 10, a gradient run takes 21\% less time, and both the
+      resident's and the invader's derivatives still pass the accuracy and reproducibility tests
+      at tolerance 3e-5.
+    \item 20 is the largest factor that still converges. At 30 and 50 the saturated top layer
+      cycles at the explicit stability limit.
+    \item Part 6 goes further, taking the soil out of the step entirely where the plants barely
+      draw on it.
+  \end{itemize}
+  \src{docs/grid-dynamics.md \S10; docs/design-grid-controller.md, phase 1a.}
+\end{frame}
+
+\begin{frame}{The cap: no state's tolerance factor above 100}
+  \small
+  The factors multiply. With part 7's factor $F(t)$, which rises to 100 late in the patch, each
+  state's tolerance factor is
+  \[
+    f_{\text{soil}}(t) = \min\big(10\,F(t),\ 100\big), \qquad
+    f_{\text{other}}(t) = \min\big(F(t),\ 100\big).
+  \]
+  \begin{itemize}
+    \item Without the cap the soil's factor reached 1000. An accepted step could then carry a
+      soil layer to its water-potential ceiling, where TF24's gradient is undefined, and every
+      gradient on every record was refused.
+    \item With the cap every gradient is finite, and the soil's own error test stays in force.
+  \end{itemize}
+  \src{\texttt{state-weights} (\texttt{ode\_weight\_max}); docs/grid-dynamics.md \S12.}
+\end{frame}
+
+\begin{frame}{\texttt{control\_tf24()} sets TF24's values once}
   \footnotesize
-  \begin{tabular}{@{}L{0.27\textwidth}L{0.68\textwidth}@{}}
+  \begin{tabular}{@{}L{0.3\textwidth}L{0.65\textwidth}@{}}
     \toprule
     setting & why \\
     \midrule
     \texttt{tol\_abs} = $10^{-4}\times$\texttt{tol\_rel}
       & Tied this way, $J$'s error stays within about half of \texttt{tol}. With plant's default
         absolute tolerance it was about 20$\times$ larger at \texttt{tol} = 1e-4. \\
-    soil layers' weight 10
-      & The soil set most steps while carrying little of $J$'s error. With ten times its error
-        allowed, a gradient run takes 21\% less time, and both roles still pass the accuracy and
-        reproducibility tests at 3e-5. \\
-    every weight bounded at 100
-      & Part 7 multiplies weights by up to 100. Unbounded, the soil's reached 1000, an accepted
-        step could carry a soil layer to its potential ceiling, and the gradient was refused there. \\
-    steps capped at 15 days
+    the soil's tolerance factor 10 & This part. \\
+    tolerance factors capped at 100 & This part. \\
+    steps no longer than 15 days
       & An invader's storage pools go unstable on steps longer than 26 days. On the episodic and
-        dry records, the invader at twice the resident's \texttt{lma} failed on 27-day steps. \\
-    soil alone below a 10\% share & Part 6. \\
+        dry records, the invader at twice the resident's \texttt{lma} failed on 27-day steps.
+        With the limit none fails, for at most 2.4\% of the window's saving. \\
+    the soil stepped alone below a 10\% share & Part 6. \\
     \bottomrule
   \end{tabular}
   \medskip
 
   \small
-  With part 7, these settings save 31--34\% of a gradient run against the tied tolerance alone,
-  and with the cap no invader fails on any record.
-  \src{\texttt{PLANT-104}, \texttt{PLANT-105} (plant\#104, \#105); docs/grid-dynamics.md \S10.}
+  It does not set the window's factor, which depends on the analysis: part 7 adds it to this
+  preset from a pilot run. plant's own \texttt{Control()} defaults are unchanged.
+  \src{\texttt{PLANT-104}, \texttt{PLANT-105} (plant\#104, \#105).}
 \end{frame}
 
 %% ===========================================================================
@@ -683,7 +723,7 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
 \end{frame}
 
 %% ===========================================================================
-\begin{frame}{Part 7 of 9: tolerance loosened once fitness is earned}
+\begin{frame}{Part 7 of 9: a tolerance factor that rises as fitness is earned}
   \roadmap{7}
 \end{frame}
 
@@ -708,18 +748,18 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
       run's $J$ still to be earned after time $t$.
       \medskip
 
-      A step late in the run can change $J$ only through what is still to be earned. Spending
-      the same tolerance there as early on buys accuracy $J$ does not need.
+      A step late in the run can change $J$ only through what is still to be earned. Holding it
+      to the same tolerance as an early step buys accuracy $J$ does not need.
     \end{column}
   \end{columns}
 \end{frame}
 
-\begin{frame}{How it works: a pilot run reads $R(t)$, and the weights follow it}
+\begin{frame}{The factor: every state's tolerance loosened by $0.1/R(t)$}
   \begin{columns}[T]
     \begin{column}{0.46\textwidth}
       \begin{tikzpicture}
         \begin{axis}[width=\linewidth, height=4.2cm, xmin=0, xmax=40, ymin=0, ymax=110,
-            xlabel={patch age (years)}, ylabel={weight on every state},
+            xlabel={patch age (years)}, ylabel={tolerance factor $F(t)$},
             every axis label/.style={font=\footnotesize}, ticklabel style={font=\footnotesize},
             axis y line*=left, axis x line*=bottom]
           \addplot[accent, thick, domain=0:40, samples=200] {min(100, max(1, 0.1/exp(-x/6)))};
@@ -729,106 +769,169 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
     \end{column}
     \begin{column}{0.52\textwidth}
       \small
-      \texttt{control\_window(pilot, invaders, base)}:
-      \begin{enumerate}
-        \item runs nothing new: the caller's pilot is the stand at 54 introductions and
-          tolerance 1e-3, with its recorded trajectory;
-        \item walks each invader on it, here \texttt{lma} at half and twice the resident's;
-        \item reads $R(t)$ at each recorded step, for the stand and each invader, and keeps the
-          largest;
-        \item sets every state's weight to $0.1/R(t)$, between 1 and 100.
-      \end{enumerate}
-      Weights stay at 1 until only a tenth of $J$ is left to earn.
+      \[ F(t) = 0.1/R(t), \ \text{kept between 1 and 100.} \]
+      \begin{itemize}
+        \item $F$ stays 1 until only a tenth of $J$ is left to earn, then rises as the rest is
+          earned.
+        \item It multiplies every state's tolerance factor from part 5, under the same cap of
+          100.
+        \item A step takes the factor at its start time. In \texttt{Control} the factor is a
+          table: \texttt{ode\_weight\_times} and \texttt{ode\_weight\_factors}.
+      \end{itemize}
+      $R(t)$ has to be known before the run that uses it. The next slide shows where it comes
+      from.
     \end{column}
   \end{columns}
+\end{frame}
+
+\begin{frame}{Where $R(t)$ comes from: a cheap pilot run of the same analysis}
+  \begin{center}
+  \begin{tikzpicture}[>=Stealth, node distance=0.3cm,
+      box/.style={draw=accent, fill=wash, rounded corners, align=center, font=\scriptsize,
+        text width=2.2cm, minimum height=1.35cm}]
+    \node[box] (a) {\textbf{1. Pilot run}\\ the stand at 54 introductions, tolerance 1e-3, steps recorded};
+    \node[box, right=of a] (b) {\textbf{2. Walk invaders}\\ on the pilot: \texttt{lma} at half and twice the resident's};
+    \node[box, right=of b] (c) {\textbf{3. Read $R(t)$}\\ at each recorded step, for the stand and each invader; keep the largest};
+    \node[box, right=of c] (d) {\textbf{4. Make $F(t)$}\\ $0.1/R(t)$ between 1 and 100, into the control};
+    \node[box, right=of d] (e) {\textbf{5. Every run}\\ the resident, its gradient and every invader use that control};
+    \draw[->] (a) -- (b); \draw[->] (b) -- (c); \draw[->] (c) -- (d); \draw[->] (d) -- (e);
+  \end{tikzpicture}
+  \end{center}
+  \small
+  \begin{itemize}
+    \item Steps 2--4 are \texttt{control\_window(pilot, invaders, base)}. It runs no new
+      stand: it walks the invaders on the pilot and returns \texttt{base} with $F$ added.
+    \item The invaders matter because one that matures later earns later. Keeping the largest
+      $R$ means no step is loosened while any of them still has fitness to earn.
+    \item At 54 introductions and 1e-3, the pilot reads $R$ within 10\% wherever $R \ge 10^{-3}$.
+      On long drought it takes 37--39 s, against 175 s for the run and gradient it serves.
+    \item One pilot serves every run of the analysis around one resident. Under constant rain no
+      pilot is taken: $J$ is earned evenly, and the factor saves only 2\%.
+  \end{itemize}
   \src{\texttt{PLANT-106} (plant\#106); docs/measurements/window-pilot/.}
+\end{frame}
+
+\begin{frame}[fragile]{How an analysis builds its control, parts 5 to 7 together}
+  \begin{lstlisting}
+base  <- control_tf24(3e-5, Control(node_density_in_birth_date = TRUE,
+                                    ode_split_sign_changes = TRUE))
+         # tied tolerance; the soil's factor 10; factors capped at 100;
+         # steps no longer than 15 days; the soil alone below a 10% share
+
+pilot <- run_scm(p54, env, control_tf24(1e-3), record_trajectory = TRUE)   # step 1
+ctrl  <- control_window(pilot, list(lma_half, lma_double), base = base)    # steps 2-4
+
+scm <- run_scm(p, env, ctrl, record_trajectory = TRUE)                     # step 5
+  \end{lstlisting}
+  \small
+  Each step of every run then has, for each state,
+  \[
+    \text{allowed error}_i = \min\big(f^{\text{soil}}_i\,F(t),\ 100\big)\,
+      \big(\texttt{tol\_rel}\,|y_i| + \texttt{tol\_abs}\big),
+  \]
+  with $f^{\text{soil}}_i$ = 10 for the soil layers and 1 for every other state, and steps no
+  longer than 15 days. Where the plants draw under a tenth of the soil's water, the soil takes
+  its own inner steps (part 6).
 \end{frame}
 
 \begin{frame}{The result: about a fifth fewer steps on the pulsed records}
   \small
   \begin{itemize}
-    \item The weights save 21--23\% of a run's steps on the pulsed records, and 2\% under
-      constant rain, where $J$ is earned more evenly.
-    \item The pilot costs 0.4--0.8 of the run it serves. One pilot serves every run of an
-      analysis around one resident.
+    \item The window's factor saves 21--23\% of a run's steps on the pulsed records, and 2\%
+      under constant rain.
     \item On all five records nothing fails, and $\ln J$ lies within 5.8e-5 of a reference at
       tolerance 1e-6.
+    \item Parts 5 and 7 together save 31--34\% of a gradient run against the tied tolerance
+      alone.
   \end{itemize}
 \end{frame}
 
 %% ===========================================================================
-\begin{frame}{Part 8 of 9: leaf area spread between nodes}
+\begin{frame}{Part 8 of 9: each interval's leaf area on eight interpolated crowns}
   \roadmap{8}
 \end{frame}
 
-\begin{frame}{The problem: the light field stepped at every node, so a run could not estimate its error}
+\begin{frame}{The problem: each interval's leaf area sat on its two end nodes' crowns}
   \begin{columns}[T]
-    \begin{column}{0.4\textwidth}
+    \begin{column}{0.44\textwidth}
       \begin{tikzpicture}[x=1cm, y=1cm]
-        \draw[->, quiet] (0,0.2) -- (0,3) node[above, font=\scriptsize] {height};
-        \foreach \h/\w in {2.6/1.6, 1.6/1.2, 0.6/0.7}
-          { \fill[accent] (1.6-\w/2, \h) rectangle (1.6+\w/2, \h+0.14);
-            \node[font=\scriptsize, quiet, anchor=west] at (2.6,\h+0.07) {node}; }
+        \draw[->, quiet] (0,0) -- (4.6,0) node[right, black, font=\scriptsize] {birth date};
+        \draw[->, quiet] (0,0) -- (0,3.3) node[above, black, font=\scriptsize] {height};
+        \crown{0.8}{2.9}{0.55}{70} \stem{0.8}{2.9}
+        \crown{3.8}{1.7}{0.55}{70} \stem{3.8}{1.7}
+        \node[font=\scriptsize, below] at (0.8,0) {node $i$};
+        \node[font=\scriptsize, below] at (3.8,0) {node $i{+}1$};
+        \draw[dashed, quiet] (0.8,2.9) -- (3.8,1.7);
+        \node[font=\scriptsize, quiet, align=center] at (2.3,2.75) {cohorts born\\ between them};
       \end{tikzpicture}
     \end{column}
-    \begin{column}{0.58\textwidth}
+    \begin{column}{0.54\textwidth}
       \small
-      On the birth-date coordinate, each node stands for the cohorts born between it and its
-      neighbours. plant put all of that leaf area at the node's own height, one crown per node.
+      On the birth-date coordinate the light field sums each node's crown: its leaf area,
+      spread below its top by the crown profile $Q$. Each node also stands for the cohorts born
+      in the intervals either side of it.
       \medskip
 
-      The light field then stepped at each node's height, and its error did not fall at any
-      fixed rate as nodes were added. Over 54, 108 and 215 introductions the ratio of successive
-      changes was 8.5 on long-wet and 6.6 on long drought, and for 15--18 quantities the
-      changes switched sign.
+      So the leaf area of the cohorts born between two nodes was carried by the two nodes' own
+      crowns, with their tops at the two nodes' heights. Those cohorts' own tops lie between the
+      two (the dashed line), so the field below each node's top was off by an amount that
+      depended on where the nodes happened to fall.
       \medskip
 
+      Its error did not fall at a fixed rate as nodes were added: the ratio of successive
+      changes was 8.5 on long-wet and 6.6 on long drought, and 15--18 quantities changed sign.
       A run at half the introductions reported only 0.33--0.41 of the true error.
     \end{column}
   \end{columns}
   \src{plant\#108; docs/grid-dynamics.md \S16.}
 \end{frame}
 
-\begin{frame}{How it works: eight point crowns between each pair of nodes}
+\begin{frame}{How it works: each interval adds the crowns of eight interpolated cohorts}
   \begin{columns}[T]
-    \begin{column}{0.4\textwidth}
+    \begin{column}{0.44\textwidth}
       \begin{tikzpicture}[x=1cm, y=1cm]
-        \draw[->, quiet] (0,0.2) -- (0,3) node[above, font=\scriptsize] {height};
-        \foreach \h in {2.6, 1.6, 0.6}
-          { \draw[quiet] (0.3,\h+0.03) -- (2.5,\h+0.03);
-            \node[font=\scriptsize, quiet, anchor=west] at (2.6,\h+0.03) {node}; }
-        \foreach \i in {0,...,7} {
-          \fill[accent] (1.4-0.6+0.03*\i, 1.6+0.0625+0.125*\i) rectangle (1.4+0.6-0.03*\i, 1.6+0.0625+0.125*\i+0.05);
-          \fill[accent] (1.4-0.45+0.03*\i, 0.6+0.0625+0.125*\i) rectangle (1.4+0.45-0.03*\i, 0.6+0.0625+0.125*\i+0.05); }
+        \draw[->, quiet] (0,0) -- (4.6,0) node[right, black, font=\scriptsize] {birth date};
+        \draw[->, quiet] (0,0) -- (0,3.3) node[above, black, font=\scriptsize] {height};
+        \foreach \s in {0,...,7} {
+          \pgfmathsetmacro{\l}{(\s+0.5)/8}
+          \pgfmathsetmacro{\x}{0.8+3*\l}
+          \pgfmathsetmacro{\h}{2.9-1.2*\l}
+          \crown{\x}{\h}{0.2}{55}
+        }
+        \draw[quiet] (0.8,0) -- (0.8,0.12); \draw[quiet] (3.8,0) -- (3.8,0.12);
+        \node[font=\scriptsize, below] at (0.8,0) {node $i$};
+        \node[font=\scriptsize, below] at (3.8,0) {node $i{+}1$};
+        \fill[warm] (0.8,2.9) circle (2pt); \fill[warm] (3.8,1.7) circle (2pt);
       \end{tikzpicture}
     \end{column}
-    \begin{column}{0.58\textwidth}
+    \begin{column}{0.54\textwidth}
       \small
-      Each interval between two neighbouring nodes now spreads its leaf area over eight point
-      crowns, at evenly spaced heights between the two nodes' heights.
+      Each interval between two neighbouring nodes now contributes eight crowns, as if eight
+      cohorts were born at evenly spaced dates across it. Each has the crown profile $Q$, with:
       \begin{itemize}
-        \item Each crown carries both nodes' shares of the interval, each node's share weighted
-          toward its own end.
-        \item At the ground every crown is whole, so the field there is unchanged.
-        \item Where two cohorts cross in height, the crowns are summed tallest first, which keeps
-          the light field's fast path (\texttt{PLANT-107}).
+        \item its top at the height interpolated linearly between the two nodes' heights;
+        \item its leaf area interpolated linearly between the two nodes' shares of the interval.
       \end{itemize}
+      The crowns are read off the two nodes each time the light field is built, so no state is
+      added. The newest interval, up to the boundary node, is formed once the boundary node is
+      known. Where two cohorts cross in height, the crowns are summed tallest first, which keeps
+      the light field's fast path (\texttt{PLANT-107}).
     \end{column}
   \end{columns}
-  \src{\texttt{PLANT-107}, \texttt{PLANT-108} (plant\#107, \#108).}
+  \src{\texttt{PLANT-107}, \texttt{PLANT-108} (plant\#107, \#108); \texttt{Species::for\_each\_interval\_crown}.}
 \end{frame}
 
 \begin{frame}{The result: the error falls fourfold per doubling, so it can be estimated}
   \small
   \begin{itemize}
-    \item With the leaf area spread, the error falls with the square of the spacing. Measured
+    \item With the interpolated crowns, the error falls with the square of the spacing. Measured
       ratios of successive changes are 3.5--4.0, against 4 in theory.
     \item That makes the error computable from two runs. With $Q$ a quantity from a run and
       $Q_{1/2}$ the same quantity at half the introductions,
       \[ \text{converged answer} \approx Q + \frac{Q - Q_{1/2}}{3}. \]
     \item The half-introduction run now reports 0.87--0.99 of the true error, against
       0.33--0.41 before.
-    \item The spread costs 6.7\% of a gradient run.
+    \item The interpolated crowns cost 6.7\% of a gradient run.
     \item An invader can be walked on some of the run's introductions, matched by birth date
       (\texttt{PLANT-109}).
   \end{itemize}
@@ -1000,7 +1103,7 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
     \item \textbf{Under constant rain the gradients move by up to 3$\varepsilon$} with where the
       later introductions sit; only the first year is graded finer.
     \item \textbf{A gradient blow-up with the soil stepped with the plants at a loose tolerance.}
-      At tolerance 1e-3, with the soil's weight at 10 and no inner steps, the resident's
+      At tolerance 1e-3, with the soil's tolerance factor at 10 and no inner steps, the resident's
       elasticities come out near $10^{50}$ while $J$ is right, and nothing refuses. Part 6, now
       the preset's default, removes it at every tolerance tried. Not yet root-caused.
     \item \textbf{How far one resident's recorded steps can serve} a moved resident or a distant
@@ -1027,7 +1130,7 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
       & \texttt{control\_tf24}, \texttt{control\_window}
       & replays bit for bit; nothing fails on five records \\
     Parts 8--9: nodes and diagnostics & \texttt{PLANT-107}--\texttt{110}
-      & the spread in the light field; \texttt{diagnose\_scm}
+      & the interpolated crowns; \texttt{diagnose\_scm}
       & the square law; the FF16 re-bless \\
     \bottomrule
   \end{tabular}
@@ -1036,7 +1139,7 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
   \small
   Each group is bit-identical with its new controls off. Part 4 is the largest change, and
   changes what odelia hands plant after a step. Part 8 holds the one decision for maintainers:
-  whether the spread should apply to FF16's birth-date coordinate.
+  whether the interpolated crowns should apply to FF16's birth-date coordinate.
 \end{frame}
 
 \end{document}
