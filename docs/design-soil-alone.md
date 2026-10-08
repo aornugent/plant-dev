@@ -217,7 +217,7 @@ where the members alone could step 4.7–7.2 times longer (§15). The rows fall
 - `instruction::alone_steps`: R4. A non-empty list is also the flag.
 - `taken_step`'s block samples: R5.
 - plant's `ode_soil_alone_share`: R1 and R8, with 0 for off.
-- plant's `ode_alone_slopes` and `ode_alone_steps`, in Parameters: R4, so that
+- plant's `ode_alone_slopes` and `ode_alone_ends`, in Parameters: R4, so that
   a program replays the run's steps taken alone.
 - plant's `SCM$ode_alone`: R9, derived from the program.
 
@@ -421,9 +421,9 @@ its baseline.
 
 | commit | what | gate |
 |---|---|---|
-| 1 | TF24's soil rates at any scalar under given uptake: `conductivity` and `infiltration_excess` templated, and `alone_rates`, with the floor at the residual moisture. These come from `ark-soil`'s `stiff_rates` and `stiff_alone` | bit for bit |
+| 1 | TF24's soil rates at any scalar under given uptake: `conductivity` and `infiltrated_share` templated, and `alone_rates`, with the floor at the residual moisture. These come from `ark-soil`'s `stiff_rates` and `stiff_alone` | bit for bit |
 | 2 | The patch satisfies `StepsBlockAlone` where its environment names its soil, a concept on E. It gives `alone_block()`, `alone_inputs()` (the uptake from each layer at the last evaluation), `alone_rates()`, and `steps_alone()` from the share and `ode_soil_alone_share` (Control, default 0) | off: bit for bit, the FF16 guard included |
-| 3 | The program through R: `ode_alone_slopes` and `ode_alone_steps` in Parameters. `refine_schedule` and the run's accessors write them with `ode_times` and `ode_step_sizes`; `NodeSchedule`'s setter reads them and refuses lengths that disagree | the four fields round trip; the refusal fires |
+| 3 | The program through R: `ode_alone_slopes` and `ode_alone_ends` in Parameters. `refine_schedule` and the run's accessors write them with `ode_times` and `ode_step_sizes`; `NodeSchedule`'s setter reads them and refuses lengths that disagree | the four fields round trip; the refusal fires |
 | 4 | `SCM$ode_alone`: steps taken alone and inner steps, from the program | counts match the record |
 
 - *Files:* `tf24_environment.h`, `patch.h`, `control.h` and `control.cpp`,
@@ -499,7 +499,7 @@ was. Departures from the map:
 
 *plant `PLANT-105`* (four commits on `PLANT-104`, aornugent/plant#105):
 - *`9b4b6658`:* the soil's rates at any scalar (`conductivity`,
-  `infiltration_excess`, `alone_rates`), bit for bit.
+  `infiltrated_share`, `alone_rates`), bit for bit.
 - *`9f20f9ba`:* the patch's hooks behind a concept on the environment; the uptake
   held at the working scalar and handed back with the other active values;
   `ode_soil_alone_share`, default 0. `control_tf24()` does not set it, so it
@@ -509,7 +509,7 @@ was. Departures from the map:
   one of slope and inner steps. `program()` now replays each interval's last
   step by its record: a step to the end never takes the soil alone, so a
   pinned replay would have stepped the soil past its stability limit there.
-- *No `SCM$ode_alone`:* the counts are `ode_alone_steps`' lengths (R9), so no
+- *No `SCM$ode_alone`:* the counts are `ode_alone_ends`' lengths (R9), so no
   accessor stores them twice.
 - *`91bf8b59`:* a program given with events is replayed by its sizes and
   records, found by G2's first replay. With events, which every harness run
