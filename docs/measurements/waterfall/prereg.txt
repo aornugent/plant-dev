@@ -1,0 +1,35 @@
+The waterfall for the maintainers' deck (registered 2026-10-08, 04:46 UTC, before any run;
+waterfall.sh, read by waterfall_read.R). How the parts compose: the time for
+the stand's forward and its gradient as each part is added in turn, on one
+record.
+
+Build: $DEV/lib_110 (plant PLANT-110 on ODELIA-55, odelia and phylloptim as in
+lib_109). Each configuration sets the soil's share explicitly, so its numbers
+are lib_109's.
+Record: long drought, seed 31; the stand at lma 0.32, birth-date coordinate
+(the spread on throughout), the record's active knots as zero pulses.
+Configurations, cumulative, in this order:
+  1. brute: 215 uniform introductions, relative tolerance 1e-5, absolute 1e-9,
+     weights of 1, no cap, cut, soil alone or window (the headline's floor).
+  2. halved: the same on 108 introductions.
+  3. cut: + the cut at sign changes, tolerance 3e-5 (absolute 3e-9).
+  4. preset: + control_tf24(3e-5)'s soil weight 10, bound 100 and 15-day cap,
+     with the soil's share at 0 (coupled).
+  5. alone: + the soil stepped alone below a share of 0.1.
+  6. window: + control_window's weights from a pilot (54 introductions at
+     control_tf24(1e-3), walks at lma x0.5 and x2), the pilot timed as its own
+     bar. This is the headline's stack.
+Runs: one each, in that order, with nothing else on the machine.
+Reported (waterfall_read.R): forward, gradient and pilot seconds and steps for
+each; each step's change in seconds; each configuration's ln J and 49
+elasticities in eps against the headline's two-rung answer (Q215 + (Q215 -
+Q108)/3 from the stack), median and largest.
+Expected: brute about 886 s as in the headline; halved about half of it; the
+cut at 3e-5 cheaper than halved by its looser tolerance; the preset about 0.8
+of the cut; alone about 0.63 of the preset; the window about 0.8 of alone; the
+pilot about 37 s; window plus pilot within 10% of the headline's 208.7 s, and
+window's J equal to the headline stack's to the bit.
+Caveats: the order is the stack's merge order, so each bar is the part's
+effect given the parts before it; another order would split the savings
+differently. halved trades accuracy on long drought (the headline: elasticities
+up to 2.1 eps at 108 introductions), which part 7 lets a run detect.
