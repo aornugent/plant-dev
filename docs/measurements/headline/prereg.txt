@@ -43,3 +43,31 @@ before these runs): two runs to place them.
     configuration (Control(), 108 nodes, forward only). If its J is near
     develop's, develop's J differs from the floor's by the default settings
     (the height coordinate); if near the floor's, by the model.
+
+Results (2026-10-08; headline_read.R; every run alone, in the registered order,
+02:01-02:35, the amendment's two after):
+  - develop: forwards of 133.5 s (long drought) and 98.3 s (episodic); its J,
+    0.453 and 0.040, is 134 and 156 eps of ln J below the floor's. On the
+    stack's build develop's settings give 0.182 on long drought, so the default
+    Control (height coordinate, default tolerance), not the model, carries most
+    of that gap. develop has no gradient: by central differences it would cost
+    100 forwards, about 3.7 h and 2.7 h.
+  - floor: 885.8 s (long drought) and 536.0 s (episodic) for the forward and
+    the stand's gradient.
+  - stack on 108 introductions: 208.7 s and 128.1 s with the pilot, 0.24 of the
+    floor's on both. On episodic every entry is within 0.40 eps of the floor's
+    (2 of 50 past eps/3), ln J 0.12 eps. On long drought 28 of 50 entries are
+    past eps/3 of the floor's, the largest 1.63 eps (a).
+  - The amendment, long drought, against the spread's two-rung answer from the
+    stack at u108 and u215 (J 12.7458):
+    - the stack at u108: ln J +0.198 eps, elasticities median 0.503 eps, largest
+      2.118 eps (a), 31 of 50 past eps/3;
+    - the stack at u215: +0.049 eps, median 0.126, largest 0.529 (a), 3 past
+      eps/3, in 378.1 s, 0.43 of the floor's;
+    - the floor: +0.048 eps, median 0.121, largest 0.485 (a), 2 past eps/3.
+    So the 108-node run's miss on long drought is node error, which the floor's
+    215 nodes do not carry; at the same nodes the stack matches the floor's
+    accuracy for 0.43 of its time. The two-rung answer itself costs 0.67 of the
+    floor's, and is the reference here, so its own error is not measured.
+  - Against the expectation: the stack's 0.24 of the floor holds; within eps on
+    all entries holds on episodic only, and on long drought at 215 nodes.

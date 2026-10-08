@@ -28,3 +28,22 @@ for (rec in c("long-drought", "episodic")) {
                 (log(s$J) - log(f$J)) / 0.025, median(m), max(m), tr[which.max(m)], sum(m > 1 / 3), length(m)))
   }
 }
+# The amendment: against the spread's two-rung answer on long drought.
+s1 <- run("stack", "long-drought"); s2 <- run("stack_u215", "long-drought"); f <- run("floor", "long-drought")
+ds <- run("develop-settings", "long-drought")
+if (!is.null(s2)) {
+  k <- names(s1$elasticity); tr <- sub("^1\\.", "", k); e <- vapply(tr, eps_of, 0)
+  ref <- s2$elasticity[k] + (s2$elasticity[k] - s1$elasticity[k]) / 3
+  lref <- log(s2$J) + (log(s2$J) - log(s1$J)) / 3
+  cat("== long drought against the two-rung answer (J", format(exp(lref), digits = 8), ")\n")
+  for (x in list(list("stack u108", s1), list("stack u215", s2), list("floor", f))) {
+    m <- abs(x[[2]]$elasticity[k] - ref) / e
+    cat(sprintf("   %-10s ln J %+.3f eps; elasticities median %.3f eps, largest %.3f eps (%s), %d of %d over eps/3\n",
+                x[[1]], (log(x[[2]]$J) - lref) / 0.025, median(m), max(m), tr[which.max(m)], sum(m > 1 / 3), length(m)))
+  }
+  cat(sprintf("   stack at u215: pilot %.1f s, forward %.1f s, gradient %.1f s, total %.1f s (%.2f of the floor's)\n",
+              s2$pilot_secs, s2$forward_secs, s2$gradient_secs, s2$pilot_secs + s2$forward_secs + s2$gradient_secs,
+              (s2$pilot_secs + s2$forward_secs + s2$gradient_secs) / (f$forward_secs + f$gradient_secs)))
+}
+if (!is.null(ds)) cat(sprintf("== develop's settings on the stack's build, long drought: J %.4g (develop %.4g, the floor %.4g), %d steps\n",
+                              ds$J, run("develop", "long-drought")$J, f$J, ds$steps))
