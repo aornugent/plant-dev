@@ -500,7 +500,7 @@ pulsed record before the gate.
   - But the soil's weight times rule A's factor reaches 1000. The error test
     then accepts steps with a soil stage at the 1000 MPa potential ceiling, and
     both roles' gradients are refused.
-  - plant now bounds each state's weight (`ode_weight_max`). At 100 every
+  - plant now bounds each state's weight (`ode_tol_factor_max`). At 100 every
     gradient is finite on the three records and every walk runs. The setting
     saves 31–34% of a gradient run and passes the accuracy and nudge tests:
     Cash–Karp's setting.
@@ -1010,10 +1010,16 @@ after the events reply):
    - *Open:* B, graded nodes, stays an option.
 7. *The window's weight from a pilot,* through the state weights, and the
    15-day cap from 1c, which is plant's `ode_step_size_max`.
+   - *Named:* the code calls each state's weight its tolerance factor: it
+     multiplies the state's error level, so a factor above 1 loosens it. The
+     fields are `ode_tol_factor_soil`, `_accumulator`, `_times`, `_values` and
+     `_max`; the hooks are plant's `tolerance_factors` and odelia's
+     `ScalesTolerances`. This spec and the records before the rename say
+     weight.
    - *Decided* (1c, combined): Cash–Karp's setting.
      - It is the tied tolerance (the absolute at 1e-4 of the relative), the
        soil ×10 (the accumulators keep a weight of 1), rule A's weight, every
-       weight bounded at 100 (`ode_weight_max`), and the 15-day cap.
+       weight bounded at 100 (`ode_tol_factor_max`), and the 15-day cap.
      - On three pulsed records it saves 31–34% of a gradient run, every
        gradient is finite and every walk runs.
      - Rule A is F(t) = 1/clamp(R̂(t)/R₀, r_min, 1), with R₀ = 0.1, r_min = 0.01,
@@ -1049,7 +1055,7 @@ after the events reply):
         member-steps.
         - The walks at `lma`'s range ends now run under the cap.
         - A plant function turns the pilot's per-node offspring, and the two
-          walks', into `ode_weight_times` and `ode_weight_factors`.
+          walks', into `ode_tol_factor_times` and `ode_tol_factor_values`.
         - It saves 21–23% of rows on the pulsed records, and 1.9% under
           constant rain. There the 53-node causal grid reads R within 1.1%.
      3. *Gates:* 1c's combined pass in plant, with splits on, across the bank.

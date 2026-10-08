@@ -188,7 +188,7 @@ component's stages as well as its error.
   the ceiling, though rejected attempts do.
 - R(t) bounds a weighted error's reach into `J`. It says nothing about where a
   stage goes.
-- So every weight is bounded (plant's `ode_weight_max`), and anything weighted
+- So every weight is bounded (plant's `ode_tol_factor_max`), and anything weighted
   further down needs its stages checked against the domain, not assumed inside
   it.
 
