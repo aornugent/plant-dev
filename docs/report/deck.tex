@@ -37,7 +37,7 @@
     \midrule
     \rmrow{1}{Establishment integrated exactly between cohorts}{$J$ depended on when cohorts were introduced}{the birth-date coordinate}
     \rmrow{2}{Every derivative from one reverse pass}{98 runs per gradient by differences}{\texttt{stand\_gradient()}}
-    \rmrow{3}{Invaders run on the resident's recorded steps}{an invader's fitness jumped as its own steps moved}{\texttt{run\_mutant()}}
+    \rmrow{3}{An invader replays the resident's recording exactly}{events skipped; no gradient for an invader}{\texttt{run\_mutant()}}
     \rmrow{4}{A cohort's step cut where its net production changes sign}{gradients shaped like staircases}{\texttt{ode\_split\_sign\_changes}}
     \rmrow{5}{Tolerance factors, and TF24's preset}{wasted steps, refused gradients, failed invaders}{\texttt{control\_tf24()}}
     \rmrow{6}{The soil stepped on its own}{the soil's stability set 93\% of the steps}{\texttt{ode\_soil\_alone\_share}}
@@ -99,7 +99,7 @@ ctrl  <- control_window(pilot, list(lma_half, lma_double), base = base)   # part
 
 scm <- run_scm(p, env, ctrl, record_trajectory = TRUE)
 g   <- stand_gradient(scm, "offspring_production")  # all 49 derivatives in one pass, part 2
-scm$run_mutant(invader)                              # an invader on the resident's steps, part 3
+scm$run_mutant(invader)                              # an invader on the resident's recording, part 3
 d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failures, part 9
   \end{lstlisting}
   \small
@@ -371,42 +371,11 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
 \end{frame}
 
 %% ===========================================================================
-\begin{frame}{Part 3 of 9: invaders run on the resident's recorded steps}
+\begin{frame}{Part 3 of 9: an invader replays the resident's recording exactly}
   \roadmap{3}
 \end{frame}
 
-\begin{frame}{The problem: an invader's own steps made its fitness jump}
-  \begin{columns}[T]
-    \begin{column}{0.48\textwidth}
-      \begin{tikzpicture}
-        \begin{axis}[width=\linewidth, height=4.6cm, xmin=0, xmax=1, ymin=0, ymax=1.1,
-            xlabel={invader's trait $\theta'$}, ylabel={invader's fitness $J'$},
-            xticklabels={}, yticklabels={}, every axis label/.style={font=\footnotesize},
-            axis y line*=left, axis x line*=bottom, legend style={font=\scriptsize, draw=none, at={(0.02,0.98)}, anchor=north west}]
-          \addplot[warm, thick, const plot, samples=26, domain=0:1] {0.2 + 0.7*x - 0.25*x^2 + 0.03*sin(deg(57*x))};
-          \addplot[accent, thick, domain=0:1, samples=60] {0.2 + 0.7*x - 0.25*x^2};
-          \legend{its own steps, the resident's steps}
-        \end{axis}
-      \end{tikzpicture}
-      \illus
-    \end{column}
-    \begin{column}{0.5\textwidth}
-      \small
-      An invader is a rare strategy, so it does not change the light or water the resident made.
-      Before, plant still integrated it with step sizes of its own choosing.
-      \medskip
-
-      Each small change in $\theta'$ could change those step sizes, and each change of steps
-      moved $J'$ by a small, unrelated amount. Differences of $J'$, which is how a selection
-      gradient was taken, picked up those jumps.
-      \medskip
-
-      And at the resident's own traits, $J'$ came out slightly different from $J$.
-    \end{column}
-  \end{columns}
-\end{frame}
-
-\begin{frame}{How it works: the invader reads the field the resident recorded}
+\begin{frame}{What plant already did: an invader runs on the resident's recording}
   \begin{center}
   \begin{tikzpicture}[>=Stealth, x=1cm, y=1cm,
       st/.style={draw=accent, fill=wash, minimum width=0.9cm, minimum height=0.55cm, font=\scriptsize}]
@@ -417,32 +386,78 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
       \node[st] (i\s) at (\s*1.5-1, -0.4) {stage \s};
       \draw[->, warm] (r\s) -- (i\s);
     }
-    \node[font=\scriptsize, warm, fill=white, inner sep=1pt] at (4.0,0.4) {the field at each stage: light at the canopy's heights, the soil's water};
+    \node[font=\scriptsize, warm, fill=white, inner sep=1pt] at (4.0,0.4) {the environment recorded at each stage};
   \end{tikzpicture}
   \end{center}
   \small
   \begin{itemize}
-    \item The resident's run records every accepted step: its time and size, and at each of
-      its six stages, the field every cohort read.
-    \item \texttt{scm\$run\_mutant(invader)} integrates the invader's cohorts on exactly those
-      steps. At each stage it loads the recorded field instead of building one.
-    \item The invader's own reverse pass holds that field fixed, which is what a selection
-      gradient asks for.
+    \item An invader is rare, so it does not change the light or water the resident made.
+    \item \texttt{scm\$run\_mutant(invader)} on \texttt{develop} already pins the invader to the
+      resident's step times and reads the environment the resident recorded at every
+      Runge--Kutta stage.
+    \item So an invader at the resident's own traits should return the resident's fitness
+      exactly. The next slide shows where it did not, and what stopped its gradient being taken.
   \end{itemize}
-  \src{\texttt{PLANT-95}, \texttt{PLANT-99} (plant\#95, \#99).}
+  \src{\texttt{SCM::run\_mutant} on \texttt{develop}: \texttt{r\_set\_ode\_times(patch.step\_history)}.}
 \end{frame}
 
-\begin{frame}{The result: $J'$ is smooth in $\theta'$, and equals $J$ at the resident's traits}
+\begin{frame}{The problem: the replay was not exact, and could not be differentiated}
   \small
   \begin{itemize}
-    \item With the steps fixed, $J'$ is a smooth function of $\theta'$, so its differences and
-      its reverse pass are meaningful.
-    \item An invader at the resident's own traits returns $J' = J$ to the last bit. The tests
-      check this on every record.
-    \item The first invader reuses the resident's recorded run instead of repeating it:
-      139 s against 300 s.
+    \item \textbf{Events were skipped.} The replay applied each entry's introductions but not its
+      rain pulses, harvests or climate extremes, and after an entry it read the environment from
+      before the entry's events.
+    \item \textbf{The recorded light was rebuilt from heights}, which can land one unit in the last
+      place off. TF24's leaf solve amplified that to $5\times10^{-9}$ in a log density.
+    \item \textbf{An invader kept no recording}, so its own reverse pass had nothing to run back
+      over. \texttt{store\_trajectory()} re-ran the invaders as residents.
+    \item On the gradient branch, an invader was also evaluated at the resident's leaf operating
+      points, and two invaders together failed.
+  \end{itemize}
+  \medskip
+  \centering
+  \begin{tabular}{@{}lrr@{}}
+    \toprule
+    an invader at the resident's traits: its $\ln J'$ less the run's $\ln J$ & before & now \\
+    \midrule
+    no events & $-7.1\times10^{-15}$ & 0 \\
+    a rain pulse of 0.05 at $t = 2.5$ & $-1.2\times10^{-7}$ & 0 \\
+    a 50\% harvest at $t = 3.5$ & $+0.69$ & 0 \\
+    a lethal climate extreme at $t = 3.5$ & $+1.3$ & 0 \\
+    \bottomrule
+  \end{tabular}
+  \src{plant\#95, on \texttt{test-mutant.R}'s TF24 stand.}
+\end{frame}
+
+\begin{frame}{How it works: one map per schedule entry, and every evaluation repeated}
+  \small
+  \begin{itemize}
+    \item \textbf{One map for each schedule entry}, \texttt{Patch::apply\_insertion(t)}: the
+      entry's events in schedule order, then its introductions. The run, the invader's replay and
+      the reverse pass all apply this one map, so they cannot disagree about an entry.
+    \item \textbf{The light is recorded as the interpolant holds it}: its knot values, slopes and
+      canopy top. A replay restores those numbers instead of rebuilding them.
+    \item \textbf{Every evaluation at a recorded state repeats the one recorded.} The invader reads
+      the recorded environment and solves its own leaf.
+    \item \textbf{The invader stores its own steps}, so \texttt{stand\_gradient()} runs back over
+      them with the resident's environment held fixed, which is what a selection gradient asks for.
+  \end{itemize}
+  \src{\texttt{PLANT-95} (plant\#95), odelia \texttt{a05f5c2}.}
+\end{frame}
+
+\begin{frame}{The result: an exact replay, with its own gradient}
+  \small
+  \begin{itemize}
+    \item An invader at the resident's own traits returns $J' = J$ to the last bit, with or
+      without events. The tests check this on every record.
+    \item Two invaders together each have exactly the fitness they have alone.
+    \item An invader's reverse pass agrees with differences of its own fitness to $10^{-9}$ in
+      \texttt{hmat} and \texttt{k\_I}.
+    \item The first invader reuses the resident's recording instead of re-running it: 139 s
+      against 300 s (\texttt{PLANT-99}).
     \item An invader run costs about 0.77 of a resident run.
   \end{itemize}
+  \src{plant\#95, \#99.}
 \end{frame}
 
 %% ===========================================================================
