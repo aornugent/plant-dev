@@ -3,17 +3,27 @@
 \usecolortheme{default}
 \setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{footline}[frame number]
+\setbeamertemplate{itemize items}[circle]
 \usepackage{booktabs}
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \usepackage{pgfplots}
+\usepackage{listings}
+\usetikzlibrary{arrows.meta,decorations.pathreplacing,positioning}
 \pgfplotsset{compat=1.18}
 \definecolor{accent}{RGB}{31,94,168}
 \definecolor{quiet}{RGB}{150,150,150}
+\definecolor{warm}{RGB}{196,90,40}
 \setbeamercolor{frametitle}{fg=accent}
 \setbeamercolor{title}{fg=accent}
 \setbeamercolor{itemize item}{fg=accent}
+\setbeamerfont{frametitle}{size=\large}
+\lstset{language=R, basicstyle=\ttfamily\scriptsize, commentstyle=\color{accent},
+  keywordstyle=\color{black}, columns=fullflexible, keepspaces=true, showstringspaces=false}
+\newcommand{\src}[1]{\par\vfill{\tiny\color{quiet} #1}}
 
-\title{TF24 gradients in plant}
-\subtitle{What the solver and controller work buys}
+\title{Fitness gradients for TF24 in plant}
+\subtitle{What changed in plant, odelia and phylloptim, what it costs and what it buys}
 \date{8 October 2026}
 
 \begin{document}
@@ -22,155 +32,517 @@
   \titlepage
 \end{frame}
 
-\begin{frame}{A TF24 gradient run costs 0.24--0.43 of brute force}
+%% ---------------------------------------------------------------------------
+\begin{frame}{An evolutionary analysis needs fitness and its derivatives, many times over}
+  \small
+  regnans finds and classifies singular strategies from plant runs of three kinds.
+  \medskip
+
+  \begin{tikzpicture}[box/.style={draw=accent, rounded corners, align=center,
+      minimum height=1.25cm, text width=3.6cm, font=\footnotesize}, >=Stealth]
+    \node[box] (r) {\textbf{Resident run}\\ the stand at traits $\theta$\\ and its fitness $J$};
+    \node[box, right=0.8cm of r] (i) {\textbf{Invader runs}\\ a rare strategy $\theta'$ in the\\ environment the resident made,\\ and its fitness $J'$};
+    \node[box, right=0.8cm of i] (d) {\textbf{Derivatives}\\ $d\ln J/d\ln\theta$ for each trait\\ (the selection gradient)\\ and its curvature};
+    \draw[->] (r) -- (i); \draw[->] (i) -- (d);
+  \end{tikzpicture}
+  \medskip
+
+  \begin{itemize}
+    \item One singular strategy in one trait takes about \textbf{84 such runs}. A resident run on a
+      40-year record takes about 90 s.
+    \item Until now plant returned $J$ alone. Each derivative was a central difference, two runs
+      per parameter, so a TF24 gradient over its 49 parameters cost about \textbf{98 runs}.
+    \item An invader ran with its own time steps, so $J'$ moved in small jumps as $\theta'$
+      moved, and differences of $J'$ inherited the jumps.
+  \end{itemize}
+  \src{Run counts: docs/design-grid-controller.md, ``Where the arc starts''.}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}[fragile]{The whole analysis step, end to end, in plant's R interface}
+  \begin{lstlisting}
+p    <- add_strategies(scm_base_parameters("TF24"), trait_matrix(0.32, "lma"))
+p$node_schedule_times <- list(seq(0, 39.6, length.out = 108))  # 108 introductions over 40 years
+
+base <- control_tf24(3e-5, Control(node_density_in_birth_date = TRUE,
+                                   ode_split_sign_changes = TRUE))   # slides 8, 9, 10
+pilot <- run_scm(p54, env, control_tf24(1e-3), record_trajectory = TRUE)  # p at 54 introductions
+ctrl <- control_window(pilot, list(lma_half, lma_double), base = base)  # slide 11
+
+scm  <- run_scm(p, env, ctrl, record_trajectory = TRUE)
+g    <- stand_gradient(scm, "offspring_production")  # all 49 derivatives in one pass, slide 6
+scm$run_mutant(invader)                               # an invader on the resident's steps, slide 7
+d    <- diagnose_scm(p, env, ctrl, invaders)          # error estimate and failures, slide 13
+  \end{lstlisting}
+  \small
+  On the 40-year long-drought record the middle block takes \textbf{209 s}: 37 s for the pilot,
+  40 s for the resident run and 132 s for its gradient. It returns $J$ and all 49 elasticities.
+  The same answers by brute force take 886 s. Every function above is on the branches; each
+  later slide explains one line.
+  \src{Timed alone, one run each: docs/measurements/headline/.}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{The same answers in a quarter to a half of brute force's time}
   \begin{columns}[T]
-    \begin{column}{0.55\textwidth}
+    \begin{column}{0.5\textwidth}
       \begin{tikzpicture}
-        \begin{axis}[xbar, width=0.8\linewidth, height=5.2cm, xmode=log, log basis x=10,
-            xmin=50, xmax=300000, xlabel={seconds for one forward and its gradient, long drought},
-            symbolic y coords={stack, brute force, develop}, ytick={stack, brute force, develop},
+        \begin{axis}[xbar, width=0.95\linewidth, height=4.6cm, xmode=log, log basis x=10,
+            xmin=50, xmax=300000, xlabel={seconds for $J$ and its 49 derivatives, long drought},
+            symbolic y coords={this work, brute force, develop}, ytick={this work, brute force, develop},
             nodes near coords, nodes near coords align={horizontal},
             every node near coord/.append style={font=\footnotesize, anchor=west},
             point meta=explicit symbolic, bar width=12pt, bar shift=0pt, enlarge y limits=0.3,
             axis x line*=bottom, axis y line*=left, every axis label/.style={font=\footnotesize},
             ticklabel style={font=\footnotesize}]
           \addplot[fill=quiet, draw=none] coordinates
-            {(13354,develop) [3.7 h, by differences] (886,brute force) [886 s]};
-          \addplot[fill=accent, draw=none] coordinates {(209,stack) [209 s]};
+            {(13354,develop) [3.7 h] (886,brute force) [886 s]};
+          \addplot[fill=accent, draw=none] coordinates {(209,this work) [209 s]};
         \end{axis}
       \end{tikzpicture}
     \end{column}
-    \begin{column}{0.4\textwidth}
-      \small
-      \begin{itemize}
-        \item \textbf{0.24} of brute force at 108 nodes, the pilot included; episodic within 0.40$\varepsilon$ of it.
-        \item \textbf{0.43} at 215 nodes, which long drought needs to match brute force's accuracy.
-        \item \texttt{develop} has no gradient: 100 forwards by central differences.
-        \item Nothing fails across five rainfall records.
-      \end{itemize}
+    \begin{column}{0.46\textwidth}
+      \footnotesize
+      \begin{description}[brute force]
+        \item[develop] plant's \texttt{develop} with its default \texttt{Control}. One run takes
+          134 s; its gradient needs 100 runs by differences, so this bar is computed.
+        \item[brute force] this work's code with every new control off: a tight tolerance
+          (1e-5) and twice the introductions (215). It uses the new gradient pass too.
+        \item[this work] the code on the previous slide, pilot included.
+      \end{description}
     \end{column}
   \end{columns}
-  \vfill
-  {\scriptsize\color{quiet} Timed alone, one run each. \texttt{docs/measurements/headline/}}
-\end{frame}
-
-\begin{frame}{Why: what an evolutionary analysis needs from TF24}
-  \begin{itemize}
-    \item One singular strategy: \textbf{about 84 runs}: resident forwards, invader walks, reverse sweeps.
-    \item Each answer within $\varepsilon$ of converged: 0.025 in $\ln J$, a tenth of each elasticity's spread over eight weather seeds.
-  \end{itemize}
-  \bigskip
-  Before this work:
-  \begin{itemize}
-    \item \textbf{No gradients}: about 98 forwards each, by differences.
-    \item \textbf{Walks failed} on episodic and dry rain: 27--38-day steps, pools stable for 26.
-    \item \textbf{Error went unreported}: companions saw 0.33--0.41 of the node error.
-    \item \textbf{Gradients were staircases} at sign changes; curvatures off by up to 13$\varepsilon$.
-  \end{itemize}
-\end{frame}
-
-\begin{frame}{What changed: four groups, 17 branches, every default off}
+  \medskip
   \small
-  \begin{tabular}{@{}p{0.2\textwidth}p{0.75\textwidth}@{}}
-    \toprule
-    \textbf{Gradients} & exact counts; the reverse sweep; exact invader replay; the first invasion walks the recording \\
-    \textbf{The split} & per-state error weights; a node's step split where its net production changes sign, forward and in the sweep \\
-    \textbf{Settings} & \texttt{control\_tf24()}: tied tolerance, soil weight, bound, 15-day cap; the soil stepped alone; \texttt{control\_window()} from a pilot \\
-    \textbf{Node rule} & crowns sorted; the spread (D); walks by birth date \\
-    \bottomrule
-  \end{tabular}
-  \bigskip
-
-  On the aornugent forks, one issue each. The stack sits on odelia 0.5.0 and needs a rebase onto upstream \texttt{develop} (odelia 0.6.2).
-\end{frame}
-
-\begin{frame}{The reverse sweep: every gradient for 2.5 forwards}
   \begin{itemize}
-    \item One sweep costs \textbf{2.5--2.7 forwards} at any node count.
-    \item Matches central differences to 7e-4 of the resident's \texttt{lma} elasticity.
-    \item Replaces about 98 forwards of differences per gradient.
-    \item Invaders replay the resident's recorded steps: at the resident's traits $J' = J$ to the bit.
+    \item On the episodic record the ratio is also 0.24 (128 s against 536 s), and all 50 quantities
+      lie within 0.40$\varepsilon$ of brute force's.
+    \item On long drought 108 introductions are too few: some elasticities miss by up to
+      2.1$\varepsilon$. At 215 introductions this work matches brute force's accuracy in 378 s,
+      0.43 of its time. Slide 14 has the table.
   \end{itemize}
 \end{frame}
 
-\begin{frame}{The split: gradients without staircases}
-  \begin{itemize}
-    \item Where a cohort's net production changes sign inside a step, its step is cut there.
-    \item $\ln J$ lies \textbf{3--13$\times$ nearer} the converged answer wherever nodes cross.
-    \item A $\pm5\%$ tolerance nudge moves no gradient entry past $\varepsilon/6$; up to 0.52$\varepsilon$ without.
-    \item The sweep through it is within 2e-3 of central differences on every record.
-    \item Cost: +5--9\% of a gradient run.
-  \end{itemize}
-\end{frame}
-
-\begin{frame}{Settings: spend accuracy where fitness is earned}
-  \begin{itemize}
-    \item \texttt{control\_tf24()} names TF24's setting once; with the window it saves \textbf{31--34\%} of a gradient run.
-    \item The \textbf{15-day cap} removes the episodic and dry walk failures.
-    \item The \textbf{soil stepped alone} where the stand draws little water: a gradient run takes 0.63 of the time, every elasticity within 0.063$\varepsilon$.
-    \item The \textbf{window}: tolerance loosened once most of $J$ is earned, read off a cheap pilot. On five records nothing fails, $\ln J$ within 5.8e-5 of a 1e-6 reference.
-  \end{itemize}
-\end{frame}
-
-\begin{frame}{The node rule: an error that reports itself}
-  \begin{itemize}
-    \item \textbf{The spread}: each birth-date interval's leaf area spread over point crowns.
-    \item Uniform nodes converge at the square law: ratios 3.5--4.0 on long-wet and dry.
-    \item A half-node companion reports \textbf{0.87--0.99} of the error, against 0.33--0.41 before.
-    \item Cost: +6.7\% of a gradient run with splits on.
-    \item Walks by birth date: a shared thinned schedule saves 24--25\% of a walk, selection gradient within 0.004$\varepsilon$.
-  \end{itemize}
-\end{frame}
-
-\begin{frame}{Accuracy against brute force, and where nodes matter}
-  \centering\small
-  \begin{tabular}{@{}lrrr@{}}
-    \toprule
-    against the two-rung answer, long drought & median & largest & time vs brute force \\
-    \midrule
-    brute force, 215 nodes, 1e-5 & 0.12$\varepsilon$ & 0.49$\varepsilon$ & 1 \\
-    the stack, 215 nodes & 0.13$\varepsilon$ & 0.53$\varepsilon$ & 0.43 \\
-    the stack, 108 nodes & 0.50$\varepsilon$ & 2.1$\varepsilon$ & 0.24 \\
-    \bottomrule
-  \end{tabular}
-  \bigskip
-  \begin{itemize}
-    \item On episodic the stack at 108 nodes is within 0.40$\varepsilon$ of brute force on all 50 entries.
-    \item On long drought 108 nodes are too few; the companion run is what tells you so.
-  \end{itemize}
-\end{frame}
-
-\begin{frame}{What moves for existing users}
-  \begin{itemize}
-    \item Every new behaviour is off by default and bit-identical when off.
-    \item The \textbf{height coordinate}, plant's default, does not move.
-    \item \textbf{FF16 on the birth-date coordinate} moves: the deep-crown anchor 17.14 $\to$ 18.01. Its error at the default schedule is larger, but falls at the square law, so it can be estimated.
-    \item TF24 model versions v11--v13.
-    \item Under default \texttt{Control()}, TF24's $J$ on long drought is 0.45 against 12.75 converged: the defaults, not the model, carry the gap.
-  \end{itemize}
-\end{frame}
-
-\begin{frame}{Open, and how to review}
+%% ---------------------------------------------------------------------------
+\begin{frame}{Accuracy is judged against what the weather alone does to the answer}
   \begin{columns}[T]
-    \begin{column}{0.48\textwidth}
-      \textbf{Open}
-      \begin{itemize}\small
-        \item Episodic needs nodes finer than its dry spells (past 429).
-        \item The constant record's later nodes move its gradients up to 3$\varepsilon$.
-        \item Diagnostics next: each run's error estimate, distance from the grid, failures.
-        \item The radius one grid serves is unmeasured.
-      \end{itemize}
+    \begin{column}{0.45\textwidth}
+      \vspace{0.6cm}
+      \begin{tikzpicture}[x=1cm, y=1cm]
+        \draw[->, quiet] (0,0) -- (5.2,0) node[below, black, font=\footnotesize] {$\ln J$};
+        \foreach \x in {0.6, 1.3, 1.7, 2.2, 2.6, 3.1, 3.9, 4.4}
+          \fill[accent] (\x, 0.35) circle (2.2pt);
+        \draw[decorate, decoration={brace, amplitude=5pt}] (0.6,0.6) -- (4.4,0.6)
+          node[midway, above=6pt, font=\footnotesize, align=center] {spread over eight daily-weather\\ seeds of one climate};
+        \draw[warm, very thick] (2.2,-0.25) -- (2.58,-0.25);
+        \node[warm, font=\footnotesize, below] at (2.4,-0.3) {$\varepsilon$ is a tenth of it};
+      \end{tikzpicture}
     \end{column}
-    \begin{column}{0.48\textwidth}
-      \textbf{Review in four PR groups}
-      \begin{enumerate}\small
-        \item Gradients (\texttt{PLANT-93}--\texttt{99})
-        \item The split (\texttt{PLANT-100}--\texttt{103}, odelia\#53--54)
-        \item Settings (\texttt{PLANT-104}--\texttt{106}, odelia\#55)
-        \item Node rule (\texttt{PLANT-107}--\texttt{109}): the FF16 question
-      \end{enumerate}
+    \begin{column}{0.53\textwidth}
+      \small
+      Eight records of the same long-drought climate differ only in the day-to-day weather. Each
+      quantity's spread across them sets its tolerance: $\varepsilon$ is a tenth of that spread.
+      \medskip
+
+      \begin{tabular}{@{}lrr@{}}
+        \toprule
+        quantity & resident & invader \\
+        \midrule
+        $\ln J$ & 0.025 & 0.025 \\
+        elasticity in \texttt{lma} & 0.087 & 0.20 \\
+        elasticity in \texttt{a\_dG2} & 0.019 & 0.050 \\
+        any other elasticity & \multicolumn{2}{r}{at least 0.01} \\
+        \bottomrule
+      \end{tabular}
     \end{column}
   \end{columns}
+  \medskip
+  \small
+  \begin{itemize}
+    \item 0.025 in $\ln J$ is 2.5\% in $J$. An answer within $\varepsilon$ is off by less than a
+      tenth of what a different year's weather would change.
+    \item A run is \emph{reproducible} when a 5\% change of tolerance, or moving the introductions
+      by a quarter of their spacing, moves each quantity by less than $\varepsilon/3$.
+    \item Every claim is checked on five rainfall records: constant rain, long-wet, episodic, dry
+      and long drought.
+  \end{itemize}
+  \src{docs/measurements/eps-spread.md; OBJECTIVES.md.}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{One reverse pass gives every parameter's derivative for 2.5 runs' cost}
+  \begin{center}
+  \begin{tikzpicture}[>=Stealth, x=1cm, y=1cm]
+    \foreach \i in {0,...,9} \fill[accent] (\i*1.2, 0) circle (2pt);
+    \draw[->, thick, accent] (0,0.35) -- (10.8,0.35)
+      node[midway, above, font=\footnotesize, black] {the run steps forward and stores the state at every step};
+    \draw[<-, thick, warm] (0,-0.35) -- (10.8,-0.35)
+      node[midway, below, font=\footnotesize, black, align=center]
+      {the reverse pass carries $\partial \ln J/\partial(\text{state})$ back over the stored steps,\\
+       adding each step's $\partial/\partial\theta$ for all 49 parameters as it goes};
+    \node[font=\footnotesize, left] at (-0.1,0) {$t=0$};
+    \node[font=\footnotesize, right] at (10.9,0) {$t=40$ y, $J$};
+  \end{tikzpicture}
+  \end{center}
+  \small
+  \begin{itemize}
+    \item \texttt{stand\_gradient(scm)} runs that pass over the steps that
+      \texttt{run\_scm(..., record\_trajectory = TRUE)} stored. It costs 2.5--2.7 runs at any
+      number of introductions, against about 98 runs by central differences.
+    \item It agrees with central differences to 7e-4 of the resident's \texttt{lma} elasticity,
+      and closer for the others checked.
+    \item The derivative's arithmetic is recorded and replayed by XAD, vendored in odelia. Only
+      doubles cross into R; the derivative types live inside the one call.
+  \end{itemize}
+  \src{Branch \texttt{offspring-adjoint} (plant\#91), TF24 v11; docs/measurements/perf-adjoint.md.}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{An invader runs on the resident's recorded steps, so $J'$ moves smoothly}
+  \begin{center}
+  \begin{tikzpicture}[x=1cm, y=1cm]
+    \node[font=\footnotesize, anchor=east] at (-0.2,0.6) {resident's steps};
+    \node[font=\footnotesize, anchor=east] at (-0.2,0) {invader, before};
+    \node[font=\footnotesize, anchor=east] at (-0.2,-0.6) {invader, now};
+    \draw[quiet] (0,0.6) -- (10,0.6); \draw[quiet] (0,0) -- (10,0); \draw[quiet] (0,-0.6) -- (10,-0.6);
+    \foreach \x in {0,0.7,1.2,2.0,2.4,3.5,4.1,5.6,6.0,7.4,8.8,10}
+      { \draw[accent, thick] (\x,0.5) -- (\x,0.7); \draw[accent, thick] (\x,-0.7) -- (\x,-0.5); }
+    \foreach \x in {0,0.9,1.5,2.2,3.0,3.8,4.6,5.3,6.4,7.9,9.0,10}
+      \draw[warm, thick] (\x,-0.1) -- (\x,0.1);
+  \end{tikzpicture}
+  \end{center}
+  \small
+  \begin{itemize}
+    \item \texttt{run\_scm} records each accepted step. \texttt{scm\$run\_mutant(invader)} then
+      integrates the invader on exactly those steps, in the light and water the resident made.
+    \item With its own steps, an invader's $J'$ moved a little each time the step pattern changed.
+      On the recorded steps $J'$ is a smooth function of $\theta'$, so its differences and its own
+      reverse pass are meaningful.
+    \item At the resident's traits $J' = J$ to the last bit, which the tests check on every record.
+    \item The first invader reuses the resident's recorded run instead of repeating it: 139 s
+      against 300 s.
+  \end{itemize}
+  \src{\texttt{PLANT-95}, \texttt{PLANT-99} (plant\#95, \#99).}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{Where a cohort's net production changes sign inside a step, its step is cut there}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \begin{tikzpicture}[x=1cm, y=1cm, >=Stealth]
+        \draw[->, quiet] (0,0) -- (5,0) node[right, black, font=\footnotesize] {$t$};
+        \draw[->, quiet] (0,-0.9) -- (0,1.4) node[above, black, font=\footnotesize] {a cohort's net production};
+        \draw[thick, accent] (0,1.1) .. controls (1.5,0.9) and (2.2,0.3) .. (2.7,0)
+                             .. controls (3.1,-0.3) and (4,-0.6) .. (4.8,-0.7);
+        \draw[dashed, quiet] (0.6,-0.9) -- (0.6,1.3); \draw[dashed, quiet] (4.3,-0.9) -- (4.3,1.3);
+        \node[font=\scriptsize, below] at (0.6,-0.9) {$t_n$};
+        \node[font=\scriptsize, below] at (4.3,-0.9) {$t_{n+1}$};
+        \draw[warm, thick] (2.7,-0.9) -- (2.7,1.3);
+        \node[font=\scriptsize, warm, below] at (2.7,-0.9) {cut at $t^*$};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \small
+      TF24 grows a cohort by the positive part of its net production, so the cohort's rate has a
+      corner where net production crosses zero. A Runge--Kutta step integrates a smooth rate well
+      and a corner badly. As $\theta$ moves, the corner slides past the step's internal stages, and
+      $J$ moves in small jumps: the gradient becomes a staircase.
+      \medskip
+
+      With \texttt{ode\_split\_sign\_changes = TRUE}, plant finds the crossing on the step's own
+      interpolant and integrates that cohort in two pieces, cut there. The other cohorts and the
+      soil keep the whole step.
+    \end{column}
+  \end{columns}
+  \medskip
+  \small
+  \begin{itemize}
+    \item $\ln J$ lies 3--13$\times$ nearer the converged answer wherever cohorts cross zero.
+    \item A 5\% tolerance change moves no gradient entry by more than $\varepsilon/6$; without the
+      cut it moved entries by up to 0.52$\varepsilon$. The cut costs 5--9\% of a gradient run.
+  \end{itemize}
+  \src{\texttt{PLANT-100}--\texttt{103}, odelia\#53--54, phylloptim\#17; docs/design-sign-changes.md.}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{\texttt{control\_tf24()} names TF24's step settings once, each for a measured reason}
+  \footnotesize
+  \begin{tabular}{@{}L{0.27\textwidth}L{0.68\textwidth}@{}}
+    \toprule
+    setting & why \\
+    \midrule
+    relative tolerance \texttt{tol}, absolute at $10^{-4}\,$\texttt{tol}
+      & Tied this way, $J$'s error stays within about half of \texttt{tol}. With plant's default
+        absolute tolerance it was about 20$\times$ larger at \texttt{tol} = 1e-4. \\
+    soil layers' error tolerance $10\times$ looser
+      & The soil set most steps while carrying little of $J$'s error. Loosened tenfold, a
+        gradient run takes 21\% less time and both roles still pass the accuracy and
+        reproducibility tests at 3e-5. \\
+    each state's loosening bounded at $100\times$
+      & The window (slide 11) loosens by up to $100\times$ more. Unbounded, the soil's reached
+        $1000\times$, an accepted step could push a soil layer to its potential ceiling, and the
+        gradient was refused there. \\
+    steps capped at 15 days
+      & An invader's storage pools go unstable on steps longer than 26 days. On the episodic and
+        dry records, the invader at twice the resident's \texttt{lma} failed on 27-day steps.
+        With the cap none fails. \\
+    soil stepped alone below a 10\% share
+      & The next slide. \\
+    \bottomrule
+  \end{tabular}
+  \medskip
+
+  \small
+  With the window, these settings save 31--34\% of a gradient run against the tied tolerance
+  alone. plant's own \texttt{Control()} defaults are unchanged.
+  \src{\texttt{PLANT-104}, \texttt{PLANT-105} (plant\#104, \#105); docs/grid-dynamics.md \S10.}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{Where the plants barely draw on the soil, the soil takes its own short steps}
+  \begin{center}
+  \begin{tikzpicture}[x=1cm, y=1cm]
+    \node[font=\footnotesize, anchor=east] at (-0.2,0.45) {before: one step for everything};
+    \foreach \x in {0,0.3,...,9.01} \draw[warm] (\x,0.35) -- (\x,0.55);
+    \node[font=\footnotesize, anchor=east] at (-0.2,-0.25) {now: the step};
+    \foreach \x in {0,1.8,...,9.01} \draw[accent, thick] (\x,-0.35) -- (\x,-0.15);
+    \node[font=\footnotesize, anchor=east] at (-0.2,-0.85) {now: the soil's inner steps};
+    \foreach \x in {0,0.3,...,9.01} \draw[quiet] (\x,-0.95) -- (\x,-0.75);
+  \end{tikzpicture}
+  \end{center}
+  \small
+  \begin{itemize}
+    \item Water moves through TF24's soil layers within days, and an explicit step must stay short
+      enough for the soil to remain stable. On long drought the soil set 16\,447 of 17\,684 steps,
+      while the plants could have taken far longer ones.
+    \item Where the plants take under a tenth of the water moving through the soil, the soil hardly
+      depends on them over one step. odelia then integrates the soil alone in short inner steps,
+      under the plants' uptake extrapolated across the step, and the plants set the step itself.
+    \item A gradient run takes 0.63 of the time (376 s against 596 s). Every elasticity moves by
+      less than 0.063$\varepsilon$, and the reverse pass runs through the inner steps.
+  \end{itemize}
+  \src{\texttt{PLANT-105}, odelia\#55; docs/design-soil-alone.md, gates G1--G7.}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{Once little fitness is left to earn, each step's tolerance is loosened}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \begin{tikzpicture}
+        \begin{axis}[width=\linewidth, height=4.4cm, xmin=0, xmax=40, ymin=0, ymax=1.05,
+            xlabel={patch age (years)}, ylabel={share of $J$ still to earn},
+            every axis label/.style={font=\footnotesize}, ticklabel style={font=\footnotesize},
+            axis y line*=left, axis x line*=bottom]
+          \addplot[accent, thick, domain=0:40, samples=80] {exp(-x/6)};
+          \addplot[warm, dashed, domain=0:40] {0.1};
+          \node[font=\scriptsize, warm, anchor=south west] at (axis cs:16,0.1) {0.1: loosening starts};
+        \end{axis}
+      \end{tikzpicture}
+      {\tiny\color{quiet} Shape for illustration.}
+    \end{column}
+    \begin{column}{0.48\textwidth}
+      \small
+      $J$ is earned mostly early in a patch's life. Write $R(t)$ for the share of $J$ still to
+      be earned after $t$. Once $R$ falls below 0.1, a step starting at $t$ takes its tolerance
+      multiplied by $0.1/R(t)$, up to $100\times$ looser.
+      \medskip
+
+      \texttt{control\_window()} reads $R(t)$ off a cheap pilot run, 54 introductions at
+      tolerance 1e-3, together with the invaders at half and twice the resident's \texttt{lma}.
+      The pilot costs 0.4--0.8 of the run it serves.
+    \end{column}
+  \end{columns}
+  \medskip
+  \small
+  \begin{itemize}
+    \item It saves 21--23\% of a run's steps on the pulsed records, and 2\% under constant rain.
+    \item On all five records nothing fails, and $\ln J$ lies within 5.8e-5 of a reference at
+      tolerance 1e-6.
+  \end{itemize}
+  \src{\texttt{PLANT-106} (plant\#106); docs/measurements/window-pilot/.}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{With leaf area spread between nodes, doubling the nodes cuts the error by four}
+  \begin{columns}[T]
+    \begin{column}{0.46\textwidth}
+      \begin{tikzpicture}[x=1cm, y=1cm]
+        \node[font=\footnotesize] at (1,3.1) {before: lumped};
+        \node[font=\footnotesize] at (3.6,3.1) {now: spread};
+        \foreach \h/\w in {2.6/1.2, 1.6/0.9, 0.6/0.5}
+          \fill[accent] (1-\w/2, \h) rectangle (1+\w/2, \h+0.12);
+        \foreach \h in {2.6, 1.6, 0.6} \draw[quiet] (2.5,\h+0.06) -- (4.7,\h+0.06);
+        \foreach \i in {0,...,7} {
+          \fill[accent] (3.6-0.42, 1.6+0.125*\i) rectangle (3.6+0.42, 1.6+0.125*\i+0.06);
+          \fill[accent] (3.6-0.28, 0.6+0.125*\i) rectangle (3.6+0.28, 0.6+0.125*\i+0.06); }
+        \foreach \h in {2.6, 1.6, 0.6} \node[font=\scriptsize, quiet, anchor=west] at (4.7,\h+0.06) {node};
+        \draw[->, quiet] (-0.3,0.2) -- (-0.3,2.9) node[midway, left, font=\scriptsize] {height};
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{0.52\textwidth}
+      \small
+      On the birth-date coordinate plant put each node's whole leaf area at that node's height,
+      so the light field stepped at every node. Its error fell with more nodes, but at no fixed
+      rate.
+      \medskip
+
+      Each interval between neighbouring nodes now spreads its leaf area over eight point crowns
+      between the two nodes' heights. The error then falls with the square of the spacing:
+      halving the spacing divides it by four.
+    \end{column}
+  \end{columns}
+  \medskip
+  \small
+  \begin{itemize}
+    \item That makes the error measurable. With $Q$ a quantity from a run and $Q_{1/2}$ the same
+      quantity at half the introductions, the converged answer is near $Q + (Q - Q_{1/2})/3$.
+    \item Measured ratios are 3.5--4.0. The half-introduction run reports 0.87--0.99 of the true
+      error, against 0.33--0.41 before. The spread costs 6.7\% of a gradient run.
+  \end{itemize}
+  \src{\texttt{PLANT-107}--\texttt{109} (plant\#107--\#109); docs/measurements/node-rule/.}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{\texttt{diagnose\_scm()} reports each run's error estimate, distance and failures}
+  \small
+  It repeats the run at every other and at every fourth introduction, with each invader on
+  each, and returns three tables. These rows come from the eight-year test stand at 9, 5 and 3
+  introductions.
+  \medskip
+
+  \footnotesize
+  \begin{tabular}{@{}llrrrrr@{}}
+    \toprule
+    run & quantity & value & half & quarter & error & ratio \\
+    \midrule
+    resident & \texttt{ln J} & 4.7033 & 4.7979 & 5.1101 & $-0.0315$ & 3.30 \\
+    resident & \texttt{lma} & $-1.6028$ & $-1.5512$ & $-1.4264$ & $-0.0172$ & 2.42 \\
+    late & \texttt{ln J} & 5.5647 & 5.6787 & 6.0344 & $-0.0380$ & 3.12 \\
+    \bottomrule
+  \end{tabular}
+  \par\smallskip
+  \begin{tabular}{@{}lll@{}}
+    \toprule
+    run & stage & message \\
+    \midrule
+    broken & walk & \texttt{L\_tip must be\ldots} \\
+    \bottomrule
+  \end{tabular}
+  \medskip
+
+  \small
+  \begin{itemize}
+    \item \textbf{error} is $(Q - Q_{1/2})/3$, the amount to add to reach the converged answer.
+      \textbf{ratio} is $(Q_{1/2} - Q_{1/4}) / (Q - Q_{1/2})$, near 4 where the estimate can be
+      trusted. Nine introductions are too few here, and the ratio shows it.
+    \item \textbf{distance} lists each invader's $\ln(\theta'/\theta)$ for each parameter it
+      moves; the invader \texttt{late} is 0.405 away in \texttt{hmat}.
+    \item A run, invader or gradient that throws becomes a row of \textbf{failures}, and the
+      analysis continues. The two extra runs cost about three quarters of a run, so it runs once
+      per analysis.
+  \end{itemize}
+  \src{\texttt{PLANT-110} (plant\#110).}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{On long drought, 215 introductions match brute force's accuracy at 0.43 of its time}
+  \small
+  The reference is extrapolated from this work's runs at 108 and 215 introductions,
+  $Q_{215} + (Q_{215} - Q_{108})/3$. Each row compares $\ln J$ and the 49 elasticities with it,
+  in units of each quantity's $\varepsilon$. Time is relative to brute force's.
+  \medskip
+
+  \centering
+  \begin{tabular}{@{}lrrrr@{}}
+    \toprule
+    long drought & $\ln J$ & elasticities, median & largest & time \\
+    \midrule
+    brute force: 215 introductions, 1e-5 & 0.05$\varepsilon$ & 0.12$\varepsilon$ & 0.49$\varepsilon$ & 1 \\
+    this work, 215 introductions & 0.05$\varepsilon$ & 0.13$\varepsilon$ & 0.53$\varepsilon$ & 0.43 \\
+    this work, 108 introductions & 0.20$\varepsilon$ & 0.50$\varepsilon$ & 2.1$\varepsilon$ & 0.24 \\
+    \bottomrule
+  \end{tabular}
+  \raggedright
+  \medskip
+  \begin{itemize}
+    \item At 108 introductions the remaining error comes from the nodes. The half-introduction run
+      reports it, so a run can tell that it needs more introductions.
+    \item On the episodic record 108 introductions suffice: every quantity lies within
+      0.40$\varepsilon$ of brute force's.
+    \item No run, invader or gradient fails on any of the five records.
+  \end{itemize}
+  \src{docs/measurements/headline/prereg.txt, amendment.}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{What changes for code that uses plant today}
+  \small
+  \begin{itemize}
+    \item Every new behaviour sits behind a \texttt{Control} field or a new function, and is off
+      by default. With it off, results are bit-identical, apart from the two moves below.
+    \item The height coordinate, plant's default, does not move.
+    \item \textbf{FF16 on the birth-date coordinate moves}, because the spread changes how leaf
+      area enters the light field. The one-species anchor goes from 17.14 to 18.01, and the
+      two-species test from 12.05 and 16.59 to 12.07 and 16.76. At the default schedule FF16's
+      error is now 9--25$\times$ larger. It falls at the square law, so a half-introduction run
+      estimates it. Each move was registered before the references were blessed again.
+    \item TF24's model version goes to v13. Its numbers change with the gradient pass, a storage
+      pool offset, and a newborn's height found to roundoff.
+    \item Under plant's default \texttt{Control()}, TF24's $J$ on long drought is 0.45 on
+      \texttt{develop}, against 12.75 converged. On this work's code the same defaults give 0.18,
+      so the default settings, more than the model, carry that gap.
+  \end{itemize}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{Known gaps}
+  \small
+  \begin{itemize}
+    \item \textbf{Episodic rain needs finer introductions} for the error estimate to hold. Its
+      error falls at the square law only once the spacing is below its dry spells (median 31
+      days), past 429 introductions.
+    \item \textbf{Under constant rain the gradients move by up to 3$\varepsilon$} with where the
+      later introductions sit; only the first year is graded finer.
+    \item \textbf{A gradient blow-up with the soil stepped with the plants at a loose tolerance.}
+      At tolerance 1e-3, with the soil's tolerance ten times looser and no inner steps, the
+      resident's elasticities come out near $10^{50}$ while $J$ is right, and nothing refuses.
+      Stepping the soil alone, now the preset's default, removes it at every tolerance tried. Not
+      yet root-caused.
+    \item \textbf{How far one resident's recorded steps can serve} a moved resident or a distant
+      invader is unmeasured; \texttt{diagnose\_scm()} reports the distance without a bound.
+    \item The branches sit on the fork's \texttt{develop} with odelia 0.5.0, and need a rebase
+      onto upstream \texttt{develop} (odelia 0.6.2) before PRs open there.
+  \end{itemize}
+\end{frame}
+
+%% ---------------------------------------------------------------------------
+\begin{frame}{How to review: four groups, merged in this order}
+  \footnotesize
+  \begin{tabular}{@{}L{0.15\textwidth}L{0.27\textwidth}L{0.25\textwidth}L{0.24\textwidth}@{}}
+    \toprule
+    group & branches & read first & its test \\
+    \midrule
+    1.~Gradients & \texttt{PLANT-93}, \texttt{offspring-adjoint}, \texttt{PLANT-95}--\texttt{99}
+      & \texttt{stand\_gradient}, \texttt{run\_mutant}
+      & the pass against central differences; $J'=J$ to the bit \\
+    2.~The cut at sign changes & \texttt{state-weights}, \texttt{PLANT-100}--\texttt{103}, odelia\#53--54, phylloptim\#17
+      & where a step is cut, and how the reverse pass crosses the cut
+      & the 5\% tolerance change; the pass against differences \\
+    3.~Step settings & \texttt{PLANT-104}--\texttt{106}, odelia\#55
+      & \texttt{control\_tf24}, \texttt{control\_window}
+      & replays bit for bit; nothing fails on five records \\
+    4.~Nodes and diagnostics & \texttt{PLANT-107}--\texttt{110}
+      & the spread in the light field; \texttt{diagnose\_scm}
+      & the square law; the FF16 re-bless \\
+    \bottomrule
+  \end{tabular}
+  \medskip
+
+  \small
+  Every branch closes one issue on the aornugent forks, and each group is bit-identical with its
+  new controls off. Group 2 is the largest, and changes what odelia hands plant inside a step.
+  Group 4 holds the one decision for maintainers: whether the spread should apply to FF16's
+  birth-date coordinate.
 \end{frame}
 
 \end{document}
