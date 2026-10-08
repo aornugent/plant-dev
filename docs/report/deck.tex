@@ -22,7 +22,7 @@
 \lstset{language=R, basicstyle=\ttfamily\scriptsize, commentstyle=\color{accent},
   keywordstyle=\color{black}, columns=fullflexible, keepspaces=true, showstringspaces=false}
 \newcommand{\src}[1]{\par\vfill{\tiny\color{quiet} #1}}
-\newcommand{\illus}{{\tiny\color{quiet} Shape for illustration.}}
+\newcommand{\illus}{\par{\tiny\color{quiet} Shape for illustration.}}
 
 %% The table of contents, with the current component highlighted.
 \newcommand{\rmrow}[4]{%
@@ -31,7 +31,7 @@
 \newcommand{\roadmap}[1]{%
   \def\rmcurrent{#1}%
   \footnotesize
-  \begin{tabular}{@{}rL{0.30\textwidth}L{0.38\textwidth}L{0.22\textwidth}@{}}
+  \begin{tabular}{@{}rL{0.29\textwidth}L{0.37\textwidth}L{0.22\textwidth}@{}}
     \toprule
     & what was built & the problem it fixes & in plant \\
     \midrule
@@ -412,7 +412,7 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
       \node[st] (i\s) at (\s*1.5-1, -0.4) {stage \s};
       \draw[->, warm] (r\s) -- (i\s);
     }
-    \node[font=\scriptsize, warm, align=center] at (4.0,0.4) {the field at each stage: light at the canopy's heights, the soil's water};
+    \node[font=\scriptsize, warm, fill=white, inner sep=1pt] at (4.0,0.4) {the field at each stage: light at the canopy's heights, the soil's water};
   \end{tikzpicture}
   \end{center}
   \small
