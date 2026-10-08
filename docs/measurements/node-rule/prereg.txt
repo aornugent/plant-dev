@@ -314,3 +314,7 @@ records on $DEV/lib_109, run two at a time):
     hmat x2. The rows saved (24-25%) are about half the union's time saved in
     thin.R (48% on long drought), which was timed under load and includes the
     sweep; rows are the measure here.
+  - Read afterwards (2026-10-08), not registered: recruitment_decay is a
+    nuisance parameter (the user), so pilot_thin_read.R also scores (iii)
+    without it. The largest entry is then 0.039 eps on long drought (lma x0.5)
+    and 0.087 eps on episodic (hmat x0.5's root_P50), both under eps/3.

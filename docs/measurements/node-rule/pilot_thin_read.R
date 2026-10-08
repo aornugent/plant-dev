@@ -20,11 +20,12 @@ for (key in c("ld", "epi")) {
               100 * saved(x$keep), 100 * saved(u)))
   d <- do.call(rbind, lapply(names(full$cases), function(k) {
     a <- full$cases[[k]]$full; b <- x$cases[[k]]
-    if (is.null(b) || !is.null(b$error)) return(data.frame(invader = k, dlnJ = NA, worst = NA, trait = NA))
+    if (is.null(b) || !is.null(b$error)) return(data.frame(invader = k, dlnJ = NA, worst = NA, trait = NA, traits = NA))
     tr <- sub("^1\\.", "", names(a$elasticity))
     mv <- abs(unname(b$elasticity) - unname(a$elasticity)) / vapply(tr, eps_of, 0)
+    trait_mv <- mv[tr != "recruitment_decay"]
     data.frame(invader = k, dlnJ = abs(log(b$J) - log(a$J)) / eps_of("ln J"), worst = max(mv),
-               trait = tr[which.max(mv)])
+               trait = tr[which.max(mv)], traits = max(trait_mv))
   }))
   print(d, row.names = FALSE, digits = 3)
   off <- d$invader != "stand=1"
@@ -32,6 +33,8 @@ for (key in c("ld", "epi")) {
               verdict(!anyNA(d$worst)), max(d$dlnJ[off]), verdict(all(d$dlnJ[off] < 1 / 3)),
               max(d$worst[off]), d$invader[off][which.max(d$worst[off])],
               d$trait[off][which.max(d$worst[off])], verdict(all(d$worst[off] < 1 / 3))))
+  cat(sprintf("   without recruitment_decay, a nuisance parameter: elasticities largest %.3f eps (%s)\n",
+              max(d$traits[off]), d$invader[off][which.max(d$traits[off])]))
   for (tr in names(x$difference)) {
     ref <- unname(full$cases[["stand=1"]]$full$elasticity[paste0("1.", tr)])
     m <- abs(x$difference[[tr]] - ref) / eps_of(tr)

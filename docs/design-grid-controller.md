@@ -999,6 +999,8 @@ after the events reply):
           24–25% of a walk's rows saved, nothing fails, and the selection
           gradient by differences on it within 0.004ε of the full sweep. One
           entry misses on long drought: `lma` ×0.5's `recruitment_decay`, 0.43ε.
+          Without `recruitment_decay`, a nuisance parameter, the largest entry
+          is 0.039ε on long drought and 0.087ε on episodic.
         - *Decided* (the user): the full walk stays the default; the shared
           schedule is the candidate, its miss the birth-date weighting its
           shares lack.
