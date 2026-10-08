@@ -1,0 +1,34 @@
+The headline for the maintainers' report (registered 2026-10-08, 01:55, before
+any run; headline.sh, read by headline_read.R). What the work buys a TF24 run
+against plant as it is and against brute force, without nudges, inside an hour.
+
+Builds:
+  - develop: traitecoevo/plant develop (b5218f9b) with its pinned odelia 0.6.2
+    (64ae092) and phylloptim 0.9.2 (bd69be9), in $DEV/lib_develop.
+  - the stack: $DEV/lib_109 (plant PLANT-109 on ODELIA-55, phylloptim as in
+    lib_105c).
+Configurations, on long drought and episodic (seed 31), the stand at lma 0.32:
+  - develop: plant's default Control on 108 uniform introductions; its forward
+    only, since develop has no gradient. Allowed 15 minutes.
+  - floor: brute force on the stack, the design's floor: 215 uniform
+    introductions on the birth-date coordinate, relative tolerance 1e-5,
+    absolute 1e-9, weights of 1, no window, cap, splits or soil alone; the
+    forward and the stand's gradient by the reverse sweep. On wet and dry the
+    spot-check put 1e-5 on 215 nodes within eps (spot-check.md).
+  - stack: control_tf24(3e-5) with the soil alone at 0.1, the window from a
+    pilot that steps the soil alone (54 introductions at 1e-3, walks at lma
+    x0.5 and x2), splits and the spread, on 108 uniform introductions; the
+    pilot, the forward and the stand's gradient.
+Runs: one each, in that order, with nothing else on the machine.
+Reported (headline_read.R): seconds per phase; the stack's total, the pilot
+included, against the floor's; ln J against the floor's in eps; the stack's 49
+resident elasticities against the floor's in eps (eps.csv, floored at 0.01);
+develop's ln J against the floor's and, computed not run, the cost of its
+gradient by central differences, 2 forwards an elasticity.
+The floor is the comparison's basis, not a converged answer: at 215 nodes and
+1e-5 it carries its own node and time error, measured within eps only on wet
+and dry.
+Expected: the stack within eps/3 of the floor on most entries and within eps on
+all, for 0.15-0.3 of its time; develop's forward of the same order as the
+stack's, its J off the floor by the coordinate's node error, and its gradient
+some 98 forwards.
