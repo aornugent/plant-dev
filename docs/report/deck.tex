@@ -153,7 +153,7 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
     \item On the episodic record the ratio is also 0.24 (128 s against 536 s), and all 50 quantities
       lie within 0.40$\varepsilon$ of brute force's. The next two slides define $\varepsilon$.
     \item On long drought 108 introductions are too few, and 215 match brute force's accuracy
-      at 0.43 of its time. The table is near the end.
+      at 0.43 of its time. Near the end, a waterfall shows what each part contributes.
   \end{itemize}
 \end{frame}
 
@@ -901,6 +901,46 @@ d   <- diagnose_scm(p, env, ctrl, invaders)         # error estimate and failure
 \end{frame}
 
 %% ===========================================================================
+\begin{frame}{Altogether: how the parts compose, on long drought}
+  \begin{center}
+  \begin{tikzpicture}
+    \begin{axis}[ybar stacked, bar width=22pt, width=0.95\textwidth, height=5.6cm,
+        symbolic x coords={a,b,c,d,e,f,g,h}, xtick=data, ymin=0, ymax=960,
+        xticklabels={{brute force,\\215, 1e-5}, {108 intro-\\ductions}, {cut\\(part 4)},
+          {preset\\(part 5)}, {soil alone\\(part 6)}, {window\\(part 7)}, {its pilot}, {this work}},
+        x tick label style={font=\scriptsize, align=center, text width=1.6cm},
+        ylabel={seconds for $J$ and its gradient}, every axis label/.style={font=\footnotesize},
+        ticklabel style={font=\footnotesize}, axis y line*=left, axis x line*=bottom,
+        enlarge x limits=0.07]
+      \addplot[draw=none, fill=none] coordinates {(a,0) (b,441.1) (c,389.3) (d,303.6) (e,207.4) (f,175.0) (g,175.0) (h,0)};
+      \addplot[draw=none, fill=quiet] coordinates {(a,849.5) (b,0) (c,0) (d,0) (e,0) (f,0) (g,0) (h,0)};
+      \addplot[draw=none, fill=accent!35] coordinates {(a,0) (b,408.4) (c,51.8) (d,85.7) (e,96.2) (f,32.4) (g,0) (h,0)};
+      \addplot[draw=none, fill=warm] coordinates {(a,0) (b,0) (c,0) (d,0) (e,0) (f,0) (g,38.7) (h,0)};
+      \addplot[draw=none, fill=accent] coordinates {(a,0) (b,0) (c,0) (d,0) (e,0) (f,0) (g,0) (h,213.7)};
+          \node[font=\scriptsize, above] at (axis cs:a,849.5) {850 s};
+          \node[font=\scriptsize, above] at (axis cs:b,849.5) {$-408$};
+          \node[font=\scriptsize, above] at (axis cs:c,441.1) {$-52$};
+          \node[font=\scriptsize, above] at (axis cs:d,389.3) {$-86$};
+          \node[font=\scriptsize, above] at (axis cs:e,303.6) {$-96$};
+          \node[font=\scriptsize, above] at (axis cs:f,207.4) {$-32$};
+          \node[font=\scriptsize, above] at (axis cs:g,213.7) {$+39$};
+          \node[font=\scriptsize, above] at (axis cs:h,213.7) {214 s};
+    \end{axis}
+  \end{tikzpicture}
+  \end{center}
+  \small
+  \begin{itemize}
+    \item Each bar adds one part to everything left of it, timed alone. The last configuration is
+      the headline's: its $J$ is the same to the bit.
+    \item Parts 4 to 7 save 266 s and leave every quantity's error where it was: at 108
+      introductions the median elasticity stays within 0.50--0.51$\varepsilon$ of the converged answer
+      at each step.
+    \item Halving the introductions saves the most and carries all of the remaining error.
+      Parts 8 and 9 are what let a run see that error and decide whether it can afford the halving.
+  \end{itemize}
+  \src{docs/measurements/waterfall/prereg.txt. Parts 1--3 are in every bar; part 2 replaces about 100 runs of differences.}
+\end{frame}
+
 \begin{frame}{Altogether: on long drought, 215 introductions match brute force at 0.43 of its time}
   \small
   The reference is extrapolated from this work's runs at 108 and 215 introductions,

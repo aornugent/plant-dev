@@ -33,3 +33,25 @@ Caveats: the order is the stack's merge order, so each bar is the part's
 effect given the parts before it; another order would split the savings
 differently. halved trades accuracy on long drought (the headline: elasticities
 up to 2.1 eps at 108 introductions), which part 7 lets a run detect.
+
+Results (2026-10-08; waterfall_read.R; every run alone, in the registered order,
+04:46-05:27). The deck's compile ran for about 20 s at 04:56 and three more times
+before 05:01, inside brute's run; brute still came in under the headline's floor.
+  - brute 849.5 s (forward 233.4, gradient 616.1), 21 729 steps; the headline's
+    floor took 885.8 s.
+  - halved 441.1 s (-408.4), 21 109 steps.
+  - cut 389.3 s (-51.8), 17 679 steps.
+  - preset 303.6 s (-85.7), 13 938 steps.
+  - alone 207.4 s (-96.2), 9 023 steps.
+  - window 175.0 s (-32.4), 7 678 steps; the pilot 38.7 s; window plus pilot
+    213.7 s, 2.4% over the headline's 208.7 s, and its J equals the headline
+    stack's to the bit.
+  - Against the two-rung answer: brute ln J +0.048 eps, elasticities median
+    0.121, largest 0.485. Every 108-introduction configuration sits at ln J
+    +0.195 to +0.198 eps, median 0.503-0.511, largest 2.110-2.138: parts 4-7
+    move no quantity's error measurably, and halving the introductions carries
+    all of it.
+  - Against the expectation: halved is half of brute, as expected; the cut saves
+    13%, the preset 22% of the cut, alone 32% of the preset (0.68, against 0.63
+    expected) and the window 16% of alone (0.84, against 0.8); window plus pilot
+    within 10% of the headline holds.
