@@ -1079,8 +1079,31 @@ after the events reply):
        factor included.
    - *Open:* a shared grid's window must cover every invader of an analysis,
      and one that reproduces later widens it (§8's caveats, unmeasured).
-8. *The diagnostics R8 asks for:* the companions' estimate, θ's distance from θ₀
-   against the radius, the failures, and the chain's error.
+8. *The diagnostics R8 asks for,* built as plant's `diagnose_scm()` (`PLANT-110`,
+   on `PLANT-109`), beside `control_window()`:
+   - *The error estimate:* runs at every other and every fourth of the run's
+     introductions, both ends kept, each with its invaders walked and swept. Per
+     quantity, `error` is (Q − Q½)/3 and `ratio` is (Q½ − Q¼)/(Q − Q½), near 4
+     where the estimate holds. Only the node knob: node error is about 100× the
+     time error.
+   - *The distance:* each invader's ln(θ′/θ) per parameter it moves, from the
+     resident whose recording it walks. The radius is unmeasured (R6), so it is
+     reported, not compared.
+   - *The failures:* each run, walk or sweep that throws or is refused is a row,
+     with its quantities `NA`, rather than a throw.
+   - *Dropped* (the user): the chain's error, which item 5's gates hold inside
+     the norm.
+   - Run once per analysis, on the final resident and its invaders: the two
+     coarser runs cost about three quarters of the run again.
+   - *Found building it, open:* on an eight-year stand under constant rain at
+     `1e-3`, with the soil coupled at weight 10, the resident's sweep returns
+     elasticities of 1e45–1e77 while `J` is right and the invader's walk sweeps
+     sane. Plain control, the cap and the bound alone are fine, and so is
+     `3e-4`; at rain 1 it is −2.8e24 at `1e-3` and −31 at `6e-4`. The soil
+     stepped alone, now `control_tf24()`'s default, removes it at every
+     tolerance tried. No refusal fires. Not root-caused; the hypothesis is steps
+     held at the soil's stability edge, where the error test bounds the forward
+     and nothing bounds the sweep.
 
 *From here,* with the split closed out (`design-sign-changes.md` §9):
 1. Item 7's setting (7.1), since item 5 takes it as its baseline and the bank's
