@@ -144,5 +144,7 @@ reason to be a named thing; its name follows from that role. *Proposed.*
   becomes uniform doubling with a better estimate.
 - **The gradient's error is not where J's is.** If the elasticities need
   intervals the J map ranks low, the estimator must rank intervals for each
-  quantity. The sweep already carries every registered parameter's adjoint, so
-  this costs one contraction per quantity, not another sweep.
+  quantity. An elasticity's interval map is a second derivative (of J in a
+  trait and in each interval's defect), so it needs one forward-over-adjoint
+  pass for a weighted combination of quantities, or central differences in θ
+  of the J map, not a contraction of the existing sweep.
