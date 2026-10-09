@@ -98,8 +98,11 @@ Stop when the estimated total is under ε. This is `refine_schedule()`'s shape
 on the height coordinate (error per node, bisect, repeat), with an estimator
 that works on the birth date.
 
-The comparison, the floor, is uniform doubling with the move between rungs as
-its estimate. It is honest on long drought and long-wet (companion 0.95–0.98)
+The comparison, the floor, is plant's default schedule
+(`node_schedule_times_default`, 108 times on a dyadic staircase, spacing about
+a fifth of the birth date up to 2 years) and its bisections, with the move
+between them as its estimate. Uniform introductions were a regression from it.
+Uniform doubling is honest on long drought and long-wet (companion 0.95–0.98)
 but pays for every local feature everywhere.
 
 **W8. The stopping test is the certificate.** The run reports its estimated
