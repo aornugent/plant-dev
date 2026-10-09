@@ -6,6 +6,49 @@ names follow from that structure: odelia's names first, then plant's, which
 become soil-specific. The step's control flow is drawn so that each name can be
 read where it is used. Nothing is renamed yet: this is the proposal to approve.
 
+## Applied
+
+The names below are in the code, with three changes from the proposal, all
+yours:
+
+- `RatesSoilUnderUptake` became `HasSoil`.
+- The share is `uptake_fraction_of_flows()`.
+- The Control field it is compared against is `ode_soil_substep_max_uptake`:
+  substep the soil while the plants take less than this fraction of the water
+  flowing through its layers.
+
+The definition is unchanged; decision 4 waits for the schedule turn.
+
+In the code:
+
+- **The predictor's states.** These are read by a `predicted_at(u)` lambda
+  rather than through a `predicted.at(u)` member.
+- **`rate_on_line`.** It stays as a private helper. `choose_substeps` needs the
+  rates on the line while it is still choosing the substeps.
+- **The step's setup.** `prepare_subsystem()` holds the decision and the setup.
+- **Where the step lives.** The substep machinery is in `ode_substeps.hpp`.
+- **Patch's hooks.** They were already in one region of `patch.h` (lines
+  225–410), so they were not moved.
+
+Per branch:
+
+- **`ODELIA-55`:** the subsystem vocabulary.
+- **`PLANT-105`:** the soil words.
+- **The state-weights branches and `ODELIA-53`/`PLANT-102`:** `state_tolerance_factors`
+  and the split's substeps, renamed at every commit.
+- **`PLANT-106`:** `offspring_produced_at_ode_times`.
+- **`PLANT-108`:** the crown's fraction `u`. Its `mom` field stays, matching the
+  lumped path beside it.
+- **`PLANT-109`:** `add_entry`'s comment.
+- **`PLANT-110`:** `diagnose_scm` in its own file, with every column one kind of
+  number. `every_other` and `every_fourth` replace `half` and `quarter`;
+  `quantity` is `"log_offspring_production"`, `"elasticity"` or
+  `"derivative"`, with `parameter`; distance carries a `scale`.
+
+No number moves: on the substepping fixture, J, the steps, the input slopes,
+the gradient and an invader's walk are identical to the build before the
+renames.
+
 ## The data structure
 
 A System's state has a contiguous **subsystem**, TF24's soil layers. The
