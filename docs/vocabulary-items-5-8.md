@@ -314,6 +314,9 @@ Now every row says what its number is, and the arithmetic stays as it is.
 
 ### A. Taking a block alone — odelia
 
+Superseded by `names-subsystem.md`, which renames this vocabulary from
+odelia's data structure up, in sections A and B.
+
 | Name | In context | Verdict |
 |---|---|---|
 | `StepsBlockAlone` | `concept StepsBlockAlone = requires(...) { s.alone_block(); s.steps_alone(); s.alone_inputs(out); s.alone_rates(time, y, y, out); }` | **keep.** Names the capability, in the same pattern as `SplitsSignChanges` and `ScalesTolerances`. |
