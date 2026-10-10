@@ -151,3 +151,73 @@ reason to be a named thing; its name follows from that role. *Proposed.*
   trait and in each interval's defect), so it needs one forward-over-adjoint
   pass for a weighted combination of quantities, or central differences in θ
   of the J map, not a contraction of the existing sweep.
+
+## What the tests settled (9–10 October)
+
+Runs, scripts and full tables are in the session's scratch directories
+`schedtest/{placement,estimate,probe,placed2,adjmap,lumped_default}`; the
+numbers below are the ones that decide the design. Errors are in ε of each
+quantity, `recruitment_decay` excluded as a nuisance unless stated.
+
+**The default schedule is a poor start for TF24.** `node_schedule_times_default`
+spends 60 of its 108 nodes before b = 0.1 and spaces nodes 2 years apart after
+b = 10. At d108 it costs 1.8× uniform u108's rows and errs by 4.8ε (long
+drought), 12.3ε (episodic) and 115ε (constant, invader). After t = 5 its
+neighbouring canopy nodes stand 2–3.5 crown depths apart, born at b = 9–32.
+
+**The cheapest runs within ε are simple schedules.**
+
+| record | cheapest within ε | rows | rule v2 (pA) |
+|---|---|---|---|
+| long drought | test 1's root-law placement, 81 nodes | 627k | 1.19M |
+| episodic | uniform u108 | 230k | 464k |
+| constant | none (invader elasticities 6–17ε off) | | 147k |
+
+Rule v2's first-mover layers and its field floor spend rows these records did
+not need. On constant `ln J` is within 0.02ε on every placed grid; the
+invader's elasticities converge to about 1.5% from a reference that refines
+only the front zone, so the constant invader needs a better reference before a
+schedule is judged on it.
+
+**The crown spread (PLANT-108) can be deleted.** On every grid that reaches ε
+(pA and pA2 on episodic, pA on long drought) lumped and spread agree within
+0.084ε, at the same rows, and the pA → pA2 estimate is the same on both
+(median 0.52 on episodic). Where they differ by more (default d108, the
+constant front), neither build is within ε, on the square law, or honestly
+estimated: the schedule sets the error there, not the crowns.
+
+**Exact counts stay.** Point samples move J by up to 1.45ε under a
+quarter-spacing shift, against the hat rule's 0.22ε; the count costs one
+accumulator on the open interval.
+
+**The field-adjoint map measures each node's effect exactly** (branch
+`adjmap-probe`, +328 lines on PLANT-110, bit-identical with the drop off, +4–11%
+of a sweep, no rows). From one run it predicts the move of dropping every other
+node: field part 0.85–1.10×, own part 1.00×, total 0.97–1.19×, on every record
+and grid type; the resident `lma` and `a_dG2` elasticities at 1.03–1.05×; the
+partial refinements' moves to 0.3%. It replaces the coarse half of a nested
+pair at a tenth of a sweep.
+
+**No one-run or nested estimate is an honest certificate on placed grids.**
+- Placed ladders converge at about first order (episodic pA → pA2 → pA4:
+  median move ratio 2.15); uniform ladders near the square law (3.9 long
+  drought, 3.6 episodic). The (P, P2) estimate runs at 0.5–0.7× of the error
+  and covers it on 2–7% of quantities.
+- On episodic below u429 the moves grow with refinement (effective order
+  −0.38), so no order correction exists. The own part alone holds order
+  1.7–2.2 everywhere; the field part, mostly water, is what leaves the square
+  law.
+- Bisecting the intervals the map ranks highest moved `ln J` opposite to the
+  square-law prediction (×−0.95 on episodic u215, ×−0.06 on placed p108);
+  random intervals did as well.
+
+So W7 (refine strategically from a per-interval estimate) fails as stated: the
+map is exact about what nodes do, but an interval's error does not fall
+four-fold when it is bisected while the field part is off the square law.
+W8's per-interval certificate fails for the same reason.
+
+**Open:** why placed grids lose an order; the constant invader's reference; a
+TF24 default built from the cheap schedules above (few nodes in the first
+days, late spacing well under 2 years, the constant front at about half-hour
+spacing); whether a three-level order or a safety factor of about 2 is the
+certificate to ship.
