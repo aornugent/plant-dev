@@ -1,0 +1,245 @@
+---
+title: "Choosing a node schedule"
+output:
+  bookdown::html_document2:
+    toc: yes
+    number_sections: false
+---
+
+<!-- Sketch for plant, on the birth-date coordinate with exact counts. The
+code runs on the stack tip through plant-dev's harness; `tf24_stand()` stands
+for the setup a package helper would do. Numbers are from
+plant-dev/docs/measurements/{predictable-error,breakpoints}.md. -->
+
+```{r setup, eval = FALSE}
+library(plant)
+source("harness/long_drought.R")   # rainfall records and mkenv()
+tf24_stand <- function(times) {
+  p <- scm_base_parameters("TF24")
+  p <- add_strategies(p, trait_matrix(0.32, "lma"))
+  p$node_schedule_times <- list(times)
+  ctrl <- control_tf24(3e-5)
+  ctrl$node_density_in_birth_date <- TRUE
+  list(p = p, ctrl = ctrl)
+}
+```
+
+# The whole thing
+
+A schedule is a set of introduction times. A good one gives `ln J` and its
+gradient to a known accuracy, at the least cost. The recipe below has four
+steps:
+
+1. Run a first stand on evenly spaced introductions.
+2. Read the edges of its establishment windows from the run's own creation
+   record.
+3. Add those edges as introductions, and drop the ones born while
+   establishment is shut.
+4. Run that schedule and its bisection. The difference between the two is
+   three times the finer run's error.
+
+```{r whole, eval = FALSE}
+first <- tf24_stand(seq(0, 53 * 40 / 54, length.out = 54))
+run1  <- run_scm(first$p, mkenv("episodic"), first$ctrl)
+
+edges <- creation_edges(run1)          # births where establishment opens or shuts
+times <- c(drop_closed(first$p$node_schedule_times[[1]], run1), edges)
+
+coarse <- run_scm(with_times(first, times), mkenv("episodic"))
+fine   <- run_scm(with_times(first, bisect(times)), mkenv("episodic"))
+estimate <- (log(coarse$J) - log(fine$J)) / 3
+```
+
+On episodic rain this schedule has 126 introductions: 54 evenly spaced, plus 84
+edges, less the 12 born in closed gaps. Its bisection has 251. Measured against a
+converged reference, across `ln J` and both roles' 50 elasticities:
+
+| schedule | rows | largest error | median error | estimate / error |
+|---|---|---|---|---|
+| 126 introductions | 273k | 4.98ε | 0.41ε | — |
+| 251 (its bisection) | 594k | 1.16ε | 0.10ε | median 1.00 |
+| 501 (bisected again) | 1319k | 0.26ε | 0.02ε | median 1.30 of the next move (4/3 is exact) |
+
+Evenly spaced introductions cost about the same. Their error does not fall
+four-fold with each halving: on episodic the moves between 108, 215 and 429
+introductions do not shrink at all. So a pair of runs cannot estimate their
+error. The rest of this vignette explains both observations: why the edges
+restore the four-fold fall, and how to find the places a schedule still needs
+nodes.
+
+# What a node is
+
+On the birth-date coordinate a node is the cohort born at one instant b_j. The
+individuals born between two neighbouring nodes form an interval, and the
+interval carries two things:
+
+- **Its count.** The run integrates the establishment rate exactly while the
+  interval is open, together with its first moment.
+- **The fate of its members.** Their survival, size and output are taken to vary
+  linearly in birth date between the two nodes' fates.
+
+Every population sum then has the same form: J itself, the leaf area above a
+height, the water drawn from a soil layer. Each is a sum over intervals of
+count × the interpolated fate. The node error is the error of that quadrature.
+Where fate is smooth across an interval, the error is about
+count × width² × the curvature of fate, so it falls four-fold when the spacing
+halves.
+
+That law is what a schedule is built on. It gives an error estimate: on the
+square law, the move from a schedule to its bisection is three times the finer
+schedule's error. It also tells where to put nodes: each interval's share of
+that move. The drop map (`field-adjoint-map.md`) measures each interval's share
+from one run, so the coarser run is not needed.
+
+# When fate is not smooth
+
+The square law fails wherever fate bends within an interval faster than the
+spacing can follow. On TF24 that happens in two kinds of place, and both come
+from one quantity.
+
+**Net production decides everything.** An individual's net production is
+
+    P = a_bio · a_y · (A − R) − T
+
+where A is the leaf's optimal assimilation in the light at its crown and the
+water its roots reach. P drives each process:
+- When P > 0 the individual grows and fills its storage pool.
+- When P < 0 the pool drains, and the hazard a_dG1 · exp(−a_dG2 · r) rises as
+  relative storage r falls.
+- **A newborn establishes only if its P at seed height is positive.** It
+  establishes with probability P₀²/(P₀² + (a_d0 · a_l0)²) when P₀ > 0, and not
+  at all otherwise.
+
+A seedling's roots lie in the top 0.3 m of soil, so its P₀ follows the top
+layer's water and the light at 0.3 m:
+- A rain pulse lifts the top layer within hours, and establishment opens 0.2–0.7
+  days after the rain starts.
+- The stand's uptake dries the layer back, or the canopy shades the ground, and
+  establishment shuts.
+
+**The first kind: window edges.** A cohort born just before an opening starts
+with P < 0 and waits for rain. One born a little later waits less, so fate
+rises across the closed gap. After the opening, each later cohort meets more
+shade than the first, so fate falls. Fate has a corner at the opening, and an
+opposite one at the shutting:
+
+```
+ fate
+  │            ╱╲
+  │          ╱    ╲___
+  │        ╱          ╲___
+  │  ____╱                ╲___
+  │      ▲  closed gap   ▲ open window
+  └──────┼───────────────┼──────────────► birth date
+       shuts           opens
+```
+
+An interval that straddles an edge interpolates its counted members' fate from
+a node in the closed gap. Its error is set by where the edge falls in the
+interval, not by the spacing, and its sign by whether the edge is an opening or
+a shutting. Openings and shuttings partly cancel, and how much they cancel
+changes with every schedule.
+
+**The second kind: grazings.** A cohort's P can also touch zero later in its
+life. On constant rain:
+- Cohorts born in the first 23.53 days reach the canopy. Their net production
+  never changes sign.
+- Every cohort born after that stalls under them. Its P falls below zero and
+  comes back, which counts as two sign changes, and its storage drains on the
+  way.
+- Survival to the end of the run falls from 0.63 to 0.02 across 0.03 days of
+  birth date.
+
+That front is smooth when nodes are 1/2048 day apart, but no ordinary schedule
+resolves it.
+
+Crossings of zero away from these places are harmless. In the sharp limit the
+flow is continuous across P = 0, so a crossing that cuts through cleanly leaves
+fate smooth in birth date. 99.85% of the crossings on long drought are of that
+kind. Fate breaks only where a cohort's sequence of crossings differs from its
+neighbour's.
+
+# Finding the breaks
+
+Both kinds can be read from a run that has already been made:
+
+- **Edges** come from the creation record, the establishment rate at every
+  accepted step. A run on 108 evenly spaced introductions places 98–100% of
+  openings within a day of the finest run's, and 75–89% of shuttings. A run on
+  27 introductions misses whole edges.
+- **Every break** shows in the per-node count of sign changes, which the run keeps
+  for its splits. On the finest episodic schedule:
+  - the counts differ across every pair of neighbours that straddles an edge,
+    against 3% of the other pairs;
+  - on constant rain they change from 0 to 2 exactly at the front.
+
+The soil alone cannot find the edges. Openings follow rain, so the rainfall
+record proposes them. But whether a rain opens establishment depends on how dry
+the stand has made the soil. Drainage below 60% of saturation takes months, so
+only uptake dries the top layer far enough to shut it.
+
+# The algorithm
+
+```
+  first stand (≈100 even introductions, forward only)
+        │ creation record, sign-change counts
+        ▼
+  schedule = even base + edges − closed-gap nodes + nodes across each front
+        │
+        ▼
+  run with gradient and drop map ──► per-interval share of the coarsening move
+        │                                   │
+        │          regions whose share does not fall four-fold
+        │          from the previous pass, or is large
+        ▼                                   │
+  bisect those intervals ◄──────────────────┘
+        │
+        └── stop when the estimated error of every quantity is under ε
+```
+
+- **Edges as nodes.** These give the square law on every record tested: the
+  ratio of successive moves is 3.7–4.2. They also make the pair's estimate
+  honest: 1.23–1.32 of the next move, against an exact 4/3. Most of the edge
+  error sits in a few edges: 4–6 carry half of it, and 15–20 carry 90%.
+- **Closed-gap nodes go.** They carry no count. Dropping them moves J by 2e-6
+  relative and saves 12% of rows.
+- **Fronts need nodes at their own scale.** On constant rain, nodes every 1/512
+  day across the front give successive moves in the ratio 3.7 (resident) and
+  4.5 (invader). Without them the moves oscillate.
+- **Births that earn no J still set the water.** A placement rule that spaced
+  births after b = 16 by 270–540 days left a region whose move did not shrink
+  under bisection (ratio 1.07). It carried 80% of the field part of the move.
+- **On a schedule with edges as nodes, the drop map ranks intervals correctly.**
+  Bisecting the 17 panels it ranked highest moved ln J by +0.002851, against a
+  prediction of +0.002851.
+
+# Across records
+
+Nested ladders on 108 even introductions with edges added. The ratio is that
+of successive moves; 4 is the square law.
+
+| record | edges | resident ratio | invader ratio | ln J ratio | estimate / next move |
+|---|---|---|---|---|---|
+| episodic | 86 | 2.59 | 3.89 | 3.79 | 1.26 |
+| dry | 142 | 3.78 | 4.02 | 3.85 | 1.32 |
+| long-wet | 146 | 3.78 | 3.68 | 4.71 | 1.23 |
+| long drought | 154 | 4.06 | 3.83 | 4.22 | 1.28 |
+
+Long-wet and long drought follow the square law on even introductions too. Edge
+terms are present there as well, but the interior's error outweighs their
+residue. Episodic's interior error is 5–7 times smaller, so its edges show.
+
+# Traits
+
+The traits move the breaks by moving where P = 0:
+- Traits of carbon gain, carbon cost and water access set the light and water at
+  which P vanishes, and so where windows open and shut.
+- Traits of the race to the canopy set who ends up shaded.
+- Traits of the storage pool set how costly a spell below zero is, and so how
+  sharp a break becomes.
+
+A schedule built at one θ therefore needs its edges and fronts re-read when θ
+moves far enough to shift them.
+
+<!-- Measured on constant rain: the front's position and sharpness against lma,
+hmat, a_dG1 and a_st1. To be filled from plant-dev/schedtest/traits. -->
