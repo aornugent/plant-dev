@@ -228,6 +228,17 @@ ladder falls by the square law (resident move ratio 4.03, invader 3.94, ln J
 4.19), and (Q1 − Q2)/3 reads 1.32 of Q2's move to the next level against the
 honest 4/3.
 
+**Across the bank** (`measurements/breakpoints.md`):
+- Edge nodes give the square law and an honest pair estimate on episodic, dry,
+  long-wet and long drought (ratios 3.7–4.2, estimates 1.23–1.32 against 4/3).
+- Constant's breakpoint is a front in survival about 0.01 day wide. With nodes
+  every 1/512 day there, its ladder converges by the square law, about 13ε from
+  the old reference, which is biased.
+- A run's own creation record finds the edges, and a run could place them as
+  they happen. Rain and soil without plants cannot find them.
+- On edge-aligned grids the map's ranking predicts the move from bisecting to
+  1.00×.
+
 **Open:** the constant invader's reference; a
 TF24 default built from the cheap schedules above (few nodes in the first
 days, late spacing well under 2 years, the constant front at about half-hour
