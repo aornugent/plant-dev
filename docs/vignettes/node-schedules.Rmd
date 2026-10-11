@@ -212,6 +212,19 @@ only uptake dries the top layer far enough to shut it.
 - **On a schedule with edges as nodes, the drop map ranks intervals correctly.**
   Bisecting the 17 panels it ranked highest moved ln J by +0.002851, against a
   prediction of +0.002851.
+- **The estimate holds only once the start resolves what the dynamics guarantee:**
+  the founders' first-mover layer, and the founders' approach to a front. A
+  structure narrower than the spacing moves little when coarsened, so the map
+  rates it low.
+  - Starting from 108 even nodes plus edges, two map-driven passes reach ε at
+    833k, 1471k and 1660k rows on episodic, dry and long-wet. Uniform bisection
+    needs 1319k, 2752k and 3231k for the same.
+  - The final ln J estimate matches the error within 10–50%.
+  - Starting from 54 nodes, the passes stop early, with dry's estimate 13 times
+    too small.
+- **Fronts are found by bisection on forward runs.** Bisect the neighbour pair
+  whose sign-change counts differ. On constant rain, five rounds of runs with
+  about 100 nodes place the front to 0.0003 day, at every trait setting tried.
 
 # Across records
 
@@ -241,5 +254,10 @@ The traits move the breaks by moving where P = 0:
 A schedule built at one θ therefore needs its edges and fronts re-read when θ
 moves far enough to shift them.
 
-<!-- Measured on constant rain: the front's position and sharpness against lma,
-hmat, a_dG1 and a_st1. To be filled from plant-dev/schedtest/traits. -->
+On constant rain:
+- lma ×0.8 and ×1.25 move the front from day 23.6 to 27.1 and 18.9.
+- hmat ×0.8 and ×1.25 move it to days 45–50 and 10–12.
+- The storage traits move it by under a day, but set its sharpness: the rise in
+  mortality across the next quarter day is 42, 84 and 153 at a_dG1 ×0.5, ×1
+  and ×2.
+- In every setting it sits where a node's sign-change count goes from 0 to 2.
