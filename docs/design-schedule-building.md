@@ -216,7 +216,19 @@ map is exact about what nodes do, but an interval's error does not fall
 four-fold when it is bisected while the field part is off the square law.
 W8's per-interval certificate fails for the same reason.
 
-**Open:** why placed grids lose an order; the constant invader's reference; a
+**Why the error was not predictable** (`measurements/predictable-error.md`).
+Two unresolved features act through the water the J-earning cohorts see after
+t ≈ 10:
+- rule v2's 270–540-day spacing of births after b = 16;
+- the corners in fate at creation-window edges, where an interval straddling an
+  edge interpolates its counted cohorts from a node in the closed gap.
+
+With late births every 34 days and a node at each of the 84 edges, the nested
+ladder falls by the square law (resident move ratio 4.03, invader 3.94, ln J
+4.19), and (Q1 − Q2)/3 reads 1.32 of Q2's move to the next level against the
+honest 4/3.
+
+**Open:** the constant invader's reference; a
 TF24 default built from the cheap schedules above (few nodes in the first
 days, late spacing well under 2 years, the constant front at about half-hour
 spacing); whether a three-level order or a safety factor of about 2 is the
