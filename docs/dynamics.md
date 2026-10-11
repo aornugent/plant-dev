@@ -163,8 +163,20 @@ own trait: on constant, (ln J′)″ ≈ −2.5e4, a radius of 0.0075 in ln lma.
 - **Openings follow rain; closings follow uptake and shade.** A probe of the
   soil needs the stand's uptake to place closings.
 - **Breakpoint positions shift with the compensation and race traits; their
-  strength with the buffer traits.** Testable: on constant rain the front
-  should move with lma and hmat (race and compensation), and should sharpen as
-  a_dG1 rises or a_st1 falls (buffer).
+  strength with the buffer traits.** Measured on constant rain (forward runs,
+  nodes every 1/16 day; registered in `schedtest/traits/prereg.md`):
+
+  | setting | front (birth day) | end-mortality rise over the next 0.25 day |
+  |---|---|---|
+  | base | 23.56 | 84 |
+  | lma ×0.8 / ×1.25 | 27.13 / 18.88 | 111 / 5.2 |
+  | hmat ×0.8 / ×1.25 | 45.0–50.4 / 9.9–11.8 | (0.42 → 71) / (0.69 → 86) across the bracket |
+  | a_dG1 ×0.5 / ×2 | 23.29 / 24.00 | 42 / 153 |
+  | a_st1 ×0.5 / ×2 | 23.38 / 24.25 | 105 / 40 |
+
+  - lma and hmat move the front by 4–24 days. The buffer traits move it by
+    0.2–0.7 days and set its sharpness.
+  - lma also weakens it (5.2 at ×1.25), so compensation acts on strength as well.
+  - In every setting the front sits where the sign-change count goes 0 → 2.
 - **Elasticity cliffs appear where θ creates or removes a tangency.** The
   invader's cliff at θ′ = θ on constant is one.

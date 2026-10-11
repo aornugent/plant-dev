@@ -1,0 +1,14 @@
+base     J   289.380 | front at day  23.563 (previous node  23.500; counts 0 -> 2) | end-mortality rise over 0.25 d   83.98
+lma08    J   871.102 | front at day  27.125 (previous node  27.062; counts 0 -> 2) | end-mortality rise over 0.25 d  110.61
+lma125   J    19.698 | front at day  18.875 (previous node  18.812; counts 0 -> 2) | end-mortality rise over 0.25 d    5.20
+hmat08   J   748.670 | front at day      NA (previous node      NA; counts NA -> NA) | end-mortality rise over 0.25 d      NA
+hmat125  J    51.498 | front at day      NA (previous node      NA; counts NA -> NA) | end-mortality rise over 0.25 d      NA
+dG1h     J   288.799 | front at day  23.287 (previous node  23.250; counts 0 -> 2) | end-mortality rise over 0.25 d   41.85
+dG1d     J   290.129 | front at day  24.000 (previous node  23.938; counts 0 -> 2) | end-mortality rise over 0.25 d  153.16
+st1h     J   303.550 | front at day  23.375 (previous node  23.312; counts 0 -> 2) | end-mortality rise over 0.25 d  104.80
+st1d     J   268.048 | front at day  24.250 (previous node  24.188; counts 0 -> 2) | end-mortality rise over 0.25 d   40.17
+
+hmat runs, from their own sign-change counts (the front lies outside days 10-45):
+  hmat x0.8:  counts 0 -> 2 between days 45.000 and 50.444; end mortality 0.42 -> 70.93
+  hmat x1.25: counts 0 -> 2 between days 9.899 and 10.872; end mortality 0.69 -> 85.98 across 10.872 -> 11.844
+Predictions 1-3 held (prereg.md).
