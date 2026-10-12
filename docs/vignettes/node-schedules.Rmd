@@ -272,18 +272,19 @@ front read its error honestly from the first pass. It had every quantity within 
 the second pass. A start with only 16 even nodes before the front misread the sign at
 first and took seven passes.
 
-One more break matters for gradients but not for J. An edge sits where a newborn's net
-production crosses zero, so a trait that shifts that crossing moves the edge. Fate has
-a corner at the edge, so the trait's derivative of fate jumps there. AD differentiates
-the sum with the nodes held still, and interpolating across a jump errs at first order
-in the spacing beside the edge.
+One more error matters for gradients but hardly for J. On dry, root_P50's elasticity
+converged at a ratio of 1.93 when only the intervals touching edges were halved; J
+converged at 9.05 on the same schedules. Where each edge node sits does not carry it:
+moving every edge node inside its open window, past the root found by the run before,
+left the ratio at 1.85. It sits in the births of the weeks before a closing:
 
-On dry, root_P50's elasticity converged at a ratio of 1.93 when only the intervals
-touching edges were halved; J converged at 9.05 on the same schedules. root_P50 sets
-the soil water at which roots stop conducting, so it moves openings and closings more
-than most traits. Placing edge nodes in the run, at the moment the crossing happens,
-makes each node's birth date a function of θ. The sweep then differentiates through
-the crossing.
+- graded nodes up to 8 days before each closing moved root_P50 as far as halving every
+  interval touching an edge, at a fifth of the move in J;
+- extending them to 32 days took it to three quarters of the first-order limit;
+- finer nodes within those 8 days changed nothing, and nodes after openings nothing.
+
+Fate and its root_P50 derivative are smooth over those births. Most likely they act
+through the stand's environment, the soil they draw down; that is not yet traced.
 
 Invaders, walked on the resident's schedule, were within ε wherever the resident was.
 The coarsening read every invader quantity's error within ×2, with a correlation of
