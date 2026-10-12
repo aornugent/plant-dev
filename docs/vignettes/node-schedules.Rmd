@@ -280,6 +280,15 @@ bisecting everything:
 On episodic, dry, long-wet and long drought this read its schedule's error within
 1–26%, at 22–29% fewer rows than the bisection.
 
+ln J is not the quantity that binds. At ln J's stop, an elasticity was over ε on four
+of five pulsed settings. The same central coarsening reads every quantity:
+- run the coarse schedule C once more with its gradient;
+- (C − H)/3 estimates each quantity's error. It flagged all 14 quantities over ε, with
+  a correlation of 0.76–0.99 against the error.
+- The extrapolation H + (H − C)/3 put all 48 resident quantities within ε on all five
+  settings after one pass, with medians of 0.02–0.08ε.
+- The pair costs about what the bisection alone does.
+
 # Across records
 
 Nested ladders on 108 even introductions with edges added. The ratio is that

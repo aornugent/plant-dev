@@ -113,9 +113,57 @@ Truth is G's error per interval from the map on B (`censcore.R`).
   is small.
 - It costs 22–29% fewer rows than certifying with the bisection.
 
+## The loop certified by the hybrid coarsening, and every quantity's estimate
+
+`central/refine_hyb.R` runs the map on H each pass and stops when H's ln J estimate is
+under ε/2, with no elasticity guard. It starts from dy on the five pulsed settings.
+
+| setting | passes | H rows | ln J error / estimate | worst | over ε |
+|---|---|---|---|---|---|
+| episodic | 2 | 656k | −0.284 / −0.287 | 0.58 | 0 |
+| dry | 1 | 1203k | −0.370 / −0.389 | 1.06 | 1 |
+| long-wet | 1 | 1455k | +0.104 / +0.104 | 1.07 | 1 |
+| long drought | 1 | 2427k | −0.016 / −0.015 | 1.00 | 1 |
+| episodic lma ×1.25 | 1 | 486k | −0.362 / −0.349 | 1.47 | 10 |
+
+**The ln J estimate is within 0–5% on every pass. But ln J does not bind:** at its stop,
+elasticities exceed ε on four of five settings.
+
+**Every quantity from one more run** (`elcert.R`).
+- Every node dropped in H's coarsening C is central, so (C − H)/3 estimates each
+  quantity's error.
+- This takes one forward and gradient run on C, which has about half H's nodes.
+- Columns are for the quantities with |error| over ε/3.
+
+| setting | quantities | estimate within ×2 | over ε | flagged by estimate over ε/2 | correlation | H + C rows |
+|---|---|---|---|---|---|---|
+| episodic | 5 | 3 | 1 | 1 | 0.90 | 886k |
+| dry | 10 | 8 | 1 | 1 | 0.76 | 1767k |
+| long-wet | 9 | 9 | 1 | 1 | 0.99 | 2154k |
+| long drought | 10 | 10 | 1 | 1 | 0.99 | 3611k |
+| episodic lma ×1.25 | 33 | 32 | 10 | 10 | 0.99 | 711k |
+
+- Every quantity over ε is flagged (14 of 14).
+- The estimate is within ×2 for 60–100% of the quantities over ε/3. That holds the
+  registered 80% on four settings and fails on episodic.
+- The misses are root_P50 (wrong sign on episodic and dry) and
+  storage_relaxation_offset.
+
+**The extrapolation H + (H − C)/3** (`extrap.R`) takes every quantity within ε on all
+five settings after one pass.
+
+| setting | H: worst / median | extrapolated: worst / median |
+|---|---|---|
+| episodic | 1.42 / 0.112 | 0.47 / 0.036 |
+| dry | 1.06 / 0.208 | 0.91 / 0.025 |
+| long-wet | 1.07 / 0.110 | 0.15 / 0.025 |
+| long drought | 1.00 / 0.201 | 0.17 / 0.018 |
+| episodic lma ×1.25 | 1.47 / 0.653 | 0.47 / 0.076 |
+
 ## Open
 
 - The hybrid certificate inside the loop.
-- Stopping without the elasticity guard when pass 0's estimate is under ε/2.
+- The stop rule on every quantity's estimate, and the extrapolated answer's own error.
+- root_P50's misread estimate.
 - Constant's front at the bisection level.
 - Invaders: not yet scored on these schedules.

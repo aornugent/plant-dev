@@ -27,3 +27,23 @@ setting: no soil alone, no split), constant (the front-graded start of round 3: 
 and episodic at lma x1.25 (dy start from its own first pass). References: long-wet
 u215 + (u429 - u215)/3; long drought pf ld_D u215 + (u429 - u215)/3; constant cF2 +
 (cF4 - cF2)/3; lma x1.25 its matrix ladder L1 + (L1 - L2)/3.
+
+## The loop certified by the hybrid coarsening (registered before the runs)
+
+refine_hyb.R: each pass runs the map on H (G plus midpoints where no central drop of G
+reaches), stops when H's estimate is under eps/2 (no elasticity guard), else bisects
+the intervals of G carrying 70% of |estimate|. Starts dy; records episodic, dry,
+long-wet, long drought, episodic lma x1.25.
+Predictions: every pass's estimate within 30% of H's ln J error (or 0.1 eps when the
+error is under 0.3 eps); the final H within eps on >= 95% of resident quantities; the
+final H's rows below the bisection loop's pass-0 rows on each record.
+
+## Result of the hybrid loop, and an elasticity certificate (registered before the runs)
+
+The hybrid loop's ln J estimate was within 0-5% on every pass, but at its ln J stop four of
+five settings had elasticities over eps (worst 1.00-1.47; lma x1.25 10 of 48).
+Test: every dropped node of H's coarsening C is central, so (C - H)/3 should estimate
+each quantity's error. One forward + gradient run on C per pass-0 schedule.
+Prediction: per quantity, (C - H)/3 within a factor 2 of H's error for >= 80% of the
+quantities whose error exceeds eps/3; and every quantity over eps flagged (estimate
+over eps/2).
