@@ -1,4 +1,4 @@
-# Why root_P50's certificate misreads: first-order error before closings
+# Why root_P50's certificate misreads: cancelling parts and wide late intervals
 
 On the hybrid schedules of `central.md`, the central coarsening reads almost every
 quantity's error within ×2. root_P50's resident elasticity is the exception:
@@ -19,86 +19,87 @@ are in `root-p50/` (`prereg.md`).
 | 2 | H4: late spacing | coarsen or bisect only late births (after the founders' window), or only founders | late births carry all of it (+1.04ε then −0.32ε, ratio −3.3); founders follow the square law (ratio 4.2); the parts add up |
 | 3 | is the bisected late spacing asymptotic? | halve the late intervals again | moves −0.32ε then −0.15ε: first order |
 | 4 | H1′: misplaced closings | move each closing node to the nearest closing of H's own run (median shift 0.16 day) | ladder unchanged (+1.06, −0.29, −0.18ε): rejected (its rule left the nodes on the shut side; round 6 tests that) |
-| 5 | H5: moving corner | bisect only the late intervals that touch an edge, or only those that do not | first order beside edges (below) |
+| 5 | H5: moving corner | bisect only the late intervals that touch an edge, or only those that do not | ratio 1.93 beside edges; explained by round 12 |
 | 6 | H6: edge nodes on the shut side of the run's own root | move every edge node inside its open window | ladder unchanged: rejected |
 | 7 | H7: a layer of days beside the edge | graded nodes before closings, or after openings | closings carry it, openings none |
 | 8 | H8: the layer is wider than 8 days | extend the nodes before closings to 32 days, or refine within 8 | wider moves it, finer does not |
+| 9 | H9: through the soil, from births before closings | field-adjoint map at ±2% on Hoea | soil carries it; not concentrated before closings |
+| 10 | H10: a kink in birth date | local ladder in two wide intervals, to 8.4-day nodes | square law, no kink: rejected |
+| 11 | H11: the season of birth | late-uniform ladders on dry and on dry without its season | the seasonless record converges no better: rejected |
+| 12 | H12: parts that cancel, each on the square law | field-adjoint map per late interval, two levels | holds |
 
-## Where the error is
+## Root cause
 
-**Round 5.** On dry, 277 of the 313 late intervals touch an edge.
+**root_P50's error is a sum of interval parts of both signs, and the total is a quarter
+of their magnitude** (round 12, `score12.R`). The field-adjoint map at ±2% on H's
+all-late bisections gives each late interval of H its own move at two levels:
 
-| refinement | root_P50 move | ln J move |
+| | first bisection | second bisection |
 |---|---|---|
-| H → late intervals touching an edge bisected | −0.54ε | +0.398ε |
-| → those halves touching the edge bisected again | −0.28ε (ratio 1.93) | +0.044ε (ratio 9.05) |
-| H → late intervals touching no edge bisected | +0.24ε | +0.094ε |
-| H → all late intervals bisected | −0.32ε | +0.492ε |
-| → all late intervals bisected again | −0.15ε (ratio 2.1) | +0.122ε (ratio 4.05) |
+| map total | −0.348ε (measured −0.32ε) | −0.154ε (measured −0.15ε) |
+| sum of magnitudes | 1.479ε | 0.360ε |
+| positive parts | +0.566ε | +0.070ε (ratio 8.1) |
+| negative parts | −0.913ε | −0.224ε (ratio 4.1) |
 
-**Two parts of opposite sign make up root_P50's error.**
-- *Near edges:* a part that converges at first order in the spacing beside an edge.
-- *Elsewhere:* a smaller part that converges by the square law.
+- **Each interval follows the square law.** Over the 17 intervals with a move above
+  0.02ε, the second move is a median 0.231 of the first (quartiles 0.20–0.26; the
+  square law gives 0.25).
+- **The total does not.** It is the small difference of larger parts that reach the
+  square law at different spacings, so its successive moves keep a ratio near 2.
+- **Wide intervals are the ones not yet on the square law.** By the width of H's
+  interval:
 
-They partly cancel, so the uniform moves look erratic. The coarsening also misjudges
-them, since its estimate assumes the square law throughout.
+  | width | intervals moving over 0.005ε | off the square law | share of Σ\|m1\| |
+  |---|---|---|---|
+  | 45–80 d | 10 | 0 | 0.43ε |
+  | 80–110 d | 7 | 1 | 0.20ε |
+  | over 110 d | 15 | 4 | 0.81ε |
 
-**J does not share the first-order part** on the same schedules. Rounds 6 to 8
-narrow down where it is.
+  The over-110-day intervals carry over half the magnitude, and some change sign
+  between levels (for example 12.22: +0.084ε, then −0.011ε).
+- **J's parts are not like this.** J converges by the square law on the same grids
+  (ratios 4–9), so a J-driven refinement leaves the wide late intervals alone.
 
-**Not where the edge node sits** (round 6, `mkopen.R`, `score6.R`).
-- The pilot's rule puts edge nodes on the shut side of the run's own root: for 92 of
-  137 roots at +2% and 123 of 136 at −2% (`side.R`). It takes the end of the last
-  step above 0.01 for a closing and the start of the first for an opening.
-- Ho moves each edge node inside its window: 0.5 d before a closing's root step,
-  0.1 d after an opening's, against both ±2% runs. 122 of 123 stay inside on Ho's own
-  runs.
-- The ladder barely changes: Ho → Hoea → Hoea2 moves −0.461ε then −0.249ε (ratio
-  1.85).
+**What carries it.**
+- The soil: the map puts +0.585ε of a +0.484ε move through soil, against −0.055ε
+  through light and −0.046ε in the births' own fate (round 9).
+- It acts on the founders' fate, 10–20 years after the births it comes from (`parts.R`,
+  `score9.R`).
+- The root_P50 derivative of late births' fate varies over months of birth date: ±0.1
+  within 0.74 years at b = 12, with an annual period on seasonal dry. The record's
+  season is not necessary for it: on dry without its season (round 11) the late ladder
+  converges no better.
 
-The run's record finds each root to within its step (median 0.17–0.27 d). Over 4% of
-root_P50, closings move by 0.18 d (median; 90% within 0.49 d) and openings by 0.014 d
-(`travel.R`).
-
-**In births before closings** (rounds 7 and 8, `mkcollar.R`, `mkcollar2.R`,
-`score7.R`). Moves from Ho:
-
-| schedule | added nodes | root_P50 | ln J |
-|---|---|---|---|
-| Hoea: edge-touching late intervals bisected | 244 | −0.461ε | +0.383ε |
-| Hoea2: those halves bisected again | 489 | −0.710ε | +0.424ε |
-| Hoc: 0.25–8 d before each closing, graded | 293 | −0.420ε | +0.078ε |
-| Hoo: 0.1–8 d after each opening, graded | 484 | −0.023ε | +0.018ε |
-| Hocw: Hoc plus 12, 16, 24, 32 d | 454 | −0.692ε | +0.195ε |
-| Hocd: Hoc refined within 8 d | 592 | −0.415ε | +0.078ε |
-
-Ho's ladder extrapolated at first order puts the limit at −0.922ε from Ho.
-
-- Openings carry none of it.
-- Births up to 32 d before closings carry three quarters of it.
-- Finer nodes within 8 d add nothing.
-- The other quarter is not yet located.
-
-**Fate is smooth there** (`profile.R`). On Hocw's ±2% runs, over the 60 d before
-three closings:
-- fate (net reproduction) is smooth in birth date;
-- so are its root_P50 derivative and cumulative mortality;
-- the count established there is small (0–0.05 per node).
-
-So these births most likely act through the stand's environment, the soil they draw
-down. The earlier coarsenings also found the field part, through soil, converging at
-ratios of 1.7–2.5 (`estimate-shortfall.md`).
+**How the earlier rounds read it.**
+- Rounds 5–8 refined subsets: intervals touching an edge, or nodes before closings.
+- Each subset holds parts of one mix of signs. Refining it moves the total by however
+  much that mix fails to cancel, so the ratios (1.93, 1.85) and the collar results
+  reflect which intervals were chosen, not a first-order term.
+- Round 6 changed edge nodes only, and changed nothing.
+- Round 10 refined one interval and found the square law.
 
 ## What follows
 
-- **Edge nodes need not be placed in the run.** Where an edge node sits does not carry
-  the error. The previous run's record finds each root to within a fraction of a day,
-  which is enough for the schedule to place them.
-- **A schedule rule works today:** graded nodes over the weeks before each closing of
-  the previous run, at about the cost of bisecting the edge-touching intervals.
-- **Next root-cause step:** split those births' move into its own part and its field
-  part (soil, light) with the field-adjoint map. Then find why the field part converges
-  at first order there.
-- **The certificate.** For a quantity whose move ratio is near 2 rather than 4, the
-  error is about the move itself, not a third of it. A per-quantity order read from
-  three levels would catch this, at the price of a third run.
+- **The late spacing must resolve the derivatives, not only J.** On dry, late
+  intervals of 45–80 days are on the square law for root_P50; over 110 days, a quarter
+  are not. A late-interval cap of about 70 days is a start-rule knob. The uniform late
+  ladder at 0.185 years (68 d) met the square law (ratio 4.21, round 11).
+- **Certificates per quantity, not per total.** A quantity whose parts cancel has an
+  estimated total that is a difference of large numbers. The map supplies each
+  interval's part, so the loop can:
+  - refine by the magnitudes, as it already does for J;
+  - flag a quantity whose |Σe| is well under Σ|e|.
+- **Edges need no special nodes for this.** Edge placement, in-run nodes and collars
+  have no part in it. Edges stay nodes for J's sake (`breakpoints.md`), placed from the
+  previous run's record.
+
+## Files
+
+`root-p50/`: pre-registrations (`prereg.md`, rounds 1–12) and scripts:
+- `ladders.R`, `partial.R`, `where.R`, `realign.R`, `mkea.R`: rounds 1–5;
+- `side.R`, `travel.R`, `mkopen.R`, `score6.R`: round 6;
+- `mkcollar.R`, `mkcollar2.R`, `score7.R`, `profile.R`: rounds 7 and 8;
+- `parts.R`, `soilmove.R`, `spike.R`, `score9.R`: round 9;
+- `score10.R`, `period.R`: round 10;
+- `laneUL.sh`, `score11.R`: round 11;
+- `score12.R`: round 12.

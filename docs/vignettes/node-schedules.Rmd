@@ -273,18 +273,21 @@ the second pass. A start with only 16 even nodes before the front misread the si
 first and took seven passes.
 
 One more error matters for gradients but hardly for J. On dry, root_P50's elasticity
-converged at a ratio of 1.93 when only the intervals touching edges were halved; J
-converged at 9.05 on the same schedules. Where each edge node sits does not carry it:
-moving every edge node inside its open window, past the root found by the run before,
-left the ratio at 1.85. It sits in the births of the weeks before a closing:
+moved by ratios near 2 under refinement while J moved by 4 to 9, and the coarsening
+misread its error. Tracing the moves to individual intervals (with the field-adjoint
+map at two levels) explained it:
 
-- graded nodes up to 8 days before each closing moved root_P50 as far as halving every
-  interval touching an edge, at a fifth of the move in J;
-- extending them to 32 days took it to three quarters of the first-order limit;
-- finer nodes within those 8 days changed nothing, and nodes after openings nothing.
+- each late interval's part converges by the square law (median ratio 0.23 against
+  0.25);
+- the parts carry both signs, and their total is a quarter of their magnitude, so the
+  total's moves need not fall four-fold;
+- the late intervals over 110 days are the ones not yet on the square law, and they
+  carry over half the magnitude. root_P50's derivative varies over months of birth
+  date, through the soil the late births draw down, where J's integrand barely does.
 
-Fate and its root_P50 derivative are smooth over those births. Most likely they act
-through the stand's environment, the soil they draw down; that is not yet traced.
+So the late spacing has to resolve the derivatives as well as J: on dry, late intervals
+of 45 to 80 days were all on the square law. And a quantity whose parts cancel needs
+its per-interval parts, not only its total, before its estimate can be trusted.
 
 Invaders, walked on the resident's schedule, were within ε wherever the resident was.
 The coarsening read every invader quantity's error within ×2, with a correlation of

@@ -137,3 +137,94 @@ sits at -0.710. On Hocw's +-2% runs, fate (nrr), its root_P50 derivative and
 cumulative mortality are smooth in birth date over the 60 d before closings
 (profile.R), so the part these nodes resolve acts through the stand's environment,
 not through the fate of the births themselves.
+
+## Round 9 (registered before its runs)
+
+parts.R splits each grid's root_P50 elasticity into births' counts and fates, for
+founders (b < 3.529) and late births, with J = k sum(w_i nrr_i) (k common to every run
+within 0.05 eps). Along H's ladder the founders' fate carries the first-order move:
+-0.465 then -0.215 eps (ratio 2.16); the late births' own counts and fates move by
+under 0.07 eps. From Ho: Hoea -0.414, Hoea2 -0.611, Hoc -0.325, Hocw -0.540 eps in the
+founders' fate. So the error enters through the environment the late births make, and
+acts on the founders.
+H9: it enters through the soil (not light), from late panels before closings.
+Test: the field-adjoint map on Hoea with its coarsening Ho, at root_P50 +-2%; the
+difference of the two maps over 0.04, divided by J, is each dropped node's field part
+of the elasticity move Hoea -> Ho, by channel (light, soil) and by age band after birth.
+Predictions if H9: the map's field total is within 30% of the measured founders'-fate
+move (+0.414 eps); soil carries at least 80% of it; the panels within 32 d before a
+closing carry most of it.
+
+## Round 9 result, and round 10 (registered before its runs)
+
+Round 9 (score9.R). On the map's build, el(Ho) - el(Hoea) measures +0.461 eps; the map
+predicts +0.484 (own -0.046, field +0.530: light -0.055, soil +0.585). The soil part
+acts 10-20 years after the dropped births (+0.496 of it). It is not concentrated before
+closings (+0.15 within 32 d of one, +0.26 over 90 d away). It is concentrated in a few
+panels with alternating signs: the dropped node at 12.033 alone carries +0.353, its
+neighbours 12.403 and 11.305 -0.09 and -0.08. H9 holds for the channel (soil) and fails
+for the place.
+AD check: Hoea's AD elasticity is -1.258 at +2% and -1.409 at -2%; the central
+difference (-1.325) is within 0.8 eps of their mean (-1.334). root_P50's curvature in
+ln J is large (about 3.8), like lma's.
+H10: cohorts born on either side of some birth date b* behave differently in the soil
+years later (one side reaches a switch, the other does not), so the stand's uptake has
+a kink in birth date at b*(t, theta). The quadrature of uptake is then second order in
+J but first order in its theta derivative, as b* moves.
+Test: a local ladder in Ho's two intervals around 12.033 ([11.845, 12.587], 137 and
+134 d): L1 adds their midpoints, L2 quarters, L3 eighths, L4 sixteenths (8.5 d).
++-2% central differences.
+Predictions if H10: (1) the moves L0 -> L1 -> L2 -> L3 -> L4 fall with ratios near 2,
+not 4; (2) on L4 some per-node quantity at the run's end (cumulative mortality, height,
+or its root_P50 derivative) changes slope sharply at a birth date in the window, and
+the moves concentrate in the panels next to it.
+
+## Round 10 result, and round 11 (registered before its runs)
+
+Round 10 (score10.R): the local ladder around 12.03 moves root_P50 -0.239, -0.065,
+-0.031, -0.010 eps (ratios 3.68, 2.07, 3.08); ln J +0.075, +0.018, +0.005, +0.001.
+Near the square law; no kink: fate, height, mortality and their root_P50 derivatives
+are smooth over 8.4-day nodes. H10 rejected. But the root_P50 derivative of fate
+swings by +-0.1 within the 0.74 years shown.
+period.R, on Hoea2: the late births' d ln nrr / d ln root_P50 has its dominant period
+at 0.99 years, sd 0.29 about a level of -1.18. The dry record's rain is seasonal:
+1.06 mm/d in the first month, 0.05 in the seventh.
+H11: the trait derivative of late births' fate and uptake swings with their season of
+birth. Late spacing of 0.37 years (under three nodes a year) under-samples that annual
+cycle, so refinement is pre-asymptotic until the spacing is a small fraction of a
+year. J's integrand swings far less, so J converges by the square law.
+Test: one founders' grid (H's nodes before 3.529), then uniform late spacing of 0.37,
+0.185, 0.0925 and 0.046 years, on dry and on dry-flat (the same record generator at
+season amplitude 0). +-2% central differences.
+Predictions if H11: on dry-flat the late ladder's ratios are within [2.5, 6] from the
+first halving; on dry the first ratio is outside [2.5, 6] and the ratio reaches it
+only once the spacing is 0.0925 years or finer.
+
+## Round 11 result, and round 12 (registered before its runs)
+
+Round 11 (score11.R), late-uniform ladders (0.37, 0.185, 0.0925, 0.046 y), no edge nodes:
+- dry: root_P50 moves +0.850, -0.246, -0.058 eps (ratios -3.46, 4.21); ln J +0.073,
+  +0.178, +0.050.
+- dry-flat: +0.366, -0.378, -0.180 eps (ratios -0.97, 2.10); ln J +0.344, +0.210,
+  +0.069.
+H11 rejected: without its season the record converges no better.
+Every ratio so far is of a total over all intervals, a sum of signed parts. H12: each
+interval's part follows the square law once resolved, and the totals' ratios near 2
+come from parts of opposite sign that reach the square law at different spacings.
+Test: the field-adjoint map at +-2% on BHlate (coarsening H) and on BH2late
+(coarsening BHlate), the all-late bisection ladder of round 3 (ratio 2.1). For each
+late interval i of H: m1_i, the predicted move of dropping its midpoint; m2_i, the sum
+for dropping its two quarter points.
+Predictions if H12: (1) the map's totals match the measured moves (-0.32, -0.15 eps)
+within 30%; (2) over intervals with |m1_i| above 0.02 eps, the median of m2_i / m1_i
+is within [0.15, 0.35] (square law 0.25); (3) sum(m1) / sum(m2) is near 2 because
+positive and negative parts differ in ratio, not because a typical interval's ratio
+is 0.5.
+
+## Round 12 result
+
+Map totals -0.348 and -0.154 eps (measured -0.32, -0.15). Over the 17 intervals with
+|m1| > 0.02 eps the median m2/m1 is 0.231 (quartiles 0.198, 0.260). Positive parts:
++0.566 then +0.070 (ratio 8.1); negative: -0.913 then -0.224 (ratio 4.1); sum |m1|
+1.479 against |sum m1| 0.348. H12 holds. Intervals over 110 d: 4 of 15 off the square
+law, carrying 0.81 of 1.48 eps of |m1|; 45-80 d: none of 10.
