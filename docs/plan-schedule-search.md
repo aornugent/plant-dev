@@ -12,10 +12,9 @@ cases fails the held-out ones.
 - **T_find** is the CPU time of every run the algorithm makes before it commits to a
   schedule: the pilot, each pass, and each certificate run.
 - **T_use** is the CPU time of one gradient run on the committed schedule.
-- **k** is the number of runs one schedule serves. It is 10 by default, about one local
-  analysis: the resident gradient, a few invaders, a curvature chord. A fast schedule
-  that takes an hour to find loses to a slower one found in minutes. Scores are also
-  reported at k = 1 and k = 30, so the choice of k stays visible.
+- **k** is the number of runs one schedule serves. It is 2: finding a schedule counts
+  nearly as much as one use of it. A fast schedule that takes an hour to find loses to
+  a slower one found in minutes. Scores are also reported at k = 1 and k = 10.
 
 
 **Feasibility.** The objectives of `OBJECTIVES.md` are constraints, not the target. A
@@ -27,8 +26,9 @@ feasible algorithm meets these on every case:
   quantities with error over ε/3.
 - **C4 never fails:** no throw and no refusal.
 
-**Quantities:** ln J, the 48 resident elasticities (without `recruitment_decay`), and an
-invader with the resident's traits.
+**Quantities:** ln J and the 48 resident elasticities (without `recruitment_decay`).
+Invaders are checked in Phase 5; on these schedules they have been within ε wherever
+the resident was (`central.md`).
 
 Out of scope: curvatures; the ODE tolerance, held at the `nr` setting; the
 implementation in plant.
@@ -110,7 +110,7 @@ Score on the evaluator:
   ε/2;
 - `dy70` with one certificate.
 
-Their T, at k = 1, 10 and 30, is the number to beat.
+Their T, at k = 1, 2 and 10, is the number to beat.
 
 ## Phase 4: generate, test in parallel, combine
 
@@ -168,6 +168,6 @@ for the plant issues.
 |---|---|---|
 | 1 | done: all three checks pass on dry and episodic | Phase 2 |
 | 2 | axes filled; evaluator exact on stored runs; additivity within 0.1ε; seconds per evaluation | Phase 3 |
-| 3 | incumbent and dy70 scored at k = 1, 10, 30 | Phase 4 |
+| 3 | incumbent and dy70 scored at k = 1, 2, 10 | Phase 4 |
 | 4 | two rounds without a 2% gain, eight rounds, or an infeasible round not understood | Phase 5, or root cause |
 | 5 | winner passes held-out, prediction and reproducibility checks | rules into the spec |
