@@ -17,7 +17,7 @@ HELDOUT <- list(
   `dry-flat` = list(rec = "dry-flat", trait = "", set = "nr", seed = "", weight = "dry", pilot = "m_ho_dry-flat_f"),
   `ld-102` = list(rec = "long-drought", trait = "", set = "pf", seed = "102", weight = "long-drought", pilot = "m_ho_ld-102_f"),
   `ld-105` = list(rec = "long-drought", trait = "", set = "pf", seed = "105", weight = "long-drought", pilot = "m_ho_ld-105_f"),
-  `dry-p50` = list(rec = "dry", trait = "root_P50=-0.2", set = "nr", seed = "", weight = "dry", pilot = "m_ho_dry-p50_f"),
+  `dry-p50` = list(rec = "dry", trait = "root_P50=0.2", set = "nr", seed = "", weight = "dry", pilot = "m_ho_dry-p50up_f"),
   `wet-adG2` = list(rec = "long-wet", trait = "a_dG2=0.25", set = "nr", seed = "", weight = "long-wet", pilot = "m_ho_wet-adG2_f"))
 case_of <- function(case) if (!is.null(CASES[[case]])) CASES[[case]] else HELDOUT[[case]]
 F_LEVELS <- c(8, 16, 32, 64)
