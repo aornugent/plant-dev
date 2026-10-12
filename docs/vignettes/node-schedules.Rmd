@@ -272,6 +272,19 @@ front read its error honestly from the first pass. It had every quantity within 
 the second pass. A start with only 16 even nodes before the front misread the sign at
 first and took seven passes.
 
+One more break matters for gradients but not for J. An edge sits where a newborn's net
+production crosses zero, so a trait that shifts that crossing moves the edge. Fate has
+a corner at the edge, so the trait's derivative of fate jumps there. AD differentiates
+the sum with the nodes held still, and interpolating across a jump errs at first order
+in the spacing beside the edge.
+
+On dry, root_P50's elasticity converged at a ratio of 1.93 when only the intervals
+touching edges were halved; J converged at 9.05 on the same schedules. root_P50 sets
+the soil water at which roots stop conducting, so it moves openings and closings more
+than most traits. Placing edge nodes in the run, at the moment the crossing happens,
+makes each node's birth date a function of θ. The sweep then differentiates through
+the crossing.
+
 Invaders, walked on the resident's schedule, were within ε wherever the resident was.
 The coarsening read every invader quantity's error within ×2, with a correlation of
 0.99–1.00 against the error.
