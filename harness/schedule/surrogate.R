@@ -28,7 +28,7 @@ fit_case <- function(case) {
 }
 
 # The evaluator's lookup, replaced: stored points exactly, anything else from the fit.
-SCORER <- Sys.getenv("SCORER", "2")
+SCORER <- Sys.getenv("SCORER", "3")
 # Version 3: every run carries its own time-stepping noise, Gaussian at 0.04 eps (the
 # spread under +-5% tolerance nudges and about real runs, search/jitter.R); points off the
 # stored levels add the fit's own error, smooth in (f, l), zero at stored levels and 0.1 eps
