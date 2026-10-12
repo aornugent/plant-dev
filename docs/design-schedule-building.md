@@ -244,3 +244,47 @@ TF24 default built from the cheap schedules above (few nodes in the first
 days, late spacing well under 2 years, the constant front at about half-hour
 spacing); whether a three-level order or a safety factor of about 2 is the
 certificate to ship.
+
+## Localised refinement, revisited (12 October)
+
+The lattice search (`plan-schedule-search.md`) could only choose two numbers: the
+founders' node count f and one late spacing l. It could not place nodes where the
+error is made. The map-driven loop of `refinement.md` was set aside after it stalled
+in round 3, and each cause of that stall has since been found and removed:
+
+| why map-driven refinement stalled | removed by | source |
+|---|---|---|
+| bisecting top-ranked intervals moved J the wrong way | edges as nodes: the ranking then predicts the move at 1.00× | `breakpoints.md` |
+| the estimate read 1/2 to 1/3 of the error | dropped nodes central: the map run on the bisection | `estimate-shortfall.md` |
+| wide late intervals were off the square law | late intervals of 70 d or less | `root-p50.md` |
+| the stop read ln J only | an elasticity certificate from the pass-to-pass move | `refinement.md` |
+
+**J's map ranks the elasticities' error too.** On dry's all-late bisection, the 149
+late intervals with drops, root_P50's elasticity map against J's (`jrank.R`):
+- the magnitudes rank alike: Spearman 0.92;
+- J's top quarter of intervals holds 89% of Σ|elasticity move|, and the half above
+  J's median holds 99%;
+- J's parts share one sign (Σ|J| 0.50ε against |ΣJ| 0.49ε); the elasticity's cancel
+  (1.48ε against 0.35ε).
+
+So J's map, at 4–11% of a sweep, says where every quantity's error is. The
+elasticities need a finer level of those intervals than J, but not other intervals.
+*Measured on one case and one quantity; to confirm on episodic and long-wet, and in
+the founders' window.*
+
+**The strategy.** Each pass bisects, in one batch, every interval whose share of J's
+error is over a threshold. Each pass's run is the coarse half of the next pass's
+certificate.
+1. The pilot (paid) gives the edges and b1.
+2. Start: the edges, each gap between them filled with 2^m equal intervals, so that
+   founders' intervals are at most b1/16 and late ones at most 70 d. Every interval is
+   on the square law and every drop is central.
+3. Run with the map on. Bisect the fewest intervals that carry a share s of Σ|J's
+   move|.
+4. Run the new grid. Its move from the last pass reads every quantity's error in the
+   bisected intervals: (Q_k − Q_{k+1})/3 for the new grid. The intervals left alone
+   carry the rest, 1 − s of J's ranked share.
+5. Stop when every quantity's estimate is under its budget; otherwise go to 3.
+
+The threshold s and the budget are the only knobs. The late tail after b ≈ 25 needs
+no rule: R(b) is small there, its intervals rank low and stay coarse.
