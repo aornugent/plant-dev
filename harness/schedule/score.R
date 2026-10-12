@@ -11,11 +11,17 @@
 # error estimates). `use` lists every run one later use of the answer needs.
 # Target: T = T_find + 2 T_use summed over cases, in CPU seconds; feasible when on every
 # case every quantity is within eps (C1), every error over eps/2 has an estimate over
-# eps/4 (C2), and estimates are within x2 for 80% of errors over eps/3 (C3).
+# eps/4 (C2), and estimates are within x2 for 80% of the quantities whose error or estimate
+# exceeds eps/3 (C3). The answer must come from the runs in `use`. STRESS=n also scores n
+# draws with off-lattice predictions perturbed by the surrogate's error.
 suppressMessages(source("/home/user/plant-dev/harness/schedule/surrogate.R"))
 a <- commandArgs(TRUE); env <- new.env(); sys.source(a[1], env)
 alg <- function(ctx) { ctx$case <- NULL; env$algorithm(ctx) }
 orig_run_guard <- function(f, l) f >= 8 && f <= 128 && l >= 8.75 && l <= 140
+draws <- as.integer(Sys.getenv("STRESS", "0"))
+if (draws > 0) { ok <- c(); tot <- c()
+  for (d in seq_len(draws)) { STRESS <<- d; for (n in ls(CACHE, pattern = "^fit:")) NULL; rr <- evaluate(alg); ok <- c(ok, rr$feasible); tot <- c(tot, rr$T) }
+  cat(sprintf("STRESS %d draws (off-lattice predictions perturbed by 0.1 eps): feasible in %d, T %.0f-%.0f\n", draws, sum(ok), min(tot), max(tot))); STRESS <<- 0 }
 r <- evaluate(alg)
 tab <- r$table; tab$T <- round(tab$T); tab$T_find <- round(tab$T_find); tab$T_use <- round(tab$T_use); tab$worst <- round(tab$worst, 3)
 print(tab, row.names = FALSE, right = FALSE)

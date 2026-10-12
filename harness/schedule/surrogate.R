@@ -3,6 +3,7 @@
 # levels (Richardson between neighbours), extrapolated to h -> 0 on the square law, and
 # the regions add about the centre (16, 70). Cost: rows linear in node count, per case.
 source("/home/user/plant-dev/harness/schedule/evaluate.R")
+STRESS <- 0
 
 fit_case <- function(case) {
   lib <- cached(paste0("lib:", case), function() load_library(case))
@@ -32,6 +33,14 @@ lookup <- function(lib, f, l, f0 = 16, l0 = 70) {
   if (!is.null(p)) return(list(q = p$q, rows = p$rows, exact = TRUE))
   fit <- cached(paste0("fit:", attr(lib, "case")), function() fit_case(attr(lib, "case")))
   q <- fit$q(f, l); if (is.null(q)) return(NULL)
+  # STRESS = draw: perturb each prediction by the surrogate's measured error (0.1 eps).
+  if (STRESS > 0) {
+    # Interpolation error is zero at stored levels and smooth between them: one draw per
+    # quantity, scaled by 4t(1 - t) of the point's fractional place between levels.
+    frac <- function(x, xs) { xs <- sort(xs); i <- findInterval(x, xs); if (i < 1 || i >= length(xs)) return(1); t <- (x - xs[i]) / (xs[i + 1] - xs[i]); 4 * t * (1 - t) }
+    w <- max(frac(1 / f^2, (1 / F_LEVELS)^2), frac(l^2, L_LEVELS^2))
+    set.seed(STRESS); z <- rnorm(length(q)); names(z) <- names(q)
+    q <- q + z * 0.1 * w * eps_vec(names(q)) }
   list(q = q, rows = fit$rows(f, l), exact = FALSE)
 }
 load_library_plain <- load_library

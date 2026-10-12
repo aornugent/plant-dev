@@ -75,8 +75,17 @@ evaluate_case <- function(alg, case, lib = cached(paste0("lib:", case), function
   out <- alg(ctx)
   t_use <- sum(vapply(out$use, function(u) run_cost(lookup(lib, round(u[1]), u[2])$rows), 0))
   k <- Reduce(intersect, list(names(out$answer), names(ref), names(out$estimate)))
+  # The answer must come from the runs a use pays for: one run's own quantities, or two
+  # runs combined by one factor common to every quantity.
+  uq <- lapply(out$use, function(u) lookup(lib, round(u[1]), u[2])$q[k])
+  from_use <- if (length(uq) == 1) isTRUE(all.equal(unname(out$answer[k]), unname(uq[[1]]), tolerance = 1e-10)) else {
+    d <- uq[[2]] - uq[[1]]; i <- which.max(abs(d)); c0 <- (out$answer[k][i] - uq[[2]][i]) / d[i]
+    isTRUE(all.equal(unname(out$answer[k]), unname(uq[[2]] + c0 * d), tolerance = 1e-8)) }
+  if (!from_use) stop("answer does not come from the runs in `use`")
   e <- eps_vec(k); err <- (out$answer[k] - ref[k]) / e; est <- abs(out$estimate[k]) / e
-  big <- abs(err) > 1 / 3
+  # Honesty is judged on every quantity whose error or estimate exceeds eps/3, so an
+  # over-estimate fails as an under-estimate does.
+  big <- pmax(abs(err), est) > 1 / 3
   list(case = case, T_find = spent, T_use = t_use, T = spent + K_USE * t_use,
     worst = max(abs(err)), C1 = all(abs(err) <= 1), C2 = all(est[abs(err) > 0.5] > 0.25),
     C3 = if (any(big)) mean(est[big] >= abs(err[big]) / 2 & est[big] <= 2 * abs(err[big])) >= 0.8 else TRUE,
