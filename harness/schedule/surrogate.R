@@ -28,8 +28,24 @@ fit_case <- function(case) {
 }
 
 # The evaluator's lookup, replaced: stored points exactly, anything else from the fit.
+SCORER <- Sys.getenv("SCORER", "2")
+# Version 3: every run carries its own time-stepping noise, Gaussian at 0.04 eps (the
+# spread under +-5% tolerance nudges and about real runs, search/jitter.R); points off the
+# stored levels add the fit's own error, smooth in (f, l), zero at stored levels and 0.1 eps
+# between them (leave-one-level-out). Every point is charged its fitted cost.
+jitter3 <- function(case, f, l, keys, stored) {
+  tag <- sum(utf8ToInt(case)); n <- length(keys)
+  set.seed(STRESS * 1e7 + tag * 1e4 + round(f) * 37 + round(l * 8)); run <- rnorm(n) * 0.04
+  fit <- 0
+  if (!stored) { frac <- function(x, xs) { xs <- sort(xs); i <- findInterval(x, xs); if (i < 1 || i >= length(xs)) return(1); t <- (x - xs[i]) / (xs[i + 1] - xs[i]); 4 * t * (1 - t) }
+    w <- max(frac(1 / f^2, (1 / F_LEVELS)^2), frac(l^2, L_LEVELS^2)); set.seed(STRESS * 1e7 + tag); fit <- rnorm(n) * 0.1 * w }
+  (run + fit) * eps_vec(keys) }
 lookup <- function(lib, f, l, f0 = 16, l0 = 70) {
   p <- lib[[sprintf("%s/%s", format(f), format(l))]]
+  if (SCORER == "3") { case <- attr(lib, "case"); fit <- cached(paste0("fit:", case), function() fit_case(case))
+    q <- if (!is.null(p)) p$q else fit$q(f, l); if (is.null(q)) return(NULL)
+    if (STRESS > 0) q <- q + jitter3(case, f, l, names(q), !is.null(p))
+    return(list(q = q, rows = fit$rows(f, l), exact = !is.null(p))) }
   if (!is.null(p)) return(list(q = p$q, rows = p$rows, exact = TRUE))
   fit <- cached(paste0("fit:", attr(lib, "case")), function() fit_case(attr(lib, "case")))
   q <- fit$q(f, l); if (is.null(q)) return(NULL)

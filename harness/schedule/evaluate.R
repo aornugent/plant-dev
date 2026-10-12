@@ -82,13 +82,15 @@ evaluate_case <- function(alg, case, lib = cached(paste0("lib:", case), function
     d <- uq[[2]] - uq[[1]]; i <- which.max(abs(d)); c0 <- (out$answer[k][i] - uq[[2]][i]) / d[i]
     isTRUE(all.equal(unname(out$answer[k]), unname(uq[[2]] + c0 * d), tolerance = 1e-8)) }
   if (!from_use) stop("answer does not come from the runs in `use`")
-  e <- eps_vec(k); err <- (out$answer[k] - ref[k]) / e; est <- abs(out$estimate[k]) / e
+  e <- eps_vec(k); err <- (out$answer[k] - ref[k]) / e; sest <- out$estimate[k] / e; est <- abs(sest)
+  signed <- any(sest < 0)   # a signed estimate must have the error's sign; a bound need not
   # Honesty is judged on every quantity whose error or estimate exceeds eps/3, so an
   # over-estimate fails as an under-estimate does.
   big <- pmax(abs(err), est) > 1 / 3
   list(case = case, T_find = spent, T_use = t_use, T = spent + K_USE * t_use,
     worst = max(abs(err)), C1 = all(abs(err) <= 1), C2 = all(est[abs(err) > 0.5] > 0.25),
-    C3 = if (any(big)) mean(est[big] >= abs(err[big]) / 2 & est[big] <= 2 * abs(err[big])) >= 0.8 else TRUE,
+    C3 = if (any(big)) mean(est[big] >= abs(err[big]) / 2 & est[big] <= 2 * abs(err[big]) & (!signed | sign(sest[big]) == sign(err[big]) | !exists("SCORER") | SCORER != "3")) >= 0.8 else TRUE,
+    C5 = !exists("SCORER") || SCORER != "3" || all(est <= 1),   # no answer committed with its own estimate over eps
     path = paste(path, collapse = " > "), err = err, est = est)
 }
 
@@ -96,5 +98,6 @@ evaluate <- function(alg, cases = names(CASES)) {
   res <- lapply(cases, function(cs) tryCatch(evaluate_case(alg, cs), error = function(e) list(case = cs, error = conditionMessage(e))))
   tab <- do.call(rbind, lapply(res, function(r) if (!is.null(r$error)) data.frame(case = r$case, T = NA, T_find = NA, T_use = NA, worst = NA, C1 = FALSE, C2 = FALSE, C3 = FALSE, path = r$error) else
     data.frame(case = r$case, T = r$T, T_find = r$T_find, T_use = r$T_use, worst = r$worst, C1 = r$C1, C2 = r$C2, C3 = r$C3, path = r$path)))
-  list(table = tab, T = sum(tab$T), feasible = all(tab$C1 & tab$C2 & tab$C3, na.rm = FALSE), detail = res)
+  c5 <- vapply(res, function(r) if (is.null(r$C5)) TRUE else r$C5, TRUE)
+  list(table = tab, T = sum(tab$T), feasible = all(tab$C1 & tab$C2 & tab$C3 & c5, na.rm = FALSE), detail = res)
 }
