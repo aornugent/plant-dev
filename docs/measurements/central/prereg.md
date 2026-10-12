@@ -47,3 +47,12 @@ each quantity's error. One forward + gradient run on C per pass-0 schedule.
 Prediction: per quantity, (C - H)/3 within a factor 2 of H's error for >= 80% of the
 quantities whose error exceeds eps/3; and every quantity over eps flagged (estimate
 over eps/2).
+
+## Constant: the default ladder plus a front rule (registered before the run)
+
+dyc: node_schedule_times_default's early grading to 0.37 yr spacing, then 0.37 yr;
+nodes every 1/512 day over the located front (-0.01 to +0.05 day); spacing graded by
+x1.5 outward from the band until it meets the ladder (227 nodes). Same loop (refine_h.R).
+Prediction: prediction 1 (estimate within 30% or 0.1 eps) holds from pass 0, and all
+48 resident quantities are within eps in at most 3 passes (the front-graded start of
+the last round needed 7).

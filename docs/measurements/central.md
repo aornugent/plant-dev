@@ -160,6 +160,45 @@ five settings after one pass.
 | long drought | 1.00 / 0.201 | 0.17 / 0.018 |
 | episodic lma ×1.25 | 1.47 / 0.653 | 0.47 / 0.076 |
 
+## Invaders
+
+Stand plus an invader with the resident's traits, both with gradients, through
+`run_record.R` on each hybrid schedule H and its central coarsening C (`inv/invscore.R`).
+
+| setting | invaders over ε on H | flagged | estimate within ×2 (over ε/3) | correlation | extrapolated worst |
+|---|---|---|---|---|---|
+| episodic | 0 | — | 2 of 2 | 1.00 | 0.08 |
+| dry | 0 | — | 2 of 2 | 0.99 | 0.06 |
+| long-wet | 4 | 4 | 28 of 28 | 1.00 | 0.13 |
+| long drought | 2 | 2 | 26 of 26 | 1.00 | 0.06 |
+| episodic lma ×1.25 | 0 | — | 18 of 18 | 1.00 | 0.10 |
+
+- The certificate catches every invader quantity over ε.
+- It is within ×2 for every invader quantity over ε/3.
+- The extrapolation leaves the worst invader quantity at 0.13ε.
+- Invaders are better behaved than residents on these schedules.
+
+## Constant: the default ladder plus a front rule
+
+Start `dyc` (`central/mkconst2.R`):
+- `node_schedule_times_default`'s early grading, up to 0.37 yr spacing;
+- nodes every 1/512 day over the front found by sign-change bisection;
+- spacing graded ×1.5 outward from the band until it meets the ladder (227 nodes).
+
+| start | pass | B rows | ln J error / estimate | worst | over ε |
+|---|---|---|---|---|---|
+| dyc | 0 | 960k | +0.093 / +0.085 | 1.13 | 1 |
+| | 1 | 958k | −0.005 / +0.045 | 0.79 | 0 |
+| | 2 | 960k | −0.013 / +0.007 | 0.58 | 0 |
+| front-graded (previous) | 0 | 370k | −0.037 / +0.112 | 4.19 | 2 |
+| | 6 | 402k | −0.002 / −0.002 | 0.54 | 0 |
+
+- The estimate is honest from pass 0, and every quantity is within ε at pass 1 instead
+  of pass 6.
+- Each pass costs more: the default ladder's 60 nodes before 0.1 yr run the whole
+  lifetime.
+- Over all passes, 2.9M rows against 2.6M. The early grading is a knob to trim.
+
 ## Open
 
 - The hybrid certificate inside the loop.

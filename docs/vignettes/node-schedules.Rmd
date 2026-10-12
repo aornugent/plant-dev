@@ -267,9 +267,14 @@ the first pass:
 | episodic, lma ×1.25 | dyadic, snapped | 3 | 1110k | −0.028ε / −0.036ε | 0.13ε |
 | constant | front-graded | 7 | 402k | −0.002ε / −0.002ε | 0.54ε |
 
-On constant rain the first two passes misread the sign of the error, and the race
-traits' elasticities took six passes. The front-graded start is not yet fine enough
-near the front for the bisection to be in the asymptotic range.
+On constant rain, a start with the default ladder's early grading and nodes across the
+front read its error honestly from the first pass. It had every quantity within ε at
+the second pass. A start with only 16 even nodes before the front misread the sign at
+first and took seven passes.
+
+Invaders, walked on the resident's schedule, were within ε wherever the resident was.
+The coarsening read every invader quantity's error within ×2, with a correlation of
+0.99–1.00 against the error.
 
 The cost of the honest estimate is the bisection: about twice the rows of the
 schedule it certifies. A cheaper certificate keeps every drop central without
