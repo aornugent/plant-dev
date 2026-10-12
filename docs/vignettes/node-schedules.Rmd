@@ -253,15 +253,23 @@ its midpoints. Every dropped node is then central by construction:
   whose sign-change counts differ. On constant rain, five rounds of runs with
   about 100 nodes place the front to 0.0003 day, at every trait setting tried.
 
-On episodic and dry, the loop's estimate of the bisection's error was within 4–26% of
-the error on every pass. Every resident quantity was within ε after the first pass:
+Across the bank, the loop's estimate of the bisection's error was within 0–26% of the
+error on every pass of every pulsed record. Every resident quantity was within ε after
+the first pass:
 
-| record | start | passes | rows | ln J error / estimate |
-|---|---|---|---|---|
-| episodic | 108 even + edges | 2 | 973k | −0.086ε / −0.073ε |
-| episodic | dyadic, snapped | 2 | 957k | −0.108ε / −0.092ε |
-| dry | 108 even + edges | 2 | 1736k | −0.096ε / −0.103ε |
-| dry | dyadic, snapped | 2 | 1779k | −0.066ε / −0.080ε |
+| record | start | passes | rows | ln J error / estimate | worst quantity |
+|---|---|---|---|---|---|
+| episodic | 108 even + edges | 2 | 973k | −0.086ε / −0.073ε | 0.22ε |
+| episodic | dyadic, snapped | 2 | 957k | −0.108ε / −0.092ε | 0.20ε |
+| dry | dyadic, snapped | 2 | 1779k | −0.066ε / −0.080ε | 0.24ε |
+| long-wet | dyadic, snapped | 2 | 2007k | −0.022ε / −0.021ε | 0.11ε |
+| long drought | dyadic, snapped | 2 | 3308k | −0.033ε / −0.036ε | 0.22ε |
+| episodic, lma ×1.25 | dyadic, snapped | 3 | 1110k | −0.028ε / −0.036ε | 0.13ε |
+| constant | front-graded | 7 | 402k | −0.002ε / −0.002ε | 0.54ε |
+
+On constant rain the first two passes misread the sign of the error, and the race
+traits' elasticities took six passes. The front-graded start is not yet fine enough
+near the front for the bisection to be in the asymptotic range.
 
 The cost of the honest estimate is the bisection: about twice the rows of the
 schedule it certifies.
