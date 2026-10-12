@@ -75,6 +75,9 @@ evaluate_case <- function(alg, case, lib = cached(paste0("lib:", case), function
   out <- alg(ctx)
   t_use <- sum(vapply(out$use, function(u) run_cost(lookup(lib, round(u[1]), u[2])$rows), 0))
   k <- Reduce(intersect, list(names(out$answer), names(ref), names(out$estimate)))
+  # Every quantity the runs and the reference share is scored; leaving one out is a refusal.
+  need <- intersect(names(ref), names(lookup(lib, round(out$use[[1]][1]), out$use[[1]][2])$q))
+  if (length(setdiff(need, k))) stop("answer or estimate leaves out ", paste(setdiff(need, k), collapse = ", "))
   # The answer must come from the runs a use pays for: one run's own quantities, or two
   # runs combined by one factor common to every quantity.
   uq <- lapply(out$use, function(u) lookup(lib, round(u[1]), u[2])$q[k])

@@ -35,7 +35,7 @@ SCORER <- Sys.getenv("SCORER", "3")
 # between them (leave-one-level-out). Every point is charged its fitted cost.
 jitter3 <- function(case, f, l, keys, stored) {
   tag <- sum(utf8ToInt(case)); n <- length(keys)
-  set.seed(STRESS * 1e7 + tag * 1e4 + round(f) * 37 + round(l * 8)); run <- rnorm(n) * 0.04
+  set.seed(STRESS * 1e7 + tag * 1e4 + round(f * 16) * 2000 + round(l * 8)); run <- rnorm(n) * 0.04
   fit <- 0
   if (!stored) { frac <- function(x, xs) { xs <- sort(xs); i <- findInterval(x, xs); if (i < 1 || i >= length(xs)) return(1); t <- (x - xs[i]) / (xs[i + 1] - xs[i]); 4 * t * (1 - t) }
     w <- max(frac(1 / f^2, (1 / F_LEVELS)^2), frac(l^2, L_LEVELS^2)); set.seed(STRESS * 1e7 + tag); fit <- rnorm(n) * 0.1 * w }

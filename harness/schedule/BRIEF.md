@@ -96,3 +96,18 @@ sources are under `docs/measurements/`.
     With jitter it crosses ε/3 unestimated, and C3 fails where only one or two
     quantities are over ε/3. An estimate must cover both regions: by additivity, the
     error is the founders' part plus the late part, each from its own nested pair.
+
+## Learned in generation 3 (three agents, about 110 candidates)
+
+20. **A pair that moves both regions at once sees both errors in one difference**:
+    (16, 70)/(32, 35), or a fine answer against a far coarse check such as (8, 140),
+    whose h² shrink of about 13 divides misreading and jitter alike.
+21. **Robust on 20 draws, below brute force (13248):** `g3_regions/c05_band2.R` at
+    10363, `g3_descent/c09_pilot_3way.R` at 11705. Both route on pilot thresholds
+    (a late-share band at 0.083; J < 0.5) that separate the training cases by as
+    little as 1.2×, so they are fitted to the bank, not derived. `g3_free/c13` (11152)
+    passed only through the draws' seeds, and fails once those were made unique.
+22. **The scorer now refuses** an answer or estimate that leaves out a quantity, and
+    gives every point its own jitter seed. Still open: one fit-error vector per case
+    and draw, so unstored points of equal weight cancel it; an all-positive estimate
+    is taken as a bound and skips the sign test.
