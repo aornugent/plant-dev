@@ -72,3 +72,27 @@ sources are under `docs/measurements/`.
 16. **Stored lattice points are real runs and carry no jitter.** f ∈ {8, 16, 32, 64} at
     l = 70, and l ∈ {140, 70, 35, 17.5} at f = 16, plus their region combinations.
     Every other point is interpolated, and its jitter shrinks as it nears stored levels.
+
+## Learned in generation 2 (four agents, about 55 candidates), rescored under v3
+
+17. **The scorer is v3.** Each run carries its own jitter (rms 0.04ε, measured from real
+    non-nested pairs and from ±5% `tol` nudges), and each unstored point adds a smooth
+    fit error up to 0.1ε. Estimates are signed: a signed estimate with the wrong sign
+    fails C3. C5: no answer is committed with its own estimate over ε. Robust means
+    feasible on all 20 draws (`STRESS=20`, the default).
+18. **No candidate passes all 20 draws but brute force.** Answering (32, 35) outright
+    costs T = 13248. The leaders pass 17–18: `g2_free/c08_pilot_route.R` (T_max 10433)
+    and `c10_route_wide.R` (10754). The seed and the nested ladders fail every draw: the
+    (16, 140) check gives wrong-sign estimates on long-wet, long drought and lma.
+19. **Why the leaders fail: a late pair cannot see the founders' error.** (32, 70)
+    against (32, 35) shares f = 32, so its estimate holds only the late part. At f = 32
+    the founders' part is up to about 0.25ε (noise-free):
+
+    | case, quantity | 32/70 | 64/70 | 32/35 | 64/35 |
+    |---|---|---|---|---|
+    | dry, TF24_cost_scale | 0.43 | 0.33 | 0.27 | 0.03 |
+    | long-wet, a | −0.41 | −0.25 | −0.29 | −0.13 |
+
+    With jitter it crosses ε/3 unestimated, and C3 fails where only one or two
+    quantities are over ε/3. An estimate must cover both regions: by additivity, the
+    error is the founders' part plus the late part, each from its own nested pair.

@@ -14,13 +14,13 @@
 # eps/4 (C2), and estimates are within x2 for 80% of the quantities whose error or estimate
 # exceeds eps/3 (C3). The answer must come from the runs in `use`. STRESS=n also scores n
 # draws with each off-lattice point given its own real-run jitter (rms 0.04 eps, heavy
-# tail), 5 by default; STRESS=0 skips it. A candidate counts as feasible only when it
+# tail), 20 by default; STRESS=0 skips it. A candidate counts as feasible only when it
 # is feasible on every draw, and its T is the largest over the draws.
 suppressMessages(source("/home/user/plant-dev/harness/schedule/surrogate.R"))
 a <- commandArgs(TRUE); env <- new.env(); sys.source(a[1], env)
 alg <- function(ctx) { ctx$case <- NULL; env$algorithm(ctx) }
 orig_run_guard <- function(f, l) f >= 8 && f <= 128 && l >= 8.75 && l <= 140
-draws <- as.integer(Sys.getenv("STRESS", "5"))
+draws <- as.integer(Sys.getenv("STRESS", "20"))
 if (draws > 0) { ok <- c(); tot <- c()
   for (d in seq_len(draws)) { STRESS <<- d; for (n in ls(CACHE, pattern = "^fit:")) NULL; rr <- evaluate(alg); ok <- c(ok, rr$feasible); tot <- c(tot, rr$T) }
   cat(sprintf("STRESS %d draws (off-lattice points with measured real-run jitter): feasible in %d, T %.0f-%.0f\n", draws, sum(ok), min(tot), max(tot))); STRESS <<- 0
