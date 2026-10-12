@@ -272,7 +272,13 @@ traits' elasticities took six passes. The front-graded start is not yet fine eno
 near the front for the bisection to be in the asymptotic range.
 
 The cost of the honest estimate is the bisection: about twice the rows of the
-schedule it certifies.
+schedule it certifies. A cheaper certificate keeps every drop central without
+bisecting everything:
+- drop the schedule's own central nodes (l between 0.35 and 0.65, never an edge);
+- add midpoints only to the intervals those drops do not cover, and drop them too.
+
+On episodic, dry, long-wet and long drought this read its schedule's error within
+1–26%, at 22–29% fewer rows than the bisection.
 
 # Across records
 

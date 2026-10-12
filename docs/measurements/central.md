@@ -96,12 +96,26 @@ Truth is G's error per interval from the map on B (`censcore.R`).
 - The uncovered ones hold 21% and 38% of the error, and nothing reads it. These are
   intervals between two protected nodes or too lopsided to drop.
 
-A certificate at G's cost would add midpoints only in the uncovered intervals and drop
-them along with the central nodes. That is not yet tested.
+**Hybrid certificate** (`central/mkhybrid.R`, `hybscore.R`).
+- H = G plus the midpoints of the uncovered intervals.
+- Its coarsening drops G's central nodes and those midpoints, so every dropped node is
+  central.
+- The estimate is Σ e·g(l) over the central drops plus Σ e/3 over the midpoints.
+
+| record (G from pass 1) | H nodes / G | H rows | B rows | H's error | estimate |
+|---|---|---|---|---|---|
+| episodic u108e | 1.50 | 695k | 973k | −0.260 | −0.257 |
+| dry dy | 1.56 | 1316k | 1779k | −0.215 | −0.272 |
+| long-wet dy | 1.61 | 1540k | 2007k | −0.026 | −0.013 |
+| long drought dy | 1.63 | 2581k | 3308k | −0.073 | −0.078 |
+
+- The estimate is honest on all four: within 1–26%, or within 0.013ε where the error
+  is small.
+- It costs 22–29% fewer rows than certifying with the bisection.
 
 ## Open
 
-- The cheaper certificate above.
+- The hybrid certificate inside the loop.
 - Stopping without the elasticity guard when pass 0's estimate is under ε/2.
 - Constant's front at the bisection level.
 - Invaders: not yet scored on these schedules.
