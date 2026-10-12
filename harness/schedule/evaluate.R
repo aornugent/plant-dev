@@ -55,7 +55,9 @@ lookup <- function(lib, f, l, f0 = 16, l0 = 70) {
 
 # Run one algorithm on one case. The algorithm calls ctx$run(f, l, gradient) for each
 # schedule it wants (charged to T_find), reads ctx$pilot, and returns
-# list(f, l, answer = named quantities, estimate = named |error| estimates).
+# list(use = list of c(f, l), answer = named quantities, estimate = named |error|
+# estimates). `use` is every point one later use needs: two when the answer is an
+# extrapolation.
 evaluate_case <- function(alg, case, lib = load_library(case), ref = reference(case)) {
   spent <- 0; path <- c()
   pilot <- readRDS(file.path(RUNS, paste0(CASES[[case]]$pilot, ".rds")))
@@ -64,11 +66,11 @@ evaluate_case <- function(alg, case, lib = load_library(case), ref = reference(c
     run = function(f, l, gradient = TRUE) { p <- lookup(lib, f, l); if (is.null(p)) stop(sprintf("no library point (%s, %s) for %s", f, l, case))
       spent <<- spent + run_cost(p$rows, gradient); path <<- c(path, sprintf("%s/%s", f, l)); p })
   out <- alg(ctx)
-  use <- lookup(lib, out$f, out$l)
+  t_use <- sum(vapply(out$use, function(u) run_cost(lookup(lib, u[1], u[2])$rows), 0))
   k <- Reduce(intersect, list(names(out$answer), names(ref), names(out$estimate)))
   e <- eps_vec(k); err <- (out$answer[k] - ref[k]) / e; est <- abs(out$estimate[k]) / e
   big <- abs(err) > 1 / 3
-  list(case = case, T_find = spent, T_use = run_cost(use$rows), T = spent + K_USE * run_cost(use$rows),
+  list(case = case, T_find = spent, T_use = t_use, T = spent + K_USE * t_use,
     worst = max(abs(err)), C1 = all(abs(err) <= 1), C2 = all(est[abs(err) > 0.5] > 0.25),
     C3 = if (any(big)) mean(est[big] >= abs(err[big]) / 2 & est[big] <= 2 * abs(err[big])) >= 0.8 else TRUE,
     path = paste(path, collapse = " > "), err = err, est = est)

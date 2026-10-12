@@ -22,5 +22,5 @@ incumbent <- function(case, tag = c(`episodic-lma` = "dylma")[case]) {
 one_point <- function(f = 16, l = 70) function(ctx) {
   a <- ctx$run(f, l); b <- ctx$run(f / 2, l * 2)
   k <- intersect(names(a$q), names(b$q))
-  list(f = f, l = l, answer = extrap(b$q[k], a$q[k]), estimate = (a$q[k] - b$q[k]) / 3)
+  list(use = list(c(f, l)), answer = a$q[k], estimate = (a$q[k] - b$q[k]) / 3)
 }
