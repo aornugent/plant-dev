@@ -63,8 +63,10 @@ evaluate_case <- function(alg, case, lib = load_library(case), ref = reference(c
   pilot <- readRDS(file.path(RUNS, paste0(CASES[[case]]$pilot, ".rds")))
   spent <- spent + run_cost(sum(findInterval(pilot$stand$times[-length(pilot$stand$times)], sort(pilot$stand$nodes$birth))), FALSE)
   ctx <- list(case = case, pilot = c(pilot_edges(case), list(J = pilot$stand$J)), eps = eps_vec,
+    pilot_nodes = data.frame(birth = pilot$stand$nodes$birth, nrr = pilot$stand$nodes$nrr),
     run = function(f, l, gradient = TRUE) { p <- lookup(lib, f, l); if (is.null(p)) stop(sprintf("no library point (%s, %s) for %s", f, l, case))
-      spent <<- spent + run_cost(p$rows, gradient); path <<- c(path, sprintf("%s/%s", f, l)); p })
+      key <- sprintf("%s/%s", f, l); if (key %in% path) return(p)   # a point already run costs nothing more
+      spent <<- spent + run_cost(p$rows, gradient); path <<- c(path, key); p })
   out <- alg(ctx)
   t_use <- sum(vapply(out$use, function(u) run_cost(lookup(lib, u[1], u[2])$rows), 0))
   k <- Reduce(intersect, list(names(out$answer), names(ref), names(out$estimate)))

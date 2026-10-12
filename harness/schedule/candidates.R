@@ -21,3 +21,28 @@ regional <- function(f = 16, l = 70, share = 0.5) function(ctx) {
   F <- min(lev(ef, share * e, f, TRUE), 64); L <- max(lev(el, (1 - share) * e, l, FALSE), 17.5)
   fin <- ctx$run(F, L); est <- ef / 4^log2(F / f) + el / 4^log2(l / L)
   list(use = list(c(F, L)), answer = fin$q[k], estimate = est) }
+
+# B1: regional coarsening. Certify (f, l) by coarsening each region alone; refine only
+# the region whose estimate exceeds its share of eps/2, using the square law for the
+# refined region's new estimate; stop when the sum is under eps/2.
+coarsen_regional <- function(f = 16, l = 70, share = 0.5, fmax = 64, lmin = 17.5) function(ctx) {
+  a <- ctx$run(f, l); cf <- ctx$run(f / 2, l); cl <- ctx$run(f, 2 * l)
+  k <- Reduce(intersect, list(names(a$q), names(cf$q), names(cl$q))); e <- ctx$eps(k) / 2
+  ef <- abs(a$q[k] - cf$q[k]) / 3; el <- abs(a$q[k] - cl$q[k]) / 3
+  repeat {
+    if (all(ef + el < e)) break
+    rf <- any(ef > share * e) && f < fmax; rl <- any(el > (1 - share) * e) && l > lmin
+    if (!rf && !rl) { rf <- f < fmax; rl <- l > lmin }
+    if (!rf && !rl) break
+    if (rf) { f <- 2 * f; ef <- ef / 4 }; if (rl) { l <- l / 2; el <- el / 4 }
+  }
+  fin <- ctx$run(f, l)
+  list(use = list(c(f, l)), answer = fin$q[k], estimate = ef + el) }
+
+# B2: B1 with the founders' starting level read from the pilot: the share of the
+# pilot's J earned in the founders' window, and how fast fate falls across it.
+pilot_led <- function(l = 70, share = 0.5, cut = 1.5) function(ctx) {
+  n <- ctx$pilot_nodes; b1 <- ctx$pilot$b1; i <- n$birth < b1
+  drop <- if (sum(i) > 2) max(abs(diff(log(pmax(n$nrr[i], 1e-12))))) else 0
+  f0 <- if (drop > cut) 32 else 16
+  coarsen_regional(f0, l, share)(ctx) }
