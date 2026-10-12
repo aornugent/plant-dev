@@ -1,164 +1,175 @@
-# Plan: a schedule builder chosen by search over a scored bank
+# Plan: search for the scheduling algorithm against a scored bank
 
-The goal is a set of rules that builds a birth-date schedule for any trait × rainfall
-case. Each built schedule has every quantity within ε, reports an honest error
-estimate, and costs the fewest rows. The mechanisms are now known:
-- `estimate-shortfall.md`: lopsided panels;
-- `central.md`: central coarsenings and the per-quantity certificate;
-- `breakpoints.md`: edges and fronts;
-- `root-p50.md`: parts that cancel, and wide late intervals.
+**What is searched:** the scheduling algorithm. That is the rules that turn what a
+pilot run reveals, and what later certificates report, into schedules and stop
+decisions. It is never a schedule for one case. A rule that fits only the training
+cases fails the held-out ones.
 
-So the remaining choices can be scored rather than argued. This plan fixes the
-objective first, then lets agents search the rules against it.
+**What is minimised:** the total time to a converged answer, summed over the bank:
 
-Out of scope here:
-- curvatures;
-- the ODE tolerance (held at the `nr` setting: tol 3e-5, the soil weight and window
-  of `central.md`);
-- the implementation in plant, which comes after, with its own issues.
+    T = T_find + k · T_use
 
-## Phase 1: does a late cap make the per-quantity certificate honest?
+- **T_find** is the CPU time of every run the algorithm makes before it commits to a
+  schedule: the pilot, each pass, and each certificate run.
+- **T_use** is the CPU time of one gradient run on the committed schedule.
+- **k** is the number of runs one schedule serves. It is 10 by default, about one local
+  analysis: the resident gradient, a few invaders, a curvature chord. A fast schedule
+  that takes an hour to find loses to a slower one found in minutes. Scores are also
+  reported at k = 1 and k = 30, so the choice of k stays visible.
 
-**Question.** With late intervals capped at 70 days, does the central coarsening read
-every resident quantity's error, root_P50 included, without per-interval maps at ±u?
-
-**Runs.** On dry and on episodic:
-- start `dy70`: `dy` with late spacing 70 d throughout, in place of 0.185 y then 0.37 y;
-  edges from the existing first pass; no base nodes while establishment is shut;
-- the hybrid H of `dy70` and its coarsening C, each with gradients.
-
-That is four runs. Errors are against the references of `central.md`.
-
-**Pass, if all three hold on both records:**
-1. every resident quantity with |error| > ε has an estimate over ε/2;
-2. the estimate (C − H)/3 is within ×2, with the right sign, for at least 80% of the
-   quantities with |error| > ε/3, root_P50 included;
-3. H + (H − C)/3 is within ε on every quantity.
-
-**Decision.**
-- Pass: the certificate needs no maps at ±u, and option (b) is dropped.
-- Fail on root_P50 only: (b) is kept as a component for flagged traits.
-- Fail more widely: stop, and root-cause before Phase 2.
-
-## Phase 2: the objective, the bank and the evaluator
-
-**The builder interface.** Agents change only this. One R file per component under
-`harness/schedule/`:
-- `start(pilot, case)`, which returns birth dates;
-- `certify(runs)`, which returns per-quantity estimates and per-interval ranks;
-- `refine(schedule, ranks)`, which returns a schedule;
-- `stop(estimates)`, which returns a decision and the reported answer.
-
-A builder is a list of these four functions and their knobs. It runs from a pilot to
-its own stop.
-
-**The evaluator** (`harness/schedule/evaluate.R`).
-- Fixed, and not edited by the search.
-- Runs a builder on every case, caching each run by (build, record, traits, schedule).
-- Scores each case against its reference.
-
-**Quantities scored:**
-- ln J;
-- the 48 resident elasticities (without `recruitment_decay`);
-- the invader quantities of an invader with the resident's traits.
-
-**Objective.** The fewest total rows over the bank, counting pilot, passes and
-certificate runs, subject to these hard constraints on every case:
+**Feasibility.** The objectives of `OBJECTIVES.md` are constraints, not the target. A
+feasible algorithm meets these on every case:
 - **C1 accurate:** every quantity of the reported answer is within ε.
 - **C2 no silent miss:** every quantity whose true error exceeds ε/2 has an estimate
   over ε/4.
 - **C3 honest:** the estimate is within ×2, with the right sign, for at least 80% of
   quantities with error over ε/3.
 - **C4 never fails:** no throw and no refusal.
-- **C5 deterministic:** the same builder on the same case gives the same rows.
 
-A builder that breaks a constraint on any case is infeasible. Among feasible
-builders, the score is total rows; ties go to the smaller worst error.
+**Quantities:** ln J, the 48 resident elasticities (without `recruitment_decay`), and an
+invader with the resident's traits.
 
-**The bank.**
+Out of scope: curvatures; the ODE tolerance, held at the `nr` setting; the
+implementation in plant.
 
-| set | cases | references |
-|---|---|---|
-| training | constant, dry, episodic, long-wet, long drought, episodic lma ×1.25 | exist (`refinement.md`, `central.md`) |
-| held-out | dry-flat, two long-drought weather seeds of `eps-spread.md`, dry root_P50 ×0.8, long-wet a_dG2 ×1.25 | to build |
+**Fast feedback is the design constraint.** An agent must score a candidate algorithm
+over the whole training bank in seconds, not by running simulations. So candidates are
+scored offline against a library of stored runs. Real runs fill the library in the
+background and validate the winner.
 
-Held-out cases never steer the search; they only accept or reject its winner.
+## Phase 1 (done): a late cap makes the per-quantity certificate honest
 
-**References.** Each is three uniform levels plus front nodes on constant, u215 → u429
-→ u857, extrapolated from the two finest. A reference is accepted for a quantity when
-its last ratio lies in [2.5, 6] or its last move is under ε/5. A quantity that fails
-this on a case is dropped from that case's score and listed.
+`dy` with late intervals capped at 70 d (`dy70`), hybrid H and coarsening C, on dry and
+episodic:
 
-**Done when:**
-- every training and held-out reference is built and checked;
-- the evaluator reproduces the incumbent's recorded numbers (the hybrid loop from `dy`,
-  `central.md`) within 0.05ε;
-- a repeat evaluation hits the cache for every run.
+| case | H worst | over ε | read within ×2 (over ε/3) | extrapolated worst | H cost, forward + sweep |
+|---|---|---|---|---|---|
+| episodic, dy | 1.42ε | 1 | 3 of 5 | 0.47ε | 67 + 219 s |
+| episodic, dy70 | 0.54ε | 0 | 1 of 1 | 0.36ε | 84 + 253 s |
+| dry, dy | 1.06ε | 1 | 8 of 10 | 0.91ε | 131 + 471 s |
+| dry, dy70 | 0.65ε | 0 | 18 of 18 | 0.44ε | 160 + 474 s |
 
-## Phase 3: the baseline
+- All three checks pass on both records.
+- root_P50 is under ε/3 on both: +0.15ε and +0.29ε, inside its reference's ±0.2ε.
+- So the certificate needs no maps at ±u, and option (b) is dropped. Scripts are in
+  `schedtest/p1`.
 
-Score these on the training bank:
-- the incumbent;
-- the incumbent with the Phase 1 decision (`dy70`, and the certificate it settled).
+## Phase 2: the lattice, the library and the offline evaluator
 
-Their costs and constraint margins are the numbers to beat.
+**The lattice.** Every schedule an algorithm can request is a point on a per-case
+lattice. Its axes are the choices the mechanisms showed to matter:
+- founders' window: 8, 16, 32 or 64 even nodes over [0, b1);
+- late spacing: 140, 70, 35 or 17.5 d;
+- edges from the pilot: on or off. Base nodes born while establishment is shut are
+  dropped at every level;
+- constant's front band: none, or nodes every 1/512 d across the front, graded ×1.5
+  outward.
 
-**Done when** both are scored, with each constraint's margin per case.
+The levels on each axis are nested, so adjacent levels are a run and its central
+coarsening. Each point's certificate then comes from its neighbour, with no extra run.
 
-## Phase 4: the search
+**The library.** Per case, one gradient run at each level of each axis, the others held
+at a middle level: about eight runs a case. Each stored run carries:
+- its answer;
+- its measured CPU time (forward and sweep);
+- its edges.
 
-**Agents.** Six at most, one per component direction:
-- the start: founders' grading, late cap, edges from the pilot;
-- the constant front;
-- the certificate: central window, extrapolation;
-- refinement: the share refined, ranking by magnitude, which quantities rank;
-- the stop rule;
-- one free agent, which recombines the leaders.
+An off-axis point (founders' level f with late level l) is predicted by additivity
+across the two regions:
 
-**Rounds.**
-1. In each round an agent proposes up to two builders.
-2. Each candidate is screened on episodic and constant, the two cheapest training
-   cases that exercise pulses and the front.
-3. Candidates that pass screening are scored on the whole training bank.
-4. Every agent sees the leaderboard, with per-case margins and costs, before the next
-   round.
+    Q(f, l) ≈ Q(f, l0) + Q(f0, l) − Q(f0, l0)
 
-**Budget.**
-- At most 40 full training-bank evaluations.
-- At most four rounds.
-- Shared runs come from the cache.
+Round 2 of `root-p50.md` found the founders' and late parts additive. The stored
+library already has many of these points, or points close to them: the uniform
+ladders, `dy`, `dy70`, the hybrid and bisection passes, and the late-uniform ladders.
+The fill computes only what is missing.
 
-A full evaluation is about 18M rows, roughly 25 minutes of wall time on this machine's
-four cores.
+**The evaluator** (`harness/schedule/evaluate.R`, fixed; agents do not edit it).
+- It replays a candidate algorithm on each case:
+  - every schedule request is answered from the library;
+  - every request is charged that run's stored CPU time;
+  - an off-axis request is answered by additivity, at the cost of the run it stands
+    for.
+- It returns T, C1–C4 with their margins, and the path the algorithm took.
 
-**The search stops at the first of:**
-- two consecutive rounds in which the best feasible cost improves by under 5%;
-- the budget spent;
-- no feasible builder after two rounds. Then the search stops, and the failing case is
-  root-caused by systematic debugging, not tuned around.
+**Done when all of these hold:**
+- every training-case axis is filled;
+- the evaluator reproduces each stored lattice run exactly;
+- additivity is checked on four real off-axis runs (two cases × two points), with every
+  quantity within 0.1ε of its prediction. If it fails, the full product is filled on
+  the cases that fail;
+- one candidate's evaluation over the training bank takes under 10 s.
 
-## Phase 5: acceptance
+The fill runs once in the background: about two hours of wall time on this machine.
+Training cases go first.
 
-The cheapest feasible builder is the winner. It is accepted when, on the held-out bank:
-- C1–C5 hold on every case;
-- reproducibility holds: on dry and episodic, `tol` ±5%, and introductions shifted by a
-  quarter of their spacing, each move every quantity by under ε/3;
-- invaders at lma ×0.5 and ×2 are within ε on dry and episodic.
+## Phase 3: baseline
 
-**If it is rejected:**
-- the next feasible builder is tried;
-- if none passes, the failing held-out case joins the training bank and Phase 4
-  resumes, once.
+Score on the evaluator:
+- the incumbent: the hybrid loop from `dy`, passes until the ln J estimate is under
+  ε/2;
+- `dy70` with one certificate.
 
-**Done when** a winner is accepted. Its rules then go into the vignette and the design
-spec, ready for the plant issues.
+Their T, at k = 1, 10 and 30, is the number to beat.
 
-## Order and stopping, in short
+## Phase 4: the agent search
+
+**Agents.** Up to six.
+- Each writes algorithms as R functions behind one interface:
+  - `start(pilot)` returns a lattice point;
+  - `next(point, certificate)` returns a lattice point or a stop.
+- Each scores them with the evaluator in seconds, as often as it likes.
+- Directions, one per agent:
+  - the pilot (stand run, soil-alone probe, or none) and the features read from it;
+  - the start point as a function of those features;
+  - refinement steps;
+  - the stop and extrapolation rule;
+  - constant's front;
+  - one agent recombining the leaders.
+- Every agent sees a shared leaderboard of T and constraint margins, per case.
+
+**Stopping.** The search stops at the first of:
+- the best feasible T improves by under 2% over the last 50 evaluations across all
+  agents;
+- two hours of wall time;
+- no feasible algorithm after 30 minutes. Then the constraint that fails is
+  root-caused before the search resumes.
+
+**When an idea needs schedules off the lattice**, such as a late spacing that varies by
+year band, the lattice gains an axis. The additivity check is repeated for it, and the
+background fill adds its runs. The search never waits on a simulation.
+
+## Phase 5: validation with real runs
+
+The winner and the runner-up are run end to end with real simulations, not the
+library, on the held-out bank:
+- dry without its season;
+- two long-drought weather seeds;
+- dry root_P50 ×0.8;
+- long-wet a_dG2 ×1.25.
+
+References for these are built in the background during Phases 2–4: uniform u215,
+u429, u857 plus front nodes on constant, extrapolated, and checked per quantity.
+
+**Accepted when:**
+- C1–C4 hold on every held-out case;
+- the real T is within 20% of the evaluator's prediction on the training cases;
+- reproducibility holds: `tol` ±5%, and introductions shifted by a quarter of their
+  spacing, each move every quantity by under ε/3, on dry and episodic.
+
+**If not accepted:**
+- the runner-up is tried;
+- if both fail, the failing held-out case joins training, and Phase 4 resumes once.
+
+Then the accepted algorithm's rules go into the vignette and the design spec, ready
+for the plant issues.
+
+## Stopping criteria, in short
 
 | phase | stops when | next |
 |---|---|---|
-| 1 | the three checks are read on both records | Phase 2, with (a) or (b) settled |
-| 2 | references built and checked; evaluator reproduces the incumbent; cache works | Phase 3 |
-| 3 | incumbent and its Phase-1 variant scored | Phase 4 |
-| 4 | improvement under 5% for two rounds, budget spent, or nothing feasible | Phase 5 or root cause |
-| 5 | a winner passes held-out, reproducibility and invader checks | rules into the spec |
+| 1 | done: all three checks pass on dry and episodic | Phase 2 |
+| 2 | axes filled; evaluator exact on stored runs; additivity within 0.1ε; under 10 s per evaluation | Phase 3 |
+| 3 | incumbent and dy70 scored at k = 1, 10, 30 | Phase 4 |
+| 4 | under 2% gain over 50 evaluations, 2 h, or nothing feasible in 30 min | Phase 5 or root cause |
+| 5 | winner passes held-out, prediction and reproducibility checks | rules into the spec |
