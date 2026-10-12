@@ -19,8 +19,7 @@ incumbent <- function(case, tag = c(`episodic-lma` = "dylma")[case]) {
 
 # One lattice point, certified by its coarsening in both regions; reports the
 # extrapolation.
-one_point <- function(f = 16, l = 70) function(ctx) {
+one_point <- function(f = 16, l = 70) { force(f); force(l); function(ctx) {
   a <- ctx$run(f, l); b <- ctx$run(f / 2, l * 2)
   k <- intersect(names(a$q), names(b$q))
-  list(use = list(c(f, l)), answer = a$q[k], estimate = (a$q[k] - b$q[k]) / 3)
-}
+  list(use = list(c(f, l)), answer = a$q[k], estimate = (a$q[k] - b$q[k]) / 3) } }

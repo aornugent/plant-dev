@@ -90,6 +90,10 @@ RAIN_SPECS <- list(
   "dry" = list(p01b = 0.14, p11b = 0.45, shape = 0.9, scale0 = 3,
                scaleb = 9, year_mult = rep(1, RAIN_YEARS), amp = 0.8,
                seed = 31, mean = 0.4),
+  # Dry without its season: the same occurrence and depths at amp 0.
+  "dry-flat" = list(p01b = 0.14, p11b = 0.45, shape = 0.9, scale0 = 3,
+                    scaleb = 9, year_mult = rep(1, RAIN_YEARS), amp = 0,
+                    seed = 31, mean = 0.4),
   # Rare wet days with heavy depths, at long drought's mean.
   "episodic" = list(p01b = 0.03, p11b = 0.2, shape = 0.5, scale0 = 6,
                     scaleb = 18, year_mult = rep(1, RAIN_YEARS), amp = 0.8,

@@ -12,12 +12,20 @@ CASES <- list(
   `long-wet` = list(rec = "long-wet", trait = "", set = "nr", pilot = "m_th0_f_long-wet"),
   `long-drought` = list(rec = "long-drought", trait = "", set = "pf", pilot = "m_th0_f_long-drought"),
   `episodic-lma` = list(rec = "episodic", trait = "lma=0.25", set = "nr", pilot = "m_lma125_f_episodic"))
+# Held-out cases (Phase 5): never used to choose an algorithm.
+HELDOUT <- list(
+  `dry-flat` = list(rec = "dry-flat", trait = "", set = "nr", seed = "", weight = "dry", pilot = "m_ho_dry-flat_f"),
+  `ld-102` = list(rec = "long-drought", trait = "", set = "pf", seed = "102", weight = "long-drought", pilot = "m_ho_ld-102_f"),
+  `ld-105` = list(rec = "long-drought", trait = "", set = "pf", seed = "105", weight = "long-drought", pilot = "m_ho_ld-105_f"),
+  `dry-p50` = list(rec = "dry", trait = "root_P50=-0.2", set = "nr", seed = "", weight = "dry", pilot = "m_ho_dry-p50_f"),
+  `wet-adG2` = list(rec = "long-wet", trait = "a_dG2=0.25", set = "nr", seed = "", weight = "long-wet", pilot = "m_ho_wet-adG2_f"))
+case_of <- function(case) if (!is.null(CASES[[case]])) CASES[[case]] else HELDOUT[[case]]
 F_LEVELS <- c(8, 16, 32, 64)
 L_LEVELS <- c(140, 70, 35, 17.5)
 
 # Edges and the shut record from a pilot's creation record.
 pilot_edges <- function(case) {
-  cr <- readRDS(file.path(RUNS, paste0(CASES[[case]]$pilot, ".rds")))$stand$creation
+  cr <- readRDS(file.path(RUNS, paste0(case_of(case)$pilot, ".rds")))$stand$creation
   op <- cr$rate > 0.01; r <- rle(op); e <- cumsum(r$lengths)
   ed <- cr$end[e][-length(e)]; closing <- op[e][-length(e)]
   keep <- ed > 0 & ed < 39.6

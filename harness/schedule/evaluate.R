@@ -58,11 +58,13 @@ lookup <- function(lib, f, l, f0 = 16, l0 = 70) {
 # list(use = list of c(f, l), answer = named quantities, estimate = named |error|
 # estimates). `use` is every point one later use needs: two when the answer is an
 # extrapolation.
-evaluate_case <- function(alg, case, lib = load_library(case), ref = reference(case)) {
+CACHE <- new.env()
+cached <- function(key, f) { if (is.null(CACHE[[key]])) CACHE[[key]] <- f(); CACHE[[key]] }
+evaluate_case <- function(alg, case, lib = cached(paste0("lib:", case), function() load_library(case)), ref = cached(paste0("ref:", case), function() reference(case))) {
   spent <- 0; path <- c()
-  pilot <- readRDS(file.path(RUNS, paste0(CASES[[case]]$pilot, ".rds")))
+  pilot <- cached(paste0("pilot:", case), function() readRDS(file.path(RUNS, paste0(CASES[[case]]$pilot, ".rds"))))
   spent <- spent + run_cost(sum(findInterval(pilot$stand$times[-length(pilot$stand$times)], sort(pilot$stand$nodes$birth))), FALSE)
-  ctx <- list(case = case, pilot = c(pilot_edges(case), list(J = pilot$stand$J)), eps = eps_vec,
+  ctx <- list(case = case, pilot = c(cached(paste0("edges:", case), function() pilot_edges(case)), list(J = pilot$stand$J)), eps = eps_vec,
     pilot_nodes = data.frame(birth = pilot$stand$nodes$birth, nrr = pilot$stand$nodes$nrr),
     run = function(f, l, gradient = TRUE) { p <- lookup(lib, f, l); if (is.null(p)) stop(sprintf("no library point (%s, %s) for %s", f, l, case))
       key <- sprintf("%s/%s", f, l); if (key %in% path) return(p)   # a point already run costs nothing more
