@@ -45,3 +45,30 @@ sources are under `docs/measurements/`.
 10. **The pilot sees little of the founders.** It has 54 uniform nodes, only five of
     them in the founders' window, and its features did not separate lma ×1.25 from
     plain episodic.
+
+## Learned in generation 1 (four agents, about 90 candidates, then real runs)
+
+11. **Cost is about the check plus three times the answer.** T ≈ C(check) + 3 C(answer):
+    the answer is paid once to find it and twice in use. Commit the cheapest point that
+    meets ε, and check it with another. Every run carries a large fixed cost, mostly edge
+    nodes (68–152 per case), so extra probes rarely pay.
+12. **Founders' nodes are nearly free; late spacing sets the cost.** f ≥ 24 holds the lma
+    case's founders' error near 0.7ε.
+13. **A check's points must both be at l ≤ 70.** Checks against l = 140 misread
+    storage_relaxation_offset and root_P50 for elasticities: ratios near 1 or a wrong
+    sign, not 4.
+14. **Edges are essential.** Without edge nodes, real runs on episodic and dry gave
+    estimates 4–30× off and errors over ε.
+15. **Schedules that are not nested jitter.** Real runs deviate from the scorer's smooth
+    fit by rms 0.04ε, with one quantity in twenty near 0.25ε (root_P50 at l = 59).
+    - A check whose two schedules are not nested amplifies this by 1/(1 − s), where s is
+      the step's shrink factor in h², s = (h_fine/h_coarse)²: ×3.6 for a 7/6 step.
+    - The small diagonal step (22, 70)/(26, 59) failed C3 on real episodic runs:
+      root_P50's estimate was −0.59 against an error of +0.36.
+    - Nested schedules (f and l related by powers of two, so one's nodes are a subset
+      of the other's) share their jitter, and their difference keeps none of it.
+    - The scorer models this by default (STRESS = 5 draws). Only "ROBUST: feasible on
+      all draws = TRUE" counts.
+16. **Stored lattice points are real runs and carry no jitter.** f ∈ {8, 16, 32, 64} at
+    l = 70, and l ∈ {140, 70, 35, 17.5} at f = 16, plus their region combinations.
+    Every other point is interpolated, and its jitter shrinks as it nears stored levels.
