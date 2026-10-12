@@ -46,3 +46,26 @@ Against the pre-registration:
 
 `rooting_depth_max` is +0.48 (dry) and +0.39 (episodic) on G0 against about 0 on the
 lattice runs, and +0.21 and +0.14 on G1. Not yet explained.
+
+## The other three training cases
+
+| record | run | cost | worst | over ε/3 | 4/3 (Q0 − Q1) against err(G0) |
+|---|---|---|---|---|---|
+| long-wet | G0 | 516 | 1.02 | 10 | median 1.18, 14 of 15 within ×2 |
+| long-wet | **G1** (+6 nodes) | **541** | **0.33** | 0 | |
+| long-wet | lattice (32, 70) | 546 | 0.41 | 1 | |
+| long drought | G0 | 871 | 0.93 | 12 | median 0.96, 14 of 15 |
+| long drought | **G1** (+12 nodes) | **941** | **0.37** | 1 | |
+| long drought | lattice (32, 70) | 907 | 0.45 | 3 | |
+| lma ×1.25 | G0 | 230 | 1.50 | 32 | median 0.92, 33 of 33 |
+| lma ×1.25 | **G1** (+36 nodes) | **293** | **0.43** | 7 | |
+| lma ×1.25 | lattice (32, 70) | 252 | 0.49 | 8 | |
+
+- On all five cases G1 is within ε, and more accurate than lattice (32, 70) at about
+  its cost.
+- The map puts 0.55–0.81 of J's error in the founders' window on lma, long-wet and long
+  drought, and its few top panels there take most of the fix: 3 panels on long-wet.
+- One pass's move reads G0's error honestly on every case: median 0.92–1.18, and 108
+  of 113 quantities over ε/3 within ×2 with the right sign.
+- G1's own estimate, (Q0 − Q1)/3, reads 0.57–0.68 of its error: what G1 has left
+  sits in the panels it did not bisect.
