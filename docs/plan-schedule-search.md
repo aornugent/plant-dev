@@ -16,9 +16,7 @@ cases fails the held-out ones.
   analysis: the resident gradient, a few invaders, a curvature chord. A fast schedule
   that takes an hour to find loses to a slower one found in minutes. Scores are also
   reported at k = 1 and k = 30, so the choice of k stays visible.
-- **CPU or wall time.** T is CPU time by default. If T_find is instead counted as wall
-  time on P cores (the cores a user runs on), an algorithm that runs several schedules
-  at once can find its schedule faster; island 3 of Phase 4 searches exactly that.
+
 
 **Feasibility.** The objectives of `OBJECTIVES.md` are constraints, not the target. A
 feasible algorithm meets these on every case:
@@ -101,10 +99,9 @@ The fill computes only what is missing.
 - additivity is checked on four real off-axis runs (two cases × two points), with every
   quantity within 0.1ε of its prediction. If it fails, the full product is filled on
   the cases that fail;
-- one candidate's evaluation over the training bank takes under 50 ms, vectorised.
+- one candidate's evaluation over the training bank takes seconds.
 
-The simulation workers of Phase 4 do the fill in about 20 minutes; training cases go
-first.
+The fill runs once in the background on the four cores; training cases go first.
 
 ## Phase 3: baseline
 
@@ -115,95 +112,30 @@ Score on the evaluator:
 
 Their T, at k = 1, 10 and 30, is the number to beat.
 
-## Phase 4: a parallel, evolutionary search over algorithms
+## Phase 4: generate, test in parallel, combine
 
-Three kinds of worker do three different jobs. They run concurrently and never wait on
-one another.
+A loop in the manner of AlphaEvolve, small enough for four cores. Each round:
+1. **Generate.** Write up to four candidate algorithms. Each is the current best with one
+   idea changed: a rule, a feature read from the pilot, a refinement step, a stop rule.
+   The ideas come from the last round's diagnostics: where each case spent its time,
+   and which constraint or quantity was tight.
+2. **Test in parallel.** Score all four at once on the training bank:
+   - offline, in seconds, where the library covers their schedules;
+   - otherwise their missing runs share the four cores.
 
-| worker | what it is good at | how many | what it costs per item |
-|---|---|---|---|
-| LLM agents | inventing structure: rules, features, control flow; reading diagnostics | 8 per generation | about 5 min per program |
-| numerical optimisers | tuning one structure's knobs | the local cores, vectorised | 50 ms per evaluation |
-| simulation workers | ground truth: filling the lattice, real runs of the leaders | about 6 cloud sessions of 4 cores, plus local | 5–10 min per verified program |
+   A candidate's own knobs are tuned by a small grid on the evaluator.
+3. **Combine.** The best feasible candidate becomes the base. Ideas that each helped
+   on their own are merged into one candidate, which is scored before it counts.
+4. **Record** the round: candidates, T, constraint margins, and what was learned.
 
-**The program database.** Every candidate is an R program behind one interface:
-- `start(pilot)` returns a lattice point, or several to run at once;
-- `next(state, certificate)` returns lattice points or a stop;
-- a declared knob vector with ranges.
+Rules may read only what an algorithm can observe: the pilot run and its own
+certificates, never the case's name. The held-out bank of Phase 5 checks that.
 
-The database stores each program's:
-- code and parents;
-- tuned knobs and score;
-- the diagnostics it earned: per-case T_find and T_use, each constraint's margin, the
-  quantities that bind, and the path it took.
-
-**Islands.** The database is split into islands, each seeded with a different
-paradigm, so the search keeps several distinct lines alive:
-1. **one-shot:** pilot features choose the lattice point; the certificate only
-   verifies;
-2. **adaptive:** a cheap start, refined by per-quantity certificates;
-3. **speculative:** several lattice points run at once, and the cheapest certified one
-   is kept (rewarded only if T is wall time, below);
-4. **budgeted:** ε split between founders, late births and front, by the map's
-   per-interval magnitudes;
-5. **light pilot:** features from the soil-alone probe (about 0.25 of a run) or from no
-   pilot, against a stand pilot.
-
-The best program migrates between islands every three generations. An island that has
-not improved in four generations is reseeded from the best of the others.
-
-**A generation** takes about 10 minutes:
-1. **Propose.** Eight agents run in parallel. Each samples parents from one island,
-   weighted by score, reads their code and diagnostics, and writes one child. Each
-   agent has an assigned operator:
-   - tune a rule;
-   - add a rule or feature;
-   - cross two parents from different islands;
-   - simplify: delete a rule and keep the program if its score holds. This keeps the
-     winner from being overbuilt.
-2. **Tune.** For each child, the optimiser fits its knobs: about 1,000 evaluations by
-   CMA-ES with feasibility first, on the local cores. That takes about a minute.
-3. **Score.** The child is ranked by **leave-one-case-out T**: its knobs are tuned on
-   five training cases and scored on the sixth, in rotation. A program that encodes
-   per-case answers scores badly by construction. Ties go to the shorter program.
-4. **Verify.** The best program of each island runs end to end with real simulations
-   on the training bank, spread over the simulation workers. That is about 18 gradient
-   runs, roughly 5 minutes of wall time across 24 cores. It does not hold up the next
-   generation.
-
-**Exploiting the problem's structure.** The error and the cost add across regions:
-founders, late births and front. So each region's rule is also searched as its own
-subproblem, in parallel, with that region's share of ε as a knob. The full program
-combines the regional winners, and the combination is scored as a whole before it
-counts.
-
-**Keeping the evaluator honest.** Programs are scored on a surrogate: stored runs plus
-regional additivity. A search will exploit any error in it. So:
-- every verified program reports real T and constraints beside its predictions;
-- a disagreement over 20% in T, or any constraint that flips, sends the points behind
-  it to the simulation workers, refines the lattice there (new points or a new axis),
-  and re-scores the whole database. Re-scoring takes seconds;
-- agents may read the evaluator but not change it, and never see the held-out bank.
-
-**Simulation workers.**
-- Sibling cloud sessions in the `plant` environment, built at the same commits as
-  `lib_109`.
-- They take runs from a queue: the lattice fill of Phase 2, verifications, new axes
-  that agents request.
-- They return compact results (answers, rows, edges) on a `schedule-library` branch.
-- Cost is charged by rows through the measured model (113 s of forward time per
-  million rows; a sweep is 3.27 times that), so T does not depend on which machine ran
-  it.
-
-**Stopping.** The search stops at the first of:
-- the best leave-one-case-out feasible T improves by under 2% over three generations,
-  and the last verification of each island's leader agreed with its prediction;
-- six hours of wall time;
-- a disagreement between the surrogate and real runs that survives two lattice
-  refinements. That stops the search to root-cause the surrogate.
-
-Phase 2 changes in one way: the simulation workers fill the lattice in about
-20 minutes, not two hours.
+**Stopping.** The loop stops at the first of:
+- two consecutive rounds without a 2% gain in the best feasible T;
+- eight rounds;
+- a round in which no candidate is feasible and the cause is not understood. Then the
+  failing case is root-caused before the loop resumes.
 
 ## Phase 5: validation with real runs
 
@@ -235,7 +167,7 @@ for the plant issues.
 | phase | stops when | next |
 |---|---|---|
 | 1 | done: all three checks pass on dry and episodic | Phase 2 |
-| 2 | axes filled; evaluator exact on stored runs; additivity within 0.1ε; under 50 ms per evaluation | Phase 3 |
+| 2 | axes filled; evaluator exact on stored runs; additivity within 0.1ε; seconds per evaluation | Phase 3 |
 | 3 | incumbent and dy70 scored at k = 1, 10, 30 | Phase 4 |
-| 4 | under 2% gain in leave-one-case-out T over three generations with verified leaders, 6 h, or an unresolved surrogate disagreement | Phase 5, or root-cause the surrogate |
+| 4 | two rounds without a 2% gain, eight rounds, or an infeasible round not understood | Phase 5, or root cause |
 | 5 | winner passes held-out, prediction and reproducibility checks | rules into the spec |
