@@ -34,8 +34,10 @@ pilot_edges <- function(case) {
                         method = "constant", rule = 2))
 }
 
+EDGE_CACHE <- new.env()
 lattice_schedule <- function(case, f, l, edges = TRUE) {
-  p <- pilot_edges(case); b1 <- p$b1; h <- l / 365
+  if (is.null(EDGE_CACHE[[case]])) EDGE_CACHE[[case]] <- pilot_edges(case)
+  p <- EDGE_CACHE[[case]]; b1 <- p$b1; h <- l / 365
   base <- c(seq(0, b1, length.out = f + 1)[-(f + 1)], seq(b1, 39.6, by = h))
   hloc <- ifelse(base < b1, b1 / f, h)
   keep <- p$shut(base) < 0.5

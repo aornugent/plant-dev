@@ -66,11 +66,14 @@ evaluate_case <- function(alg, case, lib = cached(paste0("lib:", case), function
   spent <- spent + run_cost(sum(findInterval(pilot$stand$times[-length(pilot$stand$times)], sort(pilot$stand$nodes$birth))), FALSE)
   ctx <- list(case = case, pilot = c(cached(paste0("edges:", case), function() pilot_edges(case)), list(J = pilot$stand$J)), eps = eps_vec,
     pilot_nodes = data.frame(birth = pilot$stand$nodes$birth, nrr = pilot$stand$nodes$nrr),
-    run = function(f, l, gradient = TRUE) { p <- lookup(lib, f, l); if (is.null(p)) stop(sprintf("no library point (%s, %s) for %s", f, l, case))
-      key <- sprintf("%s/%s", f, l); if (key %in% path) return(p)   # a point already run costs nothing more
-      spent <<- spent + run_cost(p$rows, gradient); path <<- c(path, key); p })
+    run = function(f, l, gradient = TRUE) {
+      if (!(f >= 8 && f <= 128 && l >= 8.75 && l <= 140)) stop(sprintf("point (%s, %s) outside f 8-128, l 8.75-140", f, l))
+      f <- round(f); p <- lookup(lib, f, l); if (is.null(p)) stop(sprintf("no library point (%s, %s) for %s", f, l, case))
+      key <- sprintf("%s/%s/%s", f, l, gradient); full <- sprintf("%s/%s/TRUE", f, l)
+      if (!(key %in% path) && !(full %in% path)) { spent <<- spent + run_cost(p$rows, gradient); path <<- c(path, key) }
+      if (!gradient) p$q <- p$q["lnJ"]; p })
   out <- alg(ctx)
-  t_use <- sum(vapply(out$use, function(u) run_cost(lookup(lib, u[1], u[2])$rows), 0))
+  t_use <- sum(vapply(out$use, function(u) run_cost(lookup(lib, round(u[1]), u[2])$rows), 0))
   k <- Reduce(intersect, list(names(out$answer), names(ref), names(out$estimate)))
   e <- eps_vec(k); err <- (out$answer[k] - ref[k]) / e; est <- abs(out$estimate[k]) / e
   big <- abs(err) > 1 / 3
