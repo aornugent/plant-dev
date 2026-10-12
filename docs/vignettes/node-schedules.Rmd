@@ -9,7 +9,7 @@ output:
 <!-- Sketch for plant, on the birth-date coordinate with exact counts. The
 code runs on the stack tip through plant-dev's harness; `tf24_stand()` stands
 for the setup a package helper would do. Numbers are from
-plant-dev/docs/measurements/{predictable-error,breakpoints}.md. -->
+plant-dev/docs/measurements/{predictable-error,breakpoints,refinement,estimate-shortfall}.md. -->
 
 ```{r setup, eval = FALSE}
 library(plant)
@@ -89,7 +89,7 @@ That law is what a schedule is built on. It gives an error estimate: on the
 square law, the move from a schedule to its bisection is three times the finer
 schedule's error. It also tells where to put nodes: each interval's share of
 that move. The drop map (`field-adjoint-map.md`) measures each interval's share
-from one run, so the coarser run is not needed.
+from one run of the finer schedule.
 
 # When fate is not smooth
 
@@ -178,53 +178,93 @@ record proposes them. But whether a rain opens establishment depends on how dry
 the stand has made the soil. Drainage below 60% of saturation takes months, so
 only uptake dries the top layer far enough to shut it.
 
+# Estimating the error
+
+Under the square law each interval's error goes as width³ × the curvature of fate.
+Two ways to read it from runs:
+
+- **Bisection.** Halve every interval. Every interval's error falls four-fold, so the
+  move from a schedule P to its bisection B is ¾ of P's error, and a third of the move
+  is B's.
+- **Coarsening.** Drop every other node, giving C. The drop map predicts the move
+  C − P from P's own run, to 1% on every record. Reading that move as three times P's
+  error is right only when each dropped node sits at the midpoint of the two intervals
+  it merges.
+
+For a dropped node at fraction l of its panel:
+
+    error of P = (C − P) × (l³ + (1 − l)³) / (3 l (1 − l))
+
+The factor is 1/3 at l = ½ and grows like 1/(3l) as l → 0. A schedule with edges as
+nodes is full of near-coincident pairs: an edge a day from a base node, two edges
+bounding a short window. A panel made of such a pair barely moves when its middle node
+goes, so its coarsening reads about 3l of its error. On episodic and dry these
+lopsided panels carry most of the error that coarsening missed, which is why the
+plain estimate read 1/2 to 1/3 of the error on every refined schedule.
+
+The cure is to coarsen only to central nodes: run the map on the bisection B and drop
+its midpoints. Every dropped node is then central by construction:
+
+| schedule | error of P | 4/3 × (P − B) from the map on B | plain coarsening estimate |
+|---|---|---|---|
+| episodic, 108 even + edges, refined three times | −0.169ε | −0.171ε | −0.056ε |
+| dry, 16 founders' nodes on 54 even + edges, refined three times | −0.370ε | −0.389ε | −0.131ε |
+
 # The algorithm
 
 ```
-  first stand (≈100 even introductions, forward only)
+  first stand (≈54 even introductions, forward only)
         │ creation record, sign-change counts
         ▼
-  schedule = even base + edges − closed-gap nodes + nodes across each front
+  G = founders' window at 16 nodes, 0.185 yr to year 10, 0.37 yr after,
+      edges replacing base nodes within half a spacing,
+      nodes across each front
         │
         ▼
-  run with gradient and drop map ──► per-interval share of the coarsening move
-        │                                   │
-        │          regions whose share does not fall four-fold
-        │          from the previous pass, or is large
-        ▼                                   │
-  bisect those intervals ◄──────────────────┘
+  run B = bisect(G) with gradient and the drop map of G's midpoints
+        │      e_i = move of G's interval i to its halves
+        │      error of B ≈ Σ e_i / 3
+        ▼
+  stop when |Σ e_i| / 3 < ε/2 and the elasticities have settled
         │
-        └── stop when the estimated error of every quantity is under ε
+        └── otherwise add the midpoints of the intervals of G that carry
+            70% of Σ|e_i|, and repeat
 ```
 
 - **Edges as nodes.** These give the square law on every record tested: the
-  ratio of successive moves is 3.7–4.2. They also make the pair's estimate
-  honest: 1.23–1.32 of the next move, against an exact 4/3. Most of the edge
-  error sits in a few edges: 4–6 carry half of it, and 15–20 carry 90%.
+  ratio of successive moves is 3.7–4.2. Most of the edge error sits in a few
+  edges: 4–6 carry half of it, and 15–20 carry 90%.
 - **Closed-gap nodes go.** They carry no count. Dropping them moves J by 2e-6
   relative and saves 12% of rows.
+- **Edges replace nearby base nodes.** An edge next to a base node adds a lopsided
+  pair that no coarsening can read. Each base node within half a spacing of an
+  edge is dropped.
 - **Fronts need nodes at their own scale.** On constant rain, nodes every 1/512
   day across the front give successive moves in the ratio 3.7 (resident) and
-  4.5 (invader). Without them the moves oscillate.
+  4.5 (invader). Without them the moves oscillate. The race traits' elasticities
+  also need nodes just after the front, where the front's movement with the trait
+  makes fate's derivative steep.
+- **J is earned by the founders.** Births in years 0–2 earn 75–90% of J. Their fate
+  falls nearly exponentially in birth date, with a decay length of about 0.75 yr.
 - **Births that earn no J still set the water.** A placement rule that spaced
   births after b = 16 by 270–540 days left a region whose move did not shrink
-  under bisection (ratio 1.07). It carried 80% of the field part of the move.
-- **On a schedule with edges as nodes, the drop map ranks intervals correctly.**
-  Bisecting the 17 panels it ranked highest moved ln J by +0.002851, against a
-  prediction of +0.002851.
-- **The estimate holds only once the start resolves what the dynamics guarantee:**
-  the founders' first-mover layer, and the founders' approach to a front. A
-  structure narrower than the spacing moves little when coarsened, so the map
-  rates it low.
-  - Starting from 108 even nodes plus edges, two map-driven passes reach ε at
-    833k, 1471k and 1660k rows on episodic, dry and long-wet. Uniform bisection
-    needs 1319k, 2752k and 3231k for the same.
-  - The final ln J estimate matches the error within 10–50%.
-  - Starting from 54 nodes, the passes stop early, with dry's estimate 13 times
-    too small.
+  under bisection. Late spacing stays at 0.37 yr or less.
 - **Fronts are found by bisection on forward runs.** Bisect the neighbour pair
   whose sign-change counts differ. On constant rain, five rounds of runs with
   about 100 nodes place the front to 0.0003 day, at every trait setting tried.
+
+On episodic and dry, the loop's estimate of the bisection's error was within 4–26% of
+the error on every pass. Every resident quantity was within ε after the first pass:
+
+| record | start | passes | rows | ln J error / estimate |
+|---|---|---|---|---|
+| episodic | 108 even + edges | 2 | 973k | −0.086ε / −0.073ε |
+| episodic | dyadic, snapped | 2 | 957k | −0.108ε / −0.092ε |
+| dry | 108 even + edges | 2 | 1736k | −0.096ε / −0.103ε |
+| dry | dyadic, snapped | 2 | 1779k | −0.066ε / −0.080ε |
+
+The cost of the honest estimate is the bisection: about twice the rows of the
+schedule it certifies.
 
 # Across records
 
