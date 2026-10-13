@@ -43,3 +43,28 @@ curv_fact_colim):
   (both linearise the same IFT) on both runs: a10s elasticity ≈ 2186;
 - the alternative H2 (the transpose is wrong): the tangent on a10s gives ≈ 60 where
   the sweep gives 2186.
+
+### E1 result (out/e1_a10s.log, out/e1_a09s.log)
+
+- Replay faithful: J bit-identical to the saved J, same step times, and the replayed sweep
+  reproduces the saved gradient exactly (max diff 0) on both. PIN is a valid lab.
+- Curvature margin: a10s 0.8542, a09s 0.8540. Identical and ~850× the floor.
+  **H1 refuted**: no near-singular interior curvature on either differentiated path.
+- The tangent reference refuses a SPLIT=1 recording ("A walk at this scalar cannot take
+  a recorded step that split a block at a sign change"), so the forward-vs-adjoint
+  question has to be asked on the SPLIT=0 pair n1g (bad, lib19) / n2 (sane, lib18).
+
+## H2 (pre-registered before E3): the sweep is not the transpose of the forward's linearisation
+
+E3: n1g pinned, forward tangent along curv_fact_colim and recruitment_decay (no sweep;
+the saved sweep gives 66.50 and −0.48; the cluster gives 60.37 and 5.26).
+- predict under H2: tangent ≈ 60.4 and ≈ 5.3 (the cluster), i.e. the sweep alone is off;
+- if instead the tangent reproduces 66.5 and −0.48, the discrete forward's own
+  linearisation carries the error and the next question is finite differences.
+
+## E2 (localisation, pre-registered): per-step worst |lambda| (ODELIA_ADJOINT_TRACE=steps)
+
+a10s and a09s, same physical times. Predict: the two traces agree (within a factor ~2)
+from T down to some time t*, where a10s's jumps by ≥ ×100 and stays above a09s's below
+it; t* is the same physical time as where n1's (later) departs, since the error
+directions agree to 0.9996.

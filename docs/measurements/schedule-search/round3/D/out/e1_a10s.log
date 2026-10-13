@@ -1,1 +1,5 @@
 J 12.6990646423 saved 12.6990646423 diff 0; same times TRUE; 118 s
+sweep 395 s; max|el| 2185.5; margin 0.8542227; refusal NULL
+max |sweep - saved gradient| / max|saved|: 0 
+Error: A walk at this scalar cannot take a recorded step that split a block at a sign change.
+Execution halted
