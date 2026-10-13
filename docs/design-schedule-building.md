@@ -288,3 +288,27 @@ certificate.
 
 The threshold s and the budget are the only knobs. The late tail after b ≈ 25 needs
 no rule: R(b) is small there, its intervals rank low and stay coarse.
+
+## Where it landed (13 October)
+
+The map-driven loop above was outrun by a simpler shape: build the committed schedule from
+the pilot's structure, and estimate its error with one check run whose every interval
+shrinks by about the same factor. On the ten real cases at tolerance 1e-4 (training and
+held-out; `measurements/schedule-search/localised.md`):
+
+- **a09** (`any/a09_late.R`) is the robust choice: T 30% below c05_graded at 3e-5, ten of
+  ten passing, every median estimate/error 0.87–1.17.
+  1. From the pilot: the edges, b1, and a spacing graded by the pilot's offspring (the
+     founders' layer at b1/24, the rest of the window at b1/12, a background from 90 d).
+  2. The check refines by a ratio of 1.6 and also bisects every interval wider than half
+     its target that the ratio leaves in an unrefined gap, so the shrink is even across the
+     record; the estimate is move/(1 − s), s from the pilot's proxy.
+  3. Both runs leave out the edges after b = 25. Tolerance 1e-4 (on phylloptim 0.9.2,
+     which differentiates the root curve past its dry end).
+  4. Commit the coarse run when every estimate is under ε, else the check run.
+- **The one rule found here:** a non-nested check is honest only where it shrinks every
+  interval that carries error by about the same factor. A spacing proxy cannot locate the
+  error; it can only be made not to matter.
+- **Left on the table, about 10%:** merging shut gaps under 10 d (a07) passes ten of ten
+  but with thin margin, because a check laid out across merged spans refines less of some
+  quantities' error than its spacing says.
