@@ -131,3 +131,19 @@ wider than half the target (+18 nodes on dry without season, +14 on dry).
   0.85–1.1 (a04: 0.69).
 - A2: dry is unchanged in verdict (pass) and its median within 0.1 of a04's 1.14.
 - A3: on the scorer, T rises about 1% (8473 vs 8384).
+
+## Short shut gaps spanned by one interval (mkmerge.R)
+
+Registered before the runs. Edges are 53–88% of a04's committed nodes, and 16–61 shut
+gaps per case are under 10 d. On a04's committed schedule, both edges of each shut gap
+under G days go (a node at the gap's centre only where the merged interval would pass
+the range): G = 10 keeps 188/213 (dry), 254/356 (dry without season), 173/213 (long
+drought); G = 30 keeps 159, 191, 156. Compared with the same schedule unmerged, same
+tolerance (1e-4) and lib.
+
+- M1 (G = 10): no quantity moves by more than 0.1ε; rows fall by about the share of
+  nodes dropped, weighted to early ones.
+- M2 (G = 30): no quantity moves by more than 0.3ε, and the worst error against the
+  reference rises by under 0.2ε.
+- Mechanism expected: births a few days apart meet the same stand, so one interval's
+  interpolation across a short shut gap errs like any interval of its length.

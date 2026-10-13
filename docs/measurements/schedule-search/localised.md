@@ -331,3 +331,33 @@ Systematic debugging (`loc/prereg.md`, `loc/soilcmp.R`):
   smaller than the proxy's. c05_graded's nested check read the same case at 0.92 with
   12 of 12. This is lesson 15 again: a non-nested pair's estimate depends on a model of
   where the error is.
+
+## Root cause: a04's check under-reads dry without season
+
+Systematic debugging (`loc/a04why*.R`, `loc/prereg.md`):
+- **Not the tolerance.** a04's committed run at 1e-4 errs as c05_graded's (the same 356
+  nodes) does at 3e-5: `a` −0.898 in both, every quantity within 0.07ε.
+- **The real shrink is 0.51–0.87 against the proxy's 0.433** (median about 0.6), so
+  move/(1 − s) reads about 0.7 of the error. c05_graded's nested check shrinks 0.19–0.39
+  against its 0.25.
+- **The ratio check refines this record's background least.** 312 edges leave gaps
+  mostly shorter than 1/R of the target, which the ratio leaves at one interval: by
+  band (proxy-weighted) the check shrinks 0.41 before b1, 0.59 to 10, 0.53 to 20, 0.33
+  after. On dry, long-wet and episodic every band shrinks alike (0.37–0.54).
+- **The proxy locates the error in the wrong place.** It puts 85% of dry without
+  season's committed error before b1. Fitting err = α·F(S) + β·P(S) (F, P the proxy's
+  h³ sums before and after b1) to four runs at once (a04's pair, c05_graded's pair),
+  two parameters per quantity explain all four to 0.012ε median, and put about a
+  quarter of the error before b1. On dry and long-wet the same fit agrees with the
+  proxy (0.62 against 0.53; 0.91 against 0.64), which is why they pass.
+- **Some quantities cannot be read by any single s.** storage_relaxation_offset, a_l1
+  and stem_c carry opposite-sign error before and after b1 (−1.9 and +1.1, for
+  storage). A shrink taken as the largest over the bands lifts the median read to 0.96
+  and passes C2, but C3 still fails (7/10); the other seven cases still pass.
+
+So the mechanism is lesson 15 at the scale of one record: a non-nested check is honest
+only where it shrinks every interval that carries error by about the same factor. The
+fix belongs in the check. **a05_fill** keeps a04's committed schedule and bisects, in
+every gap the ratio gives no new node, the intervals wider than half the target (as
+c05_graded's check would): +18 nodes on dry without season, band shrinks 0.40–0.44,
+scorer T 8473 (+1%), 19/20 draws. Its real check runs are registered and queued.
