@@ -65,3 +65,26 @@ not bisect, which the move cannot see.
   100 d before b = 20, 280 d after. Outside it, a run refuses (an infeasible case).
 - It knows each case's d(b) and the per-band factors; the algorithm does not, and
   sees d only through the maps it pays for.
+
+## The shape of d(b), measured on the five cases
+
+Isolated from the maps, without new runs (`loc/dband.R`, `loc/founders.R`, `loc/pilotproxy.R`):
+- **J's per-panel moves share one sign:** 90–94% are negative. Unlike the elasticities'
+  parts, they do not cancel.
+- **The founders' error is the first-mover layer.** At 35–42 d panels, |d| is 2–7
+  ε per year³ for births before about 1.5 years, about 0 from 1.7 years to just before
+  b1, and up to 1 ε/y³ beside b1. Episodic differs: its founders' d is small (under 1.1).
+- **Elsewhere d is a flat background before 15–20 years** (median 0.2–0.7 ε/y³,
+  varying ×2.6 from panel to panel), falling to 0.1–0.3 over 15–20 and about 0 after 20.
+- **The pilot shows the trend, not the scatter.** log|d| tracks the pilot's offspring
+  curve as about f^(1/3) (R² 0.6–0.9), but no pilot feature predicts the ×2.6 scatter
+  around it (rank correlation 0.3 or less). Only a map sees which panels carry it.
+- **Cost pulls the other way:** a node born at 0 costs about twice one born at 20, so
+  the ideal spacing, h ∝ (cost per node / d)^(1/3), is about 1.8× finer in the
+  first-mover layer than in the late background, and as coarse as allowed where d ≈ 0.
+
+## The seed under the scorer
+
+`seed_onepass.R` is feasible without noise at T = 9936 but on no noise draw. Every
+failure is G1's estimate, (Q0 − Q1)/3, reading half to two thirds of the error, so C2
+or C3 fails on lma or episodic (`search/any/fails_any.R FILE N` lists the failures).
