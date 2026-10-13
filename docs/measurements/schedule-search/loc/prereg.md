@@ -155,3 +155,9 @@ its 16 merged gaps had a node put back at the gap's centre, inside the shut gap,
 is the known first-order error of interpolating counted cohorts from a node where
 nothing establishes. Variant (KEEP=edge): the same merge, but the node put back is
 the gap's later edge. Predicted: on dry no quantity moves by over 0.1ε.
+
+Result: the keep-edge variant moves the same quantities by the same amounts (stem_c
++0.24, TF24_cost_scale +0.17), so the centre nodes were not the cause. Both moves are
+away from the reference (stem_c −0.06 → +0.19, TF24_cost_scale 0.46 → 0.62). The G = 30
+probes are dropped: G = 10 already costs about what coarsening the spacing by the same
+12% would.

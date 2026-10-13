@@ -377,3 +377,20 @@ fix belongs in the check. **a05_fill** keeps a04's committed schedule and bisect
 every gap the ratio gives no new node, the intervals wider than half the target (as
 c05_graded's check would): +18 nodes on dry without season, band shrinks 0.40–0.44,
 scorer T 8473 (+1%), 19/20 draws. Its real check runs are registered and queued.
+
+## Short shut gaps cannot be spanned for free (13 October)
+
+Edges are 53–88% of a04's committed nodes and 16–61 shut gaps per case are under 10 d,
+so spanning those gaps with one interval looked like the largest lever left
+(`loc/mkmerge.R`, `loc/merge_cmp.R`). On dry, G = 10 drops 12% of rows and moves stem_c
+by +0.24ε and TF24_cost_scale by +0.17ε, both away from the reference (worst error 0.97
+→ 1.03). Putting back the gap's later edge instead of a node at its centre changes
+nothing, so the error is not the known one of a node where nothing establishes; it is
+the merging. That is about what coarsening every interval by the same 12% would cost
+(errors scale as N⁻², about +0.15ε here), so it is not a free saving.
+
+The likely mechanism: a shut gap is a dry spell. A seedling born just before one meets
+it as a neonate, one born just after does not, so early survival jumps across even a
+few-day gap although nothing is born inside it. An edge is a discontinuity in the
+cohort's state as well as in establishment, and an interval spanning it interpolates
+across the jump.
