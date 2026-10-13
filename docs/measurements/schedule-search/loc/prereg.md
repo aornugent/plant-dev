@@ -147,3 +147,11 @@ tolerance (1e-4) and lib.
   reference rises by under 0.2ε.
 - Mechanism expected: births a few days apart meet the same stand, so one interval's
   interpolation across a short shut gap errs like any interval of its length.
+
+### M1 failed on dry; the shut-gap centre nodes (registered before the runs)
+
+G = 10 on dry moved stem_c by +0.23ε and TF24_cost_scale by +0.16ε (rows −12%). 7 of
+its 16 merged gaps had a node put back at the gap's centre, inside the shut gap, which
+is the known first-order error of interpolating counted cohorts from a node where
+nothing establishes. Variant (KEEP=edge): the same merge, but the node put back is
+the gap's later edge. Predicted: on dry no quantity moves by over 0.1ε.
