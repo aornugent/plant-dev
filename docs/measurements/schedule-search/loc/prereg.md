@@ -169,3 +169,7 @@ is at most 0.03. A1 and A2 hold (dry without season passes, median 0.85; dry unc
 Long drought, G = 10: rows −19.5%, no quantity moves over 0.02ε. Dry is the exception.
 Bisection of dry's 16 gaps (registered before the runs): merge only those centred
 before 10 (3 gaps) and only those after (13). Expected: one half carries both moves.
+
+Bisection result: the 3 gaps before 10 (at 5.40, 5.42 and 5.64, around a one-day spell
+and between 24 and 35 d spells) carry stem_c +0.21 and TF24_cost_scale +0.15 for 6
+nodes; the 13 after are running. Next half: the gap at 5.64 alone.
