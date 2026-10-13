@@ -213,3 +213,14 @@ band shrinks 0.40–0.45 flat on both. Registered before the runs:
 
 - A7-1: ten of ten pass C1–C5.
 - A7-2: T within 5% of a06's on each case where a06 passes.
+
+## a07's uniform under-read on long drought; a08 (registered before the runs)
+
+a07 passes long drought but reads 0.65 of the error: every top quantity shrinks by about
+0.6 in the check (0.58–0.65) against the proxy's 0.425, with band shrinks 0.39–0.44. A
+shrink near 1/R = 0.625 is what a first-order error gives. Nodes inside shut periods are
+ruled out (one on long drought). Hypothesis: after 25, where a07 counts everything as open,
+intervals span several spells and interpolate across their edges, a first-order error.
+a08 keeps the short-gap merge before the build but builds with the late edges and leaves
+them out of both runs, as c5t and a06 did. Predicted: long drought reads 0.85–1.2 (median)
+and passes; dry without season passes.
