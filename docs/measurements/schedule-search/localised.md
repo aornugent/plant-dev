@@ -520,3 +520,34 @@ edges of shut gaps under 10 d (a spell keeps its start edge), tolerance 1e-4.
   placed for gaps that no longer exist, and the band shrinks spread again (0.41–0.51 flat on
   dry without season). a07 trims the pilot's edges first and builds on what remains (band
   shrinks 0.40–0.45); it is running on all ten.
+
+## a07: a05 built on the edges a run needs (13 October)
+
+`any/a07_trimmed.R`, `loc/val_a07.log`: the pilot loses every edge after 25 and the
+edges of shut gaps under 10 d (a spell keeps its start edge); merged gaps and the span
+after 25 count as open; then a05 builds both schedules. Tolerance 1e-4.
+
+| case | commits | worst | C1–C5 | est/err | T | a06 | a05 |
+|---|---|---|---|---|---|---|---|
+| episodic | **fine** | 0.26 | pass (1/1) | 1.00 | 877 | 698 | 768 |
+| dry | coarse | 0.92 | pass (12/14) | 1.13 | 1131 | 1119 | 1372 |
+| long-wet | coarse | 0.48 | pass (2/2) | 0.96 | 1282 | 1265 | 1603 |
+| long drought | coarse | 0.54 | pass (3/3) | **0.65** | 2156 | 2119 | 2743 |
+| lma ×1.25 | fine | 0.54 | pass (17/17) | 0.91 | 770 | 758 | 796 |
+| dry without season | coarse | 0.94 | pass (12/13) | 0.86 | 1600 | 1596 (fails) | 2391 |
+| long drought, seed 102 | coarse | 0.46 | pass (5/5) | 1.11 | 2091 | 2116 | 2593 |
+| long drought, seed 105 | coarse | 0.49 | pass (3/3) | 0.99 | 2189 | 2173 | 2476 |
+| dry, root_P50 ×1.2 | coarse | 0.99 | pass (13/14) | 0.99 | 1122 | 1126 | 1428 |
+| long-wet, a_dG2 ×1.25 | coarse | 0.56 | pass (2/2) | 1.01 | 1321 | 1303 | 1655 |
+
+- **Ten of ten pass, T 14539: 37% below c05_graded at 3e-5 (22924), 18% below a05
+  (17825).** A7-1 holds. A7-2 fails on episodic only: a_l1's coarse error is 0.85 and its
+  estimate 1.004, one part in 250 past the commit threshold, so it commits fine (+26%);
+  elsewhere a07 is within ±2% of a06.
+- Building on the trimmed edges fixes a06's failure on dry without season at the same
+  cost (1600 against 1596).
+- **Long drought reads 0.65** (still passing, 3/3 within ×2): every top quantity shrinks by
+  about 0.6 against the proxy's 0.425, the signature of a first-order part. Nodes in shut
+  periods are ruled out (one); seeds 102 and 105, with the same treatment after 25, read
+  1.11 and 0.99, so the cause is particular to that record. a08 (late edges kept through
+  the build, then dropped from both runs) is running on it.
