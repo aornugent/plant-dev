@@ -343,3 +343,13 @@ repeated):
   lib18 to 1e-6, so the jump is not on phylloptim's derivative path.
 - D2, with splits: every elasticity within 0.3ε of a09's committed run; the jump is the
   missing splits.
+
+**a11 on episodic, scored with the whole-range shrink, commits fine** (T 874 against a09's
+720): the check's move is a09's (max 0.54 against 0.57), but the proxy's shrink rises
+from 0.335 to 0.509, because the proxy puts error after 25 that a11's check no longer
+refines. That region is in both runs, so its error is shared, like the late edges', and
+the shrink should be read before 25 only (`any/a11_early.R`, `shrink`). Rescored that
+way (a correction made after seeing this case): coarse, pass, read median 0.92, T 715.
+Registered before the other nine cases finish, with the before-25 shrink:
+- A11-4: a11 commits as a09 did in every case and passes C1–C5 wherever a09 did.
+- A11-5: on a09's own pairs the before-25 shrink changes no commit decision.
