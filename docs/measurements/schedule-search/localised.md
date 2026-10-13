@@ -551,3 +551,21 @@ after 25 count as open; then a05 builds both schedules. Tolerance 1e-4.
   periods are ruled out (one); seeds 102 and 105, with the same treatment after 25, read
   1.11 and 0.99, so the cause is particular to that record. a08 (late edges kept through
   the build, then dropped from both runs) is running on it.
+
+## a08: late edges kept through the build (13 October)
+
+`any/a08_trimmed.R`, `loc/val_a08.log`: as a07, but the edges after 25 stay in the pilot,
+so late spells keep their own interior nodes, and are left out of both runs.
+
+- **Nine of ten pass, T 14030** (a07 14539, a06 14273). It **fails C2 on dry**: root_P50
+  errs 0.51 with an estimate of 0.20. a07 under-reads the same quantity (estimate about
+  0.15) but its error stayed at 0.47, under C2's 0.5, so a07's ten of ten has thin margin.
+- Long drought still reads 0.66, so the late region is not the cause of that under-read.
+  The committed errors of a06, a07 and a08 agree there (a_l1 0.51, 0.54, 0.53); the checks
+  differ: a06's check, laid out spell by spell before the merge, takes a_l1 to 0.23;
+  a08's, laid out across merged spans, to 0.34, with as many nodes in every band. A check
+  built across merged spans refines less of some quantities' error, and the spacing proxy
+  cannot see it.
+- So short-gap merging buys about 10% of T but costs the check's honesty on two of ten
+  records. a09 (a05 with only the late edges left out, no merging) is running as the
+  robust alternative.
