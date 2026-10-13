@@ -1,2 +1,3 @@
 J 12.6999878542 saved 12.6999878542 diff 0; same times TRUE; 109 s
 tangent curv_fact_colim: elasticity 66.4978 (value 12.6999878542), 205 s
+tangent recruitment_decay: elasticity -0.0000 (value 12.6999878542), 207 s

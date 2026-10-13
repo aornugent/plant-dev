@@ -68,3 +68,24 @@ a10s and a09s, same physical times. Predict: the two traces agree (within a fact
 from T down to some time t*, where a10s's jumps by ≥ ×100 and stays above a09s's below
 it; t* is the same physical time as where n1's (later) departs, since the error
 directions agree to 0.9996.
+
+(Outputs from E2 on are in `scratchpad/dev/schedtest/D_out/`; E1 and E3 in `out/`.)
+
+### E3 result (out/e3_n1g.log)
+
+- Tangent along curv_fact_colim on n1g: elasticity **66.4978**, the sweep's 66.50, not
+  the cluster's 60.37. **H2 refuted** for this column: the sweep is the transpose of the
+  forward's linearisation; the linearisation itself carries the error.
+- Tangent along recruitment_decay reads exactly 0 (sweep −0.48, cluster 5.26): the
+  tangent reference does not reach that trait at all (it enters elsewhere than the
+  trajectory the tangent walks), so it is no referee for it. Not evidence either way.
+
+## H3 (pre-registered before E4): the linearisation differs from the discrete map
+
+The pinned forward is a deterministic function J(θ) of the traits at fixed steps. Either
+(a) its true slope is the cluster's (some differentiation rule shared by tangent and
+sweep is wrong at a rare event), or (b) its true slope really is 66.5 (the derivative
+is right; the discrete forward map itself is that sensitive at this step placement).
+E4: central difference of ln J on n1g pinned, curv_fact_colim × (1 ± 1e-4).
+- predict under (a): FD elasticity ≈ 60.4 (within 0.5);
+- predict under (b): FD ≈ 66.5 (within 0.5).
