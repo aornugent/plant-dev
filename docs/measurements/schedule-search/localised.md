@@ -665,3 +665,40 @@ and keep the check whole, reading the thinning at shrink 0 (`round3/B/prereg.md`
 So merging is safe where it is late and kept out of the check. B's lowest-risk design
 merges gaps under 10 d after b = 10 in the committed run only, predicted T 6412 on the
 training five (−4.3% on a09), at the cost of ten thinned committed runs to validate.
+
+## Round 3: the check's structure, and a check reused across a trait move (13 October)
+
+Agent C, on the scorer (a05_fill at R = 1.6, BG = 90: T 8473, 19/20 draws) and on saved
+real runs (scripts in `round3/C`).
+
+**The check's structure has about 1% left.** T = 3c + f with f = c + Δ, and the check
+re-runs every edge, so Δ, the nodes the check adds, is only 668 s, 7.9% of T, and
+55–68% of it lies between b1 and 25, where 56–88% of the error is.
+
+| design | scorer T | draws passed | why |
+|---|---|---|---|
+| check is the widest legal schedule, estimate move/(s − 1) | 7669 | 0/5 | committed run already at the range; s spreads 1.04–4.1 across bands; dry's a_l1 reads the wrong sign |
+| committed built finer so the check can coarsen evenly | 9088–9337 | 1/5 | the room costs 25–30% more committed nodes, paid three times; one-interval gaps cannot coarsen |
+| bisect every wide interval (nested) | 8916; before 25 only 8818 | 5/5; 20/20 | reads exactly: the honest fallback at +4% |
+| bisect the top 80% of proxy error | 8281 | 0/5 | the proxy misses lma's late storage_relaxation_offset error |
+| a05 at R = 1.5, 1.4 | 8406, 8372 | 4/5 | 1/(1 − s) amplifies the jitter between non-nested runs |
+| **check not refined after 25** | **8393** | **20/20** | after 25 the check spends 8–17% of Δ on 0.5–7% of the error |
+| map on the committed run, bisect each region's top 75% | 8348 | 20/20 | passes only because the scorer cannot see sign-mixed error inside a band; its real counterpart read 0.55 on episodic |
+
+Using J's map as ln J's estimate saves nothing: ln J never binds (worst 0.37ε).
+
+**A check reused after a trait move.** On saved real runs of seven designs, θ1's schedule
+built from θ1's own pilot, with θ0's estimate standing in for θ1's check:
+- dry → dry-p50 (root_P50 ×1.2) and long-wet ↔ wet-adG2 (a_dG2 ×1.25) pass C1–C5 in every
+  design (error correlation 0.93–0.98, rms difference 0.04–0.09ε; a09 reads 1.21, 0.91);
+- dry-p50 → dry fails C2 in all seven: storage_relaxation_offset's error moves −0.31 →
+  −0.53 with the trait, and θ0's estimate reads about 0;
+- lma ×1.25 fails both ways, and the pilot flags it (J ×0.016, proxy ×0.06, against
+  ×0.82–1.28 and ×0.90–0.97 for the moves that pass); ln J's own move does not;
+- across weather seeds the estimate does not transfer (reads 0.24–0.88);
+- only about half of θ1's edges lie within 1e-3 of θ0's, so a grid is rebuilt from θ1's
+  pilot, not reused.
+Where it holds, a rebuild costs 2c instead of 3c + f: −54% on dry-p50 (1278 → 588) and
+wet-adG2 (1507 → 686). Its risk is a trait-sensitive quantity shifting 0.2ε, as
+storage_relaxation_offset does at ×1.2 one way. It is untested on invaders and at the
+objective's ±10% radius.
