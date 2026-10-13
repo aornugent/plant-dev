@@ -45,3 +45,10 @@ R1. Every committed answer within eps on every quantity but rooting_depth_max (C
 R2. C2, C3 (one miss allowed under five) and C5 hold on at least 9 of 10 cases.
 R3. On training cases each run's errors match the scorer's within 0.15 eps rms.
 R4. Real cost (rows) within 10% of the scorer's rows model.
+
+## Lateral probes (13 October), on c05_graded's committed schedule, dry and episodic
+- tol 1e-4 and 3e-4 (the schedules' runs use 3e-5): predict every quantity moves under
+  ε/3 from the 3e-5 run at 1e-4, with 20-35% fewer rows; at 3e-4 unknown.
+- tail edges dropped (b > 20): predict every quantity moves under ε/4 (R(b) ≈ 0 there).
+- the 10-20 band thinned to about 170 d: predict moves up to ε/2 in the late-binding
+  quantities (a_l1, storage_relaxation_offset, root_P50), off the square law.
