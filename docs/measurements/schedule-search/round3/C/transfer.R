@@ -29,3 +29,7 @@ for (pr in strsplit(strsplit(PAIRS, ",")[[1]], ":")) {
 # ln J's own move (the cheap forward-only check at theta1) against theta0's.
 if (nzchar(Sys.getenv("LNJ"))) for (pr in strsplit(strsplit(PAIRS, ",")[[1]], ":")) { a <- one(pr[1]); b <- one(pr[2])
   cat(sprintf("  lnJ %s -> %s: err0 %+.2f est0 %+.2f | err1 %+.2f est1 %+.2f | est1/est0 %.2f\n", pr[1], pr[2], a$ec["lnJ"], a$est["lnJ"], b$ec["lnJ"], b$est["lnJ"], b$est["lnJ"] / a$est["lnJ"])) }
+# Committing theta1's finer schedule on theta0's estimate (est0 * s0), and the largest miss.
+if (nzchar(Sys.getenv("FINE"))) for (pr in strsplit(strsplit(PAIRS, ",")[[1]], ":")) { a <- one(pr[1]); b <- one(pr[2]); k <- intersect(names(a$ec), names(b$ec))
+  cat(sprintf("  %s -> %s: coarse max|err1 - est0| %.2f (own %.2f) | fine: worst %.2f, %s\n", pr[1], pr[2], max(abs(b$ec[k] - a$est[k])), max(abs(b$ec[k] - b$est[k])),
+    max(abs(b$ef[k])), grade(b$ef[k], a$est[k] * a$s))) }

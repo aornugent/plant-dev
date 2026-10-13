@@ -632,3 +632,36 @@ was 0.32ε, which a node-only check cannot see.
 Where a09's T goes: the committed schedule, run three times (find plus two uses), is
 66–70% of T; the check 30–34% (episodic-lma, which commits fine, 82/18). The check costs
 1.30–1.53 committed runs.
+
+## Round 3: one shrink for every error source, and edges by measured value (13 October)
+
+Two offline lenses on the scorer and saved runs (scripts in `round3/A`, `round3/B`).
+
+**A: can the check shrink every error source by one factor?** No; tolerance error is not
+a power law.
+- At 1e-4 the tolerance error is the same in both runs and small (≤0.06ε of bias, jitter
+  rms 0.02–0.03), so the node-only check need not read it.
+- It is flat up to 1e-4 and starts between 1e-4 and 3e-4, where it lies along one
+  hydraulic direction (stem_c, TF24_cost_scale, storage_relaxation_offset move together)
+  at 0.17–0.35ε on dry and lma. `ln J` barely moves. No s reads it, and a check at a
+  matched looser tolerance saves at most 4–11% of rows (about 6% of CPU) while misreading
+  whenever the fine run commits.
+- Late edges dropped from both runs are shared error at shrink 0 (≤0.08ε): harmless.
+- Splits cut the run-to-run jitter of a ±5% tolerance nudge 3–6× (rms 0.02–0.04 against
+  0.08–0.13 without). Long drought runs without them.
+- At 3e-4 rows fall to 0.875 of 1e-4 but CPU only to about 0.91.
+
+**B: which edges does a run need, by measured value?** J's adjoint map of per-node
+removal moves ranks the elasticities' edge cost backwards, and clustered removals do not
+add (×5), so a map cannot choose edges. What can be done is thin the committed run only
+and keep the check whole, reading the thinning at shrink 0 (`round3/B/prereg.md`):
+- long drought, gaps under 10 d merged: commits coarse, passes, reads 1.16–1.23, T 2371
+  against a05's 2743;
+- dry-flat: passes, reads 0.86, T 1913 against 2391;
+- dry, every gap: commits fine and fails C3, because the check's estimate s/(1 − s)·d
+  carries the thinning shift (stem_c +0.21–0.24) into the fine run's read;
+- dry, only gaps after b = 10 merged: passes, T 1300 against 1372.
+
+So merging is safe where it is late and kept out of the check. B's lowest-risk design
+merges gaps under 10 d after b = 10 in the committed run only, predicted T 6412 on the
+training five (−4.3% on a09), at the cost of ten thinned committed runs to validate.
