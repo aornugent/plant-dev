@@ -263,7 +263,7 @@ What is left lies in the constraints, not the search: the 100 d range and edges 
 nodes (both confirmed by real probes), and the check being a full gradient run (every
 family that avoided one could not read elasticities honestly).
 
-## a04_proxy at tolerance 1e-4, real runs (in progress, 13 October)
+## a04_proxy at tolerance 1e-4, real runs (13 October)
 
 | case | commits | worst | C1–C5 | T | c05_graded at 3e-5 |
 |---|---|---|---|---|---|
@@ -306,3 +306,28 @@ Systematic debugging (`loc/prereg.md`, `loc/soilcmp.R`):
 - The fix belongs where the mismatch is: the derivative path should differentiate the
   capped curve the forward evaluates (value at the cap, zero slope in ψ, the cap's own
   trait rows), not refuse it. That is a phylloptim change, outside the schedule.
+
+### All ten cases
+
+| case | verdict | T | c05_graded at 3e-5 |
+|---|---|---|---|
+| episodic | pass | 761 | 1065 |
+| dry | pass | 1363 | 1774 |
+| long-wet | pass | 1573 | 2069 |
+| lma ×1.25 | pass | 781 | 1216 |
+| long drought | **C4: sweep refused** (the root curve, above) | — | 3448 |
+| dry without season | **C2, C3 fail**: estimate reads 0.69 of the error, storage_relaxation_offset 0.41 | 2346 | 3066 |
+| long drought, seed 102 | pass | 2553 | 3236 |
+| long drought, seed 105 | **C4: sweep refused**, (ψ/b)^c = 5783 | — | 3054 |
+| dry, root_P50 ×1.2 | pass | 1420 | 1861 |
+| long-wet, a_dG2 ×1.25 | pass | 1623 | 2135 |
+
+- Seven of ten pass, at 21–36% less T than c05_graded at 3e-5, which passed all ten.
+- Two long-drought records refuse at 1e-4: the dry-stage mechanism above, a defect in
+  the derivative path rather than in the schedule.
+- On dry without season the non-nested check under-reads (0.69 median; storage 0.41).
+  Its shrink s comes from the pilot's offspring^0.6·h³, and where the error sits in
+  intervals the ratio cannot refine (short spells between edges) the real shrink is
+  smaller than the proxy's. c05_graded's nested check read the same case at 0.92 with
+  12 of 12. This is lesson 15 again: a non-nested pair's estimate depends on a model of
+  where the error is.
