@@ -268,6 +268,12 @@ Same class as the root-curve refusal: the forward answers, the derivative refuse
 (the midpoint of the two bounds' own derivatives) is being made test-first as
 PHYLLOPTIM-19.
 
+Held-out so far: dry-flat passes, coarse, T 1654 against 1955 at 1e-4 (−15%), worst 0.96
+(a); its tolerance move from a09's committed run is at most 0.08ε (stem_c −0.08,
+TF24_cost_scale −0.08), not the +0.3 and +0.2 agent A offered. ld-102 and ld-105 (long
+drought, other seeds) return NaN in every gradient, as agent A offered: the third and
+fourth records to refuse at 3e-4, all on the long-drought climate.
+
 ## a10: a09 with short shut gaps merged after b = 10 in the committed run only (13 October)
 
 `mka10.R`: on a09's committed schedule, every shut gap under 10 d centred in [10, 25) is
