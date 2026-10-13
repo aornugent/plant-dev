@@ -3,12 +3,14 @@
 # the range, a node goes back at the gap's centre (KEEP=centre) or its later edge
 # (KEEP=edge), the start of the next open spell. Prints job lines for one.sh.
 #   Rscript mkmerge.R G CASE...   (FROM, TO: merge only gaps centred in [FROM, TO);
-#   SPELLS=1: an open spell whose gaps on both sides merge keeps its start edge)
+#   SPELLS=1: an open spell whose gaps on both sides merge keeps its start edge;
+#   SPELLS=2: no two gaps either side of one spell both merge, so every spell keeps both edges)
 source("/home/user/plant-dev/harness/schedule/lattice.R"); L <- file.path(DEV, "schedtest/loc")
 a <- commandArgs(TRUE); G <- as.numeric(a[1]); KEEP <- Sys.getenv("KEEP", "centre"); tag <- if (KEEP == "edge") "mk" else "mg"
-FROM <- as.numeric(Sys.getenv("FROM", 0)); TO <- as.numeric(Sys.getenv("TO", 40)); if (FROM > 0 || TO < 40) tag <- sprintf("%s%g-%g_", tag, FROM, TO); if (Sys.getenv("SPELLS") == "1") tag <- paste0(tag, "s")
+FROM <- as.numeric(Sys.getenv("FROM", 0)); TO <- as.numeric(Sys.getenv("TO", 40)); if (FROM > 0 || TO < 40) tag <- sprintf("%s%g-%g_", tag, FROM, TO); if (Sys.getenv("SPELLS") %in% c("1", "2")) tag <- paste0(tag, c("1" = "s", "2" = "t")[Sys.getenv("SPELLS")])
 for (case in a[-1]) { pe <- pilot_edges(case); e <- sort(round(pe$edges, 10)); S <- readRDS(file.path(L, sprintf("loc_a04_c_%s.rds", case)))
   m <- (head(e, -1) + e[-1]) / 2; gap <- pe$shut(m) > 0.5 & diff(e) * 365 < G & m >= FROM & m < TO
+  if (Sys.getenv("SPELLS") == "2") for (k in which(gap)) if (k >= 3 && gap[k - 2]) gap[k] <- FALSE
   drop <- unique(c(e[-length(e)][gap], e[-1][gap]))
   if (Sys.getenv("SPELLS") == "1") { k <- which(gap); both <- k[(k + 2) %in% k]; drop <- setdiff(drop, e[both + 1]) }
   x <- S[!(round(S, 10) %in% drop)]

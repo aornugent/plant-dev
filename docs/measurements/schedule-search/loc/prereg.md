@@ -184,3 +184,7 @@ under 0.12ε with nearly all of its 28% saving.
 
 Result, SPELLS=1 on dry: max move 0.10 (stem_c), rms 0.025, rows −10.8%. The registered
 "under 0.05ε" fails: keeping the spell's start edge halves the move but does not remove it.
+
+SPELLS=1 on dry without season: max move 0.04, rms 0.013, rows −24% (plain G = 10:
+0.12, −28%). Registered before the runs: SPELLS=1 on long drought moves under 0.05ε;
+SPELLS=2 (every spell keeps both edges) on dry moves under 0.05ε.
