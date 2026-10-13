@@ -702,3 +702,37 @@ Where it holds, a rebuild costs 2c instead of 3c + f: −54% on dry-p50 (1278 �
 wet-adG2 (1507 → 686). Its risk is a trait-sensitive quantity shifting 0.2ε, as
 storage_relaxation_offset does at ×1.2 one way. It is untested on invaders and at the
 objective's ±10% radius.
+
+## Round 3 on real runs: 3e-4, merging in the committed run, a lighter check (13 October)
+
+Pre-registrations and every number: `loc/prereg.md` (a09 at 3e-4, a10, a11, a12, the
+nudge test, D1–D2, R1–R2).
+
+| algorithm | passes | T, training five | T, all ten | against a09 |
+|---|---|---|---|---|
+| a09 at 1e-4 | 10/10 | 6699 | 16122 | — |
+| a09 at 3e-4 (phylloptim 0.9.3 for long drought) | 9/10 (ld-102 C3) | 6066 | 14360 | −9.4%, −10.9% |
+| a10: a09 + short gaps merged after 10, committed run only | 9/10 (long drought: a gradient blow-up, below) | 6399 | 15302 | −4.5%, −5.1% |
+| a11: a09, check refined before 25 only | 10/10 | 6634 | 15985 | −1.0%, −0.85% |
+| a12: a10's committed run, a11's check | 9/9 (long drought pending) | — | 12826 on nine | −5.8% on nine |
+
+- **3e-4 needs phylloptim 0.9.3** (`PHYLLOPTIM-19`, aornugent/phylloptim#19): every
+  long-drought record refused at 3e-4 on a determined collar until then. It then saves
+  about 10%, but on ld-102 the tolerance error along the hydraulic direction lands
+  unevenly in the two runs and the check misreads it (a_l1 reads 0.14 against 0.42):
+  the unread error agent A warned of.
+- **a10's merge is cheap and safe where it was measured** (moves ≤0.06ε on nine cases),
+  but `mka10.R` first dropped both edges of some open spells (fixed: a spell whose gaps
+  both merge keeps its start edge). The edges were not what broke long drought.
+- **a11 saves 1%** and costs accuracy wherever the fine run commits (episodic-lma's worst
+  0.41 → 0.69); its shrink must be read before 25, or the proxy credits the unrefined late
+  region with error and pushes episodic to commit fine.
+
+**Long drought's gradient blows up silently on some schedules and tolerances.** One a10
+schedule gave −0.43, the cluster and a 33ε blow-up at tolerances 1e-4, 0.95e-4 and
+1.05e-4 without splits, with J unchanged; with splits the 1.05e-4 run returned to the
+cluster, but the fixed a10 schedule with splits returned elasticities up to 2186. No
+refusal is recorded. The references are sound (the splits reference agrees with the old
+to 0.04ε). This breaks "never fails" in its silent form and is being root-caused
+(`round3/D/`); until it is, every long-drought number rests on runs that happened to
+land in the cluster, and a guard that flags a blown gradient is needed for "diagnosed".
