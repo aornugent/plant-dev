@@ -468,3 +468,28 @@ phylloptim (`loc/mkc5t.R`, `loc/val_c5t.log`):
   dry and lma ×1.25, which c5t commits fine, are the exceptions), and it also passes dry
   without season, where a04's non-nested check fails. a05 fixes that failure for 2%; a05
   without the late edges has not been run.
+
+### a05_fill on all ten cases (13 October)
+
+`loc/val_a05t.log`, tolerance 1e-4, the fixed phylloptim; a05's committed schedule is
+a04's, its check a04's plus the bisected wide intervals:
+
+| case | commits | worst | C1–C5 | T | a04 at 1e-4 | c5t |
+|---|---|---|---|---|---|---|
+| episodic | coarse | 0.81 | pass (3/3) | 768 | 761 (2/3) | 798 |
+| dry | coarse | 0.97 | pass (16/17) | 1372 | 1363 | 1726 |
+| long-wet | coarse | 0.49 | pass (2/2) | 1603 | 1573 | 1575 |
+| long drought | coarse | 0.56 | pass (6/6) | 2743 | 2723 | 2759 |
+| lma ×1.25 | fine | 0.52 | pass (17/17) | 796 | 781 | 935 |
+| dry without season | coarse | 0.90 | pass (12/12) | 2391 | 2346 (fails) | 2023 |
+| long drought, seed 102 | coarse | 0.45 | pass (3/3) | 2593 | 2553 | 2559 |
+| long drought, seed 105 | coarse | 0.45 | pass (3/3) | 2476 | 2460 | 2514 |
+| dry, root_P50 ×1.2 | coarse | 0.97 | pass (11/11) | 1428 | 1420 | 1391 |
+| long-wet, a_dG2 ×1.25 | coarse | 0.57 | pass (2/2) | 1655 | 1623 | 1603 |
+
+- **Ten of ten pass, T 17825:** 22% below c05_graded at 3e-5 (22924), 1.5% above a04 at
+  1e-4 where a04 passes, and level with c5t (17883), which already drops the late edges
+  that a05 keeps. Estimate/error medians 0.85–1.21.
+- So a05 and c5t reach the same T by different routes: a05 by a cheaper check, c5t by a
+  cheaper schedule. a06 (registered, running) puts c5t's trimming, plus the short-gap rule,
+  on a05.

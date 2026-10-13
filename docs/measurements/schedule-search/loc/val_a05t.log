@@ -1,0 +1,10 @@
+episodic      commit coarse | worst 0.81 (a_l1) | C1 1 C2 1 C3 1 (3/3) C5 1 | est/err median 0.98 | T 768 (find 426, use 171)
+dry           commit coarse | worst 0.97 (a_l1) | C1 1 C2 1 C3 1 (16/17) C5 1 | est/err median 1.13 | T 1372 (find 737, use 318)
+long-wet      commit coarse | worst 0.49 (a) | C1 1 C2 1 C3 1 (2/2) C5 1 | est/err median 1.03 | T 1603 (find 871, use 366)
+long-drought  commit coarse | worst 0.56 (a_l1) | C1 1 C2 1 C3 1 (6/6) C5 1 | est/err median 1.21 | T 2743 (find 1472, use 635)
+episodic-lma  commit fine | worst 0.52 (vcmax_25) | C1 1 C2 1 C3 1 (17/17) C5 1 | est/err median 0.97 | T 796 (find 360, use 218)
+dry-flat      commit coarse | worst 0.90 (a) | C1 1 C2 1 C3 1 (12/12) C5 1 | est/err median 0.85 | T 2391 (find 1266, use 562) | ref's own estimate up to 0.24
+ld-102        commit coarse | worst 0.45 (vcmax_25) | C1 1 C2 1 C3 1 (3/3) C5 1 | est/err median 1.02 | T 2593 (find 1404, use 595) | ref's own estimate up to 0.18
+ld-105        commit coarse | worst 0.45 (a) | C1 1 C2 1 C3 1 (3/3) C5 1 | est/err median 0.91 | T 2476 (find 1331, use 572) | ref's own estimate up to 0.11
+dry-p50       commit coarse | worst 0.97 (a_l1) | C1 1 C2 1 C3 1 (11/11) C5 1 | est/err median 0.96 | T 1428 (find 766, use 331) | ref's own estimate up to 0.10
+wet-adG2      commit coarse | worst 0.57 (a) | C1 1 C2 1 C3 1 (2/2) C5 1 | est/err median 0.93 | T 1655 (find 896, use 379) | ref's own estimate up to 0.24
