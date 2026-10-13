@@ -52,3 +52,21 @@ R4. Real cost (rows) within 10% of the scorer's rows model.
 - tail edges dropped (b > 20): predict every quantity moves under ε/4 (R(b) ≈ 0 there).
 - the 10-20 band thinned to about 170 d: predict moves up to ε/2 in the late-binding
   quantities (a_l1, storage_relaxation_offset, root_P50), off the square law.
+
+## Real runs of a04_proxy (R = 1.6, BG = 90), 13 October
+Committed run at 90 d background; check refined by 1.6x everywhere, not nested;
+estimate = move / (1 - s), s from the pilot's offspring^0.6 h^3 over both schedules.
+Scored T 8384, 99/100 draws. Same ten cases as c05_graded. Predictions as R1-R4 above,
+plus R5: the non-nested pair's real jitter keeps C3 on at least 9 of 10 cases (lesson 15
+saw a non-nested pair fail C3 on real episodic runs).
+
+## Probe results and the tolerance batch (13 October)
+Probes on c05_graded's committed run (dry, episodic):
+- tol 1e-4: CPU 0.84-0.88 of 3e-5, quantities move at most 0.06-0.11 eps (rms 0.02-0.03).
+  Prediction held.
+- tol 3e-4: dry moves up to 0.32 eps; episodic's elasticities came back NaN. Unusable.
+- tail edges dropped: CPU 0.88-0.91, moves up to 0.27-0.34 eps (predicted under 1/4:
+  failed); worst error fell (0.97 to 0.67, 0.74 to 0.61).
+- 10-20 thinned to ~190 d: moves up to 0.77-0.91, worst error 1.65-1.74. The range holds.
+So a04_proxy's ten cases now run at tol 1e-4 (the 3e-5 batch stopped after episodic).
+Predictions: as R1-R5, with T on the training cases under 8000.

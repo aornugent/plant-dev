@@ -199,3 +199,20 @@ extrapolate u215 and u429, whose own estimate is up to 0.10–0.24ε):
 Against the pre-registration: R1 and R2 hold (10 of 10); R3 holds on four of five
 training cases (lma's committed run misses at 0.31); R4 holds within 11% (two check
 runs at 1.10 and 1.11).
+
+## Probes outside the scorer's range (13 October)
+
+On c05_graded's committed run, dry and episodic (`loc/probes.R`):
+
+| probe | CPU of the base | largest move | worst error (base) |
+|---|---|---|---|
+| tolerance 1e-4 | 0.84–0.88 | 0.06 (dry), 0.11 (episodic) | 0.99 (0.97), 0.65 (0.74) |
+| tolerance 3e-4 | 0.73–0.78 | 0.32 on dry; episodic's elasticities NaN | |
+| no edges after 20 | 0.88–0.91 | 0.34, 0.27 | 0.67 (0.97), 0.61 (0.74) |
+| 10–20 at about 190 d | 0.93–0.94 | 0.77, 0.91 | 1.74, 1.65 |
+
+- **Tolerance 1e-4 is free accuracy-wise and saves 12–16% of every run.** At 3e-4 the run
+  fails (NaN), so 1e-4 is the setting.
+- Edges after 20 move quantities by up to a third of ε, more than predicted; the
+  errors fell rather than rose, so their role is not settled.
+- The 100 d range is real: intervals near 190 d err up to 1.7ε.
