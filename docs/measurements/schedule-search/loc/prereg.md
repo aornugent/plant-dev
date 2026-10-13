@@ -258,3 +258,12 @@ a09's own schedules rerun at 3e-4 on the fixed phylloptim. Expected from the pro
 - H2: T falls 8–12% from a09 at 1e-4.
 - H3: at least one case fails C1–C5, because tolerance error the node check cannot see
   reaches ε/3 somewhere; the estimate/error medians drift from a09's on the dry records.
+
+a09 at 3e-4, so far: episodic, long-wet and lma ×1.25 pass at 13–14% less T; dry passes
+but commits fine (T +2%). **H1 fails on long drought:** both runs' sweeps refuse with
+"Leaf::collar_at: no operating point to place at one that is determined". A stage at 3e-4
+reaches a collapsed collar interval (the wet and dry bounds within the solver's tolerance);
+the forward sets the collar to their midpoint, and collar_at has no case for that kind.
+Same class as the root-curve refusal: the forward answers, the derivative refuses. The fix
+(the midpoint of the two bounds' own derivatives) is being made test-first as
+PHYLLOPTIM-19.
