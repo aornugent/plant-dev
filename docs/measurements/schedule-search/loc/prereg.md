@@ -313,3 +313,20 @@ committed runs are a09's (a11) and a10's (a12), reused. Before the runs:
 - A11-3: every quantity's check answer moves under 0.05ε from a09's check (the late
   region carries almost no error that a09's check removed).
 - A12: passes wherever a10 passes, T about 1% under a10's.
+
+**a10 on long drought fails C3, and its answer sits 0.54ε from every other run.** a10's
+committed answer moved up to 0.54ε from a09's (TF24_cost_scale −0.54, a_l1 −0.50),
+against A10-1's 0.12ε, and C3 fails (3/5; read median 1.62). Seven other committed runs
+on long drought (a09, a06, a07, a08, mg10, mgs10) agree within 0.09ε of each other.
+- `mka10.R` left out mkmerge's spell rule, so three open spells lost both edges
+  (10.37–10.60, 19.69–19.94, 23.74–23.88). Fixed: a spell whose gaps both merge keeps its
+  start edge. But a10's schedule on [10, 25) is node for node mg10's, and mg10 agrees
+  with a09, so the missing edges are not the cause.
+- Hypothesis: long drought runs without splits, where a ±5% tolerance nudge moves
+  answers up to 0.24–0.52ε (agent A); a10's step sequence fell on another branch.
+  Registered before the runs (a10's schedule as run, at tolerance 1.05e-4 and 0.95e-4;
+  and the fixed schedule at 1e-4):
+  - N1: at least one nudge moves TF24_cost_scale or a_l1 by over 0.3ε, toward the
+    others' cluster.
+  - N2: if neither nudge moves it over 0.15ε, the jump is the schedule's, and jitter is
+    refuted.
