@@ -569,3 +569,48 @@ so late spells keep their own interior nodes, and are left out of both runs.
 - So short-gap merging buys about 10% of T but costs the check's honesty on two of ten
   records. a09 (a05 with only the late edges left out, no merging) is running as the
   robust alternative.
+
+## a09: a05 without the late edges, no merging (13 October)
+
+`any/a09_late.R`, `loc/val_a09.log`: a05 builds on every edge; both runs leave out the
+edges after 25.
+
+| case | worst | C1–C5 | est/err | T | a05 | a07 |
+|---|---|---|---|---|---|---|
+| episodic | 0.76 | pass (3/3) | 0.94 | 720 | 768 | 877 |
+| dry | 0.94 | pass (14/15) | 1.12 | 1241 | 1372 | 1131 |
+| long-wet | 0.50 | pass (2/2) | 1.04 | 1470 | 1603 | 1282 |
+| long drought | 0.53 | pass (4/4) | 1.12 | 2513 | 2743 | 2156 |
+| lma ×1.25 (fine) | 0.41 | pass (20/20) | 1.17 | 755 | 796 | 770 |
+| dry without season | 0.95 | pass (12/12) | 0.88 | 1955 | 2391 | 1600 |
+| long drought, seed 102 | 0.46 | pass (3/3) | 1.01 | 2351 | 2593 | 2091 |
+| long drought, seed 105 | 0.45 | pass (3/3) | 0.87 | 2332 | 2476 | 2189 |
+| dry, root_P50 ×1.2 | 0.93 | pass (11/11) | 0.96 | 1278 | 1428 | 1122 |
+| long-wet, a_dG2 ×1.25 | 0.57 | pass (2/2) | 0.93 | 1507 | 1655 | 1321 |
+
+- **Ten of ten, every median read 0.87–1.17, T 16122:** 9.6% below a05, 30% below
+  c05_graded at 3e-5. All three registered predictions hold.
+- Long drought reads 1.12 (a07 0.65, a08 0.66): the under-read came from merging short gaps
+  before the build, as the a06/a08 comparison suggested.
+
+## Where the algorithms stand (13 October)
+
+All at tolerance 1e-4 on the fixed phylloptim, the ten real cases:
+
+| algorithm | passes | median reads | T | against c05_graded at 3e-5 |
+|---|---|---|---|---|
+| c05_graded at 3e-5 | 10/10 | 0.82–1.11 | 22924 | — |
+| c5t: c05_graded, no edges after 25 | 10/10 | 0.92–1.28 | 17883 | −22% |
+| a05: a04 + bisected wide intervals | 10/10 | 0.85–1.21 | 17825 | −22% |
+| **a09: a05, no edges after 25** | **10/10** | **0.87–1.17** | **16122** | **−30%** |
+| a07: a05 on merged gaps, no edges after 25 | 10/10 | 0.65–1.13 | 14539 | −37% |
+| a08: as a07, late edges through the build | 9/10 | 0.66–1.17 | 14030 | −39% |
+| a06: a05 trimmed after the build | 9/10 | 0.81–1.15 | 14273 | −38% |
+
+- **a09 is the robust choice:** every case passes and every median read sits in 0.87–1.17.
+- Merging shut gaps under 10 d buys a further ~10% (a07), but a check laid out across
+  merged spans refines less of some quantities' error than the spacing proxy says (long
+  drought reads 0.65, dry's root_P50 0.3), so a07's ten of ten holds with thin margin and
+  a08's does not. The merge's own error is small (≤0.10ε); what it costs is the check's
+  honesty. Making the merge safe would need a check that refines merged spans by the error
+  they carry (e.g. toward each spell's closing edge), not by their length.
