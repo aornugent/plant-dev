@@ -249,3 +249,12 @@ root_P50), which no proxy of spacing can see.
 The clean alternative to a07: a05 builds on every edge; both runs leave out the edges
 after 25 (as c5t did, ten of ten). Predicted: ten of ten pass with estimate/error medians
 0.85–1.2 on every case (long drought included), T 6–10% below a05's 17825.
+
+## a09 at tolerance 3e-4 (registered before the runs)
+
+a09's own schedules rerun at 3e-4 on the fixed phylloptim. Expected from the probes (CPU
+0.73–0.78 of 3e-5 against 1e-4's 0.84–0.88; largest move 0.32ε on dry):
+- H1: no run refuses or returns NaN.
+- H2: T falls 8–12% from a09 at 1e-4.
+- H3: at least one case fails C1–C5, because tolerance error the node check cannot see
+  reaches ε/3 somewhere; the estimate/error medians drift from a09's on the dry records.
