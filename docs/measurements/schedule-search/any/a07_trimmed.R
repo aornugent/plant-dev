@@ -14,3 +14,5 @@ trim_pilot <- function(p) { e <- sort(p$edges); m <- (head(e, -1) + e[-1]) / 2
   p }
 a05_algorithm <- algorithm
 algorithm <- function(ctx) { ctx$pilot <- trim_pilot(ctx$pilot); a05_algorithm(ctx) }
+# The shrink the algorithm used, for scoring its runs: the proxy on the trimmed pilot.
+shrink <- function(p, Sc, Sf) { p <- trim_pilot(p); proxy_err(p, Sf) / proxy_err(p, Sc) }
