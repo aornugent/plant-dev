@@ -262,3 +262,24 @@ About 35 configurations (`any/floor.R`, `any/oracle.R`, `any/b01_alt.R`):
 What is left lies in the constraints, not the search: the 100 d range and edges as
 nodes (both confirmed by real probes), and the check being a full gradient run (every
 family that avoided one could not read elasticities honestly).
+
+## a04_proxy at tolerance 1e-4, real runs (in progress, 13 October)
+
+| case | commits | worst | C1–C5 | T | c05_graded at 3e-5 |
+|---|---|---|---|---|---|
+| episodic | coarse | 0.81 | pass (2 of 3 over ε/3 read) | 761 | 1065 |
+| dry | coarse | 0.97 | pass (16/17) | 1363 | 1774 |
+| long-wet | coarse | 0.49 | pass (2/2) | 1573 | 2069 |
+| lma ×1.25 | fine | 0.56 | pass (18/18) | 781 | 1216 |
+| long drought | — | — | **C4: the sweep refused on both runs** | — | 3448 |
+
+- Where it passes, T is 23–36% below c05_graded at 3e-5, and real rows are 0.81–0.87 of
+  the scorer's model (fit at 3e-5), so the tolerance's saving is about what the probes
+  measured.
+- Long drought at 1e-4: the forward runs completed, and both sweeps refused with
+  "past the vulnerability curve's domain" (phylloptim, stem curve). Long drought runs
+  without splits. The same schedule is being rerun at 3e-5 to tell the tolerance from
+  the schedule; tolerance 3e-4 already returned NaN elasticities on episodic.
+- Tail edges, at 1e-4: dropping those after 25 moves no quantity by more than 0.08ε and
+  saves 6.5–10% of the committed run's rows; after 30, about nothing either way
+  (`loc/probes2.R`). The band 20–25 is what mattered.
