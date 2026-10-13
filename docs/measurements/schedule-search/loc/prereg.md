@@ -76,3 +76,19 @@ Dropping every edge after 20 moved 10-14 quantities by over 0.1 eps, almost all 
 the reference (rms error 0.31 -> 0.33 dry, 0.19 -> 0.22 episodic). Now after 25 and after
 30, at tol 1e-4, against the tol 1e-4 base. Prediction: after 30 every quantity moves
 under 0.1 eps; after 25 under 0.2.
+
+## Root cause: long drought's sweep refuses at tol 1e-4 (13 October, systematic debugging)
+Evidence so far: the throwing function serves both vulnerability curves; x = 256 is
+31 MPa on the root curve (420 MPa on the stem curve, which its table would already
+have refused). The forward root integral is capped past 7.31 MPa; the sweep's exact
+path (closed_form_integral -> cumulative_vulnerability_integral_derivatives_at) has no
+cap and refuses past the root curve's P99, 6.89 MPa. Recorded (accepted) states never
+pass 5.17 MPa at either tolerance, but the soil moisture floor binds 842 times at 1e-4
+against 483 at 3e-5, and the 1000 MPa ceiling 927 against 523: the dry evaluations sit
+inside steps.
+Hypothesis H1: at 1e-4 an accepted step's internal stage drives a rooted layer past
+6.89 MPa; the forward caps the integral and accepts the step; the sweep replays the
+stage and refuses. At 3e-5 the accepted steps' stages stay inside.
+Test (pinned replay of the step sequence, tolerance swapped):
+  A: 1e-4's steps replayed at tol 3e-5 -> H1 predicts the sweep refuses.
+  B: 3e-5's steps replayed at tol 1e-4 -> H1 predicts the sweep passes.
