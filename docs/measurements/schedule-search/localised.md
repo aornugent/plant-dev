@@ -150,3 +150,22 @@ carry 44–64% of the committed run's rows.
 | a quadrature per open spell instead of edge nodes | integrate each spell on its own: one midpoint node under 85 d, Gauss nodes above; nothing crosses an edge | about −12% (committed rows −4% to −18%) | weights per spell in plant; dry and long drought against references |
 | log fate across the founders' window | fate falls nearly exponentially; the founders' error is mostly the own part (43–80% of the map's \|move\|); own-part error at f8 0.34–1.45ε with the hat rule, 0.03–0.07ε interpolating log fate | about −7%, and lma more robust | f8, f16 on dry and lma with the new weights |
 | share the late check across θ | the late move at θ₀ reads a moved trait's with correlation 0.95–0.97, rms about 0.05ε; whole-run errors do not transfer (0.10) | about −10% per extra θ in a local analysis | wet-adG2 against long-wet |
+
+## Other algorithm families on the scorer (13 October)
+
+About 22 candidates in six families, the leader's knobs out of bounds (`any/lateral/`):
+
+| family | result | why |
+|---|---|---|
+| a check coarser than the answer | fails, or 10.2k | nested coarsening needs the answer at half the range wherever nodes drop; a non-nested one amplifies jitter by s/(1−s) |
+| a partial check plus a remainder from the pilot | fails | per-band factors differ in sign by quantity, so J's error cannot carry an elasticity's remainder |
+| one gradient run plus forward runs or a map | cannot be honest | they measure J's error only |
+| commit the finer run | fails C3 | 2–4 quantities over ε/3, one jitter miss fails |
+| size a third run from the pair | fails on cost | edges make every run at least 0.91 of the committed |
+| Richardson answer from two runs | passes at 14.4k | both runs are paid in use |
+| **check finer by one ratio, not nested** (`any/a04_proxy.R`) | **T 8384, 40/40; 99/100** | the check at 1.6× costs 1.4× the answer against the halving check's 1.58×; estimate = move/(1 − s), s from the pilot |
+
+The last trades nesting for a cheaper check, and lesson 15 (`BRIEF.md`) found a
+non-nested pair failing C3 on real runs; it needs real runs before it counts. Within
+this scorer, placement is close to exhausted: 8.4–9.1k against the 7.6–8k that the
+prize allows once d is known. The larger levers are the lateral ones above.
