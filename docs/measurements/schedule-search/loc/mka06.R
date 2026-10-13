@@ -9,7 +9,7 @@ trim <- function(S, pe) { e <- sort(round(pe$edges, 10)); m <- (head(e, -1) + e[
   drop <- setdiff(unique(c(e[-length(e)][gap], e[-1][gap])), e[both + 1]); drop <- c(drop, e[e > 25])
   x <- S[!(round(S, 10) %in% round(drop, 10))]
   cap <- function(b) if (b < pe$b1) pe$b1 / 12 else if (b < 20) 100 / 365 else 280 / 365
-  for (j in k) { i <- findInterval(m[j], x); if (i >= 1 && i < length(x) && x[i + 1] - x[i] > cap(m[j])) x <- sort(c(x, e[j + 1])) }
+  for (j in k) { i <- findInterval(m[j], x); if (i >= 1 && i < length(x) && x[i + 1] - x[i] > cap(m[j])) x <- sort(unique(round(c(x, e[j + 1]), 10))) }
   x }
 jobs <- readLines(file.path(L, "jobs_a04t.txt"))
 for (case in commandArgs(TRUE)) { pe <- pilot_edges(case)
