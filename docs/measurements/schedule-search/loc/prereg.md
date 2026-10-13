@@ -395,3 +395,20 @@ error of 0.42 and TF24_cost_scale −0.42 against −0.11, the hydraulic directi
 moves with tolerance unevenly between the two runs (agent A's unread error). ld-105's
 reads fall to a median 0.55. ld-102 and ld-105 run without splits, so some of this may
 be the gradient jump found on long drought; the splits references will tell.
+
+**R1 holds; R2 fails, and splits do not cure every blow-up.** The splits reference
+(lib19, 3e-5) moves long drought's quantities at most 0.04ε from the no-splits reference
+(its own u215 → u429 move under 0.14ε), so the reference and every score against it
+stand. a09 with splits moves at most 0.07ε from a09 without (CPU +2.9%). But the fixed
+a10 schedule with splits at 1e-4 returns elasticities up to 2186 (curv_fact_colim;
+recruitment_decay 1972; a09's largest is 60), with J within 1e-4 and no refusal recorded:
+a silent reverse-pass blow-up, as at 1.05e-4 without splits (33ε), which splits did cure
+on that schedule. So the jump depends on schedule and tolerance, not only on splits; its
+root cause is being sought (`../round3/D/`).
+
+a11 (check refined before 25 only, shrink read before 25), all ten: every case passes
+and commits as a09 did (A11-4, A11-5 hold); T 6634 on the training five (a09 6699,
+−1.0%; agent C predicted about 6630); all ten 15985 (16122, −0.85%). Where a case
+commits fine (episodic-lma), its committed run keeps the late error (worst 0.41 → 0.69).
+a12 (a10's committed run with a11's check): passes the nine cases other than long
+drought, T 12826 against a09's 13609 there (−5.8%).
