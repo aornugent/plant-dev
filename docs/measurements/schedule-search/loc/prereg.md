@@ -161,3 +161,7 @@ Result: the keep-edge variant moves the same quantities by the same amounts (ste
 away from the reference (stem_c −0.06 → +0.19, TF24_cost_scale 0.46 → 0.62). The G = 30
 probes are dropped: G = 10 already costs about what coarsening the spacing by the same
 12% would.
+
+Results: M1 holds on dry without season (max move 0.12, rms 0.034, rows −28%) and fails
+on dry. The survival-jump mechanism is refuted: |Δ ln offspring| across every short gap
+is at most 0.03. A1 and A2 hold (dry without season passes, median 0.85; dry unchanged).

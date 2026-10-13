@@ -389,11 +389,12 @@ nothing, so the error is not the known one of a node where nothing establishes; 
 the merging. That is about what coarsening every interval by the same 12% would cost
 (errors scale as N⁻², about +0.15ε here), so it is not a free saving.
 
-The likely mechanism: a shut gap is a dry spell. A seedling born just before one meets
-it as a neonate, one born just after does not, so early survival jumps across even a
-few-day gap although nothing is born inside it. An edge is a discontinuity in the
-cohort's state as well as in establishment, and an interval spanning it interpolates
-across the jump.
+On dry without season the same G = 10 drops 28% of rows and moves no quantity by more
+than 0.12ε (rms 0.034; worst error 0.90 → 0.95), where coarsening by 28% would add about
+0.3ε. So spanning short gaps is cheap on a record of scattered gaps and dear on a
+seasonal one. Why is open: offspring per founder hardly differs across a short gap
+(|Δ ln| ≤ 0.03 at every gap on all three records), so it is not a jump in the cohort's
+own fate. The G = 30 probes were dropped.
 
 The same mechanism shows inside spells (`loc/spellpos.R`, each case's G0 map, nodes
 after b1 and before 20 in spells longer than two intervals): the error per interval
@@ -402,3 +403,12 @@ rises toward the closing edge. By quarter of the spell it runs 0.5–0.9, 0.7–
 cases. Grading interior nodes toward each spell's end (h ∝ d^(-1/3), a 1.36 ratio
 across a 2.5-fold rise) would cut about 3% of interior nodes at equal error, and
 interior nodes are 12–47% of a committed schedule: 1–2% of T, not worth a run now.
+
+## a05_fill on real runs (13 October)
+
+a05's check (a04's, plus a bisection of each wide interval in a gap the ratio left
+alone) on dry without season, at 1e-4: **pass**, commit coarse, worst 0.90, C1–C5 with
+12 of 12 read (the three opposite-sign quantities included), estimate/error median 0.85,
+T 2391 (a04: 2346, failing C2 and C3). The real shrinks run 0.46–0.70 (a04's 0.51–0.87).
+On dry the verdict and reads are a04's (16/17, median 1.13 against 1.14), T +9. Registered
+A1 (median 0.85–1.1) and A2 hold. Its checks on the other eight cases are queued.
