@@ -167,5 +167,6 @@ About 22 candidates in six families, the leader's knobs out of bounds (`any/late
 
 The last trades nesting for a cheaper check, and lesson 15 (`BRIEF.md`) found a
 non-nested pair failing C3 on real runs; it needs real runs before it counts. Within
-this scorer, placement is close to exhausted: 8.4–9.1k against the 7.6–8k that the
-prize allows once d is known. The larger levers are the lateral ones above.
+this scorer, placement is close to exhausted: 8.4–9.1k against about 8.8k for the
+prize's schedules at worst 0.5ε (use cost 2001 over the five cases) with a check of
+1.4× and three uses' worth of the answer. The larger levers are the lateral ones above.
