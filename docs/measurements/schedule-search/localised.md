@@ -620,3 +620,15 @@ estimated earlier (about 6900), which assumed every edge is a node.
   a08's does not. The merge's own error is small (≤0.10ε); what it costs is the check's
   honesty. Making the merge safe would need a check that refines merged spans by the error
   they carry (e.g. toward each spell's closing edge), not by their length.
+
+### Tolerance 3e-4 reopened (13 October)
+
+The probe that ruled 3e-4 out (NaN elasticities on episodic, `val_probe_tol3e4_episodic`)
+refused with the same root-curve error fixed in phylloptim 0.9.2 ((ψ/b)^c = 9.9, past the
+dry end); dry at 3e-4 ran clean. So 3e-4 failed on the derivative path, not on accuracy.
+Its CPU was 0.73–0.78 of the 3e-5 base against 1e-4's 0.84–0.88. Its largest move on dry
+was 0.32ε, which a node-only check cannot see.
+
+Where a09's T goes: the committed schedule, run three times (find plus two uses), is
+66–70% of T; the check 30–34% (episodic-lma, which commits fine, 82/18). The check costs
+1.30–1.53 committed runs.
