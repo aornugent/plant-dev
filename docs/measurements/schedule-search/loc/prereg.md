@@ -273,6 +273,12 @@ Held-out so far: dry-flat passes, coarse, T 1654 against 1955 at 1e-4 (−15%), 
 TF24_cost_scale −0.08), not the +0.3 and +0.2 agent A offered. ld-102 and ld-105 (long
 drought, other seeds) return NaN in every gradient, as agent A offered: the third and
 fourth records to refuse at 3e-4, all on the long-drought climate.
+dry-p50 passes, coarse, T 1131 against 1278 (−11.5%), worst 0.82, largest tolerance move
+0.11ε; wet-adG2 passes, coarse, T 1316 against 1507 (−12.7%). So on phylloptim 0.9.2
+seven of ten pass, at 9–15% under 1e-4 (dry +2%, committing fine), and the three
+long-drought records refuse. On the four training cases that ran, T 3821 against a09's
+4186 (−8.7%). H2 holds where runs complete; H1 fails; H3 (a C1–C5 failure) has not
+appeared.
 
 **a09 at 3e-4 on phylloptim 0.9.3** (`PHYLLOPTIM-19`, the determined collar
 differentiated; lib19), long drought, ld-102 and ld-105, registered before the runs:
