@@ -412,3 +412,8 @@ and commits as a09 did (A11-4, A11-5 hold); T 6634 on the training five (a09 669
 commits fine (episodic-lma), its committed run keeps the late error (worst 0.41 → 0.69).
 a12 (a10's committed run with a11's check): passes the nine cases other than long
 drought, T 12826 against a09's 13609 there (−5.8%).
+
+**R1 on the held-out long-drought records:** the splits references move ld-102's
+quantities at most 0.031ε and ld-105's at most 0.087ε (TF24_cost_scale) from the
+no-splits references. All three long-drought references stand. a09 with splits on long
+drought passes, coarse, T 2514 against 2513 (R2 holds for a09).

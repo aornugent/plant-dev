@@ -89,3 +89,24 @@ is right; the discrete forward map itself is that sensitive at this step placeme
 E4: central difference of ln J on n1g pinned, curv_fact_colim × (1 ± 1e-4).
 - predict under (a): FD elasticity ≈ 60.4 (within 0.5);
 - predict under (b): FD ≈ 66.5 (within 0.5).
+
+### E4 result (D_out/e4_n1g_{up,dn}.log)
+
+J(θ·(1+1e-4)) = 12.7769754321, J(θ·(1−1e-4)) = 12.6236407612 on n1g's pinned steps:
+central-difference elasticity **60.367**, the cluster's 60.37, not the 66.50 that the
+tangent and the sweep agree on. **H3(a) confirmed**: the discrete forward map is fine
+and has the cluster's slope; a differentiation rule shared by the forward tangent and
+the reverse sweep (i.e. in the model's derivative, not in the sweep's transposition)
+is wrong on this run. The defect is in the derivative, not in the forward and not in
+odelia's sweep.
+
+## E5 (localisation, pre-registered): where the trait adjoint departs
+
+Instrumented copy (`schedtest/libD`, `schedtest/wtD`; only change: the sweep prints the
+trait-adjoint row after every step under ODELIA_ADJOINT_TRACE=params). n1g (bad) and
+n2 (sane) share the node schedule and differ only in TOL (1.05e-4 vs 0.95e-4), so their
+cumulative curv_fact_colim adjoint, accumulated from T backward, should agree to
+≲0.1% of its final value at every time, except that n1g's jumps once — at one step,
+t*, by about (66.50 − 60.37)/60.37 ≈ 10% of the final value — and runs parallel below.
+If instead it drifts over a long window, the defect is a systematic wrong rule over a
+regime, not one event.
