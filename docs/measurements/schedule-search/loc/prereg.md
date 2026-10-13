@@ -92,3 +92,42 @@ stage and refuses. At 3e-5 the accepted steps' stages stay inside.
 Test (pinned replay of the step sequence, tolerance swapped):
   A: 1e-4's steps replayed at tol 3e-5 -> H1 predicts the sweep refuses.
   B: 3e-5's steps replayed at tol 1e-4 -> H1 predicts the sweep passes.
+
+## Fixed phylloptim (0.9.2, PHYLLOPTIM-18): long drought at 1e-4
+
+Registered before the runs. The four refused a04t runs (long-drought and ld-105,
+c and f schedules) rerun on a lib with the root curve differentiated past its
+dry end.
+
+- F1: no run refuses; every quantity is finite.
+- F2: forward J is bit-identical to the refused run's (the fix touches only the
+  derivative path).
+- F3: each quantity sits within ε/3 of the same schedule's 3e-5 run, as the
+  other eight cases did at 1e-4 (moves ≤ 0.11ε).
+
+## c05_graded made cheaper (c5t): tolerance 1e-4, edges after 25 dropped
+
+Registered before the runs. Both of c05_graded's schedules lose their edges after
+b = 25 (14–35% of nodes, most on dry without season) and run at 1e-4 on the fixed lib.
+
+- K1: all ten cases pass C1–C5 (the nested check does not depend on a model of where
+  the error sits, unlike a04's).
+- K2: commits as c05_graded did (coarse on nine, fine on lma ×1.25).
+- K3: T falls 20–26% from c05_graded at 3e-5 (tolerance 12–16%, edges 6.5–10%),
+  so the five training cases sum to 7100–7700 against a04t's 4478 on four.
+- K4: the scorer's predicted errors miss the real ones by under 0.1ε rms; its rows
+  model, fit at 3e-5, overpredicts by the tolerance's 0.81–0.87.
+
+## a05_fill: the check bisects the wide intervals the ratio leaves alone
+
+Registered before the runs. Root cause of a04's under-read on dry without season: its
+ratio check refines that record's background least (band shrinks 0.41 / 0.59 / 0.53 /
+0.33 against the founders' 0.41), and the pilot proxy puts 85% of the error in the
+founders' window where a four-run fit puts about 25% (residual 0.012ε). a05 keeps a04's
+committed schedule and bisects, in each gap the ratio gives no new node, the intervals
+wider than half the target (+18 nodes on dry without season, +14 on dry).
+
+- A1: dry without season reads within ×2 on C3 and passes C2; median estimate/error
+  0.85–1.1 (a04: 0.69).
+- A2: dry is unchanged in verdict (pass) and its median within 0.1 of a04's 1.14.
+- A3: on the scorer, T rises about 1% (8473 vs 8384).
