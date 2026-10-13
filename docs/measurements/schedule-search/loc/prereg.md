@@ -173,3 +173,11 @@ before 10 (3 gaps) and only those after (13). Expected: one half carries both mo
 Bisection result: the 3 gaps before 10 (at 5.40, 5.42 and 5.64, around a one-day spell
 and between 24 and 35 d spells) carry stem_c +0.21 and TF24_cost_scale +0.15 for 6
 nodes; the 13 after are running. Next half: the gap at 5.64 alone.
+
+Bisection, last step: the gap at 5.64 alone moves nothing (max 0.03); the 13 after 10
+move nothing (max 0.02, rows −7.6%). So both of dry's moves come from the pair at 5.403
+and 5.416, which together remove every edge of a one-day open spell, in a region where
+the pilot's offspring per founder is 25 times its median after b1. Rule registered
+before the runs (SPELLS=1): merge short gaps, but an open spell whose gaps merge on both
+sides keeps its start edge. Predicted: dry moves by under 0.05ε; dry without season stays
+under 0.12ε with nearly all of its 28% saving.
