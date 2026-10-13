@@ -110,3 +110,30 @@ cumulative curv_fact_colim adjoint, accumulated from T backward, should agree to
 t*, by about (66.50 − 60.37)/60.37 ≈ 10% of the final value — and runs parallel below.
 If instead it drifts over a long window, the defect is a systematic wrong rule over a
 regime, not one event.
+
+### E5 result (D_out/e5_*.log, parsed by e5.R / e5b.R)
+
+The cumulative curv_fact_colim trait adjoint (summed from T backward) for n1g and n2
+agrees to ≤1e-4 of the final value at every time after 37.072 y. Then, inside a rain
+pulse (daily rain knots 37.0438–37.0849), n1g's per-step increments over eight
+consecutive steps k = 13138…13131 (t 37.0716 → 37.0685, h ≈ 3–12e-4 y) alternate in
+sign and grow ×3–×20 per step: +0.003, −0.017, +0.012, +0.11, −0.42, −8.28, +12.13,
++7.60 (n2's increments at the same times: ~2e-5). Below that, n1g's per-step
+increments stay ~1000× n2's (the propagated bad adjoint) and the cumulative gap
+climbs to +117 by t ≈ 34.5 y and settles at +79 (10% of the final value) by t = 28 y.
+The a10s `ODELIA_ADJOINT_TRACE=steps` trace shows its largest worst-|λ| (1.6e7) at the
+same t ≈ 37.070 y. So: one injection, at one physical time, inside one rain pulse,
+with the signature of a linearised step whose multiplier is < −1 (an unstable
+alternating mode) over ~8 steps.
+
+## H4 (pre-registered before E6): a stiff soil mode the derivative carries and the forward does not
+
+I think a soil-state mode in the rain pulse has h·μ < −2 in the *linearised* RK step
+(alternating, growing) while the forward is stable there, because the forward value
+is fixed by a clamp/bound (saturation, potential ceiling, infiltration capacity) that
+the derivative passes through (or the reverse).
+E6: λ itself (row 0, all components) at every step in t ∈ [37.060, 37.075] for n1g and
+n2. Predict under H4: the components that grow and alternate in n1g are the soil
+entries (the last 10 of the state), not node entries; n2's same entries stay bounded
+and do not alternate. If instead they are one node's entries, H4 is wrong and the
+injection is a node's (leaf/collar) derivative.
