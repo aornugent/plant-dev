@@ -493,3 +493,30 @@ a04's, its check a04's plus the bisected wide intervals:
 - So a05 and c5t reach the same T by different routes: a05 by a cheaper check, c5t by a
   cheaper schedule. a06 (registered, running) puts c5t's trimming, plus the short-gap rule,
   on a05.
+
+## a06: a05's schedules trimmed after building (13 October)
+
+`loc/mka06.R`, `loc/val_a06.log`: both of a05's schedules lose every edge after 25 and the
+edges of shut gaps under 10 d (a spell keeps its start edge), tolerance 1e-4.
+
+| case | worst | C1–C5 | T | a05 |
+|---|---|---|---|---|
+| episodic | 0.76 | pass (3/3) | 698 | 768 |
+| dry | 0.98 | pass (17/19) | 1119 | 1372 |
+| long-wet | 0.51 | pass (2/2) | 1265 | 1603 |
+| long drought | 0.51 | pass (3/3) | 2119 | 2743 |
+| lma ×1.25 (fine) | 0.41 | pass (15/15) | 758 | 796 |
+| dry without season | 0.92 | **C2 fails** (stem_c: error 0.51, estimate 0.23) | 1596 | 2391 |
+| long drought, seed 102 | 0.46 | pass (4/4) | 2116 | 2593 |
+| long drought, seed 105 | 0.42 | pass (6/7) | 2173 | 2476 |
+| dry, root_P50 ×1.2 | 0.92 | pass (12/12) | 1126 | 1428 |
+| long-wet, a_dG2 ×1.25 | 0.56 | pass (2/2) | 1303 | 1655 |
+
+- Nine of ten pass; T 14273, **20% below a05 and 38% below c05_graded at 3e-5** (22924).
+  B1 holds, B2 misses narrowly (19.9% against 20–30%), B3 holds (worst errors rise by at
+  most 0.02ε).
+- The failure is the order of operations, not the trimming: trimming moved stem_c by only
+  +0.05ε, but trimming two finished schedules leaves the check's ratio and bisection nodes
+  placed for gaps that no longer exist, and the band shrinks spread again (0.41–0.51 flat on
+  dry without season). a07 trims the pilot's edges first and builds on what remains (band
+  shrinks 0.40–0.45); it is running on all ten.
