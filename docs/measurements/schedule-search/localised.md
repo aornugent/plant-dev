@@ -597,15 +597,21 @@ edges after 25.
 
 All at tolerance 1e-4 on the fixed phylloptim, the ten real cases:
 
-| algorithm | passes | median reads | T | against c05_graded at 3e-5 |
-|---|---|---|---|---|
-| c05_graded at 3e-5 | 10/10 | 0.82–1.11 | 22924 | — |
-| c5t: c05_graded, no edges after 25 | 10/10 | 0.92–1.28 | 17883 | −22% |
-| a05: a04 + bisected wide intervals | 10/10 | 0.85–1.21 | 17825 | −22% |
-| **a09: a05, no edges after 25** | **10/10** | **0.87–1.17** | **16122** | **−30%** |
-| a07: a05 on merged gaps, no edges after 25 | 10/10 | 0.65–1.13 | 14539 | −37% |
-| a08: as a07, late edges through the build | 9/10 | 0.66–1.17 | 14030 | −39% |
-| a06: a05 trimmed after the build | 9/10 | 0.81–1.15 | 14273 | −38% |
+T summed over the five training cases (the scorer's basis, where a04_proxy scored 8384 at
+3e-5) and over all ten real cases:
+
+| algorithm | passes | median reads | T, training five | T, all ten | against c05_graded at 3e-5 |
+|---|---|---|---|---|---|
+| c05_graded at 3e-5 | 10/10 | 0.82–1.11 | 9572 | 22924 | — |
+| c5t: c05_graded, no edges after 25 | 10/10 | 0.92–1.28 | 7793 | 17883 | −22% |
+| a05: a04 + bisected wide intervals | 10/10 | 0.85–1.21 | 7282 | 17825 | −22% |
+| **a09: a05, no edges after 25** | **10/10** | **0.87–1.17** | **6699** | **16122** | **−30%** |
+| a07: a05 on merged gaps, no edges after 25 | 10/10 | 0.65–1.13 | 6216 | 14539 | −37% |
+| a08: as a07, late edges through the build | 9/10 | 0.66–1.17 | 5930 | 14030 | −39% |
+| a06: a05 trimmed after the build | 9/10 | 0.81–1.15 | 5959 | 14273 | −38% |
+
+On the training five, a09 is 20% below a04_proxy's scored 8384 and under the 1e-4 floor
+estimated earlier (about 6900), which assumed every edge is a node.
 
 - **a09 is the robust choice:** every case passes and every median read sits in 0.87–1.17.
 - Merging shut gaps under 10 d buys a further ~10% (a07), but a check laid out across

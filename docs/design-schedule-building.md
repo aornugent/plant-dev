@@ -296,8 +296,9 @@ the pilot's structure, and estimate its error with one check run whose every int
 shrinks by about the same factor. On the ten real cases at tolerance 1e-4 (training and
 held-out; `measurements/schedule-search/localised.md`):
 
-- **a09** (`any/a09_late.R`) is the robust choice: T 30% below c05_graded at 3e-5, ten of
-  ten passing, every median estimate/error 0.87–1.17.
+- **a09** (`any/a09_late.R`) is the robust choice: T 6699 on the five training cases (a04_proxy
+  scored 8384, c05_graded 9126) and 30% below c05_graded at 3e-5 over all ten real cases;
+  ten of ten passing, every median estimate/error 0.87–1.17.
   1. From the pilot: the edges, b1, and a spacing graded by the pilot's offspring (the
      founders' layer at b1/24, the rest of the window at b1/12, a background from 90 d).
   2. The check refines by a ratio of 1.6 and also bisects every interval wider than half
