@@ -283,3 +283,26 @@ family that avoided one could not read elasticities honestly).
 - Tail edges, at 1e-4: dropping those after 25 moves no quantity by more than 0.08ε and
   saves 6.5–10% of the committed run's rows; after 30, about nothing either way
   (`loc/probes2.R`). The band 20–25 is what mattered.
+
+## Root cause: long drought's sweep refuses at tolerance 1e-4
+
+Systematic debugging (`loc/prereg.md`, `loc/soilcmp.R`):
+- The refusal is the **root** vulnerability curve's: the throwing function serves both
+  curves, and x = 256 is 31 MPa on the root curve (420 MPa on the stem's, which its table
+  would have refused first).
+- **The forward model and its derivative disagree past the root curve's dry end.** The
+  forward root integral is capped at its limit past 7.31 MPa (`root_vuln_integral_at`);
+  the sweep's exact path (`closed_form_integral` →
+  `cumulative_vulnerability_integral_derivatives_at`) has no cap and refuses past the
+  curve's P99, 6.89 MPa.
+- **The dry evaluations are stages inside accepted steps.** No recorded state passes
+  5.17 MPa at either tolerance. Replaying the step sequences pinned: 1e-4's steps at
+  tolerance 3e-5 refuse and 3e-5's steps at 1e-4 pass, as predicted; in the replays the
+  root integral cap binds 2189 times on 1e-4's steps and never on 3e-5's.
+- So the step sequence decides it: longer steps at 1e-4 carry stages whose rooted soil
+  layer passes 7.31 MPa; the forward caps it (uptake is about zero either way) and accepts
+  the step; the sweep replays the stage and refuses. 3e-5 avoided it on this schedule, but
+  nothing in the model guarantees that at any tolerance.
+- The fix belongs where the mismatch is: the derivative path should differentiate the
+  capped curve the forward evaluates (value at the cap, zero slope in ψ, the cap's own
+  trait rows), not refuse it. That is a phylloptim change, outside the schedule.
