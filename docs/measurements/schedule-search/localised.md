@@ -136,3 +136,17 @@ The leader reads everything from the pilot and uses no map:
 
 A map pass did not pay: the fallback fires on 2–5% of case-draws. Committing the fine
 run failed because too few quantities are over ε/3 for C3 to absorb one noisy one.
+
+## Lateral: approaches outside node placement (13 October)
+
+A first-principles review, with offline numbers from stored runs (`lateral/`). Two
+facts about the leader: its check costs 1.54–1.75× the committed run, and edge nodes
+carry 44–64% of the committed run's rows.
+
+| approach | mechanism and measurement | expected saving in T | decisive test |
+|---|---|---|---|
+| halve the reverse sweep | three code changes measured in `perf-sweep.md` at 47–51% of the sweep: identity rows that do not split the descent (−19%), the crown's light quadrature off the tape (−20–24%), the collar's slope stored (−8.5%); a gradient run falls from 4.27 to about 2.65 forwards | about −38% | one dry gradient run, timed, bit-identical |
+| stop where J's window ends | the pilot's R(t), J still to be earned, reaches 1e-3 at t ≈ 33.5–34.5; rows after 34.5 are 15–24% of a run; correct ln J by −ln(1 − R), off by about 0.004ε | about −18% | the committed schedules stopped at 34.5 against the full runs; elasticities' tail bias unmeasured; invaders that earn late set the stop |
+| a quadrature per open spell instead of edge nodes | integrate each spell on its own: one midpoint node under 85 d, Gauss nodes above; nothing crosses an edge | about −12% (committed rows −4% to −18%) | weights per spell in plant; dry and long drought against references |
+| log fate across the founders' window | fate falls nearly exponentially; the founders' error is mostly the own part (43–80% of the map's \|move\|); own-part error at f8 0.34–1.45ε with the hat rule, 0.03–0.07ε interpolating log fate | about −7%, and lma more robust | f8, f16 on dry and lma with the new weights |
+| share the late check across θ | the late move at θ₀ reads a moved trait's with correlation 0.95–0.97, rms about 0.05ε; whole-run errors do not transfer (0.10) | about −10% per extra θ in a local analysis | wet-adG2 against long-wet |
