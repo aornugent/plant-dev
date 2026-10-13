@@ -267,3 +267,18 @@ the forward sets the collar to their midpoint, and collar_at has no case for tha
 Same class as the root-curve refusal: the forward answers, the derivative refuses. The fix
 (the midpoint of the two bounds' own derivatives) is being made test-first as
 PHYLLOPTIM-19.
+
+## a10: a09 with short shut gaps merged after b = 10 in the committed run only (13 October)
+
+`mka10.R`: on a09's committed schedule, every shut gap under 10 d centred in [10, 25) is
+spanned by one interval (a node at its centre where the span would pass the range); the
+check is a09's, kept whole (its runs reused). Episodic-lma merges nothing (its run reused).
+Nodes kept: episodic 132/137, dry 157/169, long-wet 151/166, long drought 149/167,
+dry-flat 181/230, ld-102 146/155, ld-105 153/159, dry-p50 154/174, wet-adG2 151/167.
+Before the runs:
+- A10-1: every quantity's move from a09's committed run is under 0.12ε; dry-flat moves most.
+- A10-2: T on the training five 6350–6550 (agent B: 6412; a09 6699).
+- A10-3: ld-102, ld-105, long-wet, wet-adG2, long drought and episodic pass, coarse.
+- A10-4 (the risk): dry, dry-flat and dry-p50 already err 0.93–0.95 at a09, so a shift
+  of +0.06 fails C1 unless the estimate commits the fine run; I expect at least one of
+  the three to fail C1 or, committing fine, C3.
