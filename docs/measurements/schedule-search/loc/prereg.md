@@ -188,3 +188,15 @@ Result, SPELLS=1 on dry: max move 0.10 (stem_c), rms 0.025, rows −10.8%. The r
 SPELLS=1 on dry without season: max move 0.04, rms 0.013, rows −24% (plain G = 10:
 0.12, −28%). Registered before the runs: SPELLS=1 on long drought moves under 0.05ε;
 SPELLS=2 (every spell keeps both edges) on dry moves under 0.05ε.
+
+## a06: a05 without the edges a run does not need (mka06.R)
+
+Registered before the runs. a05's two schedules, both trimmed alike: every edge after
+b = 25 goes, and the edges of shut gaps under 10 d under the spell-keeping rule. The
+committed schedules keep 53–84% of their nodes (dry without season 53%, episodic 81%).
+Separate probes moved quantities by up to 0.08ε (late edges) and 0.10ε (merging); the
+check trims the same edges, so it cannot see those errors.
+
+- B1: at least nine of ten cases pass C1–C5 against the references.
+- B2: T falls 20–30% from a05 at 1e-4, summed over the ten.
+- B3: no case's worst error rises by more than 0.15ε over a05's.
