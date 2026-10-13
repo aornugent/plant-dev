@@ -200,3 +200,16 @@ check trims the same edges, so it cannot see those errors.
 - B1: at least nine of ten cases pass C1–C5 against the references.
 - B2: T falls 20–30% from a05 at 1e-4, summed over the ten.
 - B3: no case's worst error rises by more than 0.15ε over a05's.
+
+## a07: a05 built on the trimmed edges (any/a07_trimmed.R)
+
+a06 failed C2 on dry without season (stem_c: error 0.51, estimate 0.23); trimming itself
+moved stem_c by only +0.05. The cause is the order: a06 trims both of a05's schedules
+after building them, so in merged regions the check's ratio and bisection nodes were placed
+for gaps that no longer exist, and the band shrinks spread again (0.41–0.51 flat on dry
+without season, 0.30–0.51 on dry). a07 trims the pilot's edges first (none after 25, the
+short-gap rule) and treats a merged gap and everything after 25 as open, then runs a05:
+band shrinks 0.40–0.45 flat on both. Registered before the runs:
+
+- A7-1: ten of ten pass C1–C5.
+- A7-2: T within 5% of a06's on each case where a06 passes.
