@@ -233,3 +233,6 @@ from 0.53 to 0.34, with as many nodes in every band before 25. So a check built 
 spans refines less of the error per node, and the proxy, which sees only spacing, cannot
 tell: the under-read is uniform rather than located. Consistent with error rising toward
 each spell's closing edge (`loc/spellpos.R`), not yet tested directly.
+
+a08 on dry without season: pass (13/14), worst 0.97, T 1525 (a07: 1600); long drought T
+2118 (a07: 2156). Registered before the other eight runs: ten of ten pass, T 2–5% below a07.
