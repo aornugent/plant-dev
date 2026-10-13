@@ -80,7 +80,7 @@ Isolated from the maps, without new runs (`loc/dband.R`, `loc/founders.R`, `loc/
   curve as about f^(1/3) (R² 0.6–0.9), but no pilot feature predicts the ×2.6 scatter
   around it (rank correlation 0.3 or less). Only a map sees which panels carry it.
 - **Cost pulls the other way:** a node born at 0 costs about twice one born at 20, so
-  the ideal spacing, h ∝ (cost per node / d)^(1/3), is about 1.8× finer in the
+  the ideal spacing, h ∝ (cost per node / d)^(1/3), is about 2× finer in the
   first-mover layer than in the late background, and as coarse as allowed where d ≈ 0.
 
 ## The seed under the scorer
