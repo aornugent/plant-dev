@@ -330,3 +330,16 @@ on long drought (a09, a06, a07, a08, mg10, mgs10) agree within 0.09ε of each ot
     others' cluster.
   - N2: if neither nudge moves it over 0.15ε, the jump is the schedule's, and jitter is
     refuted.
+
+**N1 at tolerance 1.05e-4 blew up the gradients, not the forward.** On a10's schedule
+as run, J moves 2e-4 relative and ln J's error is unchanged (−0.131), but 41 of 46
+elasticities move over ε (median 6.3ε, up to 33ε; lma's elasticity −9.67 against
+−8.32). The 0.54ε jump at 1e-4 is then plausibly a small instance of the same thing: a
+reverse pass that jumps while the forward does not. Long drought is the one record run
+without splits (its run setting from the earlier search), and splits exist to carry the
+gradient across net production's sign changes. Registered before the runs (the N1 job
+repeated):
+- D1, on lib19 (phylloptim 0.9.3, the determined collar): the same elasticities as
+  lib18 to 1e-6, so the jump is not on phylloptim's derivative path.
+- D2, with splits: every elasticity within 0.3ε of a09's committed run; the jump is the
+  missing splits.
