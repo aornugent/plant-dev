@@ -243,3 +243,9 @@ committed 0.47) and passed C2 only because its error stayed under 0.5. So the re
 "ten of ten" for a08 already fails, and a07's ten of ten has thin margin: a check built
 across merged spans refines less of some quantities' error (long drought broadly, dry's
 root_P50), which no proxy of spacing can see.
+
+## a09: a05 without the late edges, no merging (registered before the runs)
+
+The clean alternative to a07: a05 builds on every edge; both runs leave out the edges
+after 25 (as c5t did, ten of ten). Predicted: ten of ten pass with estimate/error medians
+0.85–1.2 on every case (long drought included), T 6–10% below a05's 17825.
