@@ -353,3 +353,20 @@ way (a correction made after seeing this case): coarse, pass, read median 0.92, 
 Registered before the other nine cases finish, with the before-25 shrink:
 - A11-4: a11 commits as a09 did in every case and passes C1–C5 wherever a09 did.
 - A11-5: on a09's own pairs the before-25 shrink changes no commit decision.
+
+**Root cause: long drought runs without splits, and its gradient jumps.** D1 holds (the
+blown-up run repeats bit for bit on lib19). D2 holds: with splits on, the same job at
+1.05e-4 moves at most 0.07ε from a09's run (+3.5% CPU). The nudge at 0.95e-4 without
+splits lands within 0.09ε too. So one schedule without splits gives −0.43, the cluster,
+and a 33ε blow-up at three tolerances, while ln J does not move: a reverse pass carried
+across net production's sign changes without splits jumps between branches. a10's C3
+failure on long drought is that defect, not the merge. The setting is part of the
+algorithm: every record runs with splits.
+
+Long drought's references (training: `ld_D_u215`/`u429`; held-out: `ref_ld-*_u215`/
+`u429`) were also run without splits. Registered before rerunning them with splits on
+lib19 at 3e-5, and a09 and the fixed a10 with splits on long drought:
+- R1: the splits reference moves each long-drought quantity by under 0.15ε from the
+  no-splits reference (the seven no-splits runs that agree put it in the same branch).
+- R2: a09 with splits passes long drought, coarse, T within 5% of its no-splits 2513;
+  a10 (fixed) with splits moves under 0.12ε from it and passes.
