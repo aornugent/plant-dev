@@ -394,3 +394,11 @@ it as a neonate, one born just after does not, so early survival jumps across ev
 few-day gap although nothing is born inside it. An edge is a discontinuity in the
 cohort's state as well as in establishment, and an interval spanning it interpolates
 across the jump.
+
+The same mechanism shows inside spells (`loc/spellpos.R`, each case's G0 map, nodes
+after b1 and before 20 in spells longer than two intervals): the error per interval
+rises toward the closing edge. By quarter of the spell it runs 0.5–0.9, 0.7–1.1,
+0.8–2.7 and 1.1–2.6 of the median; Spearman 0.19–0.42, positive on all five training
+cases. Grading interior nodes toward each spell's end (h ∝ d^(-1/3), a 1.36 ratio
+across a 2.5-fold rise) would cut about 3% of interior nodes at equal error, and
+interior nodes are 12–47% of a committed schedule: 1–2% of T, not worth a run now.
