@@ -69,3 +69,24 @@ lattice runs, and +0.21 and +0.14 on G1. Not yet explained.
   of 113 quantities over ε/3 within ×2 with the right sign.
 - G1's own estimate, (Q0 − Q1)/3, reads 0.57–0.68 of its error: what G1 has left
   sits in the panels it did not bisect.
+
+## The prize: the cheapest schedule with d(b) known
+
+`loc/prize.R` builds schedules with spacing h(b) = s·(cost per node / |d(b)|)^(1/3),
+d(b) from the case's maps (smoothed over three panels), one scale s per band
+(founders' window, b1–10, after 10), searched on a grid, scored by the any-schedule
+scorer without noise. It bounds what placement alone can save once d is known; finding
+d costs at least one map run, which this does not count.
+
+| case | best at worst ≤ 0.33ε: cost (worst) | G1: cost (worst) | lattice (32, 35) |
+|---|---|---|---|
+| episodic | 204 (0.30) | 323 (0.16) | 455 (0.12) |
+| dry | 435 (0.29) | 514 (0.24) | 700 (0.27) |
+| long-wet | 473 (0.28) | 541 (0.37) | |
+| long drought | 833 (0.32) | 939 (0.34) | |
+| lma ×1.25 | 232 (0.32) | 294 (0.44) | |
+
+- Over the five cases the best use cost is about 17% under G1's at similar worst error,
+  and 25–40% under the lattice's.
+- The best schedules put 13–30 nodes in the founders' window, 30–55 over b1–10, and
+  about 120–160 after 10, most of those the edges.
