@@ -370,3 +370,28 @@ lib19 at 3e-5, and a09 and the fixed a10 with splits on long drought:
   no-splits reference (the seven no-splits runs that agree put it in the same branch).
 - R2: a09 with splits passes long drought, coarse, T within 5% of its no-splits 2513;
   a10 (fixed) with splits moves under 0.12ε from it and passes.
+
+**a09 at 3e-4, all ten** (long-drought records on lib19, phylloptim 0.9.3; the rest on
+lib18, which differs only on the determined collar). H19-1 holds: lib19 runs every
+long-drought record with finite gradients, and its forward values equal lib18's to the
+bit. Results:
+
+| case | commit | worst | C1–C5 | read median | T at 3e-4 | T at 1e-4 |
+|---|---|---|---|---|---|---|
+| episodic | coarse | — | pass | — | 617 | 720 |
+| dry | fine | — | pass | — | 1270 | 1241 |
+| long-wet | coarse | — | pass | — | 1286 | 1470 |
+| episodic-lma | — | — | pass | — | 648 | 755 |
+| long drought | coarse | 0.72 | pass | 1.11 | 2245 | 2513 |
+| dry-flat | coarse | 0.96 | pass | 0.88 | 1654 | 1955 |
+| ld-102 | coarse | 0.47 | **C3 fails (2/4)** | 0.86 | 2098 | 2351 |
+| ld-105 | coarse | 0.49 | pass | 0.55 | 2095 | 2332 |
+| dry-p50 | coarse | 0.82 | pass | 0.88 | 1131 | 1278 |
+| wet-adG2 | coarse | 0.55 | pass | 0.89 | 1316 | 1507 |
+
+T 6066 on the training five (a09 at 1e-4: 6699, −9.4%), 14360 on all ten (16122,
+−10.9%); nine of ten pass. H2 holds. H3 holds on ld-102: a_l1 reads 0.14 against an
+error of 0.42 and TF24_cost_scale −0.42 against −0.11, the hydraulic direction that
+moves with tolerance unevenly between the two runs (agent A's unread error). ld-105's
+reads fall to a median 0.55. ld-102 and ld-105 run without splits, so some of this may
+be the gradient jump found on long drought; the splits references will tell.
