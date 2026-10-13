@@ -2,11 +2,12 @@
 # every shut gap shorter than G days are dropped; where the merged interval would pass
 # the range, a node goes back at the gap's centre (KEEP=centre) or its later edge
 # (KEEP=edge), the start of the next open spell. Prints job lines for one.sh.
-#   Rscript mkmerge.R G CASE...
+#   Rscript mkmerge.R G CASE...   (FROM, TO: merge only gaps centred in [FROM, TO))
 source("/home/user/plant-dev/harness/schedule/lattice.R"); L <- file.path(DEV, "schedtest/loc")
 a <- commandArgs(TRUE); G <- as.numeric(a[1]); KEEP <- Sys.getenv("KEEP", "centre"); tag <- if (KEEP == "edge") "mk" else "mg"
+FROM <- as.numeric(Sys.getenv("FROM", 0)); TO <- as.numeric(Sys.getenv("TO", 40)); if (FROM > 0 || TO < 40) tag <- sprintf("%s%g-%g_", tag, FROM, TO)
 for (case in a[-1]) { pe <- pilot_edges(case); e <- sort(round(pe$edges, 10)); S <- readRDS(file.path(L, sprintf("loc_a04_c_%s.rds", case)))
-  m <- (head(e, -1) + e[-1]) / 2; gap <- pe$shut(m) > 0.5 & diff(e) * 365 < G
+  m <- (head(e, -1) + e[-1]) / 2; gap <- pe$shut(m) > 0.5 & diff(e) * 365 < G & m >= FROM & m < TO
   drop <- unique(c(e[-length(e)][gap], e[-1][gap])); x <- S[!(round(S, 10) %in% drop)]
   cap <- function(b) if (b < pe$b1) pe$b1 / 12 else if (b < 20) 100 / 365 else 280 / 365
   for (j in which(gap)) { c0 <- m[j]; i <- findInterval(c0, x)

@@ -165,3 +165,7 @@ probes are dropped: G = 10 already costs about what coarsening the spacing by th
 Results: M1 holds on dry without season (max move 0.12, rms 0.034, rows −28%) and fails
 on dry. The survival-jump mechanism is refuted: |Δ ln offspring| across every short gap
 is at most 0.03. A1 and A2 hold (dry without season passes, median 0.85; dry unchanged).
+
+Long drought, G = 10: rows −19.5%, no quantity moves over 0.02ε. Dry is the exception.
+Bisection of dry's 16 gaps (registered before the runs): merge only those centred
+before 10 (3 gaps) and only those after (13). Expected: one half carries both moves.
