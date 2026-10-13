@@ -332,6 +332,22 @@ Systematic debugging (`loc/prereg.md`, `loc/soilcmp.R`):
   12 of 12. This is lesson 15 again: a non-nested pair's estimate depends on a model of
   where the error is.
 
+### After the fix (phylloptim 0.9.2)
+
+The root curve's derivative past its dry end is fixed in phylloptim 0.9.2 (branch
+PHYLLOPTIM-18, aornugent/phylloptim#18): the rows are those of what the table returns
+there (the last knot's tangent, then G(inf)). The four refused runs, rerun on a lib
+built against it (`loc/jobs_fix18.txt`):
+
+| case | verdict | worst | T | c05_graded at 3e-5 |
+|---|---|---|---|---|
+| long drought | pass, coarse (6/6 read) | 0.56 | 2723 | 3448 |
+| long drought, seed 105 | pass, coarse (3/3) | 0.45 | 2460 | 3054 |
+
+- No refusal; forward J bit-identical to the refused runs (F1, F2).
+- **a04 at 1e-4 now passes nine of ten cases,** at 21–36% less T than c05_graded at
+  3e-5. Dry without season is the one left (next section).
+
 ## Root cause: a04's check under-reads dry without season
 
 Systematic debugging (`loc/a04why*.R`, `loc/prereg.md`):
