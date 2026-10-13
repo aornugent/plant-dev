@@ -4,6 +4,9 @@
 # comes from rows fitted on node count and summed remaining life. Agents do not edit it.
 source("/home/user/plant-dev/harness/schedule/anysched.R")
 H <- 39.6; STRESS <- 0; RUN_SD <- 0.04
+# rooting_depth_max is set aside: at 1.5 m it equals the soil column's depth, so its
+# elasticity is set by where the parameter sits, not by the schedule.
+EXCLUDED <- c(EXCLUDED, "rooting_depth_max")
 CASEDATA <- new.env()
 prepare <- function(case) {
   if (!is.null(CASEDATA[[case]])) return(CASEDATA[[case]])

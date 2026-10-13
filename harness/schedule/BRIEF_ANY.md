@@ -88,3 +88,24 @@ Isolated from the maps, without new runs (`loc/dband.R`, `loc/founders.R`, `loc/
 `seed_onepass.R` is feasible without noise at T = 9936 but on no noise draw. Every
 failure is G1's estimate, (Q0 − Q1)/3, reading half to two thirds of the error, so C2
 or C3 fails on lma or episodic (`search/any/fails_any.R FILE N` lists the failures).
+
+## Generation 1 on this scorer (three agents, about 100 candidates)
+
+The scorer now shares its miss across a case's runs and jitter across nested runs,
+fits cost without an intercept, lets C3 miss one quantity when fewer than five are
+over ε/3, and sets rooting_depth_max aside (at 1.5 m it equals the soil column's depth,
+so its elasticity reflects the parameter's position, not the schedule).
+
+- **Leader: `search/any/structure/c05_graded.R`, T 9126, 40/40 draws, no map.** From
+  the pilot: the founders' first-mover layer at b1/24 until the pilot's offspring falls
+  10-fold, the window's quiet middle at b1/12, an 85 d background widening where the
+  pilot's offspring is low, coarse after 20. Check: halve every interval wider than
+  half its target; 4/3 of the move reads the committed run's error in every region
+  (0.96–1.02 without noise). Commit the coarse run if every estimate is under ε.
+- T ≈ 3·C(committed) + C(check): the check is about 1.5× the committed run.
+- A map pass did not pay (the fallback fires on 2–5% of case-draws). Committing the
+  finer run fails C3: too few quantities over ε/3 to absorb one noisy estimate.
+- Learn-then-build (`learnbuild/c14.R`, 11.5k) paid too much to learn d; the free
+  explorer's per-region check (`free/c05_units_f16l95.R`, 9.8k) needed a map run.
+- The scorer's 100 d range binds the background: the square law is measured only to
+  80–110 d, so intervals beyond it are outside what the scorer can predict.

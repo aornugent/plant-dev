@@ -10,7 +10,7 @@
 #     gradient = FALSE, at a quarter of the cost) and rows. With `drop` (indices into S of
 #     nodes with a neighbour each side), it also returns map: per dropped node, the move
 #     of ln J were that node removed, for 5.4% more. Repeats are free.
-#   ctx$eps(names): each quantity's eps.
+#   ctx$eps(names): each quantity's eps. rooting_depth_max is not among the quantities.
 #   The scorer's range: every pilot edge is a node; open intervals at most b1/12 in the
 #   founders' window, 100 d before b = 20, 280 d after. Outside it, the run refuses.
 # It returns list(use = list(S, ...), answer = named quantities, estimate = signed error
