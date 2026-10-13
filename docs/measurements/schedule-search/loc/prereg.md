@@ -224,3 +224,12 @@ intervals span several spells and interpolate across their edges, a first-order 
 a08 keeps the short-gap merge before the build but builds with the late edges and leaves
 them out of both runs, as c5t and a06 did. Predicted: long drought reads 0.85–1.2 (median)
 and passes; dry without season passes.
+
+Result: a08 reads long drought at 0.66 (a07: 0.65), so the late region is not the cause;
+the hypothesis is refuted. The committed errors of a06, a07 and a08 agree (a_l1 0.51,
+0.54, 0.53); the checks differ. a06's check (a05's nodes, laid out spell by spell, then
+trimmed) takes a_l1 from 0.51 to 0.23, a08's (laid out evenly across the merged spans)
+from 0.53 to 0.34, with as many nodes in every band before 25. So a check built on merged
+spans refines less of the error per node, and the proxy, which sees only spacing, cannot
+tell: the under-read is uniform rather than located. Consistent with error rising toward
+each spell's closing edge (`loc/spellpos.R`), not yet tested directly.
