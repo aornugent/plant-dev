@@ -220,3 +220,21 @@ On c05_graded's committed run, dry and episodic (`loc/probes.R`):
   the shut gap, a first-order error even where little is earned. Where they stop
   mattering (after 25, after 30) is being probed.
 - The 100 d range is real: intervals near 190 d err up to 1.7ε.
+
+## The founders' window (13 October)
+
+About 32 configurations on the scorer, inside the a04_proxy framework (`any/f05.R`):
+- **It costs 14% of T** (1186 of 8384): 16–22 nodes committed, 26–34 in the check; the
+  first-mover layer is 3.8% of T.
+- **Its error follows the pilot's offspring curve:** d ≈ 0.055·g′²·f/J, f the pilot's
+  offspring by birth date and g = ln f, within ×1.3 on dry and lma (the first panel
+  reads lower on long-wet and long drought). Spacing by it, for equal error per
+  interval, did not beat the step layer (8395 against 8384).
+- The layer's extent (offspring falling 10-fold) is a local optimum; refining beside b1
+  costs more than it buys; the quiet middle is held by the b1/12 limit (d there 0.1–0.3),
+  and halving its nodes would save about 2.3% only if real runs allow 200 d intervals.
+- The check must refine the founders by the same ratio as the rest: one shrink s cannot
+  serve two ratios (a founders-only quantity misread by up to ×1.5).
+- Dropping the layer where the pilot predicts little founders' error (episodic, by 2.8×
+  from the next case) saves 69 of episodic's T: T 8316 at 98/100 draws against 8384 at
+  99/100. Within noise of a04; the founders' window is close to its optimum.
