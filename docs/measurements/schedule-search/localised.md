@@ -238,3 +238,27 @@ About 32 configurations on the scorer, inside the a04_proxy framework (`any/f05.
 - Dropping the layer where the pilot predicts little founders' error (episodic, by 2.8×
   from the next case) saves 69 of episodic's T: T 8316 at 98/100 draws against 8384 at
   99/100. Within noise of a04; the founders' window is close to its optimum.
+
+## Second lateral round: a floor for answer-plus-check (13 October)
+
+About 35 configurations (`any/floor.R`, `any/oracle.R`, `any/b01_alt.R`):
+- **The answer is near the scorer's range.** Setting every interval to the widest the
+  range allows makes the answer only 4–7% cheaper, and that schedule errs by 0.94–2.42ε.
+  Choosing each case's spacing with full knowledge, to land the worst error at 0.8–0.9ε,
+  saves 2.1–3.3% of the answer. Edges dominate every run.
+- **So T ≈ 3·answer + check ≥ about 8000** at tolerance 3e-5 (answer ≥ about 1890, check
+  1.25–1.4× the answer), about 6900 at 1e-4. a04_proxy (8384) is within 5% of it.
+- Failed: a refinement ratio per region (one move cannot separate regions whose terms
+  cancel by sign; estimate/error 0.03–2.34); shrinking small estimates (fails C2); a lower
+  ratio with a rescue run (R = 1.4 fails 21 of 40 draws, estimate noise lifts small
+  errors past ε/3); a check shifted by half an interval (inside fixed edges it is a
+  partial check, elsewhere its expected move is zero).
+- **The nested alternative:** `any/b01_alt.R`, a check that contains the answer and
+  bisects a share of its intervals, scaled from the pilot: T 8607, 40/40 and 100/100. The
+  fallback if a04's non-nested jitter proves larger on real runs.
+- The scorer extrapolates its square law to the 280 d intervals after 20, which carry
+  11–38% of the modelled error; the real runs of a04 test that.
+
+What is left lies in the constraints, not the search: the 100 d range and edges as
+nodes (both confirmed by real probes), and the check being a full gradient run (every
+family that avoided one could not read elasticities honestly).
