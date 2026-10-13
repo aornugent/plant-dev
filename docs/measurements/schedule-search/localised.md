@@ -170,3 +170,32 @@ non-nested pair failing C3 on real runs; it needs real runs before it counts. Wi
 this scorer, placement is close to exhausted: 8.4–9.1k against about 8.8k for the
 prize's schedules at worst 0.5ε (use cost 2001 over the five cases) with a check of
 1.4× and three uses' worth of the answer. The larger levers are the lateral ones above.
+
+## c05_graded with real runs: training and held-out (13 October)
+
+Both of its schedules run for real on the five training cases and five held-out ones,
+scored against the references (`loc/val.R`, `loc/val_c5g.log`; held-out references
+extrapolate u215 and u429, whose own estimate is up to 0.10–0.24ε):
+
+| case | commits | worst | quantities over ε/3, read within ×2 | estimate/error (median) | T |
+|---|---|---|---|---|---|
+| episodic | coarse | 0.74 | 3/3 | 0.94 | 1065 |
+| dry | coarse | 0.97 | 12/12 | 0.92 | 1774 |
+| long-wet | coarse | 0.50 | 2/2 | 0.91 | 2069 |
+| long drought | coarse | 0.49 | 3/3 | 0.82 | 3448 |
+| lma ×1.25 | fine | 0.33 | 0/0 | 1.01 | 1216 |
+| dry without season | coarse | 0.90 | 12/12 | 0.92 | 3066 |
+| long drought, seed 102 | coarse | 0.44 | 2/2 | 0.83 | 3236 |
+| long drought, seed 105 | coarse | 0.43 | 3/3 | 1.11 | 3054 |
+| dry, root_P50 ×1.2 | coarse | 0.86 | 8/8 | 0.91 | 1861 |
+| long-wet, a_dG2 ×1.25 | coarse | 0.55 | 2/2 | 0.96 | 2135 |
+
+- **C1, C2, C3 and C5 hold on all ten cases,** held-out included; every quantity over
+  ε/3 is read within ×2 with the right sign.
+- Real T on the training cases is 9572, 5% above the scorer's 9126.
+- The scorer predicted each real run's errors within 0.02–0.07ε rms, except lma's
+  committed run (0.31, max 0.57); real rows were 0.98–1.11 of its model.
+
+Against the pre-registration: R1 and R2 hold (10 of 10); R3 holds on four of five
+training cases (lma's committed run misses at 0.31); R4 holds within 11% (two check
+runs at 1.10 and 1.11).
