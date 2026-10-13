@@ -70,3 +70,9 @@ Probes on c05_graded's committed run (dry, episodic):
 - 10-20 thinned to ~190 d: moves up to 0.77-0.91, worst error 1.65-1.74. The range holds.
 So a04_proxy's ten cases now run at tol 1e-4 (the 3e-5 batch stopped after episodic).
 Predictions: as R1-R5, with T on the training cases under 8000.
+
+## Tail edges, where they stop mattering (13 October)
+Dropping every edge after 20 moved 10-14 quantities by over 0.1 eps, almost all away from
+the reference (rms error 0.31 -> 0.33 dry, 0.19 -> 0.22 episodic). Now after 25 and after
+30, at tol 1e-4, against the tol 1e-4 base. Prediction: after 30 every quantity moves
+under 0.1 eps; after 25 under 0.2.

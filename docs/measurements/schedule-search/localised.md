@@ -213,6 +213,10 @@ On c05_graded's committed run, dry and episodic (`loc/probes.R`):
 
 - **Tolerance 1e-4 is free accuracy-wise and saves 12–16% of every run.** At 3e-4 the run
   fails (NaN), so 1e-4 is the setting.
-- Edges after 20 move quantities by up to a third of ε, more than predicted; the
-  errors fell rather than rose, so their role is not settled.
+- Edges after 20 matter. Dropping them moved 10–14 quantities by over 0.1ε, and only
+  2 of each record's moved toward the reference; rms error rose (0.31 → 0.33 dry,
+  0.19 → 0.22 episodic; `loc/noedge.R`). The worst error fell only because a_l1 moved
+  by chance. An interval across an edge interpolates its counted cohorts from a node in
+  the shut gap, a first-order error even where little is earned. Where they stop
+  mattering (after 25, after 30) is being probed.
 - The 100 d range is real: intervals near 190 d err up to 1.7ε.
