@@ -412,3 +412,28 @@ alone) on dry without season, at 1e-4: **pass**, commit coarse, worst 0.90, C1�
 T 2391 (a04: 2346, failing C2 and C3). The real shrinks run 0.46–0.70 (a04's 0.51–0.87).
 On dry the verdict and reads are a04's (16/17, median 1.13 against 1.14), T +9. Registered
 A1 (median 0.85–1.1) and A2 hold. Its checks on the other eight cases are queued.
+
+### Where merging costs (13 October, continued)
+
+Bisecting dry's 16 short gaps (`loc/mkmerge.R` with FROM/TO): the 13 after 10 move
+nothing (max 0.02ε, rows −7.6%), the gap at 5.64 alone nothing (0.03ε); both moves come
+from the pair at 5.403 and 5.416, which between them remove every edge of a one-day
+open spell. Rules, each against the same schedule unmerged:
+
+| rule (gaps under 10 d) | dry | dry without season | long drought |
+|---|---|---|---|
+| merge every gap | −12.3% rows, max 0.24ε | −28.3%, 0.12ε | −19.5%, 0.02ε |
+| a spell keeps its start edge (SPELLS=1) | −10.8%, 0.10ε | −24.2%, 0.04ε | −18.5%, 0.03ε |
+| every spell keeps both edges (SPELLS=2) | −7.9%, 0.09ε | | |
+
+- **SPELLS=1 costs at most 0.10ε for 11–24% of rows** on three records; coarsening by the
+  same share would cost about 0.15–0.3ε. Both registered "under 0.05ε" predictions for
+  dry failed: what remains there is in that one cluster, and neither the cohort's fate
+  (|Δ ln offspring| ≤ 0.03 across every gap) nor the offspring weight (dry's pair at 26×
+  median; long drought's free gaps at 10–20×, dry without season's at up to 30,000×)
+  separates it from the free gaps. Not understood.
+- **For an algorithm:** a merge error does not shrink as the spacing refines, so a check
+  that merges the same gaps cannot see it. A check that keeps the dropped edges reads it
+  as a component with shrink 0, which is the mixed-shrink case a05 was built to avoid; at
+  0.10ε it would sit inside the estimate's tolerance. Combining SPELLS=1 with c5t or a05
+  is the next real-run candidate.
