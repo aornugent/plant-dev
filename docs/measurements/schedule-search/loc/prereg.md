@@ -282,3 +282,14 @@ Before the runs:
 - A10-4 (the risk): dry, dry-flat and dry-p50 already err 0.93–0.95 at a09, so a shift
   of +0.06 fails C1 unless the estimate commits the fine run; I expect at least one of
   the three to fail C1 or, committing fine, C3.
+
+## a11: a09 whose check is not refined after b = 25; a12: a10's committed run with a11's check (13 October)
+
+`mka11.R`: a09's check keeps its nodes before 25 and the committed run's after (agent C's
+`c04_nolate`, scorer 8393 against a05's 8473, 20/20 draws). Checks lose 7–20 nodes; the
+committed runs are a09's (a11) and a10's (a12), reused. Before the runs:
+- A11-1: ten of ten pass; every median read within ±0.05 of a09's.
+- A11-2: T on the training five 6600–6660 (C: about 6630; a09 6699).
+- A11-3: every quantity's check answer moves under 0.05ε from a09's check (the late
+  region carries almost no error that a09's check removed).
+- A12: passes wherever a10 passes, T about 1% under a10's.
