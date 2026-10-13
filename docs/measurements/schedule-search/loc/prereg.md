@@ -274,6 +274,14 @@ TF24_cost_scale −0.08), not the +0.3 and +0.2 agent A offered. ld-102 and ld-1
 drought, other seeds) return NaN in every gradient, as agent A offered: the third and
 fourth records to refuse at 3e-4, all on the long-drought climate.
 
+**a09 at 3e-4 on phylloptim 0.9.3** (`PHYLLOPTIM-19`, the determined collar
+differentiated; lib19), long drought, ld-102 and ld-105, registered before the runs:
+- H19-1: no gradient is NaN, and the forward values (J, rows) are those of lib18.
+- H19-2: all three pass, coarse, T 10–15% under a09 at 1e-4 (2513, 2351, 2332).
+- H19-3: the agent's forward discontinuity at the determined collar (transpiration ×8
+  across 5e-5 MPa of soil) does not show as a C1 failure; if any case fails, its worst
+  quantity is a hydraulic one (stem_c, root_P50, TF24_cost_scale).
+
 ## a10: a09 with short shut gaps merged after b = 10 in the committed run only (13 October)
 
 `mka10.R`: on a09's committed schedule, every shut gap under 10 d centred in [10, 25) is
