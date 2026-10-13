@@ -90,3 +90,49 @@ d costs at least one map run, which this does not count.
   and 25–40% under the lattice's.
 - The best schedules put 13–30 nodes in the founders' window, 30–55 over b1–10, and
   about 120–160 after 10, most of those the edges.
+
+## rooting_depth_max: a trait at the edge of its range
+
+Its error moved by 0.5ε between schedules with the same founders' nodes, against no
+square law, and decided most failing noise draws. Root cause (`loc/rdmmap.R`,
+`loc/rdmscan.R`):
+- TF24 sets `rooting_depth_max = 1.5` m, the soil column's depth. Rooting depth is
+  min(height, rooting_depth_max); below 1.5 m roots lose soil they could use, above it
+  they grow into layers that do not exist. θ₀ sits on that edge.
+- ln J on G0's own steps at rooting_depth_max × (1 + u): the local slope falls steadily,
+  0.035 at u = −1.5%, 0.028 at 0, 0.020 at +0.75%, 0.0125 at +1.5%. The elasticity moves
+  0.3ε per 1% of the trait, and the sweep's derivative (0.0289) sits 0.1ε off the pinned
+  finite difference at 0 (0.0279).
+- Its map on dry's G0 is concentrated: 3 of 84 panels hold half of Σ|move|, one at birth
+  8.04 where J's map is near zero.
+
+So, at θ₀, this elasticity is set by where the parameter sits, not by the schedule; it is
+set aside from the schedule's targets, as recruitment_decay is. Whether
+rooting_depth_max should equal the column depth is a model question.
+
+## Agents on the any-schedule scorer
+
+Three agents, about 100 candidates. Rescored with the scorer's miss shared by a case's
+runs, jitter shared by nested runs, the cost fit without an intercept, C3 allowing one
+miss under five quantities, rooting_depth_max set aside (`any/score_norm.R`), 40 draws:
+
+| algorithm | T | draws |
+|---|---|---|
+| structure, `any/c05_graded.R` | 9126 | 40/40 |
+| structure, `any/c06_tail.R` | 9199 | 40/40 |
+| free, `any/c05_units_f16l95.R` | 9799–9871 | 40/40 |
+| learn then build, `any/c14.R` | 11434–11940 | 39/40 |
+| seed, one map pass | 10140–10180 | 38/40 |
+
+The leader reads everything from the pilot and uses no map:
+- the founders' first-mover layer at b1/24 until the pilot's offspring has fallen
+  10-fold (1.1–2.1 years), the quiet middle at b1/12;
+- a background of 85 d after b1, widening as the pilot's offspring falls (h ∝ f^−0.2
+  below its median), within the range (100 d to 20 years, 280 d after);
+- a check that halves every interval wider than half its target, so every checked
+  interval's error falls 4-fold and 4/3 of the move reads the committed run's error in
+  every region at once (estimate/error 0.96–1.02 without noise);
+- commit the coarse run when every estimate is under ε, else the fine run.
+
+A map pass did not pay: the fallback fires on 2–5% of case-draws. Committing the fine
+run failed because too few quantities are over ε/3 for C3 to absorb one noisy one.

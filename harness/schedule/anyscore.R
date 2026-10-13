@@ -14,7 +14,7 @@ prepare <- function(case) {
     ((if (Q == "lnJ") fit[[i]]$X[["lnJ_signed"]] else predict_err(fit[[i]], fit_kappa(fit[-i], Q))) - fit[[i]]$err[Q])^2, 0))), 0)
   d <- data.frame(n = sapply(rs, function(r) length(r$S)), life = sapply(rs, function(r) sum(H - r$S)), rows = sapply(rs, `[[`, "rows"))
   pe <- pilot_edges(case); px <- readRDS(file.path(RUNS, paste0(case_of(case)$pilot, ".rds")))$stand
-  CASEDATA[[case]] <- c(cd, list(Qs = Qs, kap = kap, sd = sd, rowsfit = lm(rows ~ n + life, d), ref = reference(case), edges = pe$edges,
+  CASEDATA[[case]] <- c(cd, list(Qs = Qs, kap = kap, sd = sd, rowsfit = lm(rows ~ 0 + n + life, d), ref = reference(case), edges = pe$edges,
     pilot = list(b1 = pe$b1, edges = pe$edges, shut = pe$shut, J = px$J, creation = as.data.frame(px$creation),
                  nodes = as.data.frame(px$nodes[c("birth", "nrr", "height", "mortality")]), soil = px$soil)))
   CASEDATA[[case]] }
@@ -28,11 +28,11 @@ check_range <- function(cd, S) {
   cap <- ifelse(hi <= cd$b1 + 1e-9, cd$b1 / 12, ifelse(lo < 20, 100 / 365, 280 / 365))
   if (any(open & w > cap + 1e-9)) stop(sprintf("interval [%.3f, %.3f] is wider than the scorer's range", lo[open & w > cap][1], hi[open & w > cap][1]))
 }
-# NOISE = "2": the scorer's miss is drawn once per case and draw, shared by
+# NOISE = "2" (the default): the scorer's miss is drawn once per case and draw, shared by
 # every run, since it is a property of the case rather than of a run; jitter is drawn
 # per run, but a run nested in an earlier one (either contains the other's nodes) takes
-# the earlier run's jitter, as nested real runs share theirs. NOISE = "1" (the default): both per run.
-NOISE <- Sys.getenv("NOISE", "1")
+# the earlier run's jitter, as nested real runs share theirs. NOISE = "1": both per run.
+NOISE <- Sys.getenv("NOISE", "2")
 hash_S <- function(S) sum(round(S * 1e6) %% 9973 * seq_along(S)) %% 1e6
 nested <- function(A, B) { a <- round(A, 8); b <- round(B, 8); all(a %in% b) || all(b %in% a) }
 sim <- function(cd, S, case, reg = NULL) {
