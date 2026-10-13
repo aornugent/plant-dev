@@ -236,3 +236,10 @@ each spell's closing edge (`loc/spellpos.R`), not yet tested directly.
 
 a08 on dry without season: pass (13/14), worst 0.97, T 1525 (a07: 1600); long drought T
 2118 (a07: 2156). Registered before the other eight runs: ten of ten pass, T 2–5% below a07.
+
+a08 on dry: **C2 fails** (root_P50: error 0.51, estimate 0.20; worst 0.90, T 1105). a07
+under-reads the same quantity the same way (estimate about 0.15, check error 0.38 against
+committed 0.47) and passed C2 only because its error stayed under 0.5. So the registered
+"ten of ten" for a08 already fails, and a07's ten of ten has thin margin: a check built
+across merged spans refines less of some quantities' error (long drought broadly, dry's
+root_P50), which no proxy of spacing can see.
