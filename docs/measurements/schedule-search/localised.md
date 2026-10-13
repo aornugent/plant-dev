@@ -437,3 +437,34 @@ open spell. Rules, each against the same schedule unmerged:
   as a component with shrink 0, which is the mixed-shrink case a05 was built to avoid; at
   0.10ε it would sit inside the estimate's tolerance. Combining SPELLS=1 with c5t or a05
   is the next real-run candidate.
+
+## c05_graded made cheaper: tolerance 1e-4, no edges after 25 (13 October)
+
+Both of c05_graded's schedules lose their edges after b = 25 and run at 1e-4 on the fixed
+phylloptim (`loc/mkc5t.R`, `loc/val_c5t.log`):
+
+| case | commits | worst | C1–C5 | T | c05_graded at 3e-5 | a04 at 1e-4 |
+|---|---|---|---|---|---|---|
+| episodic | coarse | 0.60 | pass (3/3) | 798 | 1065 | 761 |
+| dry | **fine** | 0.31 | pass | 1726 | 1774 | 1363 |
+| long-wet | coarse | 0.49 | pass (2/2) | 1575 | 2069 | 1573 |
+| long drought | coarse | 0.53 | pass (6/6) | 2759 | 3448 | 2723 |
+| lma ×1.25 | fine | 0.20 | pass (2/2) | 935 | 1216 | 781 |
+| dry without season | coarse | 0.95 | pass (12/12) | 2023 | 3066 | 2346 (fails) |
+| long drought, seed 102 | coarse | 0.46 | pass (2/2) | 2559 | 3236 | 2553 |
+| long drought, seed 105 | coarse | 0.41 | pass (4/4) | 2514 | 3054 | 2460 |
+| dry, root_P50 ×1.2 | coarse | 0.95 | pass (14/14) | 1391 | 1861 | 1420 |
+| long-wet, a_dG2 ×1.25 | coarse | 0.57 | pass (2/2) | 1603 | 2135 | 1623 |
+
+- **Ten of ten pass,** at 22% less T than c05_graded at 3e-5 (17883 against 22924;
+  training 7793 against 9572, held-out 10090 against 13352). Estimate/error medians
+  0.92–1.28.
+- Against the registration: K1 holds (10/10). K2 fails on dry, which now commits the fine
+  run: its coarse error was already 0.97 at 3e-5, and the move tipped 4/3 of it past ε,
+  so T falls only 3% there. K3: training sums to 7793, just above 7100–7700, for that
+  reason. K4 cannot be read: the scorer requires every edge, so it does not model these
+  schedules (its miss on the committed runs is 0.07–0.51ε rms).
+- Where both pass, c5t costs about what a04 at 1e-4 costs (within 0–6% on seven cases;
+  dry and lma ×1.25, which c5t commits fine, are the exceptions), and it also passes dry
+  without season, where a04's non-nested check fails. a05 fixes that failure for 2%; a05
+  without the late edges has not been run.
