@@ -181,3 +181,6 @@ the pilot's offspring per founder is 25 times its median after b1. Rule register
 before the runs (SPELLS=1): merge short gaps, but an open spell whose gaps merge on both
 sides keeps its start edge. Predicted: dry moves by under 0.05ε; dry without season stays
 under 0.12ε with nearly all of its 28% saving.
+
+Result, SPELLS=1 on dry: max move 0.10 (stem_c), rms 0.025, rows −10.8%. The registered
+"under 0.05ε" fails: keeping the spell's start edge halves the move but does not remove it.
