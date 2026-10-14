@@ -95,3 +95,63 @@ splits. G6/G7 (pre-registered, forward): the same pair with SHARE empty (no soil
 substeps; the soil on the main step under its error estimate). If the move falls under
 0.1ε, the soil's substeps are the blind spot (their inputs are extrapolated linearly
 from the last step's slope and the substep error is not in the main step's estimate).
+
+G6/G7 result: without the soil's substeps (SHARE empty) the move is −0.72ε in ln J. Not
+the substeps either. Every knot-free run has the lower J (−0.05, −0.40, −0.61, −0.72ε).
+
+## 4. Mechanism: the RK stages alias the rainfall (alias.R, no run)
+The rainfall is a floored cubic spline through daily values; with a stop at every knot
+each step lies in one cubic span, where Cash-Karp's 5th-order quadrature is exact. A step
+that spans knots samples the forcing only at its six stage times, so a one-day rain bump
+between stages is missed (or a stage on its peak overcounts), and both embedded orders
+miss it alike, so the error estimate does not see it. Quadrature of the forcing over the
+accepted late steps (ages 25.2–39.5):
+
+| run | late steps | rain, exact | RK5 sum | Σ\|RK5 − exact\| | Σ\|RK5 − RK4\| (what the estimate sees) |
+|---|---|---|---|---|---|
+| G1 (no late knots, ×100) | 756 | 5.525 | 4.862 (−12.0%) | 2.413 | 0.267 |
+| G2 (no late knots, ×10) | 986 | 5.512 | 5.251 (−4.7%) | 2.197 | 0.230 |
+| base (knots) | 1400 | 5.525 | 5.525 (0.0%) | 0.0001 | 0.0000 |
+
+Step by step, 40% of the late rain lands in the wrong step, and the estimate sees a tenth
+of it; tightening the tolerance does not help because the estimate stays blind. This is
+why the error moved non-monotonically with tolerance and why every knot-free run lost J.
+
+So: the knots are the aliasing guard, and they cost about half of every run's rows on the
+rain-frequent records (knot-ending steps 46–53% of steps, 47–56% of rows; episodic 26%).
+That is the largest single block of cost in the data, it is set by the record, not by
+the schedule or the tolerance, and no schedule or tolerance choice can reach it. Two
+consequences for the builder: (1) the tolerance is a lever only on the free steps (the
+3e-4 saving is capped by the knot share: at most ~44% of rows on dry even at infinite
+tolerance); (2) the window weight buys almost nothing where knots pin the late steps
+(G3: ×10 against ×100 late, +3.7% rows, every quantity within 0.003ε), which also shows
+the references' late setting is converged.
+
+The lever is in the library: let the main step span knots while something that sees the
+forcing exactly takes it — the soil's substeps landing on each knot inside the step (the
+soil is already substepped under extrapolated inputs on 38–52% of late steps), or the
+step taking the forcing's exact span integral. Soil moisture, the integral of the rain,
+is continuous, so the plants' stages would read a ramp, not a bump the stages can miss.
+Measured cost side: dropping only the late knots took rows −18.8% on dry (G1); all knots
+up to the constant record's step rate (31–65 steps/yr at 3e-5 against dry's 98–177).
+
+## 5. Findings worth acting on
+1. **Knots are half the rows and the step control cannot replace them (library lever).**
+   Predicted ΔT if the soil's substeps (or an exact span integral) take the forcing and
+   the main step stops landing on knots: −15 to −35% of T on the rain-frequent records
+   (dry, long-wet, long drought, ld-102/105, dry-flat, dry-p50, wet-adG2), −5 to −15% on
+   episodic; G1's −18.8% from the late knots alone is the measured floor of the cost
+   side, before any rain-driven step the corrected forcing would add back. It applies to
+   every run (find, check, both uses) and to the sweep, whose cost is rows. Risk: the
+   plants' step during rain may need more steps than G1 took (G1's rain was aliased),
+   and it is library work in odelia/plant with the aliasing test (alias.R) as its gate:
+   Σ|RK5 − exact| over a run's steps must stay ~0 with the knot stops gone.
+   Objectives: "predictable" is broken today for any setting without knots (error rises
+   as tolerance tightens); keep the knots until the fix lands, and add the quadrature
+   check to "diagnosed" (free: it needs only the accepted step times).
+2. **Error is one shape per case.** 78–99% of each case's schedule error lies along one
+   direction; two directions recur across cases (light response: a, curv_fact_elec_trans,
+   k_I, jmax_25; and a_l1). The binding quantity is the same in 90%+ of a case's runs.
+   No ΔT on its own; it means a check reads one or two amplitudes, so C3's misses come
+   from the off-shape residual (≤5%), and an estimate that departs from the case's shape
+   flags a misread.

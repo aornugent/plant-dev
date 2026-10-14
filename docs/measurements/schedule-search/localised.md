@@ -736,3 +736,36 @@ refusal is recorded. The references are sound (the splits reference agrees with 
 to 0.04ε). This breaks "never fails" in its silent form and is being root-caused
 (`round3/D/`); until it is, every long-drought number rests on runs that happened to
 land in the cluster, and a guard that flags a blown gradient is needed for "diagnosed".
+
+## Round 4 G: rainfall knots set half of every run's rows (14 October)
+
+Agent G (`round4/G/notes.md`; 988 runs indexed, 450 gradient runs scored; 7 real runs on
+dry, a09's committed schedule):
+- **Rows are the cost.** Forward CPU ≈ 1.11e-4 s/row + 2.4e-3 s/step (R² 0.99); sweep ≈
+  3.56e-4 s/row (median 3.0× the forward). The rows model holds to about 1%.
+- **Every rainfall knot ends a step.** The run passes each active knot as a zero-depth
+  pulse; knot-ending steps are 46–53% of steps and 47–56% of rows on every rain-frequent
+  record (episodic about 26%); on dry the median step is exactly 1.00 d in every age band,
+  and after age 25 65–83% of steps end on a knot although the window weight loosens the
+  tolerance up to ×100 there. Tolerance moves only the free steps, so on dry even infinite
+  tolerance saves at most about 44% of rows. Cost follows how often it rains: long-wet
+  takes 6638 steps against dry's 5584.
+- **The knots cannot simply go.** Dropping those after age 25 cuts rows 18.8% but moves
+  TF24_cost_scale 0.73ε, and tightening the late tolerance then makes the error larger
+  (1.52ε). The rain is a floored cubic spline through daily values: a step within one span
+  integrates it exactly, but a step across knots samples it only at its six stages, so a
+  one-day bump between stages is missed and both embedded orders miss it alike: the
+  error estimate is blind. Over G1's late steps 2.41 of 5.52 units of rain are misplaced
+  while the estimate sees 0.27. `design-grid-controller.md`'s "the knots … land steps
+  rather than shorten them" is false on rain-frequent records.
+- **Each case's error is one shape.** Across 28–73 schedules per case the first singular
+  direction carries 78–99% of the signed error, two carry 95–100%; two shapes recur across
+  cases (a light-response group, and a_l1); 11 of 47 quantities never exceed ε/3; ln J's
+  largest error is 0.39ε.
+
+**The opportunity:** take the rain off the main step's grid: let the soil's own substeps
+land on the knots inside a step (or integrate each span's forcing exactly), so the plants'
+step no longer stops at every knot. Predicted −15 to −35% of T on rain-frequent records
+(every run and the sweep scale with rows); a library change in odelia and plant. Gate: the
+rain quadrature over a run's steps stays exact (`G/alias.R`), which is also a free
+diagnostic.

@@ -1,6 +1,6 @@
 # U4: the check at lma x1.1 on episodic's grids against episodic's own check.
 source("/home/user/plant-dev/docs/measurements/schedule-search/round4/F/lib.R")
-A <- pair("episodic"); xc <- readRDS(file.path(R, "F_l10c.rds")); xf <- readRDS(file.path(R, "F_l10f.rds"))
+A <- pair("episodic"); xc <- readRDS(file.path(R, paste0(Sys.getenv("TAGL", "F_l10"), "c.rds"))); xf <- readRDS(file.path(R, paste0(Sys.getenv("TAGL", "F_l10"), "f.rds")))
 qc <- quantities(xc); qf <- quantities(xf); k <- intersect(A$k, names(qc)); e <- eps_vec(k)
 est1 <- (qc[k] - qf[k]) / e / (1 - A$s); est0 <- (A$d / (1 - A$s))[k]
 cr <- crit(est1, est0)    # theta0's estimate read against theta1's own estimate as if it were the error

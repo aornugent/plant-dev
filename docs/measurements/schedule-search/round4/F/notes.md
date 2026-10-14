@@ -138,3 +138,21 @@ Error growth with lma is strongly nonlinear: x1.16 at x1.1, x4.1 at x1.25.
 
 Registered before F_l09c / F_l09f (lma x0.9, the other side; ln J about +1.1):
 - U5: max |est1 - est0| <= 0.3 eps and rms estimate within x1.3 of theta0's.
+
+### F_l09 result: U5 fails; a use inside the radius exceeds eps
+
+At lma x0.9 (ln J +0.73) on episodic's grids, the check at theta1 puts **a_l1 at 1.28 eps**
+(theta0 0.85; miss 0.42), storage_relaxation_offset -0.41 (theta0 -0.20), stem_c 0.34 (0.04);
+rms x1.29; theta0's estimate read as theta1's fails C1 and C3. So within the objective's
+resident radius, a use on the find's committed grid can exceed eps while the find's check
+reported 0.85: **the T measure's premise that the find's check covers the two uses does not
+hold at +-10% lma on episodic.** The grid is not the cause (Inversion 2): the error moves with
+theta, asymmetrically (worse toward lower lma, higher J).
+
+`margin.R`: a commit margin for the radius (commit coarse only if every estimate is under TAU)
+costs T +5.0% at TAU 0.8 (four cases commit fine) and +6.5% at 0.65 (five), all ten.
+
+Registered before F_dl09c / F_dl09f (dry, lma x0.9, on dry's a09 grids; dry's a_l1 is 0.94
+at theta0, estimate 0.89):
+- U6: a_l1's estimate at theta1 exceeds 1.0 eps and max |est1 - est0| exceeds 0.3 eps (the
+  radius failure is general, not episodic's).
