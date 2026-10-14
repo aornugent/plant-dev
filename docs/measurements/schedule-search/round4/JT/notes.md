@@ -190,3 +190,26 @@ jitter; it cancels much of it (in the window too, E3a: +0.095 against −0.16). 
 E6: the jitter is a quadrature error of the residents' uptake sensitivity at the arm
 switches, weighted by the soil's adjoint, and the gate's sensitivity to the soil is one
 of the terms of that weight, opposite in sign to the rest.
+
+### E7 result (`tl.R`, `e7.R`, tl_A.rds): traffic is necessary, not sufficient
+
+Every drydown after b = 3.5 has the whole stand switch to BoundaryCrit, mostly inside one
+long tolerance-set step (e.g. 45 nodes in a 4.2-d step at 7.54, 52 in 1.98 d at 9.70, 60
+in 3.7 d at 10.68); the switch back is at the rain, on the rain's 1-day knots, which A and
+B share. Windows with no switches (0–3.5, 9.15–9.68) carry no jitter, as predicted; but
+5–6.7, 8.25–9.15 and after 17 have as much traffic in long steps and carry ~0. Refuted as
+registered: the jump's weight (the soil's adjoint there, large near a closing edge where
+the gate reads the soil, and offset by the gate's own term, E3) decides which clusters
+show. Not measured outside 9.6–9.8.
+
+## Root cause
+
+When the soil dries, each resident's leaf moves from an Interior optimum to the
+BoundaryCrit arm (stem at psi_crit). Net production is the optimised profit and stays
+smooth in θ and the soil, but transpiration (the argmax) has a kink, so the rates' θ-
+and soil-sensitivity of the soil's water balance jumps (the top layer's ∂rate/∂cost_scale
+goes 0.016 → 0 across 0.4 d). No step boundary is placed there: the splits stop at net
+production's zero, the forward's tolerance sees only a kink. RKCK integrates the jump
+with an O(h) error set by where the stages fall, which is the jitter; ln J, the forward,
+carries O(h²) and moves 1e-3ε. Bracketing the cluster with two step boundaries removes
+it (E6, 36×; matches a 0.1-d refinement within 0.002ε).

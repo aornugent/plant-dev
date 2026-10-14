@@ -770,3 +770,7 @@ reads 1.17 (err −0.44, est −0.51); the one miss is storage_relaxation_offset
   per case); reads move toward 1 on the hydraulic quantities and the leaf quantities'
   over-reads stay within ×2. Risk: a mixed shrink (storage over-read as on dry-flat)
   failing C3 on dry or dry-p50, where errors are small.
+
+**Agent JT (the jitter's source):** the stand's leaves switching to the hydraulic bound
+inside a step (`round4/JT/notes.md`; summary in `localised.md`). Step boundaries over the
+switch cluster cut the 9.68–9.75 window's jitter 36×.

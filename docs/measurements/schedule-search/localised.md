@@ -1012,3 +1012,30 @@ under the sharp gate. What a schedule controls (node spacing) is gate-robust alr
 Nine of ten pass; dry-flat fails C3 5/7 on root_P50 (err −0.44, est −0.14: the strips'
 shared hydraulic residual) and a_dG2 (over-read). T **9193** on all ten and **3994** on the
 training five (a09 on lib19 12916 / 5609: −28.8% on both).
+
+### What jitters: the leaves' switch to the hydraulic bound inside a step (agent JT)
+
+`round4/JT/notes.md`. As the soil dries every resident's leaf moves from an interior
+optimum to the BoundaryCrit arm (psi_stem held at psi_crit): on dry 48 of 56 nodes switch
+within 0.44 d (9.70296–9.70417), 0.7 d before the seedling's gate shuts. Net production is
+the optimised profit, so its θ-sensitivity is smooth through the switch; transpiration is
+the argmax, so it kinks, and the top layer's rate sensitivity to TF24_cost_scale steps
+0.0159 → 0 across the cluster. The derivative's integrand jumps where the forward only
+kinks; RKCK integrates the jump inside one 2-d step with an O(h·jump) error that depends on
+where the stages fall (the forward's error is O(h²), which the tolerance sees). The split
+machinery stops at net production's zeros, not here. The trait divide matches the jitter's
+direction (interior-optimum traits against hydraulic-bound ones).
+- **Decisive:** three step boundaries over the switch cluster (9.6975, 9.70296, 9.70417)
+  in both runs cut the window's A − B difference 36× (−0.065ε → +0.0018ε); 0.1-d steps over
+  9.69–9.72 cut it to 0.0004ε. Each run's window steps had erred by −0.042ε and +0.023ε.
+- **Ruled out:** the determined collar (soil peaks at 4.4 MPa against 5.87); the gate's
+  derivative (cutting it makes the jitter larger: its term partly cancels); residents'
+  sign changes (smooth, already split); stiffness (|h·μ| ≤ 1.1).
+- **Open:** every drydown after b = 3.5 has a switch cluster inside a long step, but not
+  every cluster shows; the soil adjoint's weight decides which (measured in 9.6–9.8 only).
+  Why the averaged gate raises the jitter 4× at 1e-4 is not established.
+- **Fix, cheapest first:** a step-level stop where any node's leaf changes arm (root-find
+  psi_crit − psi_stem as the splits do on net production; the solve already records its
+  kind), about 2 stops per drydown (+3–5% steps on dry); or a smooth Interior/Bound
+  transition in phylloptim (a model change, a width parameter); or error control on the
+  derivative (dearest).
