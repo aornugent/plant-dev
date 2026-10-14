@@ -46,6 +46,11 @@ out <- list(J = sum(scm$offspring_production), J_saved = base$J, steps = length(
             same_times = isTRUE(all.equal(scm$ode_times, base$times, tolerance = 0)), fwd_cpu = cpu() - c0)
 cat(sprintf("J %.12g saved %.12g diff %.3g; same times %s; %.0f s\n", out$J, base$J, out$J - base$J, out$same_times, out$fwd_cpu))
 sv <- function() if (nzchar(out_file)) saveRDS(out, out_file)
+if (Sys.getenv("SOILREC") == "1") {
+  rows <- scm$store_trajectory()
+  out$soil <- list(time = vapply(rows, `[[`, 0, "time"),
+                   theta = t(vapply(rows, function(r) head(tail(r$state, 10), 5), numeric(5))))
+}
 sv()
 nm <- plant:::census_trait_names_tf24(scm)
 pars <- p$strategies[[1]]$pars

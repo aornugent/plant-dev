@@ -9,5 +9,5 @@ tf=$O/times_$saved.rds
 Rscript -e "saveRDS(readRDS('$A/runs/$saved.rds')\$node_times, '$tf')"
 env REGIME=long-drought TOL=$TOL ATOL=$ATOL WEIGHT_SOIL=10 WEIGHT=$D/window/rule_A/weight_long-drought.rds \
   WEIGHT_MAX=100 HMAX=15 SHARE="$SHARE" SPLIT=$SPLIT LIB=$LIB TIMES=$tf PIN=$A/runs/$saved.rds OUT=$O/$name.rds "$@" \
-  Rscript $H/probe.R > $O/$name.log 2>&1
+  Rscript $H/${SCRIPT:-probe.R} > $O/$name.log 2>&1
 echo "done $name $?" >> $O/queue.out
