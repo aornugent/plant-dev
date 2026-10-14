@@ -469,3 +469,8 @@ records in this setting:
   buggy-schedule run, T within 1%.
 - F2: a09 at 3e-4 passes all three long-drought records in this setting, ld-102
   included (its C3 failure was in the legacy setting), at 8–12% under 1e-4.
+
+**F1 holds on accuracy** (a10 on the fixed schedules moves at most 0.019ε from the
+buggy-schedule runs); T within 1% except dry-flat (+2.2%, 8 nodes back). a10 final, long
+drought in the proper setting, fixed schedules: 10/10 pass, T 5385 on the training five
+(a09 5609, −4.0%) and 12277 on all ten (12916, −4.9%).
