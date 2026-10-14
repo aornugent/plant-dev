@@ -528,3 +528,6 @@ stops the rain is exact, and without them the substeps keep it exact; agent S's 
 - K3 (the risk): the check's reads on the hydraulic quantities (root_P50,
   storage_relaxation_offset) stay at 0.4–0.5 under the inset, as on lib19; dry-flat's
   root_P50 is the case to watch for C3.
+- (Later, the user's call) K1 dropped: the baseline without stops is not run; the inset
+  pairs without stops go straight on (K2, K3), compared against a09 on lib19 and the
+  inset on lib19.
