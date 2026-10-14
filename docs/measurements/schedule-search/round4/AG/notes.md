@@ -420,3 +420,26 @@ AG_a09c/a09f_long-drought: coarse, **pass**, worst 0.55, rms 0.180, C3 4 of 4, r
 corr 0.96; T 1390. The inset pair (above) passes too, T 1291 (−7%). So far the gate's
 failures are dry's, the case with the most and longest-lived edges (96 edges, median
 gap 25 d; long drought's median gap is 16 d).
+
+T1 on long drought: AG_a09fg (286 nodes) pairs pass as a09's does; check rms 0.088 → 0.078,
+corr(est, err) 0.96 → 0.99, T 1390 → 1499 (+8%). Marginal; not a fix.
+
+### R3 on episodic-lma: a09's pair passes under the gate
+
+AG_a09c/a09f_episodic-lma: commits **fine**, pass, worst 0.45 (vcmax_25), C3 19 of 19,
+read 1.16, corr 1.00; T 744 (lib19: fine, pass, 0.41, 20/20, T 755). This case's
+committed error is not the edge term, under either gate.
+
+`need.R` (dry, along unit M, reference = u215/u429 extrapolated): what the edge bias
+needs cancelled (reference − a09 run) against what an inset delivers (inset run − a09
+run at the same spacing):
+
+| | need c | need f | c/f | in3 c | in10 c | ins12 c | ins12 f | ins12 c/f |
+|---|---|---|---|---|---|---|---|---|
+| lib19 | 1.81 | 0.83 | 2.18 | 0.37 | 1.49 | 1.61 | 0.90 | 1.78 |
+| libAG | 1.28 | 0.92 | 1.39 | — | 1.35 | 1.38 | **1.38** | **1.01** |
+
+On lib19 a fixed 12 d inset delivers nearly what each spacing needs (both shrink ~2×),
+so c and f are both left near zero along M and the pair reads the rest. Under the gate
+the same inset delivers the same 1.38 at both spacings while the need falls 1.28 → 0.92:
+c is cancelled (−0.10), f over-cancelled (−0.46), and c − f reads a phantom.

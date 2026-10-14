@@ -511,3 +511,20 @@ committing as a09 at 3e-4 did (dry fine, episodic-lma fine, the rest coarse):
 T 4885 on the training five (a09 at 3e-4 5049, −3.2%; a09 at 1e-4 5609, −12.9%) and 10881
 on all ten (11410, −4.6%; 12916, −15.8%). Worst errors stay under ε (dry-flat 0.95, the
 nearest). Dry is where 3e-4 does not pay: it commits the fine run.
+
+## The baseline without rain stops, and the 12-day inset on it (14 October)
+
+libS (`ODELIA-55` cb4d262, `PLANT-105`..`110` with #111), the run's knot stops dropped
+(`KNOTS=0`, `adjmap/adj_run_nk.R`), the proper setting on every record, tolerance 1e-4:
+a09's committed and check schedules (`val_a09k_*`) and P's 12-day inset pairs
+(`val_insk_*`, `P_out/sched/ins{c,f}_*`), all ten cases. The references stand (with the
+stops the rain is exact, and without them the substeps keep it exact; agent S's moves
+≤0.23ε). Registered before the runs:
+- K1: a09k passes ten of ten, every commit decision as a09's; every quantity within
+  0.25ε of its lib19 run; rows 0.73–0.90 of lib19's (episodic the least saving), so T on
+  all ten about 9800–10600 (a09 12916) and on the training five about 4300–4650 (5609).
+- K2: the inset passes ten of ten on libS too, every commit as a09k's, T about
+  8900–9600 on all ten (inset on lib19 11663): the two savings multiply.
+- K3 (the risk): the check's reads on the hydraulic quantities (root_P50,
+  storage_relaxation_offset) stay at 0.4–0.5 under the inset, as on lib19; dry-flat's
+  root_P50 is the case to watch for C3.

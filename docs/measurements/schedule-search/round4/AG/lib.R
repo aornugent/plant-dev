@@ -11,7 +11,9 @@ ag_run <- function(nm) { f <- file.path(AGR, paste0(nm, ".rds")); if (!file.exis
   x <- readRDS(f); if (is.null(x$stand$elasticity)) stop(nm, ": no gradient"); x }
 q_win <- function(x) { e <- x$stand$elasticity; unname(e[grepl("establishment_window", names(e))]) }
 # The libAG reference: u215 and u429 extrapolated on the square law, as anyscore's extrap().
-ref_ag <- function(case) { a <- ag_run(sprintf("AG_ref_%s_u215", case)); b <- ag_run(sprintf("AG_ref_%s_u429", case))
+# AGREF=429_857 takes the next pair of the ladder where it exists.
+ref_ag <- function(case) { lv <- if (Sys.getenv("AGREF") == "429_857") c(429, 857) else c(215, 429)
+  a <- ag_run(sprintf("AG_ref_%s_u%d", case, lv[1])); b <- ag_run(sprintf("AG_ref_%s_u%d", case, lv[2]))
   x <- quantities(a); y <- quantities(b); k <- intersect(names(x), names(y)); r <- extrap(x[k], y[k])
   attr(r, "own") <- max(abs((y[k] - x[k]) / 3 / eps_vec(k))); attr(r, "win") <- q_win(b) + (q_win(b) - q_win(a)) / 3; r }
 # Errors of a run against a reference, in eps.
