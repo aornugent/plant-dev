@@ -618,3 +618,15 @@ the nested runs go on as evidence; the mechanism comes first.)
   2.85e-4 run's: the jump from the 3e-4 answer to the 2.85e-4 answer happens mostly in
   one window. Registered guess: between 10 and 25 (the two nodes whose split counts differ
   between the runs were born there) (50%).
+
+**L1 under the averaged gate (all six classes, dry):** the classes add (sum +0.43 against
+the whole halving's +0.49). Moves along M: C +0.82, S +0.11, G −0.01, O −0.16, I −0.10,
+F −0.23. At second order each class's own error along M is −move/0.75: C −1.09, S −0.14,
+O +0.21, I +0.13, F +0.31, about −0.6 in all, against the committed run's −1.28. So about
+−0.7 of the committed error along M is not reduced by halving any interval: a09's layout
+under the averaged gate converges to a limit off the uniform ladder's.
+- L2 (registered before the run): a09's committed schedule quartered (every interval cut
+  in four, 673 nodes) on libAG, dry. With c −1.28 and the halving −0.79: at second order
+  toward a biased limit (−0.63) it lands at −0.67 ± 0.08 (55%); at first order toward
+  −0.30 it lands at −0.55 ± 0.08 (25%); within 0.15 of 0 (converging to the reference
+  after all, pre-asymptotic) (20%).
