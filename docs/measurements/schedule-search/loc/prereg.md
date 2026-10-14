@@ -651,3 +651,20 @@ the rest coarse); worst errors 0.30–0.58.
 | ld-105 | 815 | coarse | 0.32 | 1/1 |
 | dry-p50 | 844 | coarse | 0.35 | 3/3 |
 | wet-adG2 | 1030 | coarse | 0.44 | 1/1 |
+
+**Jitter splices J0–J9 (dry, the inset's committed run, 3e-4 against 2.85e-4):** J0
+holds exactly (the answer is set by the accepted steps alone). The jump enters in
+lumps that add (off the line ≤ 0.009 rms): none before b = 3.5, 16% in 3.5–5, ~0 in 5–6.7,
+9% in 6.7–8.25, ~0 in 8.25–9.15, 34% in 9.15–10.04, 38% in 10.04–17, ~0 after 17. Every
+window has the same share of long, tolerance-set steps (72–83% of its time), so the lumps
+are moments where the answer is sensitive to where steps fall. The 9.15–10.04 window holds
+the closing edge at 9.711 after a 322-day spell.
+
+**Under the averaged gate, halving makes some quantities worse** (`X/resid.R`):
+TF24_cost_scale 0.21 → 0.50, storage_relaxation_offset −0.18 → −0.31, a_dG1 −0.04 →
+0.20, the hydraulic direction round 3 found the tolerance's error along. Unreached at
+second order: rms 0.149, max 0.60.
+- J11 (registered before the run): a09's committed run on libAG at 1.05e-4 moves
+  TF24_cost_scale or storage_relaxation_offset by at least 0.15 from its run at 1e-4: the
+  averaged gate's unreached error is step-sequence jitter, as dry's at 3e-4 is (50%).
+  Refuted if every quantity moves under 0.05 (the unreached part is the layout's).
