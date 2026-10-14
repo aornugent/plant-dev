@@ -449,3 +449,23 @@ Registered before rerunning a09 (both runs) and a10 (committed) on the three
 long-drought records with SHARE=0.1 and splits (lib19):
 - P1: every case passes, and every quantity lies within 0.15ε of its no-share run.
 - P2: T on each long-drought record falls to 0.45–0.6 of its no-share value.
+
+**P1 and P2 hold.** With the soil's own substeps and splits, a09's long-drought runs move
+at most 0.121ε from the legacy setting's (long drought 0.07/0.10, ld-102 0.04/0.03,
+ld-105 0.04/0.12), every case passes, and T falls to 0.54–0.57:
+
+| case | a09, legacy | a09, substeps + splits | a10, substeps + splits |
+|---|---|---|---|
+| long drought | 2513 | 1423 | 1335 |
+| ld-102 | 2351 | 1281 | 1240 |
+| ld-105 | 2332 | 1286 | 1261 |
+
+So a09: T 5609 on the training five, 12916 on all ten (from 6699 and 16122, −20%). a10
+passes all ten: T 5379 (−4.1%) and 12222 (−5.4%); five of its committed runs (episodic,
+dry, long-wet, dry-flat, dry-p50) used the schedules with the spell bug and are rerun on
+the fixed ones. Registered before those reruns and a09 at 3e-4 on the long-drought
+records in this setting:
+- F1: a10 on the fixed schedules passes all five, each quantity within 0.06ε of the
+  buggy-schedule run, T within 1%.
+- F2: a09 at 3e-4 passes all three long-drought records in this setting, ld-102
+  included (its C3 failure was in the legacy setting), at 8–12% under 1e-4.
