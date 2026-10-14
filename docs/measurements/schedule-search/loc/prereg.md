@@ -630,3 +630,24 @@ under the averaged gate converges to a limit off the uniform ladder's.
   toward a biased limit (−0.63) it lands at −0.67 ± 0.08 (55%); at first order toward
   −0.30 it lands at −0.55 ± 0.08 (25%); within 0.15 of 0 (converging to the reference
   after all, pre-asymptotic) (20%).
+
+**K2, K3 results (the inset pairs on libS without rain stops, 1e-4, all ten):** nine of
+ten pass; **dry-flat fails C3 (5/7)**: root_P50 under-read (err −0.44, est −0.14, read
+0.33), a_dG2 over-read (0.19, est 0.40). K2 refuted on the pass, holds on T: **all ten
+9193, training five 3994** (a09 on lib19 12916 / 5609, −28.8% / −28.8%; the inset on lib19
+11663 / 5194, −21.2% / −23.1%). K3 holds as registered: the hydraulic under-read, on
+dry-flat's root_P50. Every commit decision as the inset's on lib19 (episodic-lma fine,
+the rest coarse); worst errors 0.30–0.58.
+
+| case | T | commit | worst | C3 |
+|---|---|---|---|---|
+| episodic | 613 | coarse | 0.30 | 1/1 |
+| dry | 823 | coarse | 0.35 | 6/6 |
+| long-wet | 975 | coarse | 0.36 | 1/1 |
+| long drought | 951 | coarse | 0.37 | 1/1 |
+| episodic-lma | 632 | fine | 0.50 | 19/19 |
+| dry-flat | 1664 | coarse | 0.58 | **5/7** |
+| ld-102 | 846 | coarse | 0.41 | 1/1 |
+| ld-105 | 815 | coarse | 0.32 | 1/1 |
+| dry-p50 | 844 | coarse | 0.35 | 3/3 |
+| wet-adG2 | 1030 | coarse | 0.44 | 1/1 |
