@@ -154,3 +154,30 @@ steps, which still differ (A 0.88, 1.47, 1.50 d; B 1.51, 1.87 d).
 - Arm switch is the carrier: the window difference along TF24_cost_scale falls from
   0.065ε to ≤ 0.015ε, and rms over quantities from 0.0149 to ≤ 0.005 (70%).
 - If ≥ 0.045ε remains, the switches are not the carrier (the gate's knee or another).
+
+### E4 result (JT4_J12_fine, JT4_J13_fine)
+
+Steps in (9.69, 9.72] cut to ≤ 0.1 d in both: the window's difference along
+TF24_cost_scale falls from −0.0650ε to +0.0004ε (rms 0.0149 → 0.0001), ln J moves 1e-7ε.
+Against the resolved value, A's window steps err by −0.042ε and B's by +0.023ε: errors
+of either sign around one answer. **Holds**: everything in the window's jitter lives in
+9.69–9.72 (the switch cluster and the gate's knee); E6 separates the two.
+
+### E6 result (JT6_J12_stops, JT6_J13_stops): **the arm switches carry it**
+
+Identical step boundaries over the switches only (steps of 1.99 d and 0.44 d, not a
+refinement), each run's own steps over the gate's knee: the window's difference along
+TF24_cost_scale falls from −0.0650ε to +0.0018ε (36×), rms 0.0149 → 0.0005. Each run
+also lands within 0.002ε of its fully refined value (E4): bracketing the 48-node cluster
+with two boundaries is as good as cutting 9.69–9.72 into 0.1-d steps. The gate's knee,
+left on different steps, moves the answer by ≤ 0.002ε. Registered as the carrier (70%):
+holds.
+
+## E7 (registered before the run): do the other lumps sit on switch clusters?
+
+`tl.R` on A (forward, every recorded state): nodes at psi_crit. For each step, m = the
+change in that count (switches inside the step) and h its length; the jump error scales
+like Σ m·h·(the jump's weight). Registered: the windows that carry the jitter (3.5–5,
+6.7–8.25, 9.68–9.75, 10.04–17) have large Interior ↔ BoundaryCrit switch traffic inside
+long steps (Σ m·h), and the quiet windows (5–6.7, 8.25–9.15, after 17) have little
+(60%). A weak test: the weight (λ of the soil, the cohort's share of J) is not read.

@@ -750,3 +750,13 @@ edges' jitter.**
   stops (C3 5/7, root_P50 err −0.44, est −0.14) with the closing edges' tolerance ×0.1
   (93 closing edges, 27% of 0–25): passes C3, root_P50 read within ×2 (45%); rows ≤ 1.15×.
   Refuted if root_P50 still reads under 0.5 (the strips' shared residual is not jitter).
+
+**E4 result: refuted.** dry-flat's inset pair with the closing edges' tolerance ×0.1
+still fails C3 5/7 (root_P50 read 0.33 → 0.50, err −0.43, est −0.21; a_dG2 over-read
+2.05); rows 1.22× (93 closing edges). dry-flat's misread is not jitter: it is the
+inset's own structure, the 12-day strips the same in both runs (P), which the gate
+data show too once the jitter is gone (along M c −0.20, f +0.07 under either gate).
+- E5 (registered before the run): the check's inset scaled with the check's spacing
+  (12/1.6 = 7.5 d, `X/mkins75.R`) against the committed 12-day inset, dry-flat on libS
+  without stops, 1e-4: passes C3, root_P50 read 0.6–1.6 (45%). Refuted if root_P50
+  still reads under 0.5 or the leaf quantities over-read past ×2 (a mixed shrink, P).
