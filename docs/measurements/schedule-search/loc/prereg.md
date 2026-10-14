@@ -591,3 +591,30 @@ half the inset (6 d), so its strips still interpolate between nodes inside spell
 - Cost: the nested check has 2.0–2.3× the committed run's nodes against the ratio
   check's 1.4×, so T rises about 10–15% at the same committed schedule; it pays only if
   it lets 3e-4 or a coarser committed run pass.
+
+**N1 result (averaged gate, a09 + a09nb):** refuted on the shrink, holds on the pass. The
+nested check shrinks the committed run's error along M only 1.62× (−1.28 → −0.79) for a
+halving of every interval (second order: 4×); C3 passes 7/8 (miss TF24_cost_scale), read
+0.69, T 1431. Under the gate the edge error converges at about order 0.7 on a layout with
+nodes at the edges, where a uniform ladder converges at second order (AG). So nesting is
+not the mechanism; the edge node is. (Asked whether the cause is found: no. The rest of
+the nested runs go on as evidence; the mechanism comes first.)
+
+### Where the averaged gate's edge error lives, and when the jitter enters
+
+- L1 (`X/mkclass.R`): a09's committed schedule with one class of interval bisected at a
+  time, under each gate on dry: F founders (17), O after an opening edge (21, median
+  80 d), C before a closing edge (20, 78 d), S one-interval spells (27, 16 d), G shut gaps
+  (48, 25 d), I the rest (35). Each class's move along M (and off M) is its share of the
+  committed run's error at the halving. Registered: under the sharp gate the move along M
+  is mostly O and C (≥ 70% of a09nb's −0.98 at the 1e-4 nested run, when it lands), at
+  roughly second order; under the averaged gate O and C move M by little (≤ 30% of their
+  sharp-gate moves), and the M error sits where no halving reaches it at these spacings:
+  the error is pre-asymptotic in the edge's own layer (10–20 d of fate, the gate's
+  ~35 d rise), which every interval here (≥ 40 d after halving) is wider than (55%).
+- J0: the committed run at 3e-4 replayed on the 2.85e-4 run's accepted steps lands on the
+  2.85e-4 run's answer within 0.005ε (the jitter is the step sequence alone) (85%).
+- J1–J3: steps of the 3e-4 run up to the introduction at 3.50 / 10.04 / 24.79, then the
+  2.85e-4 run's: the jump from the 3e-4 answer to the 2.85e-4 answer happens mostly in
+  one window. Registered guess: between 10 and 25 (the two nodes whose split counts differ
+  between the runs were born there) (50%).
