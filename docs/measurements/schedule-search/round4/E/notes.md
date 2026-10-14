@@ -116,3 +116,28 @@ setting):
   within 0.86–0.92 of a09's.
 - E9 (`E_at2n_dry`, ATOL 1e-2 at tolerance 1.05e-4): moves under ε/3 from `E_at2_dry`
   (reproducible), rms under 0.05ε.
+
+## Results of E6–E9 (ATOL 1e-2)
+
+| run | rows vs a09 | CPU vs a09 | max move | rms |
+|---|---|---|---|---|
+| dry c (`E_at2_dry`) | 0.894 | 0.875 | 0.106ε TF24_cost_scale | 0.033 |
+| dry f (`E_at2_f_dry`) | 0.892 | 0.872 | **0.377ε stem_c** (TF24_cost_scale 0.345) | 0.092 |
+| ld-102 c | 0.921 | 0.98 (load) | 0.024ε | 0.004 |
+| ld-102 f | 0.914 | 0.97 (load) | 0.011ε | 0.004 |
+| dry c at 1.05e-4 vs dry c (nudge) | 0.996 | — | 0.110ε TF24_cost_scale | 0.028 |
+
+Scored as a09 scores (`score_E.R`, ALG a09_late):
+- dry: coarse, worst 0.84, C1–C5 pass but **C3 at its limit (8/10)**, median read 0.84
+  (a09 1.12); T 1109 against 1241 (−10.6%).
+- ld-102: coarse, worst 0.46, pass (3/3), read 1.02 (a09p 1.01); T 1177 against 1281
+  (−8.1%).
+
+E6/E7 hold (ld-102 moves ≤0.024ε, rows −8%). E8 holds narrowly (passes, −10.6%) but
+not by my E5 bound: the check run moves 0.38ε along the hydraulic direction (stem_c,
+TF24_cost_scale, root_P50), unevenly from the committed run's 0.11ε, the signature that
+failed 3e-4 on ld-102 in round 3. E9 holds (nudge 0.110ε max, rms 0.028; ε/3 is 0.33).
+Real CPU on ld-102 fell less than rows because the machine's load differed between the
+a09p runs and mine; across 211 runs rows track CPU tightly (cpufit.R).
+
+Budget: 10 runs (one lost to the mid-run edit, rerun).

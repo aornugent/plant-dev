@@ -769,3 +769,31 @@ step no longer stops at every knot. Predicted −15 to −35% of T on rain-frequ
 (every run and the sweep scale with rows); a library change in odelia and plant. Gate: the
 rain quadrature over a run's steps stays exact (`G/alias.R`), which is also a free
 diagnostic.
+
+## Round 4 E: what a run pays for (14 October)
+
+Agent E (`round4/E/notes.md`; mining plus 10 real runs on dry and ld-102):
+- **CPU follows rows** (211 proper-setting runs: 5.9e-4 s/row, 1.15× the rows model);
+  steps cost nothing beyond their rows.
+- **Where a09's rows go (dry):** rain knots 41–56% (episodic 27–29%); the controller's own
+  steps 38%, set by mortality 15%, storage 13%, soil 10%; nodes born after 25 0.1–1.6%,
+  HMAX-ended steps 1.3–8.6%, introductions 2–4%; rejected attempts about 15% of forward
+  attempts.
+- **The knots are the rain's quadrature (confirms G).** Without them at 1e-4 J moves
+  1.191 → 0.984 (7.6ε in ln J, up to 19ε in elasticities); at 1e-5 without them only 42% of
+  the gap is recovered (error ∝ tol^0.24); knots kept only before 25 move elasticities up
+  to 0.73ε. The controller's error ratio on knot-ending steps is 0.009–0.02 before 25 and
+  0.00035 after 33: the knots do shorten steps, about 2×.
+- **Defect: the knot stops live only in the harness** (`pulse_rows(active_knots())`);
+  plant adds none, so any TF24 run on a daily rainfall driver without them is silently
+  wrong (about 17% in J on dry at 1e-4), breaking "never fails" and "diagnosed". Taken up
+  by the rain-in-the-soil design (`round4/R/`).
+- **Newborns' survival is held about 1000× tighter than established nodes'** (mortality
+  level about 1.7e-7 under the relative tolerance, against 3e-4): mortality sets 15% of
+  rows, nearly all on newborn nodes (median age 21 d).
+- **ATOL 1e-4 → 1e-2 (a setting):** rows 0.89–0.92; dry passes at T 1109 (−10.6%) but C3
+  at its limit and the check run moves 0.38ε along the hydraulic direction, unevenly
+  between runs (the same signature as 3e-4's ld-102 failure in the legacy setting);
+  ld-102 passes at 1177 (−8.1%). Same class of risk as 3e-4; not to be stacked with it.
+  E's hypothesis (untested): the hydraulic move comes from storage, not mortality, so an
+  absolute level on −ln survival alone might keep 3–6% without it.
