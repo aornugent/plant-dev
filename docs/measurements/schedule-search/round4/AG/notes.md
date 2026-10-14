@@ -443,3 +443,29 @@ On lib19 a fixed 12 d inset delivers nearly what each spacing needs (both shrink
 so c and f are both left near zero along M and the pair reads the rest. Under the gate
 the same inset delivers the same 1.38 at both spacings while the need falls 1.28 → 0.92:
 c is cancelled (−0.10), f over-cancelled (−0.46), and c − f reads a phantom.
+
+### P_ref result (AG_ref_dry_u857): holds; the reference is sound
+
+`ladder.R`: along unit M the uniform ladder moves +0.988 (u215 → u429) then +0.173 (u429 →
+u857), ratio **5.7** (second order or better); off M rms 0.129 → 0.048 (2.7); ln J +0.059
+→ +0.038 (1.55). ref(u429, u857) − ref(u215, u429): **−0.10 along M**, rms 0.053, max 0.16
+(TF24_cost_scale); its own estimate 0.04ε. Rescored on ref(u429, u857)
+(`AGREF=429_857 val.R dry`): a09 pair worst 0.78, C3 5/8 (fail); inset pair worst 0.61,
+C2 and C3 fail (3/9); a09fg C3 5/8 (fail); mid c worst 0.38, rms 0.120 (still the most
+accurate committed run). Same verdicts. Under the gate a uniform ladder (nodes anywhere,
+gaps refined with everything else) converges along M at second order; a09's edge-anchored
+c → f converges there at first order (1.39). The shared part is the schedules', not
+the reference's.
+
+## Last run: the mid pair under the gate (P_AG1, restated)
+
+mid is the spacing-proportional extreme (outer nodes h′/2 inside; P's midf2 schedule for
+the check), the fixed inset the other. Along M (ref u215/u429): mid c −0.08 (ref +0.33,
+so under-corrected by 0.41; lib19 mid over-corrected by 0.68).
+
+- P_AG1′ (AG_midf_dry): mid's correction scales with h, so the check delivers less than
+  c does: mid f along M between −0.4 and −0.1, both runs on the same (under-corrected) side
+  of the reference. Its committed errors are small (worst 0.30–0.38), so C3 has few
+  quantities over ε/3: the pair passes C1–C5, commits coarse, T ≈ 900 (a09's libAG pair
+  1220, −25%) (60%). Refuted if the check lands beyond the reference (over-corrected) and
+  C3 fails, as the fixed inset's did.
