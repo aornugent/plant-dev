@@ -5,8 +5,11 @@ rainfall knot ends a main step, 46–56% of rows on rain-frequent records, and t
 knots cannot simply go, because a step across knots samples the rain only at its
 six stages and its error estimate is blind to what it misses.
 
-**Answer: yes, a small change, and it extends the subsystem rather than adding a
-feature.** The soil's substeps already land on a fixed list of stops inside the
+**Answer: yes, a small change (about 45 lines of library code), and it extends
+the subsystem rather than adding a feature.** Measured on a09's committed
+schedules at `1e-4`, it takes rows −21% (dry) and −26% (long-wet), and sweep CPU
+−33% and −35%. Every quantity stays within 0.16ε of the knot-stopping base and
+the rain's quadrature stays exact (`notes.md`). The soil's substeps already land on a fixed list of stops inside the
 step (the stage and sample fractions). The rain's knots join that list. Where a
 step does not substep the soil, it ends at the next knot, as the caller's pulses
 make it do today. Both halves need one fact the System does not yet give odelia:
@@ -145,6 +148,18 @@ the soil; on long drought it changes nothing.
 
 - *Steps whose soil is coupled still stop at every knot* (40% of knot rows on
   dry, all on long drought). Cope: candidate C.
+- *A smooth series given densely pays for its knots.* Every control point of a
+  variable driver is a knot unless it lies inside a run of equal values, so a
+  seasonal sine given at 601 points over 3 years (plant's split and substep
+  fixtures) stops each coupled step every 1.8 days, where nothing is missed.
+  Cope: the System may report only the knots that matter. For TF24's daily rain
+  that is all of them, so the rule here is the harness's own.
+- *A subsystem that passes its forcing straight through* puts a bump in what the
+  rest reads, which the rest's stages miss however exactly the subsystem is
+  integrated: the toy's stiff store (K = 1e4) ends 4.2e-3 from the reference
+  with or without this change, against 1.2e-4 stopped at the knots. The change
+  fixes the rain's integral; whether TF24's soil holds rain as a rise (as the
+  slow store does, 2.0e-3 → 9.7e-7) is what the dry run tests.
 - *The two diagnostic sums* (`sum_rainfall`, `sum_infiltration`) stay on the main
   step, so they alias on steps that span knots. They feed nothing; they join the
   error norm at the accumulators' factor.
@@ -188,3 +203,38 @@ Tests (failing first): odelia's store toy under a pulse train of inflow, whose
 substepped steps span knots, against a reference that stops at every knot; and
 that a coupled run ends a step on every knot. plant: a TF24 stand on a pulsed
 record without knot pulses against the same stand with them.
+
+## As built and measured
+
+- odelia `RAIN-SUBSTEPS` (on f19f7de): `cfee88a` the failing tests (store toy
+  under pulses of inflow), `c7a53a4` the change: `drivers.hpp` +27,
+  `ode_interface.hpp` +3, `ode_substeps.hpp` +13, `ode_solver_internal.hpp` +16.
+- plant `RAIN-SUBSTEPS` (on fa9afe76): `d4c414ee` the failing test (a two-year
+  stand on a daily record), `6ac10ce6` the change: `tf24_environment.h` +5,
+  `patch.h` +5.
+- R0: with the knots still passed, dry is bit for bit with lib19 and lib18.
+
+| | dry | long-wet |
+|---|---|---|
+| rows | −21.2% | −26.3% |
+| steps | −16.0% | −20.5% |
+| sweep CPU | −32.5% | −35.5% |
+| forward CPU | −10.9% | −17.6% |
+| knot-ending steps | 2955 → 1056 (coupled) | 2955 → 484 (coupled) |
+| largest move | 0.156ε (TF24_cost_scale) | 0.011ε |
+| rms move, `ln J` | 0.046ε, +0.007ε | 0.004ε, +0.002ε |
+| Σ\|RK5 − exact\| over the rain's intervals | 1.06e-11 (base 1.06e-11) | 1.27e-10 (base 1.29e-10) |
+
+The kill conditions do not fire. Two warnings stand:
+- *The stiff-store limit* (above) did not show in TF24 at these settings.
+- *The fixture's cost at matched error:* a young two-year stand needed more
+  steps than the knot-stopping run at `1e-5` and `1e-6` (617 vs 457, 912 vs 674),
+  though its error fell with the tolerance. Recheck at `3e-4` and on episodic
+  before adopting.
+
+*Suites* (`notes.md`): two plant tests fail because of the change. The
+gradient ladder's seasonal reference and `test-scm.R`'s substepped share both
+run a densely given sine, whose every control point now ends a coupled step.
+That is the dense-series cost above, now measured. The knot rule needs
+narrowing (rain onsets and ends), or the coupled stops need an opt-in, before
+this lands.

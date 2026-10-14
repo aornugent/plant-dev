@@ -823,3 +823,33 @@ long-drought records in the proper setting):
   against the real reference), **+16% T** (12916 → 14985), the price a09's T leaves out.
   Diagnose each use by |ln J(θ) − ln J(θ₀)| against θ₀ (the check transfers at 0.19,
   misreads at 0.73–1.11, fails at 4.15). Tested on lma and root_P50 on two records only.
+
+## Round 4 R: the soil's substeps land on the rain's knots (14 October)
+
+Agent R (`round4/R/design.md`, `notes.md`): a small extension of the soil subsystem, about
+45 lines, on local branches `RAIN-SUBSTEPS` (odelia c7a53a4 on f19f7de, plant 6ac10ce6 on
+fa9afe76, each after a failing test; not pushed; `libR`).
+- How rain enters: a monotone Hermite cubic through daily values, read only in
+  `TF24Environment::layer_rates` as rain(t) × infiltrated share(θ₀); on substepped steps
+  the plants' stages read a soil that already carries the rain, but `choose_substeps` stops
+  only at stage fractions, so a substep can span a knot and alias it too. An exact span
+  integral is impossible (the forcing depends on θ₀); substeps within one span integrate it
+  at 1e-9.
+- The change: `HasSubsystem::subsystem_knots(from, to)` gives the times where the
+  subsystem's forcing changes form (`drivers::Function::knots`, every control point but
+  those inside a run of three equal values; TF24 passes the rain's); substeps add them to
+  their stops, and a coupled step ends at the next one as it ends at `time_max`. Callers no
+  longer pass knot pulses; E's silent-error defect goes with them. The sweep needs nothing
+  new (substep ends are already recorded).
+- Measured (a09's committed schedule, 1e-4, SHARE 0.1, splits; base bit for bit with lib19):
+  dry rows −21.2%, sweep CPU −32.5%, forward −10.9%, largest move 0.156ε, ln J +0.007ε;
+  long-wet rows −26.3%, sweep −35.5%, forward −17.6%, largest move 0.011ε. Knot-ending
+  steps fall 2955 → 1056 (dry; 98% of the rest coupled) and 2955 → 484 (long-wet). The rain
+  quadrature over the intervals that integrate it stays exact (1e-11, 1e-10).
+- Open: two plant tests fail under it (the seasonal gradient ladder, 15 columns outside the
+  captured spread, worst 0.135; `test-scm.R`'s substepped share 0.46 against > 0.5), both
+  Control defaults on a sine driver sampled at 200–601 points, where every control point
+  now ends a coupled step. Not yet checked at 3e-4 or on episodic; a 2-year test stand
+  needed more steps at 1e-5 and 1e-6 than knot-stopping did, though its error now falls
+  with tolerance. Candidate C (any step spanning a knot substeps the soil) would reach the
+  remaining coupled stops.
