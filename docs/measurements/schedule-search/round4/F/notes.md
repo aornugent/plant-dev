@@ -156,3 +156,22 @@ Registered before F_dl09c / F_dl09f (dry, lma x0.9, on dry's a09 grids; dry's a_
 at theta0, estimate 0.89):
 - U6: a_l1's estimate at theta1 exceeds 1.0 eps and max |est1 - est0| exceeds 0.3 eps (the
   radius failure is general, not episodic's).
+
+### F_dl09 result: U6 half holds; the misread is general, the C1 breach is not
+
+Dry at lma x0.9 (ln J +1.02): a_l1's estimate falls 0.89 -> 0.56 (U6's first half refuted),
+root_P50 rises 0.15 -> 0.70, omega -0.33 -> -0.56; the largest change **0.56 eps**
+(TF24_cost_scale), correlation 0.79; dry's estimate read as theta1's fails C2 and C3 (17
+quantities over eps/3). So at the resident radius in lma, the find's estimate does not
+describe a use on either record; on episodic the use also breaks C1.
+
+`scaled.R`: rescaling theta0's estimate by q1/q0 (constant relative error) does no better
+(max miss 0.39, 0.50, 0.54). `repair.R`: uses run on the find's f grid with theta0's fine
+estimate d0 s/(1 - s) pass C1–C5 at all three radius points (use errors <= 0.43, misread
+<= 0.24) at **T +16.0%** (all ten); a pair per use costs +61%. `straddle.R`: on dry's grid,
+none of dry-p50's 102 edges before 25 is a node, 29 are over 1 d off and 4 over 5 d, and the
+error matched its own grid to 0.07 eps; exact edge placement is not what accuracy rests on.
+
+Registered before F_ref_l09_u215 / _u429 (episodic, lma x0.9, the held-out reference recipe):
+- U7: F_l09c's a_l1 error against the u215 -> u429 reference exceeds 1.0 eps, and the pair's
+  read d1/(1 - s) is within 0.8–1.25 of it.
