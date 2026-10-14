@@ -82,3 +82,19 @@ scaled by the proxy, saves 3–6% at TAU_USE 0.7 and stays 5/5. `resize.R`, `sco
 **−0.4% at 0.7 (5/5), −0.9% at 0.85 (4/5).** The interior is a minority of rows and most
 intervals that could widen are capped or bounded by edges. Refuted: a committed run cannot
 be cheapened by spending its margin on spacing.
+
+### F_use_dryp50 result: U1 holds, firmly; U2 holds
+
+dry-p50's traits on dry's committed grid move every quantity at most **0.07 eps** (a_l1) from
+dry-p50 on its own grid, rms 0.020: about the run-to-run jitter. Worst 0.86 against 0.93.
+Dry's estimate read as this use's passes C1–C5 (correlation 0.94); the use corrected by it
+errs at most 0.37. CPU 318 s against 339 (rows 0.99). The 14 edges theta1 adds and the 19 that
+moved over 0.01 y (up to 67 d) cost nothing measurable. So the use premise holds at root_P50
+x1.2, twice the objective's resident radius, and grid placement is not what moved
+storage_relaxation_offset in agent C's dry-p50 -> dry transfer.
+
+Registered before F_use_lma (episodic-lma's traits, lma x1.25, on episodic's committed grid;
+b1 moves 3.05 -> 3.69, only 35 of 68 edges within 0.01 y):
+- U3: every quantity within 0.15 eps of episodic-lma's own-grid committed run.
+- U3': some quantity moves over 0.3 eps (the founders' window at theta1 runs past theta0's
+  b1 on background spacing). I lean U3' (60%).
