@@ -1,0 +1,15 @@
+# midpair.R CASE CRUN FRUN: the mid layout's pair scored as a09 scores its own (C1-C5, commit rule), and the overshoot along M.
+source("/home/user/plant-dev/docs/measurements/schedule-search/round4/P/lib.R")
+a <- commandArgs(TRUE); cs <- a[1]; B <- pair(cs); ld <- function(n) readRDS(file.path(POUT, "runs", paste0(n, ".rds")))
+xc <- ld(a[2]); xf <- ld(a[3]); qc <- quantities(xc); qf <- quantities(xf); k <- Reduce(intersect, list(B$k, names(qc), names(qf))); e <- eps_vec(k)
+ec <- (qc[k] - B$ref[k]) / e; ef <- (qf[k] - B$ref[k]) / e; d <- ec - ef; s <- proxy(cs, xf$node_times) / proxy(cs, xc$node_times)
+est <- d / (1 - s); fine <- any(abs(est) >= 1)
+cat(sprintf("%s mid pair: s %.2f (a09 %.2f) | c worst %.2f rms %.3f, f worst %.2f rms %.3f | est worst %.2f | commits %s\n", cs, s, B$s, max(abs(ec)), sqrt(mean(ec^2)), max(abs(ef)), sqrt(mean(ef^2)), max(abs(est)), if (fine) "fine" else "coarse"))
+cr <- if (fine) crit(ef, d * s / (1 - s)) else crit(ec, est); print(cr)
+big <- pmax(abs(ec), abs(est)) > 1/3; cat("quantities over eps/3:", sum(big), " read ratios:", paste(sprintf("%s %.2f", k[big], (est / ec)[big]), collapse = "; "), "\n")
+cat(sprintf("median |est|/|err| over eps/3: %.2f; corr(est, err) %.2f\n", median(abs(est[big] / ec[big])), cor(est, ec)))
+f10 <- file.path(POUT, "runs", sprintf("P_in10_%s.rds", cs)); M <- if (file.exists(f10)) { q <- quantities(readRDS(f10)); (q[k] - B$qc[k]) / e } else ec - B$ec[k]  # in10 move, else the mid move itself
+ pr <- function(v) -sum(v * M) / sum(M^2)
+cat(sprintf("projection on -M: a09 c %.2f f %.2f | mid c %.2f f %.2f | mid estimate %.2f\n", pr(B$ec[k]), pr(B$ef[k]), pr(ec), pr(ef), pr(est)))
+T0 <- B$Tc * 3 + B$Tf; T1 <- run_cost(xc$stand$rows) * 3 + run_cost(xf$stand$rows); C0 <- 3 * B$cpu_c + B$cpu_f; C1 <- 3 * cpu_of(xc) + cpu_of(xf)
+cat(sprintf("T (rows model, commit coarse) a09 %.0f -> mid %.0f (%+.0f%%); real CPU %.0f -> %.0f (%+.0f%%)\n", T0, T1, 100 * (T1 / T0 - 1), C0, C1, 100 * (C1 / C0 - 1)))

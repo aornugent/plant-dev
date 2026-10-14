@@ -48,3 +48,12 @@ spell_mid <- function(S, case) { et <- edge_table(case); o <- et$b[et$opening]; 
     i <- which(S >= a - 1e-9 & S <= c1 + 1e-9); if (abs(S[i[1]] - a) > 1e-8 || abs(tail(S[i], 1) - c1) > 1e-8) next
     keep[i] <- FALSE; add <- c(add, (S[i][-length(i)] + S[i][-1]) / 2) }
   sort(c(S[keep], add)) }
+# Each spell with both edges in S (after b1, before 25): nodes from d days inside one edge to
+# d days inside the other, at no more than the spell's own spacing; one node at the centre
+# of a spell shorter than 2d.
+spell_inset <- function(S, case, d = 12) { et <- edge_table(case); o <- et$b[et$opening]; S <- sort(S); keep <- rep(TRUE, length(S)); add <- c(); d <- d / 365
+  for (a in o) { cc <- et$b[!et$opening & et$b > a]; if (!length(cc)) next; c1 <- min(cc)
+    i <- which(S >= a - 1e-9 & S <= c1 + 1e-9); if (abs(S[i[1]] - a) > 1e-8 || abs(tail(S[i], 1) - c1) > 1e-8) next
+    L <- c1 - a; h <- L / (length(i) - 1); keep[i] <- FALSE
+    add <- c(add, if (L <= 2 * d) (a + c1) / 2 else seq(a + d, c1 - d, length.out = ceiling((L - 2 * d) / h - 1e-9) + 1)) }
+  sort(c(S[keep], add)) }

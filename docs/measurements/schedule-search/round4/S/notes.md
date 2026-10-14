@@ -90,3 +90,86 @@ SPLIT 1). Predict:
 
 Kill: rows fall by less than A's on dry or long-wet, a quantity moves more than
 ε/3, the gate fails, or a run throws.
+
+## Interruptions
+
+- *Disk full (04:59).* The root filesystem reached 179 MB free (it serves
+  ~37 GB however large `df` says it is). The PLANT-105 full sweep died in
+  `test-gradient-ladder-*` and a build at the re-bless commit failed. 2.4 GB of
+  `/tmp/Rtmp*` from before the 04:24 boot (dead processes) were removed; both
+  were redone (the sweep is rerun below).
+- *Container restart (~05:16).* Killed: the run queue during
+  `S_free_long-wet`'s sweep (its forward was saved, the gradient was not), and
+  the monitors. Intact: the git state of every branch, libS (odelia and the
+  rebased PLANT-110 installed whole before the queue), `S_stop_dry` and
+  `S_free_dry`. `S_free_long-wet` is redone from the start, then episodic and
+  long drought.
+
+## Results
+
+Readings: `report_S.sh` (cmp.R, gate.R, knot_split.R per case), output in
+`S_out/report_S.txt`. CPU is one run each on a machine shared with another
+agent's runs (load ~2 of 4 cores); rows are the cost model, CPU is indicative.
+
+### S0: the knots as stops change nothing
+
+`S_stop_dry` (libS, knots given as stops, forward) against `val_a09_c_dry`: J
+1.19094930713355, the 5585 times, sizes, substep ends and input slopes all
+identical. **Holds.**
+
+### S1–S4: no knot stops
+
+| | dry | long-wet | episodic | long drought |
+|---|---|---|---|---|
+| steps, base → free | 5584 → 4631 (0.829) | 6638 → 5394 (0.813) | 3804 → 3606 (0.948) | 6360 → 5210 (0.819) |
+| rows | 0.758 | 0.731 | 0.900 | 0.746 |
+| forward CPU | 0.81 | 0.97 | 1.12 | 1.03 |
+| sweep CPU | 0.55 | 0.65 | 0.78 | 0.75 |
+| knot-ending steps | 4 (chance) | 3 | 2 | 5 |
+| steps substepped | 50.6% → 62.5% | 70.1% → 73.4% | 63.2% → 68.2% | 66.4% → 70.4% |
+| largest move | 0.228ε (stem_c) | 0.023ε | 0.102ε (a_l1) | 0.056ε (stem_c) |
+| rms move, `ln J` | 0.053ε, −0.004ε | 0.007ε, −0.0004ε | 0.034ε, −0.010ε | 0.014ε, −0.004ε |
+| against the case's reference, max (base / free) | 0.937 / 0.896ε | 0.499 / 0.489ε | 0.755 / 0.653ε | 0.567 / 0.564ε |
+| gate, Σ\|RK5 − exact\| (base / free) | 1.06e-11 / 1.03e-11 | 1.29e-10 / 1.28e-10 | 8.85e-11 / 8.65e-11 | 7.65e-11 / 7.66e-11 |
+
+Every knot lies inside a main step and is a substep end; no run refused or threw.
+
+Against agent R's candidate A (knots stop the coupled steps), same lib family:
+
+| | dry | long-wet |
+|---|---|---|
+| steps A → C | 4692 → 4631 (0.987) | 5276 → 5394 (1.022) |
+| rows | 0.963 | 0.992 |
+| largest move, C against A | 0.328ε (TF24_cost_scale) | 0.033ε |
+
+*Against the predictions:*
+- knot stops fall to chance, every knot a step or substep end: **holds**;
+- rows: dry −24.2% (predicted −25 to −40%) **misses, just low**; long-wet
+  −26.9% (−28 to −38%) **misses, just low**; episodic −10.0% (−10 to −25%)
+  **holds, at the edge**; long drought −25.4% (−20 to −40%) **holds**;
+- against A, rows lower by 3–15%: dry 3.7% **holds, at the edge**; long-wet
+  0.8% **misses** (and 2% more steps);
+- sweep CPU falls more than rows: **holds** everywhere; forward CPU less:
+  **holds**, and on episodic and long drought it does not fall at all;
+- accuracy (≤ ε/3, rms ≤ 0.1ε, `ln J` ≤ 0.05ε): **holds** on all four;
+- gate ≤ 1e-6: **holds** (the free runs equal their bases to 1e-12).
+
+The kill conditions do not fire: rows are below A's on both records it has, no
+quantity moves past 0.23ε, the gate holds, nothing throws.
+
+## Reading
+
+- *What C buys over A is small.* A's 1056 (dry) and 484 (long-wet) coupled
+  knot stops did not become long steps when they substep instead: dry lost 61
+  steps and long-wet gained 118. Those steps are where the plants draw hard on
+  the soil, and their length is set by the plants or by the coupling's error,
+  not by the knot. The point of C is structural: one rule (a step that spans a
+  knot substeps the soil) makes every run right without stops, at the share 0
+  as well, with the rows of A or slightly fewer.
+- *Long drought now gets the saving* (−25% rows): run with SHARE 0.1 it has
+  substepped steps across knots, which A left only where the share allowed.
+- *The forward falls less than rows; the sweep more.* As in R's runs. Not
+  traced: one shared-machine run each, and the base runs were timed on another
+  day. Rows are the measure here.
+- *The fixture's warning does not show at 1e-4.* All four free runs are as
+  close to the case's reference as their bases, or closer.

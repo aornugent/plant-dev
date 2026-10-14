@@ -853,3 +853,39 @@ fa9afe76, each after a failing test; not pushed; `libR`).
   needed more steps at 1e-5 and 1e-6 than knot-stopping did, though its error now falls
   with tolerance. Candidate C (any step spanning a knot substeps the soil) would reach the
   remaining coupled stops.
+
+## Round 4 P: an edge needs no node; the node at the edge is the error (14 October)
+
+Agent P (systematic debugging, `round4/P/notes.md`; 14 real runs on lib19):
+- **An edge inside an interval costs nothing by itself.** Exact counts integrate
+  establishment over an interval exactly; a node born in a shut gap is a full cohort and
+  establishment enters only through the shares. The old reason for edge nodes (a
+  misplaced root node spanning a dead band, −11% J) dates from the trapezium era.
+- **The node at the edge is the error.** Fate curves sharply within 10–20 days of each
+  edge, mostly closing edges (ln nrr +0.032 over a spell's last 10 days, +0.065 over a
+  gap's first 10); a node at the edge pins the spell's end interval to that curved end.
+  All moves lie along one direction M (a_l1, root_P50, omega, root_c, stem_c,
+  storage_relaxation_offset, ln J); a09's committed error on dry is −1.22 M plus rms 0.145,
+  so the edge-node bias is about 80% of a09's squared error on dry. It shrinks at second
+  order (1.22 committed, 0.56 check), which is why a09's check reads it.
+- **Moving each edge node 10 days into its spell** (node count unchanged) cuts dry's
+  committed error from worst 0.94ε / rms 0.302 to 0.36ε / 0.153; 3 days in gets a quarter
+  of that; 10 days out into the gap is worse (stem_c +0.42 the wrong way). The inset swaps
+  one bias for another, cancelling at d ≈ 12–15 days on dry and overshooting beyond.
+- **"mid" (each spell's edge-to-edge segments by their midpoints; one node fewer per
+  spell)** as a pair: dry 169 → 122 nodes, worst 0.60 (a09 0.94), T −27%; episodic −20%;
+  long drought −30%; dry-flat −39%; all pass coarse. But episodic-lma fails C3: mid's
+  overshoot is first order in the spacing, and a09's shrink assumes second.
+- **Rule:** no node at an edge or inside a gap next to establishing births; each spell's
+  outermost nodes about 12 days inside it (the same in both runs), one node at the centre
+  of a spell under 24 days, interior spacing as usual, each gap a single interval. Nodes
+  on the ten committed schedules: 12-day inset 1644 → 1517 (−8%), 18-day 1466 (−11%), mid
+  1164 (−29%).
+- **Explains earlier findings:** F's edge transfer (dry-p50's edges within 1 day of dry's
+  nodes), the widest-legal error (edge bias grows with h²), merging's damage to the check
+  (fate changes 0.002 across short gaps, an error that does not shrink with spacing), and
+  B's backward map (removing an edge node moves the elasticities toward the truth while
+  ln J moves away).
+- **Caveat:** measured on lib19's instantaneous establishment gate; the averaged gate
+  (`b3a33626`, branch `establishment-window`, not on the PLANT-105..110 stack) reshapes
+  the strip near each edge.

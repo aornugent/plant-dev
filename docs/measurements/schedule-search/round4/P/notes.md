@@ -152,3 +152,89 @@ curved end.
   overshoot is shared by the pair and unread: the mid pair's estimate (c − f)/(1 − s)
   projects on M within 0.25 of zero while mid c's error projects at ≈ −0.46. C1–C5 may
   still pass because the overshoot is small; I predict pass with C3 marginal (50%).
+
+**Container restart (05:15).** P_midf_dry was killed mid-run: its .rds is partial (stand
+only, no gradient, no `finished`) and queue.out has no done line. Nothing else was lost:
+P_out10, P_in10, P_mid, P_in3 (dry), P_mid on episodic, long drought and dry-flat all
+completed before it. P7 is rerun as P_midf2_dry (same schedule, `midf2_dry.rds`); the
+killed attempt counts against the budget (8 of 14 used before the rerun).
+
+### P7 result (P_midf2_dry): refuted, in the useful direction
+
+The mid check's error projects on −M at −0.32 (mid c −0.46): the overshoot is not
+saturated, it shrinks with the spacing (the inside node sits h'/2 from the edge, so it
+moves with h). The pair reads it: estimate −0.25 on M, and **C1–C5 pass, commits coarse,
+s 0.43 (a09 0.42), estimate worst 0.54, read ratios 0.89–1.03 on the three quantities
+over ε/3, corr(est, err) 0.93**. Check worst 0.30, rms 0.082. T on dry (rows model, three
+committed + check) 1241 → 901 (−27%); real CPU 1424 → 1049 (−26%).
+
+- P8 (mid check on episodic, long drought, dry-flat): each mid pair commits coarse and
+  passes C1–C5 with a09's s rule; T falls 20–35% on each (dry-flat most).
+
+### P8 result (mid checks on episodic, long drought, dry-flat): holds
+
+| case | s (a09) | c worst / rms | f worst / rms | est worst | commits | C1–C5 | reads over ε/3 (a09's) | T rows model | real CPU |
+|---|---|---|---|---|---|---|---|---|---|
+| dry | 0.43 (0.42) | 0.60 / 0.152 | 0.30 / 0.082 | 0.54 | coarse | pass | 3: 0.89–1.03 (15: 0.32–1.47) | 1241 → 901 (−27%) | 1424 → 1049 (−26%) |
+| episodic | 0.35 (0.34) | 0.53 / 0.142 | 0.36 / 0.101 | 0.39 | coarse | pass | 3: 0.30, 0.66, 0.73 (3: 0.54–1.13) | 720 → 579 (−20%) | 785 → 593 (−24%) |
+| long drought | 0.42 (0.41) | 0.23 / 0.113 | 0.10 / 0.055 | 0.23 | coarse | pass | 0 (3: 0.82–0.96) | 1423 → 993 (−30%) | 1475 → 1076 (−27%) |
+| dry-flat | 0.42 (0.42) | 0.43 / 0.145 | 0.34 / 0.102 | 0.52 | coarse | pass | 4: 0.37, 1.51, 1.63, 1.75 (12: 0.64–0.94) | 1955 → 1198 (−39%) | 2419 → 1389 (−43%) |
+
+Four of four pass, all commit coarse, T −20% to −39% (rows), −24% to −43% (CPU). The
+estimate correlates with the error less well than a09's (0.73–0.97 against 0.95–0.99)
+and misreads more (a_l1 0.30 on episodic, root_P50 0.37 on dry-flat; one miss each,
+inside C3), with far fewer quantities over ε/3.
+
+Why it reads worse: mid's residual (its overshoot along M) shrinks with the spacing at
+first order (dry: −0.46 → −0.32, ratio 1.44 for an open-spacing ratio 1.38), because the
+inside node sits h'/2 from the edge, while s is read as a second-order shrink (0.42). The
+pair reads a first-order component at (1 − 0.72)/(1 − 0.42) ≈ 0.5 of its size (dry:
+estimate −0.25 against −0.46). Placing the spell-end nodes a fixed 10–15 d inside
+(independent of h) would remove that term but leave the true edge-layer residual (in10:
+−0.22 M on dry) shared by both runs, i.e. unread.
+
+- P9 (episodic-lma, mid c and f; a09 commits fine there, c worst 1.29): the mid pair
+  passes C1–C5; mid c worst error below 1.0 (so it may commit coarse); 55%.
+
+### P9 result (episodic-lma, mid c and f): refuted; mid fails C3 there
+
+mid c: 99 nodes (a09 120), worst 1.24 (a_l1; a09 +0.32 → −1.24), rms 0.452 (a09 0.690);
+the move (corr −0.76 with the base error) overshoots far past the truth on a_l1. The pair
+commits fine (est worst 1.06; f worst 0.80, rms 0.199 against a09 f's) and **fails C3**:
+of 10 quantities over ε/3 on the fine side, a_l1 reads 0.40, omega 0.33,
+storage_relaxation_offset the wrong sign (−0.16), vcmax_25 5.3. T (fine commit) 755 →
+643 (−15%). The first-order overshoot of the h'/2 placement is case-dependent and is what
+the pair misreads.
+
+Real runs: 14 of 14 (out10, in10, in3, mid ×5 cases, mid checks ×5 including the killed
+P_midf_dry). The in3 attempt at 04:56:46 exited in 1 s without a schedule (not counted).
+
+## Mechanism, as measured
+
+1. On lib19 (instantaneous gate, exact counts, crown spread) an edge inside an interval
+   costs nothing by itself: the establishment integral is exact and the references are
+   uniform ladders with edges anywhere. Nodes 1 d off the edges cost ≤ 0.07ε (F).
+2. The per-recruit quantities (fate; by the moves, also water use: the moved direction is
+   a_l1, root_P50, omega, root_c, stem_c, storage_relaxation_offset) curve strongly within
+   ~10–20 d of each edge, mostly at closing edges (ln nrr rises 0.03 over the spell's last
+   10 d and 0.065 over the gap's first 10 d on dry). A node at the edge anchors the hat
+   interpolant of the spell's end interval at that curved end. The misread is a large,
+   one-signed, second-order term (c/f ratio 2.18 on dry): **about 80% of a09's committed
+   squared error on dry** (error = −1.22 M + rms 0.145).
+3. Moving the end node d days inside trades it for the strip's own misrepresentation in
+   the gap interval: p(d) on dry 0.25 (3 d), 1 (10 d), 1.68 (h'/2 ≈ 36 d), out10 −0.28; the
+   error-free point ≈ 1.22, i.e. d ≈ 12–15 d on dry. Beyond that the run overshoots, and
+   when d scales with h (mid: h'/2) the overshoot is first order in h, which a pair read
+   with a second-order s under-reads by about half (dry: −0.25 read for −0.46).
+
+## What is required, as a rule
+
+- Not required: a node at the edge, or near it. A node at the edge is the error source.
+- Required: no node in the curved strip next to an edge; each spell's outermost nodes sit
+  about 12 d inside it (a fixed distance, the same in the committed run and the check;
+  one node at the centre of a spell shorter than 24 d); interior nodes at the usual
+  spacing; each gap is one interval between the two spells' end nodes. A node inside a
+  gap next to establishing births is worse than one at the edge (out10).
+- Count (a09 c, all ten): fixed 12 d inset 1644 → 1517 nodes (−8%); 18 d 1466 (−11%);
+  the mid layout 1164 (−29%) — measured T −20% to −39% on four cases, but it fails C3 on
+  episodic-lma, so as built it is not safe.
