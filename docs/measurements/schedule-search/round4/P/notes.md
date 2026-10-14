@@ -341,3 +341,55 @@ one or two intervals, so the per-spell ceiling absorbs most of the widening (dry
 open interval 72 → 78 d). Shrinks unchanged (0.34–0.43).
 - W1 (if run): T about −5% on the inset at the same tolerance; committed errors grow
   ×1.2–1.35 (proxy), worst 0.34–0.55 → ≤ 0.75; passes five of five. The lever is small.
+
+### Step (1) result: nine of ten; dry fails C3 at 3e-4. Step (2) not run.
+
+`sum_tag.R val:a10h P:ins P:ins3`:
+
+| case | a10 at 3e-4 | inset 1e-4 | inset 3e-4: commit, worst / rms, read, C3 | T a10h / ins / ins3 |
+|---|---|---|---|---|
+| episodic | pass | pass | coarse, 0.32 / 0.137, 1.00, 1/1 | 604 / 701 / 595 |
+| dry | pass (fine) | pass | **coarse, FAIL C3 (6/10)**, 0.34 / 0.147, 1.56 | 1255 / 1088 / 962 |
+| long-wet | pass | pass | coarse, 0.38 / 0.095, 1.16, 1/1 | 1226 / 1364 / 1188 |
+| long drought | pass | pass | coarse, 0.34 / 0.102, 1.06, 1/1 | 1152 / 1295 / 1118 |
+| episodic-lma | pass (fine) | pass (fine) | fine, 0.40 / 0.216, 1.15, 15/17 | 648 / 747 / 639 |
+| dry-flat | pass | pass | coarse, 0.53 / 0.176, 1.12, 6/7 | 1485 / 1612 / 1348 |
+| ld-102 | pass | pass | coarse, 0.42 / 0.151, 0.97, 1/1 | 1087 / 1173 / 1031 |
+| ld-105 | pass | pass | coarse, 0.32 / 0.143, 1.05, 1/1 | 1114 / 1164 / 1028 |
+| dry-p50 | pass | pass | coarse, 0.31 / 0.119, 1.50, 4/5 (one miss) | 1059 / 1119 / 988 |
+| wet-adG2 | pass | pass | coarse, 0.43 / 0.120, 0.97, 1/1 | 1251 / 1400 / 1223 |
+
+T inset at 3e-4: **all ten 10120 (a10h 10881: −7.0%; inset 1e-4 11663: −13.2%), training
+five 4502 (4885: −7.8%; 5194: −13.3%)**, but 9/10. R1 refuted (9/10; the failure is C3 as
+registered, but on dry, and on leaf quantities, not hydraulic). R2 holds (dry commits
+coarse). R3: T 10120, under the registered ≈10300.
+
+Why dry fails (`diag3.R dry`, `diag3.R dry-p50`): an over-read, not an under-read, and not
+a first-order spacing residual.
+- The leaf quantities were already over-read at 1e-4 (f/c ≈ 0.21 against s = 0.42, read
+  ×1.35). At 3e-4 the tolerance error lands unevenly: the check moves rms 0.043 (max 0.19,
+  a_l1 0.06 → −0.13), the committed run rms 0.018 (a_l1 0.24 → 0.20). The difference
+  (rms 0.029, ×1/(1 − s) = 0.050 on the estimate) adds to c − f along the leaf errors' own
+  sign. Leaf reads rise to ×1.45–2.85 (a_l1 2.85, a_y and a_bio 2.24); the inflated
+  estimates push five more quantities over ε/3, and four of ten miss.
+- dry-p50 is the same at the margin: check moves rms 0.075 (max 0.26, a_l1 −0.20) against
+  0.028; leaf reads ×1.46–2.38; C3 4/5.
+- Elsewhere the tolerance error is shared: c − f rms 0.005 (episodic), 0.015–0.016 (long
+  drought, dry-flat).
+- Not inset-specific: a09's own dry pairs at 3e-4 (val_a09h) have c − f tolerance
+  unevenness rms 0.060 (dry) and 0.051 (dry-p50), against 0.017 on dry-flat. a09h and a10h
+  survive it on dry by committing fine (est > 1). With the edge bias gone the inset's dry
+  error is small, so it commits coarse, and the same jitter becomes a large share of a
+  smaller estimate.
+- The hydraulic quantities still under-read (root_P50 0.37 on dry, 0.47 on dry-flat; f/c
+  ≈ 0.5). The leaf / hydraulic split at 3e-4: dry leaf median f/c 0.06, read 1.64;
+  hydraulic f/c 0.52, read 0.84; dry-flat leaf 0.35 / 1.12, hydraulic 0.49 / 0.87; dry-p50
+  leaf 0.14 / 1.50.
+
+Fix options, untested: (a) the dry record at 1e-4, the rest at 3e-4: dry 962 → 1088, all
+ten 10246 (−5.8% on a10h), 10/10 on these runs, but there is no a-priori rule yet for
+which records need it (dry, dry-p50: the dry seasonal record; dry-flat does not). (b) the
+check at 1e-4 with the committed run at 3e-4: the committed run's tolerance error is then
+unread (shrink 0), 0.06 rms on dry. (c) A guard that refuses the coarse commit when the
+pair's read is inconsistent across quantity groups (leaf read > 1.4 while hydraulic
+< 0.6). None run. Real runs for task 3: 20.
