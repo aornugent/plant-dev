@@ -10,6 +10,7 @@ for (cs in commandArgs(TRUE)) {
                 lib19_ins = list(tryCatch(ag_run(sprintf("P_insc_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("P_insf_%s", cs)), error = function(e) NULL), r19),
                 libAG_a09 = list(tryCatch(ag_run(sprintf("AG_a09c_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("AG_a09f_%s", cs)), error = function(e) NULL), rAG),
                 libAG_ins = list(tryCatch(ag_run(sprintf("AG_insc_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("AG_insf_%s", cs)), error = function(e) NULL), rAG),
+                libAG_a09g = list(tryCatch(ag_run(sprintf("AG_a09c_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("AG_a09fg_%s", cs)), error = function(e) NULL), rAG),
                 lib19_mid = list(tryCatch(ag_run(sprintf("P_mid_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("P_midf2_%s", cs)), error = function(e) NULL), r19),
                 libAG_mid = list(tryCatch(ag_run(sprintf("AG_mid_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("AG_midf_%s", cs)), error = function(e) NULL), rAG))
   if (!is.null(rAG)) cat(sprintf("%s libAG reference own estimate %.2f eps\n", cs, attr(rAG, "own")))

@@ -309,3 +309,58 @@ mechanism (P's inset c on lib19 is 1.24 / 0.655 too).
 
 Not run: the episodic references (u215/u429). The budget went to the rule pairs; no
 episodic run uses them.
+
+### R1/R2 result on dry: the 12 d inset pair FAILS C3 under the gate
+
+`val.R dry` (libAG): AG_insc_dry / AG_insf_dry (P's insc/insf schedules, 149/212 nodes):
+commits coarse, **worst 0.47 (storage_relaxation_offset), rms 0.140** (a09 c 0.66 /
+0.225), C1 C2 C5 pass, **C3 fails: 2 of 9 read** (misses lma, a_l1,
+storage_relaxation_offset, k_I, TF24_cost_scale, jmax_25, R_d_25), read median 1.85,
+corr(est, err) 0.79. T 1090 (rows model).
+
+Along M: c −0.07 (the committed run sits at the error-free point, R1 holds: worst ≤ 0.55,
+rms ≤ 0.19, projection in −0.1..−0.3 just missed), **f −0.31**. On lib19 the same pair
+read c +0.14, f −0.05. The 12 d inset over-corrects the check more than the committed
+run under the gate, so c − f carries ~+0.24 along M that c's error does not: every
+quantity on M is over-read (estimate ~2× error). The failure is on the safe side (the
+estimate over-states), but it is a C3 failure and the pair's estimate is not predictive.
+
+Mechanism of the failure (hypothesis H_scale, to check against a09 f on libAG): the
+inset's correction and the edge bias it cancels scale differently with the spacing under
+the two gates. A fixed d that cancels the bias at one spacing leaves residuals of
+opposite sign at c and f unless d is at the error-free point of BOTH spacings; under
+lib19 12 d was (c +0.14, f −0.05), under the gate (optimum ≈ 10 d at c's spacing) it is
+not.
+
+### R3 result on dry: a09's own pair also FAILS C3 under the gate
+
+`val.R dry`: AG_a09c_dry / AG_a09f_dry: commits coarse, worst 0.66, C1 C2 C5 pass, **C3 5 of
+8** (misses a_dG1, a_dG2, root_P50), read 0.89, corr(est, err) 0.80. Along M: c 0.86,
+**f 0.62, a ratio 1.39** where lib19's was 1.22 / 0.56 = 2.18 (second order). Under the
+gate part of the edge bias does not shrink when the check refines.
+
+H_tail: that part lives in the intervals that span a g-gap. `gaps.R`: in a09's c and f
+they are **identical** (dry 48 of 48, long drought 53/53, episodic-lma 22/22: the check
+never refines a shut gap). On the instant gate they hold no establishment; under the
+gate they hold the tail, **6.0% (dry), 6.4% (long drought), 4.2% (episodic-lma) of all
+establishment** (P's inset: 14–17%), born where the fate is steepest. Their error is the
+same in c and f, so the pair cannot read it. Splitting the dry bias on M as X (shared) +
+Y (second order, c/f 2.18): X ≈ 0.42, Y ≈ 0.44.
+
+Candidate rule for both gates (R_both): a09's layout (edge nodes at the g-edges, which
+both gates share) and **a check that refines every interval carrying establishment on
+the model's own weight**, gap-spanning ones included (here: bisected). On lib19 those
+intervals carry none, so R_both is a09 there (10 of 10 pass, measured); it needs no
+lib19 run.
+
+Plan change: the inset pair on episodic-lma (2 runs) is dropped (the inset already fails
+under the gate on dry); the mid check on dry moves to last, as a spare.
+
+- T1 (AG_a09fg_<case>: a09 f + each gap-spanning interval bisected; `mkgap.R`; dry
+  232 → 280 nodes, long drought 233 → 286, episodic-lma 182 → 204), paired with
+  AG_a09c_<case>, s from the pilot proxy as a09 scores: on dry the check's error on −M19
+  falls from 0.62 to ≤ 0.45 and the pair passes C1–C5 with read median 0.8–1.25. On long
+  drought the pair passes (whatever a09f's libAG pair does). On episodic-lma it commits
+  fine and passes, as a09's. Refuted if dry's check error on −M19 stays ≥ 0.55 (the
+  unread part is elsewhere).
+- T2: T rises by the check's extra rows only: dry +6–9% over a09's libAG pair.
