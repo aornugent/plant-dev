@@ -83,6 +83,12 @@ Drop any of these, invert them, or find one we never wrote down.
 - Real-run scoring: `docs/measurements/schedule-search/loc/val.R TAG CASE...`
   (`ALG=../any/a09_late.R R=1.6 BG=90`; set `ALG` to your algorithm file for its shrink).
 
+## Out of scope
+
+The reverse sweep's own per-row cost (taping, the crown light quadrature, the implicit
+solves, insertion rows; `docs/measurements/perf-sweep.md`) is deliberately deferred: do
+not propose optimising the sweep itself. What the runs spend rows on is in scope.
+
 ## Real runs
 
 `/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/schedtest/adjmap/one.sh NAME REGIME VAR=value ...`
