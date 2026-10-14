@@ -491,3 +491,23 @@ episodic-lma merges nothing, so its committed run is a09h's. Registered before t
   (11410): the two savings multiply (about 0.95 × 0.88 of a09 at 1e-4).
 - H10-3 (the risk): dry, dry-flat and dry-p50 already err 0.93–0.96ε at 1e-4; if one
   fails it is C1 on a hydraulic quantity (a_l1, a, stem_c).
+
+**a10 at 3e-4: H10-1 and H10-2 hold; H10-3's failure did not come.** Ten of ten pass, each
+committing as a09 at 3e-4 did (dry fine, episodic-lma fine, the rest coarse):
+
+| case | T | a09 at 3e-4 | a09 at 1e-4 |
+|---|---|---|---|
+| episodic | 604 | 617 | 720 |
+| dry | 1255 | 1270 | 1241 |
+| long-wet | 1226 | 1286 | 1470 |
+| episodic-lma | 648 | 648 | 755 |
+| long drought | 1152 | 1228 | 1423 |
+| dry-flat | 1485 | 1654 | 1955 |
+| ld-102 | 1087 | 1124 | 1281 |
+| ld-105 | 1114 | 1136 | 1286 |
+| dry-p50 | 1059 | 1131 | 1278 |
+| wet-adG2 | 1251 | 1316 | 1507 |
+
+T 4885 on the training five (a09 at 3e-4 5049, −3.2%; a09 at 1e-4 5609, −12.9%) and 10881
+on all ten (11410, −4.6%; 12916, −15.8%). Worst errors stay under ε (dry-flat 0.95, the
+nearest). Dry is where 3e-4 does not pay: it commits the fine run.
