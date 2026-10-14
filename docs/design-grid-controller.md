@@ -1108,7 +1108,7 @@ after the events reply):
      d = 0.19 (root_P50 ×1.2) and misread at 0.73–1.11 (`lma` ±10%, a use erring
      1.34ε on a_l1 where the find reported 0.85) and 4.15 (×1.25)
      (`docs/measurements/schedule-search/round4/F/`). The rule is the workflow's;
-     plant reports d against d*, and regnans decides the rebuild.
+     plant reports d against d*, and regnans decides the rebuild. Built: `diagnose_scm(..., grid, distance_limit)` returns its run as `parameters`, a grid, and a use's `grid_distance` (`PLANT-110` 79d5c468).
    - *The failures:* each run, walk or sweep that throws or is refused is a row,
      with its quantities `NA`, rather than a throw.
    - *Dropped* (the user): the chain's error, which item 5's gates hold inside
