@@ -707,3 +707,21 @@ differ by 0.176ε. The derivatives are right; the discrete map's slope depends o
 the steps fall. The tolerance bounds the states' error, not the derivative's, and the
 derivative's error concentrates at drying (closing edges), along one hydraulic
 direction.
+
+**Asymmetric bisection (`X/asym.R`), offline from L1:** bisecting the 20 intervals before
+closing edges cuts a09's committed error rms 0.302 → 0.208 (sharp) and 0.225 → 0.163
+(averaged) for +20 nodes, but the 12-day inset does better with 20 fewer nodes (0.155 /
+0.140). Not pursued.
+
+### Tighter tolerance around closing edges (ETT)
+
+The jitter concentrates in the dry days around closing edges. The window weight already
+sets the tolerance over time, so cut it ×0.1 within 15 days of each closing edge before
+b = 25 (`X/mkett.R`; dry: 48 closing edges, 14% of 0–25). Registered before the runs:
+- E1 (sharp gate, the inset's committed schedule at 3e-4 with ETT, and at 2.85e-4 with
+  ETT): the nudge moves the elasticities rms ≤ 0.015 (without ETT 0.048), and ETT's rows
+  are ≤ 1.10× the run at 3e-4 without it (55%).
+- E2 (averaged gate, a09's committed schedule at 1e-4 and 1.05e-4 with ETT): the nudge
+  moves rms ≤ 0.04 (without 0.110) (45%). Refuted together if the moves stay above half
+  their old size: the jitter is not the closing edges' alone, or a tighter tolerance does
+  not reach it (a sensitivity the error control does not see at any tolerance).
