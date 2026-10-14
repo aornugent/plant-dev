@@ -668,3 +668,13 @@ second order: rms 0.149, max 0.60.
   TF24_cost_scale or storage_relaxation_offset by at least 0.15 from its run at 1e-4: the
   averaged gate's unreached error is step-sequence jitter, as dry's at 3e-4 is (50%).
   Refuted if every quantity moves under 0.05 (the unreached part is the layout's).
+
+**J11 result: holds, strongly.** Under the averaged gate a 5% tolerance nudge at 1e-4
+moves a09's committed run rms 0.110, max 0.42 (TF24_cost_scale; stem_c 0.24, a_dG1 0.20,
+storage_relaxation_offset −0.17, a_l1 0.17): about 4× the sharp gate's jitter at 1e-4
+(rms 0.02–0.03) and 2.3× dry's at 3e-4 under the sharp gate (0.048). The quantities it
+moves are the ones the halving made worse. So the averaged gate's unreached error is
+step-sequence jitter: **the two failures share a cause, the answer's sensitivity to
+where steps fall**, which the averaged gate raises at 1e-4 as 3e-4 raises it under the
+sharp gate. Splices J10, J12: the 34% lump on dry at 3e-4 lies in 9.68–10.04 (nothing
+in 9.15–9.68), which starts at the closing edge at 9.711.
