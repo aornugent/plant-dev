@@ -13,4 +13,4 @@ for (dl in c(0.1, 0.2)) { term <- 0.5 * dl^2 * q2 / e
 cat(sprintf("lnJ: episodic %.3f, episodic-lma %.3f (elasticity of lma %.2f)\n", r0["lnJ"], r1["lnJ"], r0["lma"]))
 cat(sprintf("first difference over x 0 -> ln1.25, in eps: median %.2f, max %.1f\n", median(abs((r1[k] - r0[k]) / e)), max(abs((r1[k] - r0[k]) / e))))
 cat(sprintf("+-1%% midpoint in eps (noise floor x 1e4 scaling would be useless): median %.3f max %.3f\n", median(abs(mid1)), max(abs(mid1))))
-o <- order(-abs(q2 / e))[1:8]; print(round(data.frame(q = k[o], first_diff_eps = ((r1[k] - r0[k]) / e)[o], slope_x1_eps = (slope * x1 / e)[o], term10 = (0.5 * 0.01 * q2 / e)[o]), 2))
+o <- order(-abs(q2 / e))[1:8]; print(data.frame(q = k[o], first_diff_eps = round(((r1[k] - r0[k]) / e)[o], 1), slope_x1_eps = round((slope * x1 / e)[o], 1), term10 = round((0.5 * 0.01 * q2 / e)[o], 1)))

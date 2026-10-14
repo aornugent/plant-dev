@@ -116,7 +116,8 @@ if (Sys.getenv("TRAJ") == "1") {
   rows <- scm$store_trajectory()
   g <- function(n, v) vapply(rows, function(r) { z <- r[[n]]; if (is.null(z) || length(z) == 0) v else as.numeric(z) }, 0)
   out$traj <- data.frame(time = g("time", NA), h = g("step_size", NA), intro = g("introduction", NA),
-                         index = g("error_index", NA), ratio = g("error_ratio", NA), size = vapply(rows, function(r) length(r$state), 0))
+                         index = g("error_index", NA), ratio = g("error_ratio", NA), size = vapply(rows, function(r) length(r$state), 0),
+                         y = vapply(rows, function(r) { i <- r$error_index; if (is.null(i) || is.na(i) || i > length(r$state)) NA else r$state[[i]] }, 0))
   out$attempts <- scm$ode_step_attempts
   rm(rows); save()
 }
