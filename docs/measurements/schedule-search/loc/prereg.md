@@ -531,3 +531,26 @@ stops the rain is exact, and without them the substeps keep it exact; agent S's 
 - (Later, the user's call) K1 dropped: the baseline without stops is not run; the inset
   pairs without stops go straight on (K2, K3), compared against a09 on lib19 and the
   inset on lib19.
+
+## The pair's misreads under the averaged gate and at 3e-4: one cause? (14 October)
+
+Two failures: dry's inset pair at 3e-4 (C3 6/10, over-read) and, under the averaged gate,
+a09's and the inset's pairs on dry (C3 5/8, 2/9). Phase 1 (`round4/X/tol.R`,
+`tolwhere.R`, runs on disk): on dry and dry-p50 the tolerance move 1e-4 → 3e-4 is the
+same direction in both runs of the pair (corr 0.87, 0.94) but 2.4× and 2.7× larger in the
+check (rms 0.043 against 0.018); elsewhere the two runs' moves are about equal. In J, the
+committed run's move is almost all in the founders (b < 1: +1.9e-3 of +2.0e-3), and the
+check's is not (−6e-5 of −5.9e-4). The same-age founder moves 5–8× more in c than in f.
+Most steps are one day long (the rain's knots); the tolerance sets only the longer steps.
+
+- X1 (tolerance nudge on dry at 3e-4, the inset pair's own schedules, ±5%: 2.85e-4 and
+  3.15e-4, c and f): the moves are jitter, not a smooth function of the tolerance. A ±5%
+  nudge moves c's or f's leaf elasticities (a_l1, a_y, a_bio, lma) by at least half of
+  what 1e-4 → 3e-4 moved them, in at least one of the four runs (60%). Refuted if every
+  nudge moves them by under 15% of that (the tolerance error is smooth, and the pair
+  needs the check's tolerance refined with its spacing).
+- X2 (where dry's tolerance error lives): the same two schedules at 3e-4 with the window
+  weight cut to 1/3 before t = 1 (3e-4 acts as 1e-4 over the founders' year). If the
+  founders carry it, as they carry J's, X2 removes at least 70% of the committed run's
+  tolerance move (rms over quantities, 3e-4 → 1e-4) (50%); for the check, whose move in J
+  is not the founders', under 40% (50%). If neither moves, the error is in the spells.
