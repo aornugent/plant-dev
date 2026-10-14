@@ -364,3 +364,59 @@ under the gate on dry); the mid check on dry moves to last, as a spare.
   fine and passes, as a09's. Refuted if dry's check error on −M19 stays ≥ 0.55 (the
   unread part is elsewhere).
 - T2: T rises by the check's extra rows only: dry +6–9% over a09's libAG pair.
+
+### R2 on long drought: the inset pair passes under the gate
+
+AG_insc/insf_long-drought: commits coarse, **pass**, worst 0.28 (storage_relaxation_offset),
+rms 0.103 (a09 c 0.55 / 0.180), C3 vacuous (nothing over ε/3), read 1.07, corr 0.91;
+T 1291 (rows). lib19: pass, 0.37 / 0.113. Long drought's gaps are short (median 16 d)
+and its a09 bias small, so the shared tail stays under ε/3.
+
+### T1 result (dry): refuted
+
+AG_a09c_dry / AG_a09fg_dry (check + 48 gap bisections, 280 nodes): commits coarse, C3
+still 5 of 8 (misses a_l1, a_dG1, root_P50), read 0.80; the check's error on −M19
+0.62 → **0.67** (predicted ≤ 0.45). Refining the gap-spanning intervals in the check does
+not reach the part of the error c and f share. T 1309 (+7%).
+
+### Where the libAG pairs lose the edge term (`misread.R`, `refM.R`, dry)
+
+Split along unit M (P's lib19 in10 move) and off it: off M the libAG a09 pair shrinks at
+second order (c/f rms 2.19; lib19 2.01) and reads well. Along M it does not:
+
+| along unit M, from u429 (ε) | lib19 | libAG |
+|---|---|---|
+| u215 | −0.75 | −0.99 |
+| extrapolated reference | +0.25 | +0.33 |
+| a09 c / f | −1.56 / −0.58 | −0.95 / −0.59 |
+| inset c / f | +0.04 / +0.32 | +0.44 / +0.78 |
+| inset's correction I = ins − a09, c / f | 1.60 / 0.90 | **1.39 / 1.37** |
+| mid c | +0.93 | −0.08 |
+
+On lib19 the edge bias and the inset's correction both shrink when the check refines
+(c/f 2.2 and 1.8): they live in the spell-end interval, whose length the check halves.
+Under the gate the a09 bias shrinks only 0.36 between c and f, and the inset's
+correction **not at all**: the edge term has moved into something c and f share. That
+explains both C3 failures: a09's pair reads half its M part (est 0.62 of 1.28); the
+inset's pair reads its check's overshoot as an error of c.
+
+Two candidates for the shared part: (a) the gap-spanning intervals (identical in c and
+f), but bisecting them (T1) did not move it; (b) the reference: if uniform schedules
+converge along M more slowly than second order under the gate, the extrapolation sits
+in the wrong place along M and both runs share that offset.
+
+- P_ref (AG_ref_dry_u857, TOL 3e-5): along M from u429, u857 lands at +0.15..+0.35
+  (second order from u215's −0.99), and the u429/u857 reference within 0.15 of the
+  u215/u429 one (+0.33): the reference is sound and the shared part is the runs' (60%).
+  If u857 lands beyond +0.5 the uniform ladder converges at first order along M under
+  the gate and the reference, not the schedules, holds the shared part.
+
+Plan: a09fg long drought (already launched) finishes; the mid check on dry is dropped;
+u857 dry and a09's check on episodic-lma run last.
+
+### R3 on long drought: a09's pair passes under the gate
+
+AG_a09c/a09f_long-drought: coarse, **pass**, worst 0.55, rms 0.180, C3 4 of 4, read 1.03,
+corr 0.96; T 1390. The inset pair (above) passes too, T 1291 (−7%). So far the gate's
+failures are dry's, the case with the most and longest-lived edges (96 edges, median
+gap 25 d; long drought's median gap is 16 d).

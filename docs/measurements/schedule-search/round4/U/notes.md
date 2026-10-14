@@ -76,4 +76,56 @@ to the grid's, which change with the resident. Cope: read the find's `quantities
 
 ## Built
 
-(see below)
+plant `PLANT-110-U` (local branch; `PLANT-110` itself is checked out at a stale 0cb6f38e in
+another worktree), one commit on `07f7c256`:
+- `79d5c468` Report a use's distance from the run that built its grid.
+
+R only; no C++ change, so only doubles cross (and nothing new crosses at all).
+- `diagnose_scm(p, env = NULL, ctrl = control(), invaders = list(), events = NULL,
+  gradient = TRUE, grid = NULL, distance_limit = 0.5)`.
+- A find (`grid = NULL`) also returns `parameters`: `p` with its introductions and the
+  `ode_times`, `ode_step_sizes`, `ode_soil_input_slopes`, `ode_soil_substep_ends` its run
+  took, read before any walk (a walk overwrites the run's steps).
+- A use (`grid = <a find's diagnosis>`) copies those five fields onto `p` and runs once
+  with its invaders walked and swept as before; its `quantities` hold only `value`
+  (`every_other`, `every_fourth`, `error`, `ratio` NA), `introductions` is one count, and
+  `parameters` is `NULL`, so passing a use as `grid` is refused.
+- Every run returns `grid_distance`, one row: `distance` = |ln J − ln J(θ₀)|, `within` =
+  distance ≤ `distance_limit`, and the grid's `value` (ln J(θ₀)) and `error`, read from the
+  grid's `quantities`. A find is at 0 and within; a use whose run throws is a failure row
+  with `distance` and `within` NA.
+- NEWS under *Added*.
+
+Library `libU` (copy of libS) holds plant at 79d5c468, built `-O2` with LinkingTo
+`phylloptim (== 0.9.3)`, uncommitted.
+
+## Tests
+
+- Test first: the new `test-support.R` test against 07f7c256's `diagnose_scm` fails (5
+  failures, 1 error: unused argument `grid`); with the change, `test-support.R` 79/79.
+- The test builds a grid on the 8-year TF24 stand (hmat 2, lma 0.198, nine
+  introductions, constant rain 2, `control_tf24(1e-3)`, birth date). It checks the grid's
+  steps are the free run's; a use at θ₀ is at distance exactly 0 (bit-identical replay);
+  a use at lma ×1.02 with an invader walked and swept equals an independent replay of the
+  grid's program, carries the grid's value and error, is within 0.5, and is outside a limit
+  of half its distance; lma ×1.5 is past 0.5; lma 1e6 fails as a `run` row with NA
+  distance; a use is refused as a grid.
+- Tier 3 sweep (all but the three heavies, serial, `-O2`, load_all): 75 files, 4633
+  expectations, 0 failed, 12 skipped, 553 s under shared load. The FF16 guard
+  (`test-strategy-ff16.R` 56, `-reference-comparison.R` 17) passes.
+
+## On the test's stand (`U_out/probe.log`)
+
+A use on θ₀'s grid against a free run at θ (find at lma 0.198: ln J 4.7033, error −0.032):
+
+| lma | d | within | use − own |
+|---|---|---|---|
+| ×0.90 | 0.098 | yes | −6e-8 |
+| ×1.02 | 0.020 | yes | 0 |
+| ×1.10 | 0.104 | yes | 0 |
+| ×1.25 | 0.273 | yes | −1e-8 |
+| ×1.50 | 0.596 | no | −9e-8 |
+
+Each use costs one run (0.6–0.9 s here), the find three. On this short constant-rain
+stand the replay matches the free run to 1e-7, so it says nothing about d*'s value; F's
+long-drought measurements set that.
