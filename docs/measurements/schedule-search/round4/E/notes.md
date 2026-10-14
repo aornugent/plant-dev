@@ -71,3 +71,48 @@ tolerance error, so loosening the tolerance does not scale it. The knot line is 
   (against 1.191 with knots and 0.984 without at 1e-4), i.e. a tenfold tighter
   tolerance recovers under half the gap. If it holds, the controller is blind to the
   forcing between stages and a run without knot stops is silently wrong.
+
+**E4 holds (`E_k0f5_dry`).** Without knots at 1e-5: J 1.071, 8019 steps, 795872 rows
+(1.35× the knotted 1e-4 run's rows), still 0.11 below the knotted 1.191. Tenfold
+tighter recovers 42% of the gap (error ∝ tol^0.24, against the method's fifth order):
+the embedded estimate is nearly blind to the forcing between stages. So knot stops are
+not a cost but a large saving: no tolerance reaches their accuracy at their price.
+**Hazard (report):** the stops live only in the harness (`pulse_rows(active_knots())`);
+plant adds none itself, so any TF24 run on a daily rainfall driver without them is
+silently wrong by ~17% in J on dry (7.6ε in ln J, 19ε in elasticities) at 1e-4.
+
+## Second line: who sets the controller's own steps
+
+From `E_k25_dry`'s trajectory (before 25, identical to a09's): the node states set most
+steps that are neither knot, birth nor HMAX. **Mortality sets 14.6% of all rows**, and
+the setter is almost always a newborn node (median age 21 d, born anywhere 4.6–27) at a
+mortality of median 0.0016 (90% under 0.064). Mortality is −ln survival; under the
+relative tolerance its level is 1e-4·m + 1e-8 ≈ 1.7e-7 for a newborn, against 3e-4 for
+a node at m = 3: a newborn's survival is held ~1000× tighter, in the units J feels
+(d ln J ∝ −w_i dm_i), than an established node's. States whose |y| < 1e-4 (absolute
+level dominant) set only ~4% of rows (interval_establishment near 0, empty storage).
+
+- E5 (`E_at2_dry`, ATOL 1e-2, i.e. absolute level 1e-6 against 1e-8; a09 dry committed
+  schedule, gradient): rows fall 5–12% (central 8%); every quantity moves under 0.15ε
+  from `val_a09_c_dry`.
+
+**E5 holds (`E_at2_dry`).** ATOL 1e-2: rows 0.894, CPU 0.875 (fwd 65/77, sweep 225/254),
+steps 5585 → 4928, rejections 983 → 737; max move 0.106ε (TF24_cost_scale, the
+hydraulic direction tolerance moves), rms 0.033ε; worst error 0.84 (base 0.94). The rows
+come off the controller's own steps (38.2% → 27.0% of base rows): storage-set 13.4 →
+7.4, mortality-set 14.8 → 11.5, interval_establishment 3.1 → 1.4. Knot-ended rows do
+not move. For comparison, tolerance 3e-4 (round 3) saved ~10% for a 0.32ε move on dry.
+The tied tolerance (ATOL 1e-4) was set against near-empty pools under plant's default
+absolute level (`grid-dynamics.md` §4–6); 1e-2 sits 100× looser than tied, 100× tighter
+than the default.
+
+Registered before the remaining four runs (ATOL 1e-2, a09's schedules, lib19, proper
+setting):
+- E6/E7 (`E_at2_c_ld-102`, `E_at2_f_ld-102`, the record where 3e-4 failed C3 on the
+  hydraulic direction): each run's rows fall 7–14%; each quantity moves under 0.15ε from
+  `val_a09p_*_ld-102`; scored as a09 scores it (commit, C1–C5), ld-102 passes and commits
+  as a09p did.
+- E8 (`E_at2_f_dry`): with `E_at2_dry`, dry passes C1–C5 and commits as a09 did, T
+  within 0.86–0.92 of a09's.
+- E9 (`E_at2n_dry`, ATOL 1e-2 at tolerance 1.05e-4): moves under ε/3 from `E_at2_dry`
+  (reproducible), rms under 0.05ε.

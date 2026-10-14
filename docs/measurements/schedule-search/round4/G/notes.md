@@ -62,3 +62,36 @@ G2 (pre-registered): as G1 with WEIGHT_MAX=10 (late tolerance at most ×10). Pre
 the moves are the loose late tolerance, every quantity within 0.2ε of val_a09_c_dry and
 rows −8 to −15%; if they are knot-straddling error the step control cannot see, moves
 stay ≥ 0.4ε.
+
+G2 result: rows −12.0%, steps after 25: 1476 → 1043. Prediction fails the other way:
+tightening the late tolerance moved the answer MORE: ln J −0.40ε (J 1.18936 → 1.17923),
+TF24_cost_scale −1.52ε, a_r1 +1.20, stem_P50 +1.03, r_r/r_l −0.98; rms 0.67ε. The
+accepted steps before b = 24.90 are bit-identical to the base run, so the whole move
+comes from integrating ages 24.9–40. The references (node_rule/ladder u215/u429, and the
+held-out ref_* runs) use the same window weight (rule_A, WEIGHT_MAX=100), HMAX and knots,
+so any bias of the late loose tolerance is shared by every run and every reference and no
+check can see it.
+
+G3 (pre-registered): base dry committed schedule with all knots and WEIGHT_MAX=10.
+Predict: ln J within 0.1ε of G2 (the move is the late tolerance, not the knots), rows
++3 to +15% over base.
+
+G3 result: with every knot kept, capping the late weight at 10 moves nothing (≤0.003ε,
+rows +3.7%). So the late tolerance does not matter while the knots pin the steps, and
+the moves of G1/G2 come from steps that straddle a knot: in G1 51% of late steps hold a
+knot (1.39 on average), in G2 46%. **The error of a knot-straddling step is not seen by
+the step control: tightening the tolerance ×10 made it larger (ln J −0.05 → −0.40ε,
+TF24_cost_scale −0.73 → −1.52ε), not smaller.** The knots are load-bearing, not a
+landing convenience.
+
+G4/G5 (pre-registered, forward only, J): is the blind spot the splits? G4 = G2 with
+SPLIT=0; G5 = G3 with SPLIT=0. If |ln J(G4) − ln J(G5)| < 0.1ε the splits' pieces (which
+read the field from a quartic through five samples on the step's dense output, smooth
+only inside a knot span) are the blind spot; if ≈0.4ε as with splits, it is elsewhere
+(the soil's substeps or the main step).
+
+G4/G5 result: without splits the move is −0.61ε in ln J (with splits −0.40ε). Not the
+splits. G6/G7 (pre-registered, forward): the same pair with SHARE empty (no soil
+substeps; the soil on the main step under its error estimate). If the move falls under
+0.1ε, the soil's substeps are the blind spot (their inputs are extrapolated linearly
+from the last step's slope and the substep error is not in the main step's estimate).

@@ -480,3 +480,14 @@ drought in the proper setting, fixed schedules: 10/10 pass, T 5385 on the traini
 C3 failure is gone — ld-105 1136 against 1286; −12 to −14%). a09 at 3e-4 now passes ten
 of ten: T 5049 on the training five (a09 at 1e-4: 5609, −10.0%), 11410 on all ten
 (12916, −11.7%).
+
+## a10 at 3e-4 (a10h), the proper setting everywhere (14 October)
+
+a10's committed schedules (fixed spell rule) at tolerance 3e-4 with splits and the soil's
+own substeps on every record (lib19); checks reuse a09 at 3e-4 (`a09h` / `a09hp`);
+episodic-lma merges nothing, so its committed run is a09h's. Registered before the runs:
+- H10-1: ten of ten pass, every case committing as a09 at 3e-4 did.
+- H10-2: T 4800–4900 on the training five (a09 at 3e-4: 5049) and 10750–11000 on all ten
+  (11410): the two savings multiply (about 0.95 × 0.88 of a09 at 1e-4).
+- H10-3 (the risk): dry, dry-flat and dry-p50 already err 0.93–0.96ε at 1e-4; if one
+  fails it is C1 on a hydraulic quantity (a_l1, a, stem_c).
