@@ -3,7 +3,7 @@
 suppressMessages(source("/home/user/plant-dev/harness/schedule/anyscore.R"))
 EXCLUDED <<- c(EXCLUDED, "rooting_depth_max")
 a <- commandArgs(TRUE); EO <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/schedtest/E_out"
-x <- readRDS(file.path(EO, "runs", paste0(a[1], ".rds"))); b <- readRDS(file.path(AR, a[2])); case <- a[3]
+x <- readRDS(file.path(EO, "runs", paste0(a[1], ".rds"))); b <- readRDS(if (file.exists(a[2])) a[2] else file.path(AR, a[2])); case <- a[3]
 refq <- function(case) if (!is.null(CASES[[case]])) reference(case) else {
   u <- quantities(readRDS(file.path(AR, sprintf("ref_%s_u215.rds", case)))); v <- quantities(readRDS(file.path(AR, sprintf("ref_%s_u429.rds", case))))
   k <- intersect(names(u), names(v)); extrap(u[k], v[k]) }
