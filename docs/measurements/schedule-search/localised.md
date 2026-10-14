@@ -933,3 +933,18 @@ and the rest listed in `round4/S/notes.md`); kept, they make libS bit for bit wi
 so the optimisation thread moves to libS without them when it next rebases its baseline.
 Open: the water-balance sums are still the main step's (dry's rain quadrature on the main
 step −3.1% without stops).
+
+### The 12-day inset at 3e-4 (P, task 3)
+
+lib19, proper setting, inset pairs at tolerance 3e-4: nine of ten pass; **dry fails C3
+(6/10)**. T 10120 on all ten and 4502 on the training five (a10 at 3e-4: 10881 / 4885,
+−7.0%; the inset at 1e-4: 11663 / 5194, −13.2%). Dry fails because the tolerance error is
+uneven between its two runs (the check moves rms 0.043, the committed run 0.018; a_l1 +0.06
+→ −0.13 in the check), and it lies along the leaf errors' sign, so leaf reads, already
+×1.35 at 1e-4, rise to ×1.45–2.85; dry-p50 passes at the margin (4/5). The same uneven error
+is in a09's own dry pairs at 3e-4 (rms 0.060); a09 and a10 survive it only by committing dry
+fine, and the inset, having removed the edge bias, commits it coarse. The ×1.3 interior
+spacing was not run: it saves only 4–9% of nodes, since most spells hold one or two
+intervals. Fixes not run: dry records at 1e-4 (T 10246, no a-priori rule for which), the
+check at 1e-4 and the committed run at 3e-4, or a guard refusing a coarse commit when leaf
+and hydraulic reads disagree.
