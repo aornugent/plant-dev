@@ -797,3 +797,29 @@ Agent E (`round4/E/notes.md`; mining plus 10 real runs on dry and ld-102):
   ld-102 passes at 1177 (−8.1%). Same class of risk as 3e-4; not to be stacked with it.
   E's hypothesis (untested): the hydraulic move comes from storage, not mortality, so an
   absolute level on −ln survival alone might keep 3–6% without it.
+
+## Round 4 F: the skeleton holds, but T leaves the uses undiagnosed (14 October)
+
+Agent F (`round4/F/notes.md`; a09's pairs on all ten, 10 real runs on lib19 at 1e-4,
+long-drought records in the proper setting):
+- **Every inversion that removes or cheapens the check fails:** uses doing the checking
+  (the second-order term at δ = 0.1 lma is 10ε median), an estimate from inside one run
+  (correlates −0.45 with the error), an estimate shared across seeds (fails C2/C3 on 2 of
+  6), schedules sized to the margin (−0.4 to −0.9%), the pilot as the check (forward-only,
+  no edges). Extrapolating c − d/(1 − s) is three times more accurate (worst 0.03–0.36ε)
+  but saves only commit-fine (about −1%) and has no honest signed estimate.
+- **A grid carries over to a nearby θ; its error estimate does not.** dry-p50's traits on
+  dry's grid land within 0.07ε of dry-p50 on its own grid, although none of its 102 edges
+  before 25 is a node of dry's grid (29 more than a day off, 4 more than five days). But
+  within the objective's ±10% lma radius, θ₀'s estimate misreads θ₁'s error by up to 0.56ε
+  (dry, lma ×0.9) and fails C2 or C3 at all three points tested; against a new reference,
+  episodic at lma ×0.9 on its committed grid errs **1.34ε on a_l1** where the find reported
+  0.85 (C1 fails). The pair method still works at θ₁ (its own pair reads 1.28). Error grows
+  lopsidedly with lma (rms ×1.16 at ×1.1, ×1.29 at ×0.9, ×4.1 at ×1.25).
+- **Real CPU is 12% above the rows model** over a09's ten (14462 against 12916); the model
+  understates the dry records by up to 20% (dry-flat 1.24) against long drought (1.04).
+- F's fix: commit fine when the analysis spans the radius, uses on the find's fine grid
+  with θ₀'s fine estimate: passes C1–C5 at every radius point tested (use's worst 0.49ε
+  against the real reference), **+16% T** (12916 → 14985), the price a09's T leaves out.
+  Diagnose each use by |ln J(θ) − ln J(θ₀)| against θ₀ (the check transfers at 0.19,
+  misreads at 0.73–1.11, fails at 4.15). Tested on lma and root_P50 on two records only.

@@ -175,3 +175,51 @@ error matched its own grid to 0.07 eps; exact edge placement is not what accurac
 Registered before F_ref_l09_u215 / _u429 (episodic, lma x0.9, the held-out reference recipe):
 - U7: F_l09c's a_l1 error against the u215 -> u429 reference exceeds 1.0 eps, and the pair's
   read d1/(1 - s) is within 0.8–1.25 of it.
+
+## The skeleton, inversion by inversion (T on a09's real runs, all ten, 12916)
+
+| inversion | test | result |
+|---|---|---|
+| uses do the checking (collinear, middle on f) | `curv.R` | dead: midpoint term 10 eps median at +-10% lma |
+| estimate inside one run (node quadrature) | `inrun.R` | dead: anti-correlated (-0.45) with error |
+| estimate shared across seeds | seeds table | dead: reads -0.03–0.96 |
+| uses run a schedule sized to the margin | `resize.R` (scorer) | -0.4% (5/5), -0.9% (4/5) |
+| no check, commit f three times | `base.R` pairs | T 12070 (-6.5%), f worst 0.17–0.51, but no estimate at all |
+| commit fine always (c is the check) | `repair.R` | T 14985 (+16.0%); passes at the radius |
+| pilot as the check | pilots are forward-only, 54 uniform nodes, no edges | impossible; agent C's widest-legal check failed 0/5 |
+| extrapolated answer c - d/(1 - s) | `base.R` | 3x more accurate (worst 0.03–0.34), but buys T only through the commit-fine branch (-1.1%) and has no honest signed estimate |
+| uses pinned to the find's steps | saved pin runs | forward -17 to -18% (pin_e108, rc_pinA/B), forward ~25% of a gradient run: ~2% of T |
+| grid shared across theta | `usecmp.R`, real | holds for placement (0.07 eps at root_P50 x1.2) |
+| the find's check covers the uses | `l10.R`, real | **fails at +-10% lma**: misreads 0.23–0.56 eps; one use at 1.28 eps |
+
+Within T as defined, the skeleton is right: the check is what makes the answer diagnosed, and
+no inversion here gets that for less than a second gradient run per grid. The one inversion
+that pays is a different one: commit three f runs with no check (-6.5%), which is only
+acceptable if a diagnosis can come from somewhere else, and nothing tested here supplies one.
+
+### F_ref_l09 result: U7 holds; a use inside the radius fails C1
+
+Against its own reference (u215 -> u429 at 3e-5; the reference's own move at most 0.11 eps),
+episodic's committed grid at lma x0.9 errs **1.34 eps on a_l1** (C1 fails); the use's own
+pair would read 1.28 (median read 0.94), so the pair method is sound at theta1; what fails is
+reading theta0's estimate (0.85) as the use's (C1 and C3 fail). The same use on the find's f
+grid errs at most 0.49 and theta0's fine estimate d0 s/(1 - s) passes C1–C5 on it (`refl09.R`).
+
+Real runs used: 10 (F_use_dryp50, F_use_lma, F_l10c/f, F_l09c/f, F_dl09c/f, F_ref_l09_u215/u429).
+
+## Findings worth acting on
+
+1. **T counts uses the find does not diagnose.** On the find's committed grid, a resident at
+   lma x0.9 (inside the objective's +-10%) errs 1.34 eps on episodic, and on both episodic and
+   dry the find's estimate misreads uses at lma +-10% by 0.23–0.56 eps (C2/C3 fail as the uses'
+   estimate). The grid is not the cause; the error moves with theta. Measured radius in |ln J
+   - ln J0|: holds at 0.19 (root_P50 x1.2, 0.07 eps), misreads at 0.73–1.11, fails at 4.15.
+   Repair that passes at every radius point tested: commit fine for the analysis (uses on f,
+   theta0's fine estimate): **T +16% (12916 -> 14985)**. A commit margin (TAU 0.65, +6.5%)
+   would have kept episodic under eps but leaves the uses' estimates wrong. Report
+   |ln J(theta) - ln J(theta0)| per use as the "distance from theta0" for Diagnosed.
+2. **The skeleton is right within T; its check is not where T can come from.** Every inversion
+   that removes or cheapens the check is dead (table above); the only cheaper arrangement,
+   three f runs and no check (-6.5%), has no estimate. Exact edge placement is not load-bearing
+   (dry-p50's edges up to 67 d off dry's nodes cost 0.07 eps), which supports thinning edges
+   (agents working on assumption 3) rather than reworking the check.
