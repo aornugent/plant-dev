@@ -3,7 +3,7 @@
 suppressMessages(source("/home/user/plant-dev/docs/measurements/schedule-search/round4/AG/lib.R"))
 O <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/schedtest/JT_out"
 X <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/schedtest/X_out/runs"
-rd <- function(n) { f <- file.path(O, paste0(n, ".rds")); if (!file.exists(f)) f <- file.path(X, paste0(n, ".rds")); readRDS(f) }
+rd <- function(n) { f <- file.path(O, paste0(n, ".rds")); if (!file.exists(f)) f <- file.path(X, paste0(n, ".rds")); if (!file.exists(f)) f <- file.path(dirname(dirname(X)), "P_out/runs", paste0(n, ".rds")); readRDS(f) }
 ref <- { a <- quantities(rd("X_J13_dry")); b <- quantities(rd("X_J12_dry")); k <- intersect(names(a), names(b)); (a[k] - b[k]) / eps_vec(k) }
 a <- commandArgs(TRUE)
 for (i in seq(1, length(a), 2)) { h <- rd(a[i]); l <- rd(a[i + 1]); qh <- quantities(h); ql <- quantities(l); k <- intersect(names(qh), names(ql)); d <- (qh[k] - ql[k]) / eps_vec(k)

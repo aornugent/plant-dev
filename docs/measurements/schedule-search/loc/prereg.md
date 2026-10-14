@@ -760,3 +760,13 @@ data show too once the jitter is gone (along M c −0.20, f +0.07 under either g
   (12/1.6 = 7.5 d, `X/mkins75.R`) against the committed 12-day inset, dry-flat on libS
   without stops, 1e-4: passes C3, root_P50 read 0.6–1.6 (45%). Refuted if root_P50
   still reads under 0.5 or the leaf quantities over-read past ×2 (a mixed shrink, P).
+
+**E5 result: holds.** With the check's inset at 7.5 d dry-flat passes, C3 6/7: root_P50
+reads 1.17 (err −0.44, est −0.51); the one miss is storage_relaxation_offset over-read
+(err 0.10, est 0.43); a_dG2 1.98. T 1683 (12-day check 1664, failing).
+- E6 (registered before the runs): the rule "committed inset 12 d, check inset 12/R d"
+  (R = 1.6) on libS without rain stops, 1e-4, all ten (committed runs = the insk runs):
+  ten of ten pass (55%); T within 2% of the insk pairs' 9193 (the check gains ~10 nodes
+  per case); reads move toward 1 on the hydraulic quantities and the leaf quantities'
+  over-reads stay within ×2. Risk: a mixed shrink (storage over-read as on dry-flat)
+  failing C3 on dry or dry-p50, where errors are small.

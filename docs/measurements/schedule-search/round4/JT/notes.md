@@ -181,3 +181,12 @@ like Σ m·h·(the jump's weight). Registered: the windows that carry the jitter
 6.7–8.25, 9.68–9.75, 10.04–17) have large Interior ↔ BoundaryCrit switch traffic inside
 long steps (Σ m·h), and the quiet windows (5–6.7, 8.25–9.15, after 17) have little
 (60%). A weak test: the weight (λ of the soil, the cohort's share of J) is not read.
+
+### E3b result (JT3_A_cut, JT3_B_cut): refuted, the other way
+
+With the gate's derivative cut over the whole run, A − B grows from rms 0.048 to 0.243
+(max 0.84 on a_dG1; TF24_cost_scale −0.18 → +0.54ε). The gate's path does not carry the
+jitter; it cancels much of it (in the window too, E3a: +0.095 against −0.16). Read with
+E6: the jitter is a quadrature error of the residents' uptake sensitivity at the arm
+switches, weighted by the soil's adjoint, and the gate's sensitivity to the soil is one
+of the terms of that weight, opposite in sign to the rest.
