@@ -725,3 +725,15 @@ b = 25 (`X/mkett.R`; dry: 48 closing edges, 14% of 0–25). Registered before th
   moves rms ≤ 0.04 (without 0.110) (45%). Refuted together if the moves stay above half
   their old size: the jitter is not the closing edges' alone, or a tighter tolerance does
   not reach it (a sensitivity the error control does not see at any tolerance).
+
+**E1 result:** refuted on the size. With the closing edges' tolerance ×0.1, the nudge at
+3e-4 moves rms 0.025 (max 0.11) against 0.048 (0.18): halved, not to 0.015. Rows 1.086×.
+Under the sharp gate at 3e-4 about half the jitter sits at closing edges.
+**E2 result: holds, strongly.** Under the averaged gate at 1e-4 the nudge moves rms 0.009
+(max 0.03) against 0.110 (0.42): 12× less. Rows 1.115×. The averaged gate's jitter is
+the closing edges' alone. a09's committed error with it: rms 0.284, worst 0.82 (a jitter
+draw had put it at 0.225 / 0.66).
+- E3 (registered before the runs): under the averaged gate with ETT, the pairs read.
+  a09's pair (c, f) passes C1–C5 on dry with read median 0.8–1.25 (60%); the inset pair
+  (insc, insf) passes (55%). Refuted if either fails C3 (then the gate's misread is
+  not only jitter).

@@ -37,3 +37,34 @@ Predictions:
 - H2 needs the seedling's net production to cross zero inside the window (at ≈ 9.711),
   and the newest node's establishment entry of ∂f/∂θ to carry the change.
 - H3 needs a resident node's net production to change sign inside a step of the window.
+
+### E1 result (JT1_A, JT1_B; `e1.R`, `trace.R`)
+
+- libD reproduces A's and B's stored elasticities exactly (max difference 0), J to 15 digits.
+- State in 9.678–9.777 (A; B alike): top-layer ψ 2.0 → 4.4 MPa by the rain at 9.753,
+  deeper layers 0.05–0.12 MPa. Collar max 5.60 MPa (at 9.753), under root_psi_crit
+  5.870; the soil never nears the determined band (ψ_soil ≈ 5.864). **H1 out** here.
+- The seedling's net production crosses zero at 9.7106; its establishment probability
+  falls 0.90 (9.701) → 0.52 (9.707) → 0.03 (9.710) → 0: the gate shuts within ~3.5 d,
+  half of it in the last ~1.3 d. A's steps there are 1.98, 1.47, 1.50 d (an A step ends
+  at 9.71061, P = −2.5e-7: on the crossing); B's 2.2, 1.9, 1.9 d, straddling it.
+- The residents' net production: 13/56 nodes negative at 9.678, 56/56 by 9.7106 (all
+  cross zero in the same 3 weeks; the split machinery stops at each).
+- Cumulative trait adjoint (TF24_cost_scale), D = A − B in ε: −0.130 at 9.678, −0.102
+  at 9.753. The window's own increments carry −0.028ε; the rest of the splice's share
+  enters before 9.678 through the state adjoint the window hands back.
+- The existing splices along TF24_cost_scale (from B, in ε): A to 9.6 −0.027, to 9.678
+  (J12) −0.027, to 9.753 (J13) −0.092, to 9.9 −0.103: **the window 9.678–9.753 carries
+  −0.065ε of A − B's −0.176ε (37%)** along this trait.
+
+## E2 (registered before the runs): soften the gate, keep the steps
+
+H2 says the discrete derivative's error is the RKCK quadrature of the gate's θ-bump
+g'(P)·P_θ, ~2–3 d wide at the default a_d0 (g from 0.9 to 0 in 3.5 d) and sampled by
+1.5–2 d steps; the forward's integral of g is error-controlled, its θ-derivative is not.
+Test: the splice pair J12 (A's steps to 9.678, B's after) and J13 (A's to 9.753) replayed
+with a_d0 × 10 (TRAIT_REL=a_d0=9), which widens the gate's knee in P tenfold (weeks in
+time) on the same steps. The pair differs only in the window's steps.
+- H2: |J13 − J12| along TF24_cost_scale falls from 0.065ε to ≤ 0.02ε (65%).
+- H3/H4 (residents' sign changes, soil stiffness: neither reads a_d0): it stays within
+  ±30% of 0.065ε.

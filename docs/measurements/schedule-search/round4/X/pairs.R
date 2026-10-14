@@ -21,3 +21,5 @@ score("AG_a09c_dry", "AG_a09f_dry", "AG"); score("AG_insc_dry", "AG_insf_dry", "
 cat("-- nested, s = 1/4\n")
 score("AG_a09c_dry", "AG_a09nb_dry", "AG", 0.25); score("P_ins3c_dry", "X_ins3nb_dry", "19", 0.25); score("AG_insc_dry", "AG_insnb_dry", "AG", 0.25)
 score("P_insc_dry", "X_insnb_dry", "19", 0.25); score("val_a09h_c_dry", "X_a09nb3_dry", "19", 0.25); score("val_a09_c_dry", "X_a09nb_dry", "19", 0.25)
+cat("-- closing edges' tolerance tightened (ETT)\n")
+score("AG_ett_a09c_1e-4_dry", "AG_ett_a09f_dry", "AG"); score("AG_ett_insc_dry", "AG_ett_insf_dry", "AG")
