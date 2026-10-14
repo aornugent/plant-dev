@@ -469,3 +469,82 @@ so under-corrected by 0.41; lib19 mid over-corrected by 0.68).
   quantities over ε/3: the pair passes C1–C5, commits coarse, T ≈ 900 (a09's libAG pair
   1220, −25%) (60%). Refuted if the check lands beyond the reference (over-corrected) and
   C3 fails, as the fixed inset's did.
+
+### P_AG1′ result (AG_midf_dry): refuted
+
+mid pair on libAG dry: commits coarse, **C3 fails 0 of 3** (a_dG1, storage_relaxation_offset,
+TF24_cost_scale), read −0.21, corr(est, err) 0.29; c worst 0.30 / rms 0.100, **f worst
+0.45 / rms 0.115**; T 908. On ref(u429, u857): c 0.38 / 0.120, f 0.59 / 0.155, read −0.46.
+Along M the check lands on the reference (+0.34 vs +0.33; c −0.08), but off M the mid
+check is worse than the mid committed run: mid's check is not a refinement of its
+committed run (P's midf2 = mid layout of a09's f), and under the gate its off-M error does
+not shrink. (lib19 mid pair on dry: pass, 3/3, read 0.89.)
+
+## Synthesis
+
+Real runs: 24 (23 completed + the first AG_a09c_dry, which died in the harness after its
+forward run). The episodic references were not run.
+
+| dry | lib19 pair | libAG pair | libAG c worst / rms | libAG f worst / rms | along M: c, f (ref +0.33) |
+|---|---|---|---|---|---|
+| a09 (edge nodes) | pass | **C3 5/8** | 0.66 / 0.225 | 0.46 / 0.146 | −0.95, −0.59 |
+| a09 + gap-bisected check | (= a09) | **C3 5/8** | 0.66 / 0.225 | 0.49 / 0.152 | −0.95, −0.54 |
+| inset 12 d (P) | pass | **C3 2/9** | 0.47 / 0.140 | 0.41 / 0.089 | +0.44, +0.78 |
+| mid (h′/2) | pass | **C3 0/3** | 0.30 / 0.100 | 0.45 / 0.115 | −0.08, +0.34 |
+
+| other cases | lib19 | libAG |
+|---|---|---|
+| long drought a09 | pass | pass (4/4, read 1.03) |
+| long drought inset 12 d | pass | pass (0/0, read 1.07, T −7%) |
+| long drought a09 + gap check | — | pass (T +8%) |
+| episodic-lma a09 | pass (fine) | pass (fine, 19/19) |
+
+What holds under both gates:
+1. The mechanism. The per-recruit fate curves within 10–20 d of each g-edge identically
+   (closing +0.032 / +0.062 on both); in10's move is the same (projection 0.91, corr
+   0.96); a node at the edge biases the committed run along the same direction M, at
+   ~70% of the size (dry 1.28 vs 1.81 along unit M). out10 is harmful on both.
+2. The edges. The edges this needs are g's (the rain's); under the gate a libAG pilot
+   gives them by inverting E exactly per step (96/96 dry, 106/106 long drought), not by
+   thresholding E (10 and 6 edges). Edges from lib19's pilot are correct for libAG runs.
+3. Committed accuracy. An inset of 10–12 d cuts dry's committed error under both gates
+   (lib19 0.94 → 0.34; libAG 0.66 → 0.47); mid is the most accurate under the gate (0.30)
+   and overshoots under the instant gate (0.60).
+
+What does not: the pair's reading on dry. The error-free inset depends on the gate and on
+the spacing. At a09's committed spacing it is ≈ 12–15 d on lib19 (need 1.81 along M;
+in10 delivers 1.49, 12 d 1.61; P's saturating fit) and ≈ 9–10 d under the gate (need 1.28; in10 1.35). At the
+check's spacing it is ≈ 11 d on lib19 (need 0.83; 12 d delivers 0.90) and well under 10 d
+under the gate (need 0.92; 12 d delivers 1.38, 10 d ~1.35, so its correction has
+saturated by 10 d and is the same at both spacings). On lib19 a fixed 12 d sits near the
+error-free point at both spacings and the pair reads; under the gate no fixed distance
+can, since the correction is spacing-independent while the bias falls 1.39× from c to f.
+
+The rule, stated so it holds under both gates: **each spell's outermost node sits at the
+inset that is error-free at that run's own spacing, d*(h), so that the committed run and
+the check are each left near zero along M and the pair reads only what the check
+shrinks.** On the instant gate d*(h) ≈ 12–15 → 11 d from c to f, and a fixed 12 d is within
+tolerance (P: all scored pairs pass). Under the averaged gate (w = 0.05 yr) d*(h) is
+shorter, ≈ 9–10 d at c's spacing and below that at f's: the gate-dependent quantity is
+the inset's own shrink with spacing, and its scale is set by where the correction
+saturates (~10 d ≈ 0.55 w under the gate). **Untested as a pair**: the gate's I(d) for
+d < 10 d is not measured (no in3/in5 on libAG), and on lib19 a spacing-scaled inset would
+need its own pair.
+
+## Risks
+
+- **The incumbent under the gate.** a09's own pair fails C3 on dry under the averaged
+  gate (5 of 8; its edge term converges at first order there). Its committed answers stay
+  within ε (C1 holds everywhere), so the failure is in the estimate, not the answer. If
+  the gate lands, a09 needs re-validation on all ten cases.
+- One case carries the gate's failures (dry); long drought and episodic-lma pass under
+  both gates. dry-flat and dry-p50 (P: the most edge-dense) were not run on libAG.
+- Port: faithful to the gate's design, but on the stack's exact counts the gate enters as
+  the newest interval's establishment rate rather than a seeded density (no test of the
+  gate's own covers that path; the adapted test does). A split of the newest node holds E
+  over the step (bounded at ~2e-3 d of establishment per edge). Invaders' walks were not
+  ported or checked.
+- References: dry's and long drought's are tight (0.04–0.14ε); episodic-lma's is 0.32ε.
+  lib19 references cannot score libAG runs (u429 moves up to 2.6ε).
+- M is one direction fitted on lib19's dry; the along-M arguments on other cases rest on
+  dry's.

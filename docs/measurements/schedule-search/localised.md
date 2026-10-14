@@ -948,3 +948,27 @@ spacing was not run: it saves only 4–9% of nodes, since most spells hold one o
 intervals. Fixes not run: dry records at 1e-4 (T 10246, no a-priori rule for which), the
 check at 1e-4 and the committed run at 3e-4, or a guard refusing a coarse commit when leaf
 and hydraulic reads disagree.
+
+## Round 4 AG: the edge rule under the averaged establishment gate (14 October)
+
+Agent AG (`round4/AG/notes.md`): `b3a33626` ported onto lib19's plant as scratch build
+`libAG` (TF24 v14; on the exact-count path the gate enters as the newest interval's
+establishment rate, integrating E; FF16 bit for bit; E's opening rise 35 d against 0.08 d;
+J +2.0% on dry, +1.24% on long drought), with its own references (u215→u429: dry 0.13ε,
+long drought 0.14ε, episodic-lma 0.32ε; lib19's references move up to 2.6ε, so they cannot
+score libAG runs).
+- **Same mechanism, about 70% of the size:** the fate layer at the gate's edges is
+  identical; in10 moves the same way; a09's committed edge bias along M is 1.28 against
+  lib19's 1.81. Edges should still come from g, not E (inverting E per step recovers every
+  pilot edge; thresholding E finds 10 of 96).
+- **Under the gate a09's own pair fails C3 on dry (5/8),** as does the 12-day inset (2/9)
+  and mid (0/3); long drought passes with a09 and with the inset (T −7%), episodic-lma with
+  a09. C1 holds everywhere: the failure is the estimate's.
+- **Why:** the edge bias shrinks only 1.39× from committed to check under the gate (2.2× on
+  lib19), while a fixed inset's correction does not shrink at all, so the check
+  over-corrects. The error-free inset depends on the run's spacing: about 12–15 d at the
+  committed spacing and 11 d at the check's on lib19 (a fixed 12 d is close enough), but
+  about 9–10 d and less under the gate, and the correction saturates by about 10 d
+  (≈ 0.55 × `establishment_window`). So no fixed distance serves both gates; the rule that
+  holds in both is an inset that is error-free at each run's own spacing, untested as a pair
+  (no libAG run below 10 d). dry-flat and dry-p50 were not run under the gate, nor invaders.
