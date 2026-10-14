@@ -737,3 +737,16 @@ draw had put it at 0.225 / 0.66).
   a09's pair (c, f) passes C1–C5 on dry with read median 0.8–1.25 (60%); the inset pair
   (insc, insf) passes (55%). Refuted if either fails C3 (then the gate's misread is
   not only jitter).
+
+**E3 result: holds for both pairs.** Under the averaged gate with the closing edges'
+tolerance ×0.1 (dry): a09's pair passes, C3 14/14, read 1.04, along M c −1.72 → f −0.91
+(shrink 1.88; the sharp gate's 2.18), T 1359 (1220 without, failing); the inset's pair
+passes, C3 4/5, read 1.36, along M c −0.20, f +0.07 (the sharp gate's own pair: −0.21,
++0.07), T 1210 (1090 without, failing). With the jitter gone the averaged gate behaves
+as the sharp gate for both layouts: the inset's "correction that does not shrink" was
+jitter too. **Confirmed by intervention: the averaged gate's misreads are the closing
+edges' jitter.**
+- E4 (registered before the runs): dry-flat's failing inset pair on libS without rain
+  stops (C3 5/7, root_P50 err −0.44, est −0.14) with the closing edges' tolerance ×0.1
+  (93 closing edges, 27% of 0–25): passes C3, root_P50 read within ×2 (45%); rows ≤ 1.15×.
+  Refuted if root_P50 still reads under 0.5 (the strips' shared residual is not jitter).
