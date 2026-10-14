@@ -1039,3 +1039,15 @@ direction (interior-optimum traits against hydraulic-bound ones).
   kind), about 2 stops per drydown (+3–5% steps on dry); or a smooth Interior/Bound
   transition in phylloptim (a model change, a width parameter); or error control on the
   derivative (dearest).
+
+### The rule that passes: the check's inset scaled with its spacing (E5, E6)
+
+The inset's one schedule-level misread is real under either gate: its 12-day strips are
+the same in both runs, so the check cannot read them (dry-flat's root_P50, the strips'
+hydraulic residual; along M c −0.20, f +0.07 under either gate once jitter is gone). The
+averaged gate's core finding holds here: the inset must scale with the spacing. With the
+check's inset at 12/R = 7.5 d (the committed run unchanged), on libS without rain stops at
+1e-4: **ten of ten pass, T 9287 on all ten and 4034 on the training five, −28.1% on a09**
+(dry-flat's root_P50 reads 1.17; reads 0.83–1.18). The averaged gate's pairs pass once
+the drying events' jitter is removed (E3); the rule needs only that, which the stepper
+should supply (a stop where the leaves change arm), not the schedule.

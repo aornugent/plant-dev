@@ -774,3 +774,22 @@ reads 1.17 (err −0.44, est −0.51); the one miss is storage_relaxation_offset
 **Agent JT (the jitter's source):** the stand's leaves switching to the hydraulic bound
 inside a step (`round4/JT/notes.md`; summary in `localised.md`). Step boundaries over the
 switch cluster cut the 9.68–9.75 window's jitter 36×.
+
+**E6 result: holds. Ten of ten pass.** Committed inset 12 d, check inset 12/R = 7.5 d,
+libS without rain stops, 1e-4: **T 9287 on all ten, 4034 on the training five** (the
+12-day check 9193 / 3994, 9/10; a09 on lib19 12916 / 5609: −28.1% on both). Reads
+0.83–1.18; C3 misses only where allowed (dry 4/5, dry-flat 6/7, dry-p50 3/4); worst errors
+0.30–0.58; every commit decision as before (episodic-lma fine).
+
+| case | T | commit | worst | C3 | read |
+|---|---|---|---|---|---|
+| episodic | 614 | coarse | 0.30 | 2/2 | 1.09 |
+| dry | 832 | coarse | 0.35 | 4/5 | 1.06 |
+| long-wet | 990 | coarse | 0.36 | 1/1 | 0.97 |
+| long drought | 964 | coarse | 0.37 | 1/1 | 0.88 |
+| episodic-lma | 634 | fine | 0.41 | 19/19 | 1.18 |
+| dry-flat | 1683 | coarse | 0.58 | 6/7 | 0.83 |
+| ld-102 | 857 | coarse | 0.41 | 1/1 | 1.00 |
+| ld-105 | 821 | coarse | 0.32 | 0/0 | 0.96 |
+| dry-p50 | 854 | coarse | 0.35 | 3/4 | 1.15 |
+| wet-adG2 | 1038 | coarse | 0.44 | 1/1 | 0.89 |
