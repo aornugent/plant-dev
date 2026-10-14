@@ -554,3 +554,40 @@ Most steps are one day long (the rain's knots); the tolerance sets only the long
   founders carry it, as they carry J's, X2 removes at least 70% of the committed run's
   tolerance move (rms over quantities, 3e-4 → 1e-4) (50%); for the check, whose move in J
   is not the founders', under 40% (50%). If neither moves, the error is in the spells.
+
+X2 result: refuted as a location. The founders' year at 1e-4 adds 7 steps there and moves
+nothing (every elasticity within 1e-6 of the run at 3e-4, ln J 1e-7): the tolerance error
+is not the founders'. (`tolwhere.R`'s per-node split of J was wrong: it put 2e-3 of J on
+the founders where ln J moved 5e-5; withdrawn.) X2's check run was stopped.
+X1 (first run): **jitter.** At 2.85e-4 the committed run moves rms 0.048 from its run at
+3e-4, 2.7× what 1e-4 → 3e-4 moved it (0.018); TF24_cost_scale 0.18ε, a_l1 0.10ε. At
+1e-4, round 3's nudges moved rms 0.02–0.03.
+
+### The shared cause: the check is not a refinement of the committed run
+
+Both pairs have checks that are not nested in their committed runs: on dry 63% of a09's
+committed nodes are in its check, 58% of the inset's; 71 committed intervals get no check
+node inside, others get one to three (`X/refine.R`). This is lesson 15 (round 2: "a
+non-nested check is honest only where it shrinks every interval that carries error by
+about the same factor"), now in two new places:
+- at 3e-4 the two runs' step sequences share nothing, so their jitter is independent, and
+  move/(1 − s) carries it at 1/(1 − s) (round 2 found nested runs share their jitter);
+- under the averaged gate the edge error lies where the ratio check does not refine at
+  the proxy's s (the proxy knows only the sharp gate), and the fixed inset's strip is not
+  refined at all.
+
+Nested checks (`X/mknest.R`): **a09nb**, a09's committed schedule with every interval
+bisected (dry 169 → 337 nodes); **insnb**, the inset's committed schedule with every
+interval inside a spell bisected and each gap-spanning interval given the two nodes at
+half the inset (6 d), so its strips still interpolate between nodes inside spells (dry
+149 → 345). Both scored at s = 1/4. Registered before the runs (dry only):
+- N1 (averaged gate, a09 + a09nb): the check shrinks the committed run's error along M by
+  at least 2.5× (non-nested: 1.39×) and the pair passes C1–C5 (60%).
+- N2 (sharp gate, 3e-4, inset + insnb): the pair's c − f differs from its 1e-4 c − f by
+  rms ≤ 0.015 (non-nested 0.029: jitter shared), and the pair passes (55%).
+- N3 (averaged gate, inset + insnb): passes (50%).
+- N4 (sharp gate, 1e-4, inset + insnb): passes, read median 0.8–1.25 (70%).
+- N5, N6 (sharp gate, a09 + a09nb at 3e-4 and 1e-4): pass, read median 0.8–1.25 (75%).
+- Cost: the nested check has 2.0–2.3× the committed run's nodes against the ratio
+  check's 1.4×, so T rises about 10–15% at the same committed schedule; it pays only if
+  it lets 3e-4 or a coarser committed run pass.
