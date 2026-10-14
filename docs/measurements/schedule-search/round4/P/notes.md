@@ -238,3 +238,79 @@ P_midf_dry). The in3 attempt at 04:56:46 exited in 1 s without a schedule (not c
 - Count (a09 c, all ten): fixed 12 d inset 1644 → 1517 nodes (−8%); 18 d 1466 (−11%);
   the mid layout 1164 (−29%) — measured T −20% to −39% on four cases, but it fails C3 on
   episodic-lma, so as built it is not safe.
+
+## Task 2: the fixed inset as a full pair on all ten cases (lead's request)
+
+`mkinset.R` applies `inset_rule()` to a09's c and f schedules: each edge node before 25
+moves 12 d into its spell; a spell shorter than 24 d keeps one node at its centre; a
+non-edge node inside the 12 d strip is dropped (none occur); everything else unchanged.
+One deviation, to avoid degenerate nodes: a spell of 24–25 d also gets a single centre
+node (strictly, its two inset nodes would sit 0.01–0.6 d apart; long-wet, dry-flat).
+Nodes (final schedules, as run) c/f: episodic 135/204, dry 149/212, long-wet 157/228, long
+drought 155/221, episodic-lma 120/182, dry-flat 191/248, ld-102 143/213, ld-105 146/207,
+dry-p50 153/215, wet-adG2 158/230 (a09: 1644 c, 2297 f; inset 1507 c, 2160 f). No node
+is at an edge; none in a gap (the three flagged by `anatomy()` on dry-flat are centres of
+sub-day spells, an artifact of its 0.25 d grid).
+
+Runs: `P_insc_<case>`, `P_insf_<case>`, two at a time; scored by `val_p.R` (loc/val.R
+with the run directory pointed at P_out, ALG = a09_late.R, R = 1.6, BG = 90).
+
+Pre-registered (before any inset run):
+- Q1: the inset committed run's rms error ≤ a09's on all ten, worst error ≤ a09's on at
+  least nine (dry: about 0.36, as in10).
+- Q2: the a09 check read mostly the edge bias (second order); with it gone the remaining
+  error includes the shared strip residual (shrink 0, unread; dry ≈ −0.22 M, ~0.15ε on
+  a_l1). C1–C5 pass on at least 9 of 10; read median 0.7–1.1, lower than a09's.
+- Q3: commit decisions as a09's, except episodic-lma may go coarse (50%).
+- Q4: T all ten 5–10% under 12916 if the decisions hold (rows fall about with nodes);
+  training five 5–10% under 5609.
+
+### Results (`sum_ins.R`, `val_p.R ins ...`, `diag_ins.R`): 10/10 pass, T −9.7%
+
+| case | a09: commit, worst / rms, read, C3 | inset: commit, worst / rms, read, C3 | T a09 → inset |
+|---|---|---|---|
+| episodic | coarse, 0.76 / 0.196, 0.94, 3/3 | coarse, 0.28 / 0.128, 1.02, 1/1 | 720 → 701 (−3%) |
+| dry | coarse, 0.94 / 0.302, 1.12, 14/15 | coarse, 0.34 / 0.155, 1.35, 5/5 | 1241 → 1088 (−12%) |
+| long-wet | coarse, 0.50 / 0.130, 1.04, 2/2 | coarse, 0.36 / 0.092, 1.29, 1/1 | 1470 → 1364 (−7%) |
+| long drought | coarse, 0.57 / 0.172, 0.95, 3/3 | coarse, 0.37 / 0.113, 1.09, 1/1 | 1423 → 1295 (−9%) |
+| episodic-lma | fine, 0.41 / 0.218, 1.17, 20/20 | fine, 0.45 / 0.235, 1.12, 15/17 | 755 → 747 (−1%) |
+| dry-flat | coarse, 0.95 / 0.342, 0.88, 12/12 | coarse, 0.55 / 0.172, 1.05, 5/6 | 1955 → 1612 (−18%) |
+| ld-102 | coarse, 0.46 / 0.167, 1.01, 3/3 | coarse, 0.42 / 0.148, 0.96, 1/1 | 1281 → 1173 (−8%) |
+| ld-105 | coarse, 0.43 / 0.161, 1.01, 2/2 | coarse, 0.33 / 0.142, 1.01, 1/1 | 1286 → 1164 (−9%) |
+| dry-p50 | coarse, 0.93 / 0.271, 0.96, 11/11 | coarse, 0.34 / 0.134, 1.01, 1/1 | 1278 → 1119 (−12%) |
+| wet-adG2 | coarse, 0.57 / 0.143, 0.93, 2/2 | coarse, 0.45 / 0.123, 0.99, 1/1 | 1507 → 1400 (−7%) |
+
+**T (rows model): all ten 12916 → 11663 (−9.7%), training five 5609 → 5194 (−7.4%).** s is
+unchanged (0.33–0.42). Real CPU summed reads +5% / +6%, but it is not comparable: the
+inset runs ran two at a time beside another agent's build, and their CPU per row is
+3–13% above a09's on the same cases (long-drought records +19–32%). At a09's CPU per
+row the saving is the rows saving.
+
+Against the pre-registrations: Q1 holds (rms below a09's on nine; episodic-lma, which
+commits fine, 0.235 against 0.218; worst below a09's on nine, episodic-lma 0.45 against
+0.41). Q2 holds on pass (10/10) and is refuted on the read: medians 0.96–1.35, not lower
+than a09's. Q3 holds (every decision as a09's; episodic-lma stays fine). Q4 holds.
+
+The reads (`diag_ins.R`, misses listed): two kinds of quantity now shrink differently.
+- Leaf quantities (a, curv_fact_elec_trans, k_I, jmax_25, lma; on episodic-lma hmat,
+  k_s) shrink faster than s: f/c ≈ 0.21–0.26 against s = 0.42, so d/(1 − s) reads them
+  ×1.3–1.4, and episodic-lma's two misses are over-reads at ×2.05 (conservative side).
+- Hydraulic quantities (root_P50, storage_relaxation_offset) shrink slowly: f/c 0.6–0.8.
+  This is the shared strip residual registered in Q2 (dry: the error on −M is c 0.14,
+  f −0.05, unread −0.18). It is read at 0.4–0.5: dry root_P50 err −0.29, est −0.13 (under
+  ε/3, uncounted); **dry-flat root_P50 err −0.40, est −0.13: C3's one miss there**. Not a
+  first-order term from the node spacing (the inset is fixed at 12 d in both runs); a term
+  that neither run's spacing moves.
+- So the inset's estimate is less one-shrink than a09's: the edge bias that a09's check
+  read cleanly (second order) is gone, and what is left mixes a faster-than-s leaf part
+  and a near-zero-shrink hydraulic part. All ten pass, with C3 missing 1–2 quantities on
+  two cases where a09 missed one on one case.
+
+Fix, if the hydraulic under-read needs one (not tried): the shared part comes from the
+12 d strips beside each edge. Making the check's inset differ from the committed one (e.g.
+c at 12 d, f at 12/1.6 ≈ 7.5 d) would make that term move between the runs, but p(d) is
+not a power law in d (p(3) 0.25, p(10) 1, p(36) 1.68 on dry), so it would bring back a
+mixed-shrink read. The cheaper lever is the margin: worst errors now 0.28–0.55 against
+a09's 0.41–0.95, room to widen the interior spacing (BG) by about ×1.3 under the square law.
+
+Real runs for task 2: 20 (all completed).

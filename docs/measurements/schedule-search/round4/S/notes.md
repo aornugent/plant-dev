@@ -173,3 +173,56 @@ quantity moves past 0.23ε, the gate holds, nothing throws.
   day. Rows are the measure here.
 - *The fixture's warning does not show at 1e-4.* All four free runs are as
   close to the case's reference as their bases, or closer.
+
+## Found on the way, and decided
+
+- *`test-scm.R`'s substepped share needs no change.* Under A it fell to 0.46
+  (coupled steps ended at each of the sine's 601 knots). Under C those steps
+  substep instead, and the share rises to 0.952 (> 0.5). The test is unchanged.
+- *The ladder's seasonal reference could not be recaptured on its old
+  instrument.* `ladder_run_difference_pair` pins the base run's times alone, a
+  grid that `step_to` takes with the soil coupled. Once the base substeps (every
+  seasonal step spans one of the sine's 200 knots), the pinned runs step the
+  soil coupled at the base's long steps, past its stability, and the census
+  collapsed to ~1e-9 without a refusal (the hazard `design-soil-alone.md` names
+  for a times-only replay). Where the base substepped, the helper now pins its
+  whole program (times, sizes, input slopes, substep ends), as the sweep
+  differentiates it; the other four regimes substep nothing and difference as
+  before. Recaptured on `PLANT-105` (seasonal moves up to 0.035 of a metric's
+  scale, 2.theta's leaf_area; the sweep then agrees to 6.2e-7) and again inside
+  the rebase on `PLANT-108`'s re-bless commit, which captures the whole file on
+  the spread (seasonal moves up to 0.121 there; the sweep agrees to 6.5e-7).
+- *The water-balance sums do not close without the knot stops.*
+  `sum_rainfall`, `sum_infiltration`, `sum_drainage` and
+  `sum_resource_depletion` are main-step states read at the stages; on a step
+  that spans a knot the soil takes the rain between stages and they do not. On
+  `S_free_dry` the main steps' quadrature of the rain is 15.61 against 16.11
+  (−3.1%; episodic −0.01%). `test-tf24-water-budget.R` ("rainfall driver is
+  floored at zero", every control point a knot) failed by 2.8e-5 of 0.99; it now
+  stops at each knot (in the change commit), and NEWS says a run whose budget
+  must close keeps the stops. The cure is to integrate the sums with the soil
+  (make them part of the subsystem, with their inputs); that moves every
+  substepped run, G1's port parity included, so it is left as a follow-up.
+- *The toy at the share 0* (`toy.R`): the free run's error falls with the
+  tolerance (9.4e-4, 1.8e-5, 3.8e-6 at 1e-4, 1e-5, 1e-6 in absolute terms, on
+  a population that grows to 242), 4–24× the stopped run's but within the
+  tolerance relative to the state.
+
+## What the harness must change (plant-dev, not committed here)
+
+- `harness/long_drought.R`: `run_J(stops = AK)` defaults to the knots; drop
+  them (`stops = numeric(0)`), keeping `pulse_rows` for a ladder's shared grid.
+  `active_knots()` stays for the readings (`gate.R`, `knot_split.R`).
+- Every `events(events_default(p), pulse_rows(sort(unique(active_knots(…)))))`
+  becomes `events(events_default(p))`: `run_record.R:117`, `regnans_solvers.R`,
+  `equilibrium_replay.R`, `curvature.R`, `replay_timing.R`, `invader_nodes.R`,
+  `pilot_window.R`, `crown_eta.R`, `invader_window.R`, `v12_steps.R`,
+  `walk_identity.R`, `equilibrium.R`, `layer_heights.R`, `first_panel.R`, and
+  the scratch `adjmap/adj_run.R` (as `adj_run_S.R`'s `KNOTS=0`).
+- *Pins must carry the soil's records.* Without the knot stops a run at the
+  share 0 substeps every step across a knot, so a program pinned by times and
+  sizes alone (`equilibrium_replay.R`, `curvature.R`, `invader_window.R`,
+  `run_record.R`) is refused by the setter; pin `ode_soil_input_slopes` and
+  `ode_soil_substep_ends` with them, as `adj_run.R`'s `PIN` does. A pin of times
+  alone (`step_to`) takes those steps coupled, past the soil's stability.
+- A reading of the water-balance sums needs the stops kept (above).

@@ -57,3 +57,13 @@ spell_inset <- function(S, case, d = 12) { et <- edge_table(case); o <- et$b[et$
     L <- c1 - a; h <- L / (length(i) - 1); keep[i] <- FALSE
     add <- c(add, if (L <= 2 * d) (a + c1) / 2 else seq(a + d, c1 - d, length.out = ceiling((L - 2 * d) / h - 1e-9) + 1)) }
   sort(c(S[keep], add)) }
+# The lead's fixed inset: every edge node (before 25) moves d days into its spell; a spell
+# shorter than 2d keeps one node at its centre; a non-edge node inside the d-day strip next
+# to an edge is dropped; everything else is unchanged.
+inset_rule <- function(S, case, d = 12) { et <- edge_table(case); S <- sort(S); ie <- vapply(et$b, function(x) { j <- which.min(abs(S - x)); if (abs(S[j] - x) < 1e-6) j else NA_integer_ }, 1L); stopifnot(!anyNA(ie))
+  half <- ifelse(et$spell < 2 * d + 1, et$spell / 2, d) / 365;  # a spell under 2d + 1 day: one centre node, not two nodes under a day apart
+  tgt <- et$b + ifelse(et$opening, half, -half)
+  lo <- pmin(et$b, tgt); hi <- pmax(et$b, tgt); edge <- seq_along(S) %in% ie
+  strip <- vapply(seq_along(S), function(i) !edge[i] && any(S[i] > lo - 1e-9 & S[i] < hi + 1e-9), TRUE)
+  out <- sort(c(S[!edge & !strip], tgt)); out <- out[c(TRUE, diff(out) > 1e-6)]
+  attr(out, "dropped_interior") <- sum(strip); out }

@@ -889,3 +889,33 @@ Agent P (systematic debugging, `round4/P/notes.md`; 14 real runs on lib19):
 - **Caveat:** measured on lib19's instantaneous establishment gate; the averaged gate
   (`b3a33626`, branch `establishment-window`, not on the PLANT-105..110 stack) reshapes
   the strip near each edge.
+
+### The 12-day inset as a pair on all ten (P, task 2)
+
+a09's committed and check schedules with each edge node before 25 moved 12 days into
+its spell (a spell under 25 days keeps one centre node), scored as a09 scores, lib19,
+proper setting: **ten of ten pass, every commit decision as a09's**; nodes 1644 → 1507
+(committed), 2297 → 2160 (checks); worst committed error 0.28–0.55ε against a09's
+0.41–0.95ε, rms lower on 9 of 10 (episodic-lma, committing fine, 0.235 against 0.218).
+
+| case | T a09 → inset | worst a09 → inset |
+|---|---|---|
+| episodic | 720 → 701 | 0.76 → 0.28 |
+| dry | 1241 → 1088 | 0.94 → 0.34 |
+| long-wet | 1470 → 1364 | 0.50 → 0.36 |
+| long drought | 1423 → 1295 | 0.57 → 0.37 |
+| episodic-lma | 755 → 747 | 0.41 → 0.45 |
+| dry-flat | 1955 → 1612 | 0.95 → 0.55 |
+| ld-102 | 1281 → 1173 | 0.46 → 0.42 |
+| ld-105 | 1286 → 1164 | 0.43 → 0.33 |
+| dry-p50 | 1278 → 1119 | 0.93 → 0.34 |
+| wet-adG2 | 1507 → 1400 | 0.57 → 0.45 |
+
+T 5194 on the training five (−7.4%), 11663 on all ten (−9.7%), rows model; real CPU did
+not show it because the inset runs ran beside a build (CPU per row 3–32% above a09's).
+The check's read is now less a single shrink: leaf quantities (a, curv_fact_elec_trans,
+k_I, jmax_25, lma) shrink faster than s and are over-read ×1.3–1.4 (episodic-lma's two C3
+misses, safe side); hydraulic ones (root_P50, storage_relaxation_offset) barely shrink and
+are read at 0.4–0.5 — the 12-day strips' shared residual (dry-flat's one C3 miss: root_P50
+−0.40ε read −0.13). With the worst errors halved, widening the interior spacing about
+×1.3 is the next margin to spend.
