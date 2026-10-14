@@ -417,3 +417,21 @@ drought, T 12826 against a09's 13609 there (−5.8%).
 quantities at most 0.031ε and ld-105's at most 0.087ε (TF24_cost_scale) from the
 no-splits references. All three long-drought references stand. a09 with splits on long
 drought passes, coarse, T 2514 against 2513 (R2 holds for a09).
+
+**Root cause (agent D, `../round3/D/notes.md`): a stiff top soil layer under explicit
+steps.** Heavy rain on a nearly saturated top layer makes ∂rate₁/∂θ₁ about −1e4 to
+−3.6e4 /yr; RKCK's multiplier exceeds 1 past h·μ < −3.73, and the controller rides that
+limit, so over each pulse the forward map is briefly chaotic: J is unaffected but its
+exact derivative is a product of per-step factors up to 1e8–1e10. The sweep is a correct
+transpose (forward tangent 66.4978 against 66.50), central differences on the pinned
+steps give the sane 60.36 at every scale, and a 1e-10 trait nudge diverges θ₁ from 1e-12
+to 0.025 within 0.015 y. Every bad run errs along one trait direction (correlation
+0.988–0.9996). 2 of 62 saved long-drought runs blew up badly, 1 mildly. Agent D's fix
+caps an unsplit RKCK step at 3/stiffness (local branches `D-soil-stability`, not pushed):
+a10s 2186 → 60.37, within 0.027ε of a09s; the three tolerance nudges within 0.13ε.
+
+Long drought is the one record run without the soil's own substeps (SHARE empty; every
+other record runs SHARE=0.1). Before taking new code, registered: with SHARE=0.1 (and
+splits), the a10s schedule and the n1 job (tolerance 1.05e-4) land within 0.15ε of a09s
+on every quantity, so the existing soil substeps already carry the stiffness; if either
+blows up, the step cap is needed.
