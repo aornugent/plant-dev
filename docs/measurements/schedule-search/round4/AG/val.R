@@ -1,6 +1,6 @@
 # val.R CASE...: on each case, a09's pair and the inset pair scored as loc/val.R scores
 # (ALG a09_late's shrink from the pilot proxy, R = 1.6, C1-C5), on both gates: lib19
-# runs against lib19 references, libAG runs (AG_a09c/f, AG_insc/f) against the libAG
+# runs against lib19 references, libAG runs (AG_a09c/f, AG_insc/f, AG_mid/midf) against the libAG
 # reference. The gate's window column is set aside (both gates score the same set).
 source("/home/user/plant-dev/docs/measurements/schedule-search/round4/AG/lib.R")
 M19 <- function(cs, k) { x <- tryCatch({ a <- quantities(ag_run(sprintf("P_in10_%s", cs))); b <- quantities(rd_run("a09", "c", cs)); (a[k] - b[k]) / eps_vec(k) }, error = function(e) NULL); x }
@@ -9,7 +9,9 @@ for (cs in commandArgs(TRUE)) {
   pairs <- list(lib19_a09 = list(rd_run("a09", "c", cs), rd_run("a09", "f", cs), r19),
                 lib19_ins = list(tryCatch(ag_run(sprintf("P_insc_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("P_insf_%s", cs)), error = function(e) NULL), r19),
                 libAG_a09 = list(tryCatch(ag_run(sprintf("AG_a09c_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("AG_a09f_%s", cs)), error = function(e) NULL), rAG),
-                libAG_ins = list(tryCatch(ag_run(sprintf("AG_insc_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("AG_insf_%s", cs)), error = function(e) NULL), rAG))
+                libAG_ins = list(tryCatch(ag_run(sprintf("AG_insc_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("AG_insf_%s", cs)), error = function(e) NULL), rAG),
+                lib19_mid = list(tryCatch(ag_run(sprintf("P_mid_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("P_midf2_%s", cs)), error = function(e) NULL), r19),
+                libAG_mid = list(tryCatch(ag_run(sprintf("AG_mid_%s", cs)), error = function(e) NULL), tryCatch(ag_run(sprintf("AG_midf_%s", cs)), error = function(e) NULL), rAG))
   if (!is.null(rAG)) cat(sprintf("%s libAG reference own estimate %.2f eps\n", cs, attr(rAG, "own")))
   for (nm in names(pairs)) { p <- pairs[[nm]]; if (is.null(p[[1]]) || is.null(p[[3]])) next
     if (is.null(p[[2]])) { e <- err_of(p[[1]], p[[3]]); m <- M19(cs, names(e))

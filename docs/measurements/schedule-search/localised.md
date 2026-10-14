@@ -919,3 +919,17 @@ misses, safe side); hydraulic ones (root_P50, storage_relaxation_offset) barely 
 are read at 0.4–0.5 — the 12-day strips' shared residual (dry-flat's one C3 miss: root_P50
 −0.40ε read −0.13). With the worst errors halved, widening the interior spacing about
 ×1.3 is the next margin to spend.
+
+## The rain's knots, the soil's to land: landed (14 October)
+
+aornugent/plant#111, on `ODELIA-55` (cb4d262) and `PLANT-105` (213b7a3b), the stack
+`PLANT-106..110` rebased and pushed (`round4/S/notes.md`): every step that spans a knot of
+the rain substeps the soil, whatever the uptake share, so a run on a variable record needs
+no knot stops. With a09's committed schedule at 1e-4, no stops, against the knot-stopping
+run: rows 0.758 (dry), 0.731 (long-wet), 0.900 (episodic), 0.746 (long drought); largest
+moves 0.23ε, 0.02ε, 0.10ε, 0.06ε; rain quadrature exact. Run library: `adjmap/libS`.
+The harness still passes knot pulses (plant-dev `harness/long_drought.R`, `run_record.R`
+and the rest listed in `round4/S/notes.md`); kept, they make libS bit for bit with lib19,
+so the optimisation thread moves to libS without them when it next rebases its baseline.
+Open: the water-balance sums are still the main step's (dry's rain quadrature on the main
+step −3.1% without stops).

@@ -298,3 +298,14 @@ commit reports +1.26% converged on this stand), E opening 10–90% median 35.0 d
 0.08 d), E against the filtered lib19 pilot rms 0.007; g-edges from E: 106 of the
 pilot's 106 (median 0.00 d, one at 4.8 d). a09 c error: worst 0.55 (a_l1), rms 0.180,
 ln J −0.116 (lib19: 0.57 / 0.172).
+
+### Episodic-lma (libAG)
+
+Reference (u215, u429) own estimate **0.32ε**, looser than dry's and long drought's
+(0.13, 0.14): errors under ~0.3ε on this case are within the reference's own error.
+AG_a09c_episodic-lma: worst 1.40 (TF24_cost_scale), rms 0.737, ln J −0.373 (lib19 c 1.29
+/ 0.690): a09 commits fine there under both gates. Its committed error is not the edge
+mechanism (P's inset c on lib19 is 1.24 / 0.655 too).
+
+Not run: the episodic references (u215/u429). The budget went to the rule pairs; no
+episodic run uses them.

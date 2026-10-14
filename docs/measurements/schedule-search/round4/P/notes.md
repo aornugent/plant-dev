@@ -314,3 +314,30 @@ mixed-shrink read. The cheaper lever is the margin: worst errors now 0.28–0.55
 a09's 0.41–0.95, room to widen the interior spacing (BG) by about ×1.3 under the square law.
 
 Real runs for task 2: 20 (all completed).
+
+## Task 3: the inset pairs at tolerance 3e-4, all ten (then, if 10/10, spend the margin)
+
+Same schedules as task 2 (`ins{c,f}_<case>.rds`, copied to `ins3{c,f}_`), TOL=3e-4,
+lib19, proper setting; runs `P_ins3{c,f}_<case>`, two at a time. Comparators: a10 at 3e-4
+(a10h: T 10881 all ten, 4885 training; dry and episodic-lma commit fine) and the inset at
+1e-4 (11663 / 5194). Registered before the runs:
+- R1: ten of ten pass (60%). The risk is the hydraulic direction: at 3e-4 the tolerance
+  error lies along stem_c / TF24_cost_scale / storage_relaxation_offset (round 3 A), shared
+  by both runs and unread, on top of the inset's shared strip residual that already reads
+  root_P50 at 0.3–0.5. If a case fails, it is C3 (or C2) on a hydraulic quantity, most
+  likely dry-flat or ld-102.
+- R2: dry commits coarse at 3e-4 (it committed fine under a09h and a10h), since the inset
+  halves its committed error (70%). Episodic-lma stays fine.
+- R3: T about 0.88 × the 1e-4 inset where decisions hold: all ten ≈ 10300 (−5% on a10h),
+  training ≈ 4600 (−6%); lower if dry commits coarse.
+
+Prepared for step (2), registered before any step (1) result: `mkwide.R F` rebuilds a09's
+c and f with BG = 90F, LAYER = 24/F, the founders' window spacing and cap b1/12 × F (the
+100 d / 280 d range caps unchanged), drops late edges, applies the 12 d inset. F = 1
+reproduces all twenty a09 schedules exactly. At F = 1.3 nodes fall only 4–9% against the
+inset (c: episodic 135→126, dry 149→141, long-wet 157→151, long drought 155→150,
+episodic-lma 120→114; held-out 4–7%), proxy error +20–36%, not ×1.69: most spells hold
+one or two intervals, so the per-spell ceiling absorbs most of the widening (dry's median
+open interval 72 → 78 d). Shrinks unchanged (0.34–0.43).
+- W1 (if run): T about −5% on the inset at the same tolerance; committed errors grow
+  ×1.2–1.35 (proxy), worst 0.34–0.55 → ≤ 0.75; passes five of five. The lever is small.

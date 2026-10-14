@@ -226,3 +226,26 @@ quantity moves past 0.23ε, the gate holds, nothing throws.
   `ode_soil_substep_ends` with them, as `adj_run.R`'s `PIN` does. A pin of times
   alone (`step_to`) takes those steps coupled, past the soil's stability.
 - A reading of the water-balance sums needs the stops kept (above).
+
+## Suites
+
+- *odelia* (libS, `ODELIA-55` at `cb4d262`, serial, 2.5 min): all pass but
+  `test-implicit-value.R`'s five, which fail to compile identically on the
+  unmodified base (`f19f7de` against lib19's odelia; GCC 13 and a braced
+  `std::span`). `test-substeps.R` 40 expectations (30 on the base; the two new
+  tests fail there), `test-tolerance-factors.R`, `test-step-adjoint*.R`,
+  `test-state-and-parameter-adjoints.R` and `test-split-sign-changes.R` pass.
+- *plant `PLANT-105`* (full serial sweep, `-O2`): 4771 passed; failures:
+  "mutant method works" (2, pre-existing since `PLANT-104`) and the
+  water-budget closure, then fixed in the change commit (the file passes).
+- *plant `PLANT-110`, rebased* (full serial sweep, `-O2`): 4819 passed, failed
+  only "mutant method works" (2, pre-existing). The FF16 guard
+  (`test-strategy-ff16.R`, `…-reference-comparison.R`), the ladder's whole-run
+  difference, the water budget and `test-scm.R` (all 221) pass.
+- *A sweep on a `-O0` build is not a reading.* After the rebases rewrote the
+  headers' mtimes, `load_all` recompiled `PLANT-110` unoptimised; that sweep
+  (`sweep_plant110_O0.log`) failed `test-scm.R`'s pinned step time (1e-9 off)
+  and the new test's 2e-5 (6.9e-5). Rebuilt at `-O2`, both pass.
+- *The new plant test fails on the base* (lib19, PLANT-110 + probe, odelia
+  `f19f7de`): knots not landed, J 2.2e-3 short coupled, spanning steps not
+  substepped.
