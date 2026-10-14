@@ -694,3 +694,16 @@ against root_P50, a_r1, a, curv_fact_elec_trans).
   agree with each other and one or both runs' elasticities are off (a derivative rule
   wrong at an event). Registered: (a) (65%), since J0 showed the answer is the steps'
   alone and agent D found (a)-type sensitivity at the soil's stability limit.
+
+**L2 result: the third outcome.** a09's schedule quartered on libAG converges: rms 0.044,
+max 0.16, along M −0.12 (u857: 0.047, −0.16). No biased limit; the halving's run (rms
+0.146, TF24_cost_scale 0.50) was the outlier, a jitter draw. Under both gates the node
+spacing converges at about second order; what does not is each run's jitter.
+**J13, J14:** the 30% lump lies in 9.678–9.753 (27 dry days with tolerance-set steps of
+1.5–5 d around the closing edge at 9.711; the inset node introduced at 9.678); 4% after.
+**J15 result: (a).** On its own pinned steps each run's reverse-mode elasticity of
+TF24_cost_scale matches the central difference (A 0.006ε, B 0.010ε apart) while A and B
+differ by 0.176ε. The derivatives are right; the discrete map's slope depends on where
+the steps fall. The tolerance bounds the states' error, not the derivative's, and the
+derivative's error concentrates at drying (closing edges), along one hydraulic
+direction.

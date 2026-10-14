@@ -972,3 +972,43 @@ score libAG runs).
   (≈ 0.55 × `establishment_window`). So no fixed distance serves both gates; the rule that
   holds in both is an inset that is error-free at each run's own spacing, untested as a pair
   (no libAG run below 10 d). dry-flat and dry-p50 were not run under the gate, nor invaders.
+
+## The pair's misreads: one cause, step-sequence jitter in the derivative (14 October)
+
+Systematic debugging (`round4/X/`, `loc/prereg.md` X1–J15). Two failures: dry's inset
+pair at 3e-4 (sharp gate) and dry's pairs under the averaged gate.
+- **Both are jitter, not node error.** A ±5% tolerance nudge moves dry's committed run at
+  3e-4 by rms 0.048 (TF24_cost_scale 0.18ε), 2.7× the whole 1e-4 → 3e-4 change; under the
+  averaged gate at 1e-4 by rms 0.110 (TF24_cost_scale 0.42ε), 4× the sharp gate's jitter
+  at 1e-4 (0.02–0.03). The jitter has one direction across gates, layouts and tolerances
+  (cosines 0.81–0.97): TF24_cost_scale, stem_c, a_l1, R_d_25 against root_P50, a_r1, a,
+  curv_fact_elec_trans.
+- **The answer is the accepted steps' alone** (a replay on another run's steps reproduces
+  it exactly), and splicing two runs' steps locates the jitter in lumps that add: on dry
+  30% of it in the 27 dry days around one closing edge (b = 9.68–9.75), the rest in a few
+  other windows before b = 17; none in the founders' years, none after 17.
+- **The derivatives are right for the discrete map** (central differences on each run's
+  own steps match its reverse-mode elasticity to 0.006–0.010ε); the discrete map's slope
+  moves 0.18ε with the step sequence while ln J moves 3e-5ε. The tolerance controls the
+  states' error, not the derivative's, and the derivative's error concentrates where the
+  soil dries past a closing edge.
+- **The node spacing behaves alike under both gates.** One class of interval bisected at
+  a time (a09's committed run, dry): the classes add, and the intervals before a closing
+  edge carry most of the error along the edge direction (+1.04 sharp, +0.82 averaged;
+  after an opening edge −0.14 and −0.16, the wrong way; gaps nothing). Quartered, a09's
+  schedule converges under the averaged gate to rms 0.044 (the 857-node uniform ladder:
+  0.047). The halving's apparent first order under that gate was one jitter draw.
+- **Nesting is not the fix.** A nested check halves every interval and reads at s = 1/4;
+  it passes dry under both conditions (C3 7/8 averaged gate, 5/5 at 3e-4) but costs
+  T 1195–1431 against 962–1220, and reads nothing of the jitter.
+
+So what breaks the pair under either gate is an error source the check cannot read: the
+derivative's time-stepping error at drying events, uncontrolled by the forward tolerance
+and random in where the steps fall. The averaged gate raises it at 1e-4 as 3e-4 raises it
+under the sharp gate. What a schedule controls (node spacing) is gate-robust already.
+
+### The inset pairs without rain stops on all ten (libS, 1e-4)
+
+Nine of ten pass; dry-flat fails C3 5/7 on root_P50 (err −0.44, est −0.14: the strips'
+shared hydraulic residual) and a_dG2 (over-read). T **9193** on all ten and **3994** on the
+training five (a09 on lib19 12916 / 5609: −28.8% on both).
