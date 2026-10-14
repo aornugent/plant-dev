@@ -435,3 +435,17 @@ other record runs SHARE=0.1). Before taking new code, registered: with SHARE=0.1
 splits), the a10s schedule and the n1 job (tolerance 1.05e-4) land within 0.15ε of a09s
 on every quantity, so the existing soil substeps already carry the stiffness; if either
 blows up, the step cap is needed.
+
+**The soil's own substeps cure it, and halve long drought's CPU.** With SHARE=0.1 and
+splits (the setting every other record runs), the a10s schedule and the n1 job both
+return max |elasticity| 60.37 and land within 0.027ε and 0.029ε of a09s, at 77–78 s CPU
+against 158–161 s without. So the root cause of the blow-up is long drought's legacy run
+setting (no soil substeps, no splits), not missing code: the soil's own substeps take
+the stiff top layer off the main step. Agent D's step cap stays in reserve for a stiff
+step the substeps do not take (uptake share over 0.1 during heavy rain); its guard,
+the largest h·stiffness of a run, should be reported either way.
+
+Registered before rerunning a09 (both runs) and a10 (committed) on the three
+long-drought records with SHARE=0.1 and splits (lib19):
+- P1: every case passes, and every quantity lies within 0.15ε of its no-share run.
+- P2: T on each long-drought record falls to 0.45–0.6 of its no-share value.
