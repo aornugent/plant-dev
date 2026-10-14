@@ -58,3 +58,16 @@ claim is half right: they do shorten steps, about 2× by the error ratio, and th
 - E3 still worth one run: after 25 the tolerance weight is 2–100, so a wrong late water
   input reaches the quantities 2–100× less. Re-registered given E2: rows fall 15–22%;
   moves under 0.33ε (ε/3), central 0.15ε; if over ε/3, the knot line is closed.
+
+**E3 (`E_k25_dry`, knots before 25 only) fails ε/3.** (A first attempt died in the sweep:
+I edited `adj_run_E.R` while Rscript was still reading it; `one_E.sh` now runs a copy.)
+Rows 0.812, CPU 0.759 (fwd 63/77 s, sweep 188/254 s), steps 5585 → 4910, ln J moves
+0.054ε, but elasticities move up to 0.73ε (TF24_cost_scale −0.73, root_P50 +0.51 taking
+its error to 0.98ε, a_r1 +0.48), rms 0.23ε. The late window weight (2–100) does not
+shield the quantities from a water input the controller cannot see: the error is not a
+tolerance error, so loosening the tolerance does not scale it. The knot line is closed.
+
+- E4 (`E_k0f5_dry`, forward only, no knots, tolerance 1e-5): J stays under 1.10
+  (against 1.191 with knots and 0.984 without at 1e-4), i.e. a tenfold tighter
+  tolerance recovers under half the gap. If it holds, the controller is blind to the
+  forcing between stages and a run without knot stops is silently wrong.
