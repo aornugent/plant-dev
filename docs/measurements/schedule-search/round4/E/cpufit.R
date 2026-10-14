@@ -1,0 +1,15 @@
+# Real CPU against rows and steps across saved val runs: is there a per-step cost the rows model misses?
+source("/home/user/plant-dev/docs/measurements/schedule-search/round4/E/common.R")
+fs <- list.files(AR, "^val_.*\\.rds$", full.names = TRUE)
+d <- do.call(rbind, lapply(fs, function(f) { x <- tryCatch(readRDS(f), error = function(e) NULL)
+  if (is.null(x$stand$rows) || is.null(x$sweep_cpu)) return(NULL)
+  e <- x$setting$env; data.frame(f = basename(f), share = e[["SHARE"]], split = e[["SPLIT"]], tol = x$setting$tol, lib = basename(e[["LIB"]]),
+    rows = x$stand$rows, steps = length(x$stand$times), nodes = length(x$node_times), fwd = x$stand$cpu, sweep = x$sweep_cpu, started = x$started) }))
+saveRDS(d, file.path(EO, "cpufit.rds"))
+p <- subset(d, share == "0.1" & split == "1")
+cat("runs in proper setting:", nrow(p), "\n")
+print(summary(lm(fwd ~ 0 + rows + steps, p))$coef); print(summary(lm(sweep ~ 0 + rows + steps, p))$coef)
+p$tot <- p$fwd + p$sweep; print(summary(lm(tot ~ 0 + rows + steps, p))$coef)
+cat("model per row (fwd, total):", 113e-6, 113e-6 * 4.27, "\n")
+cat("ratio real/model total: "); print(summary(p$tot / (p$rows * 113e-6 * 4.27)))
+cat("sweep/fwd: "); print(summary(p$sweep / p$fwd))

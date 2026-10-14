@@ -474,3 +474,9 @@ records in this setting:
 buggy-schedule runs); T within 1% except dry-flat (+2.2%, 8 nodes back). a10 final, long
 drought in the proper setting, fixed schedules: 10/10 pass, T 5385 on the training five
 (a09 5609, −4.0%) and 12277 on all ten (12916, −4.9%).
+
+**F2 holds: a09 at 3e-4 passes all three long-drought records in the proper setting**
+(long drought T 1228 against 1423 at 1e-4, ld-102 1124 against 1281 — its legacy-setting
+C3 failure is gone — ld-105 1136 against 1286; −12 to −14%). a09 at 3e-4 now passes ten
+of ten: T 5049 on the training five (a09 at 1e-4: 5609, −10.0%), 11410 on all ten
+(12916, −11.7%).
