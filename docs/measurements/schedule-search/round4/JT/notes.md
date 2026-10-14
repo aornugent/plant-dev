@@ -68,3 +68,32 @@ time) on the same steps. The pair differs only in the window's steps.
 - H2: |J13 − J12| along TF24_cost_scale falls from 0.065ε to ≤ 0.02ε (65%).
 - H3/H4 (residents' sign changes, soil stiffness: neither reads a_d0): it stays within
   ±30% of 0.065ε.
+
+### E2 result (JT2_J12_ad10, JT2_J13_ad10; `pair.R`)
+
+With a_d0 × 10 the window's splice difference along TF24_cost_scale falls from −0.0650ε
+to −0.0077ε (8.4×), rms over all quantities 0.0149 → 0.0017, same direction (cos 1.00).
+**H2 holds as registered; H3/H4's ±30% refuted.** Caveat found afterwards: a_d0 is not a
+clean toggle, because establishment weights feed the field (heights differ by up to
+0.13 between the a_d0 runs), so the stand itself changed. E3 removes the confound.
+
+## E3 (registered before the build): cut only the gate's derivative
+
+Scratch build libJTcut (`build_cut.sh`): lib19 with `establishment_probability`'s net
+production passed through to_passive, so the gate's value (and every forward number) is
+unchanged and only ∂g/∂P is dropped from the derivative. Replays on lib19's pinned steps.
+- Check: J of the J12 splice equals lib19's to the last digit.
+- E3a (J12, J13 splices): H2 says the window's difference along TF24_cost_scale falls from
+  0.065ε to ≤ 0.01ε (70%). Refuted (H3/H4 or another path) if ≥ 0.045ε remains.
+- E3b (A, B whole runs): the share of the whole A − B (0.176ε along TF24_cost_scale; rms
+  0.048) that the gate's derivative carries. Registered: ≥ 60% of A − B along
+  TF24_cost_scale goes with the cut (the other lumps also sit at closing edges) (50%).
+
+## E4 (registered before the runs): resolve the gate's knee, keep everything else
+
+`mkfine.R`: the J12 and J13 splice pins with every step ending in (9.69, 9.72] cut into
+pieces of ≤ 0.1 d (5 steps each; +146 and +131 rows), lib19, unchanged model. Both runs
+then resolve the knee (g 0.95 → 0 over 9.695–9.711) and differ only in the steps of
+9.678–9.69 and 9.72–9.753, where nothing has an edge. H2: their difference along
+TF24_cost_scale falls from 0.065ε to ≤ 0.015ε (70%); the residents' crossings are also
+refined here, so E4 says what a fix buys, and E3 says whose derivative it is.
