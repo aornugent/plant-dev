@@ -678,3 +678,19 @@ step-sequence jitter: **the two failures share a cause, the answer's sensitivity
 where steps fall**, which the averaged gate raises at 1e-4 as 3e-4 raises it under the
 sharp gate. Splices J10, J12: the 34% lump on dry at 3e-4 lies in 9.68–10.04 (nothing
 in 9.15–9.68), which starts at the closing edge at 9.711.
+
+**N6 and the sharp gate's residual:** halving a09's committed run shrinks its error 3.47×
+(rms; second order 4×) and leaves rms 0.057 unreached (the sharp gate's own jitter
+level); under the averaged gate 1.54× and 0.149. The classes add on both gates
+(sums +1.09 and +0.43 against the halvings' +1.28 and +0.49 along M), and on both the
+intervals before a closing edge carry most of it. **The jitter has one direction**: the
+averaged gate's nudge and the sharp gate's 3e-4 nudges have cosines 0.97 and 0.81, and
+the 9.68–9.75 lump −0.93 and −0.95 against them (TF24_cost_scale, stem_c, a_l1, R_d_25
+against root_P50, a_r1, a, curv_fact_elec_trans).
+- J15 (registered before the runs): central differences of ln J along TF24_cost_scale
+  (×(1 ± 1e-4)) on the pinned steps of the committed inset run at 3e-4 (A) and at 2.85e-4
+  (B), forward only. Either (a) each matches its own run's elasticity (the discrete map's
+  slope depends on where the steps fall: a sensitivity of the forward), or (b) the two
+  agree with each other and one or both runs' elasticities are off (a derivative rule
+  wrong at an event). Registered: (a) (65%), since J0 showed the answer is the steps'
+  alone and agent D found (a)-type sensitivity at the soil's stability limit.
