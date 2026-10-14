@@ -97,3 +97,60 @@ then resolve the knee (g 0.95 → 0 over 9.695–9.711) and differ only in the s
 9.678–9.69 and 9.72–9.753, where nothing has an edge. H2: their difference along
 TF24_cost_scale falls from 0.065ε to ≤ 0.015ε (70%); the residents' crossings are also
 refined here, so E4 says what a fix buys, and E3 says whose derivative it is.
+
+### E3a result (JT3_J12_cut, JT3_J13_cut): H2 refuted as the carrier
+
+libJTcut reproduces lib19's J to 15 digits. With the gate's derivative cut, the window's
+splice difference along TF24_cost_scale **grows** from −0.065ε to −0.161ε (rms 0.015 →
+0.042, cos 0.93 with the default pair). The gate's own path carries +0.095ε, opposite in
+sign: it offsets part of a larger jitter that lives elsewhere. E2's collapse under
+a_d0 × 10 was the confound (a_d0 moves the stand through the establishment weights).
+Not H1, not H2. Remaining: H3 (residents crossing zero), H4 (stiffness), or another.
+The traces point at the state adjoint: at 9.678 the top soil's λ differs A − B by 0.9%,
+every node entry by ≤ 3e-4; the residents' storage λ reaches −6000 mid-window.
+
+## E5 (registered before computing; no run, states from JT1_A/JT1_B): a stiff mode?
+
+At each recorded state in the window, the rates' state Jacobian (forward tangent,
+`ladder_rhs_state_jacobian_forward_tf24`), its eigenvalues μ, and z = h·μ for the step
+taken from that state. RKCK's real stability limit is z ≈ −3.73.
+- H4-like (a stiff mode under explicit steps): some |z| ≥ 2 in the window's long steps
+  (1.5–5 d), the mode localised on soil (H4) or on nodes' storage (a storage pool with
+  tiny capacity relaxing in hours), and A's and B's z differ in which steps cross −3.73.
+- If every |z| < 1 the window is non-stiff and the sensitivity is a resolution effect of
+  the residents' sign changes (H3).
+
+### E5 result (`e5.R`): no stiff mode
+
+Over the window max |h·μ| is 1.1 (stiffest mode the seedling node's mortality/height/
+storage, μ ≈ −60…−125 /yr); nothing near RKCK's −3.73. **H4 out**; storage is not stiff.
+
+### What the fine grid shows instead (`kink.R`, `switch.R`, JT1_A fine states)
+
+Every resident's leaf switches from an Interior optimum to BoundaryCrit (psi_stem pinned
+at psi_crit = 5.9199) during the drydown: 8 nodes in 9.6990–9.7023, then **48 of 56
+within 0.44 d, 9.70296–9.70417**; all switch back at 9.758 after the rain. At the
+switch the collar's slope drops ×2.5–6 and log-transpiration's slope ×2.5 (kinks in the
+forward). The rates' TF24_cost_scale column (forward tangent) shows what that does to the
+derivative: the top soil layer's rate sensitivity steps down 0.0159 → 0.0091 → 0.0036 →
+0.0008 → exactly 0 across 9.7028–9.7042 (each switched node's uptake stops reading the
+cost scale), while each node's storage (net production) sensitivity is smooth through
+it (the optimised profit is continuous in θ, by the envelope theorem; transpiration, the
+argmax, is not). So the derivative's integrand jumps where the forward only kinks, at
+times no step boundary marks: the splits stop at net production's zero, and the cluster
+lies inside A's step 9.7012–9.7066 and B's 9.7022–9.7083. A jump inside a step is
+integrated with an O(h·jump) error that depends on where the stages fall; the forward's
+kink costs O(h²), within the tolerance. TF24_cost_scale, stem_c, a_l1, R_d_25 (traits
+that set the interior optimum) against root_P50, a_r1, a (the hydraulic bound) is the
+jitter's direction, which is the Interior / BoundaryCrit divide.
+
+## E6 (registered before the runs): put step boundaries on the switches only
+
+`mkstops.R`: the J12 and J13 splice pins with their boundaries in [9.6975, 9.70417]
+replaced by exactly 9.6975, 9.70296, 9.70417 in both (first switch at 9.69796), nothing
+else changed. All 56 switches then fall in two steps (1.99 d and 0.44 d) the two runs
+share; the gate's knee (g 0.87 → 0 over 9.703–9.7106) stays mostly on each run's own
+steps, which still differ (A 0.88, 1.47, 1.50 d; B 1.51, 1.87 d).
+- Arm switch is the carrier: the window difference along TF24_cost_scale falls from
+  0.065ε to ≤ 0.015ε, and rms over quantities from 0.0149 to ≤ 0.005 (70%).
+- If ≥ 0.045ε remains, the switches are not the carrier (the gate's knee or another).
