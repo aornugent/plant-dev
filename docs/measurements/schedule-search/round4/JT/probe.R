@@ -41,7 +41,6 @@ types <- plant:::extract_RcppR6_template_types(p, "Parameters")
 env0 <- mkenv(scen)
 scm <- do.call(plant:::SCM, types)(p, env0, ev, ct)
 scm$record_trajectory <- TRUE
-scm$collect <- TRUE
 cpu <- function() sum(proc.time()[c("user.self", "sys.self")])
 c0 <- cpu(); scm$run()
 out <- list(J = sum(scm$offspring_production), J_saved = base$J,
@@ -54,18 +53,18 @@ nm <- plant:::census_trait_names_tf24(scm)
 ic <- which(nm == "1.TF24_cost_scale")
 rows <- scm$store_trajectory()
 tt <- vapply(rows, `[[`, 0, "time")
-# The patch at the first introduction after the window: it carries the window's nodes.
-hist <- scm$history
-ht <- vapply(hist, function(h) h$time, 0)
-hp <- hist[[which(ht > win[2])[1]]]
+# A patch carrying the window's nodes: those born before the window's end, introduced
+# at their birth dates into a fresh patch, whose state is then loaded row by row.
+hp <- do.call(plant:::Patch, types)(p, mkenv(scen), ct)
+born <- times[times <= as.numeric(Sys.getenv("BORN", "9.70"))]
+for (b in born) hp$introduce_new_node(1, b)
 width <- hp$ode_size
 nn <- hp$species[[1]]$size
 onames <- hp$species[[1]]$new_node$ode_names
 out$node_times <- hp$species[[1]]$node_times
 out$ode_names <- onames
-out$hist_time <- hp$time
 nsoil <- env0$get_soil_number_of_depths()
-cat(sprintf("history patch at %.6f: %d nodes, width %d; ode names %s\n", hp$time, nn, width,
+cat(sprintf("patch: %d nodes, width %d; ode names %s\n", nn, width,
             paste(onames, collapse = " ")))
 
 read_state <- function(state, time, jac = TRUE) {
