@@ -203,7 +203,11 @@ see is refined inside the step, never by shortening it.
 Kept true by:
 - plant's control passes one weight per state (the tolerance weights times the
   window's weight), and odelia's controller takes no cap;
-- the knots stay step targets, which land steps rather than shorten them;
+- the rain's knots are the soil's to land, inside the step: its substeps stop at
+  them, and a step spanning one substeps the soil (aornugent/plant#111). As step
+  targets they did shorten steps, about 2×, and set half of every run's rows; a
+  step that spans one without landing it misplaces the rain, unseen by the error
+  estimate (`docs/measurements/schedule-search/round4/{E,G,R}/`);
 - splits live inside `Step` and have no handle on the global step's size.
 
 Phase 1c keeps the 15-day cap, plant's `ode_step_size_max`. It is the one bound
@@ -1095,6 +1099,16 @@ after the events reply):
    - *The distance:* each invader's ln(θ′/θ) per parameter it moves, from the
      resident whose recording it walks. The radius is unmeasured (R6), so it is
      reported, not compared.
+   - *A use's distance from its grid:* a run at θ on a grid built at θ₀ (a *use*:
+     an analysis's later resident run, replaying θ₀'s committed schedule) reports
+     d = |ln J(θ) − ln J(θ₀)|, with ln J(θ₀) and its error estimate carried by the
+     grid from the run that built it. The grid's check holds for the use while
+     d ≤ d*; past it the analysis rebuilds the grid at θ (R6's "big moves rebuild
+     the grid"). d* is 0.5 for now: on a09's grids θ₀'s estimate transferred at
+     d = 0.19 (root_P50 ×1.2) and misread at 0.73–1.11 (`lma` ±10%, a use erring
+     1.34ε on a_l1 where the find reported 0.85) and 4.15 (×1.25)
+     (`docs/measurements/schedule-search/round4/F/`). The rule is the workflow's;
+     plant reports d against d*, and regnans decides the rebuild.
    - *The failures:* each run, walk or sweep that throws or is refused is a row,
      with its quantities `NA`, rather than a throw.
    - *Dropped* (the user): the chain's error, which item 5's gates hold inside
@@ -1107,9 +1121,13 @@ after the events reply):
      sane. Plain control, the cap and the bound alone are fine, and so is
      `3e-4`; at rain 1 it is −2.8e24 at `1e-3` and −31 at `6e-4`. The soil
      stepped alone, now `control_tf24()`'s default, removes it at every
-     tolerance tried. No refusal fires. Not root-caused; the hypothesis is steps
-     held at the soil's stability edge, where the error test bounds the forward
-     and nothing bounds the sweep.
+     tolerance tried. No refusal fires. *Root-caused since* (long drought,
+     `docs/measurements/schedule-search/round3/D/notes.md`): a stiff top soil
+     layer under heavy rain, with Cash–Karp riding its stability limit, makes the
+     forward map briefly chaotic, so J holds while its exact derivative is a
+     product of per-step factors up to 1e10. The soil stepped alone cures it; a
+     run should still report its largest h·stiffness, over 3.73 meaning a step
+     ran unstable.
 
 *From here,* with the split closed out (`design-sign-changes.md` §9):
 1. Item 7's setting (7.1), since item 5 takes it as its baseline and the bank's
