@@ -14,7 +14,7 @@ tol <- as.numeric(Sys.getenv("TOL", "3e-4")); atol <- 1e-4
 scen <- sprintf("%s, seed %d", regime, seed)
 RAIN_SPECS[[scen]] <- modifyList(RAIN_SPECS[[regime]], list(seed = seed))
 knots <- active_knots(scen)
-times <- readRDS(file.path(S, "P_out/sched/ins3c_dry.rds"))
+times <- readRDS(Sys.getenv("TIMES", file.path(S, "P_out/sched/ins3c_dry.rds")))
 out_file <- Sys.getenv("OUT")
 win <- as.numeric(strsplit(Sys.getenv("WIN", "9.60,9.80"), ",")[[1]])
 
@@ -22,10 +22,13 @@ p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
 p <- add_strategies(p, trait_matrix(LMA0, "lma"))
 p$node_schedule_times <- list(times)
-pinned <- readRDS(Sys.getenv("PIN"))
-base <- pinned$stand
-p$ode_times <- base$times; p$ode_step_sizes <- base$sizes
-p$ode_soil_input_slopes <- base$input_slopes; p$ode_soil_substep_ends <- base$substep_ends
+base <- list(J = NA)
+if (nzchar(Sys.getenv("PIN"))) {
+  pinned <- readRDS(Sys.getenv("PIN"))
+  base <- pinned$stand
+  p$ode_times <- base$times; p$ode_step_sizes <- base$sizes
+  p$ode_soil_input_slopes <- base$input_slopes; p$ode_soil_substep_ends <- base$substep_ends
+}
 ct <- control()
 ct$ode_tol_rel <- tol; ct$ode_tol_abs <- atol * tol
 ct$node_density_in_birth_date <- TRUE
@@ -44,7 +47,11 @@ scm$record_trajectory <- TRUE
 cpu <- function() sum(proc.time()[c("user.self", "sys.self")])
 c0 <- cpu(); scm$run()
 out <- list(J = sum(scm$offspring_production), J_saved = base$J,
-            same_times = isTRUE(all.equal(scm$ode_times, base$times, tolerance = 0)), fwd_cpu = cpu() - c0)
+            same_times = isTRUE(all.equal(scm$ode_times, base$times, tolerance = 0)), fwd_cpu = cpu() - c0,
+            times = scm$ode_times, attempts = scm$ode_step_attempts,
+            op_counts = tryCatch(setNames(plant:::census_operating_point_counts_tf24(scm)[[1]],
+                                          plant:::census_operating_point_names_tf24()), error = function(e) conditionMessage(e)))
+if (Sys.getenv("STOPONLY") == "1") { if (nzchar(out_file)) saveRDS(out, out_file); print(out$op_counts); print(out$attempts); cat(sprintf("J %.15g, %d steps\n", out$J, length(out$times))); quit(save = "no") }
 sv <- function() if (nzchar(out_file)) saveRDS(out, out_file)
 cat(sprintf("J %.15g saved %.15g; same times %s; %.0f s\n", out$J, base$J, out$same_times, out$fwd_cpu))
 sv()
@@ -83,6 +90,9 @@ read_state <- function(state, time, jac = TRUE) {
               seed_P = nb$aux("net_mass_production_dt"), seed_collar = nb$aux("opt_root_psi"),
               seed_E = nb$aux("transpiration"),
               seed_pe = nb$establishment_probability(en),
+              arm_dry = if ("arm_margin_dry" %in% nodes[[1]]$individual$aux_names) aux("arm_margin_dry"),
+              arm_wet = if ("arm_margin_dry" %in% nodes[[1]]$individual$aux_names) aux("arm_margin_wet"),
+              arm_kind = if ("arm_margin_dry" %in% nodes[[1]]$individual$aux_names) aux("arm_kind"),
               est_w = sp$establishment_weights)
   if (jac) {
     J <- plant:::ladder_rhs_trait_jacobian_forward_tf24(hp)

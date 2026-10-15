@@ -213,3 +213,141 @@ production's zero, the forward's tolerance sees only a kink. RKCK integrates the
 with an O(h) error set by where the stages fall, which is the jitter; ln J, the forward,
 carries O(h²) and moves 1e-3ε. Bracketing the cluster with two step boundaries removes
 it (E6, 36×; matches a 0.1-d refinement within 0.002ε).
+
+# Part 2 (15 October): detect the arm switch, stop the step there (plant#112)
+
+## The scalar (read from phylloptim, before any run)
+
+`Leaf::maximise_profit_over_collar` classifies from the marginal profit dprofit/dcollar
+at the two ends of the feasible collar interval, which it evaluates on every solve:
+f_lo at the wet end (root_zero_E) and f_hi at the dry end (psi_stem = psi_crit, or the
+root's 5% potential). Interior ⇔ f_lo > 0 > f_hi; BoundaryCrit (or BoundaryRootCrit) ⇔
+f_hi ≥ 0; BoundarySoil ⇔ f_lo ≤ 0. So the switch Interior → BoundaryCrit is f_hi's zero,
+and f_hi is a marginal evaluated at a bound that moves smoothly with the soil and the
+traits, whichever arm wins: smooth through the switch. f_lo plays the same part for
+BoundarySoil. Neither is kept today; Determined, HydraulicShutdown and the infeasible
+exits never compute them.
+
+## The build (libJTstop; `build_stop.sh`, diff `JT_out/stop_plant.diff`)
+
+- phylloptim: `arm_margin_dry_` = f_hi, `arm_margin_wet_` = f_lo (NaN where no collar
+  solve ran, reset per solve and per replay).
+- plant: aux `arm_margin_dry`, `arm_margin_wet`, `arm_kind`; `Patch::sign_values` gives
+  net production for every node and then f_hi for every node (blocks n..2n−1; the splits
+  read only 0..n−1); `Patch::stop_fraction` runs odelia's own `taken_step::sign_changes`
+  rule (ends and four inner stages, the pair rule, regula falsi on the dense output in
+  the step's sampled field) on each node's f_hi block, skipping nodes with a non-finite
+  reading, and returns the first root in (1e-6, 1 − 1e-6), or the last when asked.
+- odelia `step()`: after a step is accepted and before its split, with JT_STOP=1, cut it
+  at that root and retake it (one retake per step); a step that was cut at its first
+  root makes the next step cut at its last (E6: bracketing a cluster is enough).
+  JT_STOP=0 detects and logs only (JT_STOP_LOG, JT_STOP_SCAN: 400-point scan of the
+  step's own dense output, JT_STOP_T0/T1 window). Pinned replays and the sweep are
+  untouched: a stopped run's steps are ordinary rows.
+
+## S1 (registered before the run): detection on A's own steps
+
+Inset schedule, dry, tol 3e-4, libJTstop, JT_STOP=0, forward only, logging 9.69–9.72.
+- Check: the run takes A's steps exactly (same J to 15 digits, same step count).
+- The step 9.70117 → 9.70658 holds 49 switches (E-switch.R: 48 in 9.70296–9.70417 plus
+  stragglers). The rule finds one root per switching node in it (≥ 95% of them), each
+  within 1e-3 of the step (≈ 8 min) of the 400-point scan's crossing; the scan finds one
+  crossing per node per step (no chatter).
+- f_hi's zero agrees with the arm switch from E-switch.R (psi_stem reaching psi_crit) to
+  the fine grid's 0.02-d resolution.
+- Other arms: census_operating_point_counts over the run. Registered: Interior and
+  BoundaryCrit dominate; BoundarySoil, Determined, HydraulicShutdown at most rare on dry.
+
+## S2 (registered before the runs): the stop in the whole-run nudges
+
+Sharp gate: inset committed schedule, dry, gradient, JT_STOP=1, tol 3e-4 and 2.85e-4
+(libJTstop). Averaged gate: a09's committed schedule (loc_a09_c_dry), dry, 1e-4 and
+1.05e-4 (libJTstopAG). Bar (the coordinator's): the nudge's rms move ≤ 0.03ε in both
+(now 0.048 sharp at 3e-4, 0.110 averaged at 1e-4). Registered: holds on the sharp gate
+(65%), holds on the averaged gate (50%: its edge error may not all be switch-borne).
+Cost: extra accepted steps and rows against the unstopped runs, registered +3–10%.
+
+### S1 result (S1_detect, S1b_census; `s1b.R`)
+
+- Detection only (JT_STOP=0) takes A's steps exactly: J 1.1962273456123, 4786 steps.
+- Step 9.69114 → 9.70117 holds 4 switches, step 9.70117 → 9.70658 holds 52; the rule
+  finds every one (56 of 56), each a plain end-sign change (v0 < 0 < v1), located within
+  |Δu| ≤ 0.0012 of the 400-point scan of the dense output (≤ 4.6 min; the scan's own
+  bin is 0.0025), and the scan sees exactly one crossing per node per step. Against the
+  psi_stem-based switch times (Hermite of step ends, 0.007-d grid) the roots sit
+  −0.009 … +0.04 d off. **Holds.**
+- Whole run: 14728 roots in 234 steps (median 51 nodes per step: the stand switches as
+  one cluster), 7328 into BoundaryCrit and 7334 out; 33 node-steps hold an in-and-out
+  pair (brief excursions in sub-day steps), no chatter. Steps holding roots: 91 under a
+  day, 30 rain-knot days, 113 longer than a day.
+- Arms over the run (census_operating_point_counts): Interior 3 232 043, BoundaryCrit
+  681 934, nothing else (no BoundarySoil, BoundaryRootCrit, Determined, Shutdown) on
+  dry. **Holds.**
+
+### S2 result, sharp gate (JT8_ins_{3e-4,2.85e-4}_stop; `nudge.R`)
+
+The nudge 3e-4 → 2.85e-4 moves rms **0.0020** (max 0.007, a_dG1; TF24_cost_scale +0.004)
+against 0.048 (0.176) without the stop: 24× smaller, under the bar and under the sharp
+gate's 1e-4 jitter (0.02–0.03). **Holds.** The stop moves the 3e-4 answer by rms 0.014
+(max 0.042) from A's: A's share of jitter. Cost: steps 4786 → 5334 (+11.5%), rows
+454 494 → 512 679 (+12.8%); 530 cuts (299 at a first switch, 231 at a last). For
+comparison X's ETT (tolerance ×0.1 within 15 d of closing edges): rms 0.025, rows +8.6%.
+Where the cuts fall: 243 in attempted steps under 0.25 d and 148 after b = 25 (where
+nothing jitters), so most of the cost buys nothing measurable here.
+
+## S3 (registered before the build and runs): the stop only on steps longer than 0.5 d
+
+Same build plus JT_STOP_HMIN (yr): a step shorter than it is never cut (the jump error
+scales with the step; the jitter came from the 1.5–5 d tolerance-set steps). Sharp gate,
+inset, dry, 3e-4 and 2.85e-4, HMIN = 0.5 d. Registered: nudge rms ≤ 0.01, cuts fall from
+530 to ≤ 250, steps +4–7% (60%).
+
+### S2 result, averaged gate (JT9_a09c_{1e-4,1.05e-4}_stop)
+
+The nudge moves rms **0.095** (max 0.34 a_l1; TF24_cost_scale −0.16) against 0.110
+(0.42) without the stop. **Refuted**: under the averaged gate the stop removes little.
+Cost +12.6% steps (5448 → 6135), +14.2% rows, 683 cuts. X's ETT (tolerance ×0.1 within
+15 d of closing edges) took this pair to 0.009, so the averaged gate's jitter is at
+closing edges but not at the residents' arm switches.
+
+Reading: the averaged gate's state E follows dE/dt = (g(P_seed) − E)/0.05 yr, so the
+seedling gate's θ- and soil-sensitivity g'(P)·∂P enters a state that seeds every
+newborn's density, where under the sharp gate it entered only the newest interval's
+count. g'(P) is a bump 2–3 d wide just before the seedling's P = 0 (Part 1, E1: g 0.9 →
+0 in 3.5 d) sampled by 1.5–5 d steps: a smooth but unresolved feature, which no sign
+change marks and the forward tolerance on E does not see (E moves little across it).
+
+## S4 (registered before the build and runs): the averaged gate's residual is its own gate
+
+libJTstopAGcut: libJTstopAG with the gate's derivative in P cut (forward unchanged), the
+same pair with the stop. If the residual is the gate's bump in dE/dt, the nudge rms
+falls to ≤ 0.03 (60%); refuted if it stays ≥ 0.06.
+
+### S3 result (JT10_ins_{3e-4,2.85e-4}_h05)
+
+Stop only on steps over 0.5 d: nudge rms **0.0081** (max 0.038 stem_c; TF24_cost_scale
+−0.017), 241 cuts, steps 4786 → 5065 (+5.8%), rows +7.1%; within rms 0.004 of the full
+stop's answer. **Holds** as registered (≤ 0.01, ≤ 250 cuts, +4–7%). Against X's ETT
+(0.025 at +8.6% rows) it is 3× steadier for less.
+
+### S4 result (JT11_a09c_{1e-4,1.05e-4}_stopcut)
+
+Same steps as the stop runs (6135 / 6163: the forward is unchanged). With the gate's
+derivative cut on top of the stop the nudge moves rms **0.0285** (max 0.093 a_l1;
+TF24_cost_scale −0.059) against 0.095 with the stop alone. **Holds** (≤ 0.03): about
+70% of the averaged gate's remaining jitter is the seedling gate's own sensitivity
+bump entering dE/dt at closing edges. That carrier needs its knee resolved (X's ETT
+does it: 0.009 at +11.5% rows) or a gate whose knee is wide against the steps; the arm
+stop cannot reach it, because nothing changes sign there.
+
+## Summary of part 2
+
+- Scalar: f_hi, the collar solve's marginal profit at the dry end, already computed on
+  every solve; smooth through the switch, negative on Interior, ≥ 0 on BoundaryCrit.
+- odelia's sign-change rule on it finds 56/56 switches in A's two steps over the 9.70
+  cluster within ≤ 0.0012 of the step (≤ 5 min), one crossing per node per step; over the
+  run 14 728 roots in 234 steps, 33 brief in-and-out pairs, no chatter; only Interior
+  and BoundaryCrit occur on dry.
+- Stop (cut at first switch, then at last): sharp gate nudge 0.048 → 0.0020 (+11.5%
+  steps, +12.8% rows); on steps over 0.5 d only, 0.0081 (+5.8% steps, +7.1% rows).
+  Averaged gate 0.110 → 0.095 (+12.6% steps): fails; its jitter is the gate's knee.
