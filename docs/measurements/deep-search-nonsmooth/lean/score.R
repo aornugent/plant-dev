@@ -14,7 +14,7 @@ rd <- function(n) { f <- if (!is.null(src[[n]])) file.path(S, paste0(src[[n]], "
 cuts <- function(n) { f <- if (n %in% names(logs)) file.path(S, "adjmap/logs", paste0(logs[[n]], ".log")) else file.path(O, paste0(n, ".log"))
   if (!file.exists(f)) return(NA); l <- grep("^JTCUT", readLines(f), value = TRUE)
   t0 <- as.numeric(vapply(strsplit(l, " "), `[`, "", 3)); c(n = length(l), before25 = sum(t0 <= 25)) }
-names_all <- c(REF, names(src), sub("\\.rds$", "", list.files(O, "^L[123]_.*\\.rds$")))
+names_all <- c(REF, names(src), sub("\\.rds$", "", list.files(O, "^(L[123]|X[123])_.*\\.rds$")))
 names_all <- unique(names_all[!grepl("^L3_rank", names_all)])
 runs <- Filter(Negate(is.null), setNames(lapply(names_all, rd), names_all))
 ref <- quantities(runs[[REF]])
@@ -28,7 +28,7 @@ options(width = 220)
 cat("Against", REF, "(eps; rms and max over elasticities):\n"); print(tab, digits = 3, row.names = FALSE)
 pairs <- list(c("A", "B"), c("JT8_3e-4", "JT8_2.85e-4"), c("JT10_3e-4", "JT10_2.85e-4"), c("L1_1e-3_stop", "L1_9.5e-4_stop"),
   c("L2_h025_3e-4", "L2_h025_2.85e-4"), c("L2_t25_3e-4", "L2_t25_2.85e-4"), c("L2_both_3e-4", "L2_both_2.85e-4"),
-  c("L3_b10_A", "L3_b10_B"), c("L3_b30_A", "L3_b30_B"), c("L3_l30_A", "L3_l30_B"), c("L3_b50_A", "L3_b50_B"))
+  c("L3_b10_A", "L3_b10_B"), c("L3_b30_A", "L3_b30_B"), c("L3_l30_A", "L3_l30_B"), c("L3_b50_A", "L3_b50_B"), c("X1_both_1.5e-4", "X1_both_1.425e-4"), c("X1_both_1e-4", "X1_both_9.5e-5"), c("X2_stop_1e-4", "X2_stop_9.5e-5"), c("X2_t25_1e-4", "X2_t25_9.5e-5"), c("L1_ref_3e-5_stop", "X3_ref_2.85e-5_stop"), c("L1_1e-4_none", "X3_9.5e-5_none"))
 nud <- do.call(rbind, lapply(pairs, function(p) { if (!all(p %in% names(runs))) return(NULL); qx <- quantities(runs[[p[1]]]); qy <- quantities(runs[[p[2]]]); k <- intersect(names(qx), names(qy))
   d <- (qy[k] - qx[k]) / eps_vec(k); el <- d[k != "lnJ"]
   data.frame(pair = paste(p, collapse = " -> "), rms = sqrt(mean(d^2)), rms_el = sqrt(mean(el^2)), max = max(abs(d)), max_at = k[which.max(abs(d))],
