@@ -1,0 +1,6 @@
+pilot.err: 3978 roots, 90 into-clusters, 48 with >= 5 roots before b = 25; width median 1.22 d
+
+../../dev/schedtest/JT_out/S1b_census.err: 14728 roots, 83 into-clusters
+  |first offset| d: median 0.212, 90% 1.394, max 4.583
+  |last offset| d: median 0.057, 90% 0.387, max 4.941
+  share of its roots outside the reference bracket +- 0 / 0.05 / 0.1 / 0.25 d (mean over clusters): 0.186 / 0.141 / 0.110 / 0.054

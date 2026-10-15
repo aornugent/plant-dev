@@ -18,6 +18,44 @@ Sources:
 Revised after a review against the principles and the record of what evaluations
 solve for; the changes are listed under § Review.
 
+## Status: superseded in part by a deep search
+
+A deep search followed: four independent proposers and a judge. It is recorded in
+`docs/measurements/deep-search-nonsmooth/` (`ledger.md`, `P1.md`–`P4.md`, `judge.md`).
+
+**The judge's verdict.**
+- On the brief as written, the floor wins: end the step at each cluster's first and last
+  zero, and hold the ends in every later pass. This document's relocation is killed. A
+  row end cannot follow its zero past its held neighbours, and τ = dt*/d ln θ was measured
+  at 25–29 d.
+- This document's `sign_readings {blocks, shared}` is kept as the declaration.
+
+**The representation the search found:**
+
+> A point located from the state is a time that moves with θ, where a rate read by some
+> blocks changes form. It divides the integration of every block that reads that rate
+> within the step, and every pass that integrates those blocks finds it again at its own
+> θ. Rows end only where the controller chose or a schedule fixed.
+
+- **Data structure.** It widens `split_block` from one node to the blocks that read the
+  value. TF24's shared value divides the whole state at a cluster's first and last zero,
+  which are the two real edges of the soil's sensitivity ramp.
+- **What it removes:**
+  - the retake;
+  - the flags;
+  - relocation;
+  - the soil split as a separate case.
+
+  What is left is two kinds of division: held (chosen or scheduled) and located (moved).
+- **Estimated price:** rows +0; gradient run about +11–13.5%, against the floor's
+  +15.5%; about 150 lines more than the floor.
+- **When it replaces the floor.** It loses only because the brief's R2 asks for
+  continuity rather than resolution at θ′. It replaces the floor if:
+  - the user reads R2 as resolution at θ′;
+  - the held-end measurement (`judge.md` §5, running) exceeds 0.006 at θ × 1.01;
+  - jumps (J kinds) appear on accepted steps; or
+  - cost is read as time.
+
 ## Triage: 3
 
 odelia's System concepts are the interface every plant model is written against. The
