@@ -52,9 +52,18 @@ A deep search followed: four independent proposers and a judge. It is recorded i
 - **When it replaces the floor.** It loses only because the brief's R2 asks for
   continuity rather than resolution at θ′. It replaces the floor if:
   - the user reads R2 as resolution at θ′;
-  - the held-end measurement (`judge.md` §5, running) exceeds 0.006 at θ × 1.01;
+  - the held-end measurement (`judge.md` §5) exceeds 0.006 at θ × 1.01;
   - jumps (J kinds) appear on accepted steps; or
   - cost is read as time.
+
+**The measurement** (`docs/measurements/deep-search-nonsmooth/held-ends/`): **0.0247 rms
+(max 0.078, `TF24_cost_scale`), 4× over 0.006.** The trigger is met: held ends do not
+serve a 1% chord.
+- The ends moved a median 0.12 d, with 90% under 0.48 d.
+- Placing them at θ₀'s own roots adds only 0.0015 of noise.
+- About 26 ends in the large clusters carry over half of it. The other ~430 alone still
+  give 0.011.
+- So the located division that moves with θ is the representation to build.
 
 ## Triage: 3
 
