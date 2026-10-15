@@ -65,6 +65,15 @@ serve a 1% chord.
   give 0.011.
 - So the located division that moves with θ is the representation to build.
 
+**The targeted rule** (`docs/measurements/deep-search-nonsmooth/lean/results.md`): divide
+only rows that hold a shared zero, are longer than 0.25 d and start before b = 25.
+- Measured on the stop build at θ₀: nudge 0.0027 at +3.6% rows, against 0.0020 at
+  +12.8% for every cluster.
+- On the division it is estimated at about +4% of a gradient run, with no extra rows and
+  no retakes.
+- The rule reads only a row's length and start time, so every pass divides the same rows.
+- The division itself is not built or measured.
+
 ## Triage: 3
 
 odelia's System concepts are the interface every plant model is written against. The
