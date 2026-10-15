@@ -81,3 +81,25 @@ it on this evidence.
    - curvature rows fail on dry because of the switch.
 
    The search's map (`judge.md` §8, `lean/`, `correction/`) is the starting point then.
+
+## The census (`docs/measurements/kinks/jump-census/results.md`)
+
+Pinned replays of the ten bank runs on libS, accepted stages only. Every replay
+reproduces its saved J exactly.
+
+| Jump | Where it occurs | How often |
+|---|---|---|
+| Positivity guard (#19) | nowhere | 0 on all ten |
+| HydraulicShutdown | five of ten records, 11–20 solves each | at most about 1e-5 of solves: too rare to reach ε |
+| Determined | 0 on dry, dry-flat and dry-p50; 4 on ld-102; 424–489 on long-wet, wet-adG2 and ld-105 | at most 1.7e-4 of solves |
+
+- Where Determined occurs in the hundreds, the soil's potential ceiling (#21, a slope
+  jump) binds too. This co-occurrence is measured; whether one causes the other is not.
+- The open question is how many steps those Determined solves fall inside: clustered in a
+  few steps or scattered across many. At most 434–503 per record.
+- The recording does not expose each evaluation's operating-point kind to R, so this
+  could not be counted.
+- Deciding it needs one of:
+  - an R reader for the recorded solved values; or
+  - one gradient comparison on long-wet with step ends placed at the Determined
+    transitions.
