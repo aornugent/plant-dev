@@ -475,3 +475,64 @@ the quiet windows have long steps and full clusters but small λ_soil·ΔF.
   ×2 of −c_k for clusters with |c_k| ≥ 0.01ε, and under 0.005ε for |c_k| < 0.002ε.
 Refuted if P1 misses by more than ×2 or the cosine is under 0.5 (then something besides
 the quadrature of F's jumps carries it: the jump in ∂f/∂y, or a stage-state effect).
+
+### P4 first reading (partial offline, `p4check.R`): the node rows of E are the splits' business
+
+On A's step at 11.619 (4.56 d, 4 f_hi sign changes near u = 0.9) c is −0.029ε, almost
+all in four nodes' storage rows (λ −30 … −3), not in the soil. Each of those rows' F
+jumps ×2–3 exactly where that node's net production changes sign (u 0.61, 0.89; its f_hi
+is still negative there): the storage rate reads net production through its smooth
+positive part with storage_prod_eps = 1e-4, while these nodes' net production is ~1e-2,
+so at their scale the positive part is a corner. That is the jump the existing split
+already resolves (A splits 16 502 node-steps), and `p4F.R` integrates F on the unsplit
+stages, so its node rows overstate what the run does. Only the soil rows (c_soil) are a
+prediction of the run's error; the node rows are dropped from P1–P3.
+
+### P1–P2 result (`p4an.R`, offline): H as registered fails
+
+Over all 234 / 242 switch steps of A and B, the soil rows' Σc(A) − Σc(B) along
+TF24_cost_scale is −0.048ε against the measured −0.176ε (27%), cosine over traits 0.44;
+with every row (node rows included, which overstates the split nodes) −0.130ε, cosine
+0.66. Neither predicts the stopped run's move from A (−0.020ε; predicted +0.001 / +0.070,
+cosines 0.19 / −0.02). The windows' shares of the soil prediction do follow the splices
+in part (9.68–9.75 26%, 9.75–10 27%, 10–17 32%, after 17 ~6%) but miss 3.5–5 and 6.7–8.25.
+**P1 refuted** (×3.7 short): the quadrature of F = ∂f/∂θ at fixed state is not the
+carrier.
+
+## H2 (registered before the runs): the jump the step misses is in the total sensitivity
+
+What a step integrates for the derivative is G = df/dθ along the trajectory = ∂f/∂θ +
+∂f/∂y·∂y/∂θ. At an f_hi sign change the soil's uptake also changes its slope in the
+soil's own potential (∂f_soil/∂ψ jumps), so G jumps by ∂Δ(uptake slope)/∂ψ · ∂ψ/∂θ on top
+of ΔF; the soil's θ-sensitivity accumulated over the drydown (∂ψ/∂θ) is the weight F
+omits. Prediction: c_k = (θ/J/ε) λ_{k+1}ᵀ (h Σ b_i G(t_i) − ∫G) with G from central
+differences of f on two pinned trajectories at θ(1 ± 1e-4) (each evaluated at its own θ):
+- P1': Σc(A) − Σc(B) over the switch steps reproduces −0.176ε within 30%.
+- P2': per window it reproduces the splices' pattern (16 / ~0 / 9 / 30+4 / 38 / ~0%).
+Runs: A and B pinned at θ(1 ± 1e-4) along TF24_cost_scale, forward, trajectory kept (4).
+- (P4 note) the first four perturbed runs did not apply TRAIT_REL (probe.R lacked it): J unchanged; deleted and rerun.
+
+### H2 result (P4_traj_{A,B}_{up,dn}, `p4G.R`, `p4Gan.R`): **holds**
+
+Soil rows of the total sensitivity G, contracted with λ at each switch step's end:
+Σc(A) − Σc(B) = **−0.173ε** along TF24_cost_scale against the measured −0.176 (all
+non-split rows −0.184; every row −0.047, the split nodes' corners double-counted).
+P1' holds. By window (prediction / splice share of −0.176 along M): 9.678–9.753 −0.062
+(35%; the splice along TF24_cost_scale measured −0.065), 10–17 −0.070 (40% / 38%),
+9.75–10 −0.020 (11% / 4%), 8.25–9.15 −0.012 (7% / 0), 3.5–5 −0.004 (2% / 16%, missed),
+6.7–8.25 +0.009 (wrong sign against 9%), 5–6.7, 17–25, 25–40 within ±0.009 (~0). P2'
+holds for the large windows, not for 3.5–8.25. Each run's own error: −Σc(A) = −0.003
+against the stop's move −0.020; −Σc(B) = −0.176 against ≈ −0.192.
+
+What sets c_k ≈ (θ/J/ε)·λ_soil·h·ΔG_soil·φ(u) (switch steps with ≥ 5 sign changes, A and B;
+spread across steps as sd of log10): λ_soil 1.22, φ 0.86, h 0.62, ΔG 0.47. The soil
+adjoint decides most; φ (where the stages fall, |φ| ≤ 0.2, median 0.02–0.06) is the
+random part that makes it jitter; ΔG (≈ 0.03–0.06 for the stand, per cluster) varies
+least. Quiet windows: after 25 λ_soil ≈ 0.004 (J no longer reads that soil); 5–6.7
+λ 1.2 but short steps (median 0.66 d) and small φ; 17–25 λ 0.4 with signs that cancel.
+Only steps that differ between A and B make A − B: the 29 switch steps A and B share
+carry Σ|c| 0.013 of 0.338.
+
+Ranking A's 221 switch steps by the a-priori bound (θ/J/ε)·|λ_soil|·h·|ΔG|·0.2: the top
+30 hold 90% of Σ|c| (top 10: 51%, top 50: 94%); by |λ_soil| alone the top 30 hold 70%,
+by h alone 22%. The 0.5-d stop cut 241 times (147 steps over 0.5 d).

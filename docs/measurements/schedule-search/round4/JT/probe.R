@@ -21,6 +21,11 @@ win <- as.numeric(strsplit(Sys.getenv("WIN", "9.60,9.80"), ",")[[1]])
 p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
 p <- add_strategies(p, trait_matrix(LMA0, "lma"))
+if (nzchar(Sys.getenv("TRAIT_REL"))) {
+  st_ <- p$strategies[[1]]
+  for (kv in strsplit(strsplit(Sys.getenv("TRAIT_REL"), ",")[[1]], "=")) st_$pars[[kv[1]]] <- st_$pars[[kv[1]]] * (1 + as.numeric(kv[2]))
+  p$strategies[[1]] <- st_
+}
 p$node_schedule_times <- list(times)
 base <- list(J = NA)
 if (nzchar(Sys.getenv("PIN"))) {
