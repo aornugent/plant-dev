@@ -1,0 +1,18 @@
+names: time step_size introduction error_index error_ratio state 
+rows 7886 max nodes 149 
+r crossings of a_st2: 7136 over 149 nodes
+time across 0 < r < 0.2 (days, bracketing rows), quantiles:
+      10%       25%       50%       75%       90% 
+ 50.61113  77.47163 111.90817 147.20522 174.06419 
+length of the step holding the crossing (days):
+       10%        50%        90% 
+ 0.7719952  5.4478022 12.9466917 
+nodes passing rooting_depth_max 1.50 m: 147 of 149
+changes of the tallest node: 0 
+rows with a broken height order: 0 of 7886 
+G's width in time at each crossing, days (0.1 / |dr/dt| over the step holding it):
+      10%       25%       50%       75%       90% 
+ 3.729603 10.783634 20.035413 28.033861 33.862562 
+falling: 3568  rising: 3568 
+share of crossings whose width is under the step holding it: 0.005745516 
+median width falling 25.76113 rising 14.3552 

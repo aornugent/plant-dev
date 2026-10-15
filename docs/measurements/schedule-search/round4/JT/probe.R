@@ -51,6 +51,10 @@ out <- list(J = sum(scm$offspring_production), J_saved = base$J,
             times = scm$ode_times, attempts = scm$ode_step_attempts,
             op_counts = tryCatch(setNames(plant:::census_operating_point_counts_tf24(scm)[[1]],
                                           plant:::census_operating_point_names_tf24()), error = function(e) conditionMessage(e)))
+if (Sys.getenv("SAVETRAJ") == "1") {
+  rows <- scm$store_trajectory()
+  out$traj <- list(t = vapply(rows, `[[`, 0, "time"), state = lapply(rows, `[[`, "state"))
+}
 if (Sys.getenv("STOPONLY") == "1") { if (nzchar(out_file)) saveRDS(out, out_file); print(out$op_counts); print(out$attempts); cat(sprintf("J %.15g, %d steps\n", out$J, length(out$times))); quit(save = "no") }
 sv <- function() if (nzchar(out_file)) saveRDS(out, out_file)
 cat(sprintf("J %.15g saved %.15g; same times %s; %.0f s\n", out$J, base$J, out$same_times, out$fwd_cpu))

@@ -432,3 +432,46 @@ unchanged. The 3e-4 answer moves rms 0.008 from A's and 0.017 from the stopped r
 | soil split, every sign change | 0.018 | +1 | 61 550 (≈ +190%) | +0% |
 | stop (part 2) | 0.0020 | +548 | ≈ 12 per cut × 530 (≈ +20%) | +12.8% |
 | stop on steps > 0.5 d | 0.0081 | +279 | ≈ 12 × 241 (≈ +9%) | +7.1% |
+
+# Part 4 (15 October): which sign changes carry derivative error into the elasticities?
+
+Every drydown after b = 3.5 has a stand-wide f_hi sign-change cluster inside one step,
+yet the jitter enters in a few windows (3.5–5 16%, 6.7–8.25 9%, 9.68–9.75 30%, 10–17
+38%; ~0 in 5–6.7, 8.25–9.15, after 17), and most of the stop's 530 cuts bought nothing.
+
+## H (registered before any run)
+
+A step's contribution to an elasticity's error is the step's quadrature error of the
+rates' θ-sensitivity, weighted by the adjoint:
+  c_k(θ) = (θ/J) · λ_{k+1}ᵀ · E_k(θ),  E_k = h Σ_i b_i F(t_k + c_i h) − ∫ F dt over the step,
+F = ∂f/∂θ along the trajectory (RKCK's fifth-order weights b, stages c). For a jump ΔF
+at fraction u of the step, E ≈ h ΔF φ(u), φ(u) = Σ_{c_i > u} b_i − (1 − u), a sawtooth
+in [−0.2, 0.2] that is zero at u = 0 and u = 1. The f_hi sign changes put jumps into the
+soil rows of F; elsewhere F is smooth and E small. Which windows carry jitter is then
+set by λ_soil·ΔF (the weight: how much J reads that soil at that moment), times h and
+φ(u) (where the stages fall). Registered: the weight decides, not the switch count or h:
+the quiet windows have long steps and full clusters but small λ_soil·ΔF.
+
+## Measurements (registered before the runs)
+
+- P4-R1, R2: A (3e-4) and B (2.85e-4) adaptive on libJTstop, detection only (JT_STOP=0,
+  roots logged), the trajectory kept (`probe.R` SAVETRAJ). Check: same steps and J as A
+  and B.
+- P4-R3, R4: A and B pinned on libD with the sweep printing the state adjoint at every
+  step (LAMBDA, whole run); kept only at the steps holding f_hi sign changes.
+- Offline (`p4F.R`, no run): for each such step, F (all components × 50 traits, forward
+  tangent) at the six stage times and on 24 points across the step (Hermite states),
+  E_k from those, c_k from λ.
+
+## Predictions
+
+- P1: Σ_k c_k(A) − Σ_k c_k(B) reproduces A − B along TF24_cost_scale (−0.176ε) within
+  30%, and its cosine with the measured A − B over the 50 traits is ≥ 0.8.
+- P2: by window, the predicted A − B shares match the splices' (16 / ~0 / 9 / 30 / 38 /
+  ~0%) within ±10 points; in the quiet windows |λ_soil·ΔF| is ≥ 5× smaller than in the
+  jittering ones while h and the switch counts are comparable.
+- P3 (toggles, after the offline prediction): A pinned with step boundaries bracketing one
+  cluster (first and last sign change), gradient: the move in TF24_cost_scale is within
+  ×2 of −c_k for clusters with |c_k| ≥ 0.01ε, and under 0.005ε for |c_k| < 0.002ε.
+Refuted if P1 misses by more than ×2 or the cosine is under 0.5 (then something besides
+the quadrature of F's jumps carries it: the jump in ∂f/∂y, or a stage-state effect).

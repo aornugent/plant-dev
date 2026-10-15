@@ -1,0 +1,20 @@
+J 1.196227345612, 4786 steps, 149 nodes, 2951 knots, 64 s
+[[1]]
+ [1]       0       0      13      14       3      67      48       0 3379749
+[10]   17937       0       0       0
+
+ [1] "light_floor"            "light_floor_crown"      "soil_moisture_floor"   
+ [4] "soil_potential_ceiling" "soil_positivity"        "soil_conductivity"     
+ [7] "rainfall"               "infiltration"           "rooting_depth"         
+[10] "root_vuln_integral_cap" "root_vuln_argument"     "leaf_temperature"      
+[13] "collar_potential"      
+           unsolved            interior       boundary-soil       boundary-crit 
+                  0             3160431                   0              604332 
+ boundary-root-crit          determined  hydraulic-shutdown         shade-death 
+                  0                   0                   0                   0 
+         prescribed      solver-refused non-finite-gradient 
+                  0                   0                   0 
+           accepted accepted_at_minimum rejected_inaccurate     rejected_thrown 
+               4785                   0                 626                   0 
+   rejected_refused 
+                  0 
