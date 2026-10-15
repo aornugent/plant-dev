@@ -58,3 +58,27 @@ For reference, existing measurements:
 | All stops | 0.0020 | +12.8% |
 | HMIN 0.5 d | 0.0081 | +7.1% |
 | None | 0.048 | — |
+
+## L3: resolve only the clusters the root-cause model ranks highest
+
+This tests JT part 4's model as a selection rule. That test was not done in part 4.
+
+*Rank:* JT part 4's bound, (θ/J/ε)·|λ_soil|·h·|ΔG|·0.2, over run A's switch steps
+(`round4/JT/p4*.R`, outputs `JT_out/P4_*`). Repeat the ranking by |λ_soil| alone.
+
+*Runs:*
+- Pin runs A (3e-4) and B (2.85e-4) on their own steps, as `round4/JT/mkstops.R` does
+  for E6.
+- Add step ends only at the first and last root of each step among the top k by the
+  bound, k = 10, 30 and 50, then by |λ_soil| alone at k = 30.
+- Take the gradient on each.
+
+*Measure:* the rms of A−B over traits and its max (the nudge with only those clusters
+resolved), and the step ends added.
+
+*Predicted:*
+- k = 30 by the bound: rms ≤ 0.006 (55%);
+- k = 10: ≤ 0.02 (60%);
+- k = 30 by |λ_soil| alone: ≤ 0.012 (50%).
+
+With all 234 resolved this method should approach E6's 36× (0.048 → about 0.002).
