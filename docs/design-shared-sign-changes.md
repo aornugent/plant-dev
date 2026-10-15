@@ -18,6 +18,15 @@ Sources:
 Revised after a review against the principles and the record of what evaluations
 solve for; the changes are listed under § Review.
 
+## Status: on hold
+
+`docs/measurements/deep-search-nonsmooth/first-principles.md` weighs what the switch
+actually costs against the objectives' bars.
+- It is sub-ε everywhere. Its only material cost is that the schedule's pair estimate
+  must run at 1e-4 rather than 3e-4 (about +14% rows).
+- So no odelia representation is built for it now.
+- The census of rate jumps on accepted stages comes first.
+
 ## Status: superseded in part by a deep search
 
 A deep search followed: four independent proposers and a judge. It is recorded in
