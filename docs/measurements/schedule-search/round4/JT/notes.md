@@ -351,3 +351,84 @@ stop cannot reach it, because nothing changes sign there.
 - Stop (cut at first switch, then at last): sharp gate nudge 0.048 → 0.0020 (+11.5%
   steps, +12.8% rows); on steps over 0.5 d only, 0.0081 (+5.8% steps, +7.1% rows).
   Averaged gate 0.110 → 0.095 (+12.6% steps): fails; its jitter is the gate's knee.
+
+# Part 3 (15 October): can the existing split fix #112?
+
+Scratch build libJTsplit (`build_split.sh`): libJTstop (f_hi as each node's second sign
+value; the stop off unless JT_STOP is set) plus, under JT_SPLIT_ARM:
+- `node`: each node's own split also at its f_hi sign changes, merged with its net
+  production's, in the held field; the f_hi sign changes are held fixed in the sweep
+  (slope 0), which is first-order exact where the node's own rates are continuous.
+- `soil` / `soilall`: a split of the soil, a block after the nodes: the soil's components
+  integrated again in pieces meeting at the first and last (`soil`) or at every
+  (`soilall`) f_hi sign change of any node in the step, each piece stage a full rate
+  evaluation with every other component read from the step's dense output, the soil
+  from the piece; recorded and swept like a node's split (`Patch::split_soil`).
+
+Why this route for S2 and not the soil's substeps: the substepped soil takes the stand's
+uptake as an input linear across the step (its input slope), so it cannot carry an
+input whose derivative in θ jumps inside the step; and it already runs only where the
+plants take < SHARE of the flow, which is not the drying steps. Re-evaluating the soil's
+rate at the pieces' stages is the node split's own construction, mirrored, and the
+sweep already transposes `integrate_substeps`.
+
+## P3-S1 (registered before the run): split the switching node only
+
+Inset schedule, dry, 3e-4 and 2.85e-4, JT_SPLIT_ARM=node, gradient. Registered (the
+coordinator's prediction too): it clears little, nudge rms ≥ 0.035 (now 0.048), because
+the node's own rates are continuous through the switch (net production is the optimised
+profit; E-kink: its storage sensitivity smooth) and what jumps is the soil's uptake
+sensitivity (70%).
+
+## P3-S2 (registered before the runs): split the soil at the first and last f_hi sign change
+
+Same pair, JT_SPLIT_ARM=soil. Each step holding switches integrates the soil again in
+3 pieces (5 + 6 + 6 = 17 full rate evaluations, about 2.8 steps' worth); A has 234 such
+steps. Registered: nudge rms ≤ 0.01 (the soil carries the jump and bracketing isolates
+the cluster as the stop did) (60%); steps within ±2% of the unsplit run; extra full
+evaluations ≈ 4000 (≈ +14% of the forward's ~28 700), above the stop's +12.8% rows unless
+restricted to long steps. If rms stays ≥ 0.02, `soilall` (a piece per sign change) next.
+
+### P3-S1 result (JT12_node_{3e-4,2.85e-4})
+
+Nudge rms **0.0436** (max 0.168, TF24_cost_scale) against 0.048 (0.176): **holds** as
+registered, it clears little. 12 322 more node splits (16 502 → 28 824), steps +1
+(4786 → 4787). The switching node's own rates are not where the jump is.
+
+### P3-S2 result (JT12_soil_{3e-4,2.85e-4})
+
+Nudge rms **0.0100** (max 0.042 a_dG1; TF24_cost_scale +0.019) against 0.048: **holds**
+(≤ 0.01, at the edge). 166 steps split the soil (of 234 holding switches: those whose
+soil was already substepped are skipped), 489 pieces from 10 120 sign changes, 2 768
+extra full rate evaluations (≈ +8.5% of the run's ≈ 32 500); steps 4787 (+1), rows
+unchanged. The 3e-4 answer moves rms 0.008 from A's and 0.017 from the stopped run's.
+
+## P3-S3 (registered before the runs): is the split's derivative right, and does a piece per sign change do better?
+
+- FD check (result: reverse −3.350590, FD −3.350643, 0.0027ε apart on the same steps: **holds**): central differences of ln J along TF24_cost_scale (×(1 ± 1e-4)) on the soil-
+  split run's own pinned steps (the replay splits again) against its reverse-mode
+  elasticity: within 0.01ε (85%); if not, the soil split's sweep is wrong and S2's number
+  means nothing.
+- `soilall`, the same pair: nudge rms ≤ 0.005 (closer to the stop's 0.002) at ~18× the
+  bracket's split evaluations (a piece per sign change, median 51) (50%).
+
+### P3-S3 result (JT13_fd_±1e-4, JT12_soilall_{3e-4,2.85e-4})
+
+- FD check holds (0.0027ε): the soil split's sweep differentiates the map the run took.
+- `soilall` (a piece per sign change: 10 286 pieces, 61 550 extra evaluations, forward
+  CPU 131 s against 60, sweep 583 s against 219): nudge rms **0.018**, worse than the
+  bracket's 0.010. **Refuted.** Bracketing is enough, and more pieces buy nothing: the
+  residual (0.01–0.02) is what the soil split does not reach: the nodes' own
+  integration across the switch reads the main step's soil stages, and the 68 steps
+  holding switches whose soil was substepped are not split.
+
+## Summary of part 3
+
+| | nudge rms (3e-4 → 2.85e-4) | extra steps | extra full evaluations | rows |
+|---|---|---|---|---|
+| none | 0.048 | — | — | — |
+| node split at f_hi | 0.044 | +1 | (node-only, 12 322 node splits) | +0% |
+| soil split, first and last sign change | **0.010** | +1 | 2 768 (≈ +8.5%) | +0% |
+| soil split, every sign change | 0.018 | +1 | 61 550 (≈ +190%) | +0% |
+| stop (part 2) | 0.0020 | +548 | ≈ 12 per cut × 530 (≈ +20%) | +12.8% |
+| stop on steps > 0.5 d | 0.0081 | +279 | ≈ 12 × 241 (≈ +9%) | +7.1% |
