@@ -13,6 +13,10 @@ Sources:
 - `docs/design-sign-changes.md`: §8 has the split's vocabulary and who owns what.
 - odelia `ODELIA-55` (`cb4d262`): `SolverInternal::step`, `SplitsSignChanges`,
   `HasSubsystem`, `instruction`.
+- plant `PLANT-110`: `leaf_solved_point`, `leaf_solved_points`, `TF24_Strategy::solve_leaf`.
+
+Revised after a review against the principles and the record of what evaluations
+solve for; the changes are listed under § Review.
 
 ## Triage: 3
 
@@ -112,8 +116,8 @@ That is larger than the whole move from 1e-4 to 3e-4.
 what no block owns.
 - *Mechanism:*
   - A System reports, beside its blocks' sign values, the sign values of rates that no
-    block owns. For TF24 these are each node's leaf margin at the dry end (f_hi) and at
-    the wet end (f_lo).
+    block owns. For TF24 these are each node's leaf margin at the dry end (f_hi), and at
+    the wet end (f_lo) once a record reaches it.
   - After a step is accepted, odelia finds their sign changes on the step just taken.
   - It ends the step just past the first sign change, and the next step just past the
     last.
@@ -126,7 +130,7 @@ what no block owns.
   - R4: `Events` are already step ends;
   - R6: walks take rows.
 - *Costs:*
-  - one concept and one member;
+  - a second part to the sign readings, and one field on `instruction` (§ Review);
   - a retake per cut;
   - cuts that buy nothing: 243 of 530 fall in steps under 0.25 d, and 148 after b = 25,
     where nothing jitters.
@@ -169,15 +173,19 @@ what no block owns.
 
 ## The commitment
 
-Every declared point where the rates are not smooth ends a step for the part of the
-state its rates reach. The model only reports a value whose sign changes there.
+Every declared point where the rates are not smooth ends a step for everything that
+reads those rates within the step. An end located at a zero follows the zero in every
+pass that has it; an end the controller chose is held. The model only reports a value
+whose sign changes there.
 
 **Kept true by:**
-- The System's side is a value, `shared_sign_values(out)`. There is no hook that sees
-  the step, so a model cannot resolve a point itself.
+- The System's side is a value, the `shared` part of its sign readings. There is no hook
+  that sees the step, so a model cannot resolve a point itself.
 - `SolverInternal::step` is the one place that ends steps: at the program's targets, at
   the subsystem's knots, and at shared sign changes.
-- Walks and the sweep take rows and never locate a step end.
+- A row records that its end was located (`instruction::ends_at_sign_change`). A pinned
+  replay locates that end again at its own θ; an invader's walk takes the recorded time;
+  the sweep holds the end of the pass it differentiates, which that pass located.
 
 **One semantics for every step end.** It replaces "event" for anything but plant's
 actions:
@@ -209,20 +217,24 @@ the one record measured, so G4 below must measure it on the bank.
 
 ## What survives deletion
 
-- `EndsStepsAtSignChanges`, the concept, with its one member `shared_sign_values(out)`.
-  Held by R3.
+- `sign_readings {blocks, shared}`, the one reading per evaluation, replacing the bare
+  vector `sign_values` fills today. Held by R3; it also replaces a second, parallel
+  reading array.
 - The located step end in `step()`. It adds no name: it is the step's target, landed on
   by the path that already lands on `time_max`. Held by R1.
-- Ending the next step at the cluster's last sign change: one flag. Held by R2, since a
-  cut at every sign change costs about 51 per cluster.
+- The attempt's last root, kept as the next step's target until reached. Held by R2,
+  since a cut at every sign change costs about 51 per cluster.
+- `instruction::ends_at_sign_change`. Held by R5 and *Continuous in the traits*: without
+  it a pinned replay holds a located end as a chosen one (§ Review).
 - `outcomes_.ended_at_sign_change`, a count per run. Held by the objectives' *Diagnosed*.
 
 **Deleted:**
 - modes, guards, actions and resets (A);
 - the pilot's weight (C);
-- the soil split;
-- a sweep term through the time of a step end, until R7 has a witness;
-- any change to the recording, since a row is a row.
+- the soil split, and the whole-state split (§ Review);
+- f_lo, which changes sign on no record measured;
+- the flag that remembered the previous step ended at a first sign change;
+- a sweep term through the time of a step end, until R7 has a witness.
 
 ## What this settles
 
@@ -230,7 +242,8 @@ the one record measured, so G4 below must measure it on the bank.
   shared.
 - `Events` stay plant's: a scheduled time with a map of the state. "Event" stays their
   word, and a sign change is never called one.
-- A walk never ends a step of its own.
+- An invader's walk never ends a step of its own. A pinned replay of the resident
+  locates again only the ends the run located.
 - The split stays the one resolution plant owns, for sign values of a block's own rates.
 - Rain knots belong to `subsystem_knots`. The harness's zero-depth pulses at the knots
   have no role left (#274).
@@ -265,6 +278,9 @@ cluster.
 
 **Rosenbrock has no dense output,** so it takes no stops, as it takes no splits.
 
+**A pinned replay pays to locate again** every end the run located: cheap if G0's
+readings suffice, a few evaluations per end if not.
+
 ## Kill condition
 
 - An action triggered by the state, or jumps that dominate the gradients' error, hand
@@ -273,30 +289,33 @@ cluster.
 
 ## The design
 
-**1. The concept** (`ode_step.hpp`, beside `SplitsSignChanges`):
+**1. The reading** (`ode_interface.hpp`; `sign_values` changes its argument, it does
+not gain a sibling):
 
 ```cpp
-// A System whose shared rates, which no block owns, change form where a value
-// changes sign. odelia ends a step there.
-template <typename System>
-concept EndsStepsAtSignChanges =
-  std::same_as<typename System::value_type, double> &&
-  requires(const System& s, std::vector<double>& out) {
-  { s.shared_sign_values(out) } -> std::same_as<void>;
+// A System's sign values after one evaluation: one per block, where that block's own
+// rates change form and the System splits it; then the shared ones, where rates every
+// block reads change form and the step ends.
+struct sign_readings {
+  std::vector<double> blocks;
+  std::vector<double> shared;
 };
 ```
 
+`SplitsSignChanges` asks for `sign_values(sign_readings&)`. A System with nothing to
+split leaves `blocks` empty; one with nothing shared leaves `shared` empty.
+
 **2. Readings.**
-- The values are read after every evaluation of the step: the start, the five stages and
-  the end, as `sign_values` are today.
+- Read after every evaluation of the step: the start, the five stages and the end, into
+  the arrays `sign_values` fills today, now of `sign_readings`.
 - At an active scalar the System reports none.
 
 **3. Locating the sign change and ending the step there.** This happens in
 `SolverInternal::step`, after the error test accepts and before the split.
-- For each value, `taken_step::sign_changes` reads the System's value at the dense state
-  y(u).
-- The earliest root over all values sets the retaken step's size, h·u plus a margin. If
-  the step before it ended at a first sign change, the latest root sets it instead.
+- For each shared value, `taken_step::sign_changes` finds its roots in the step.
+- The earliest root over all values sets the retaken step's size, h·u plus a margin. The
+  latest root, plus the margin, becomes the next step's target, held beside `time_max`
+  and cleared when reached. A cluster then costs two step ends and no state outlives it.
 - The margin keeps the end just past the zero. Then the end evaluation, which is also the
   next step's first stage, reads the new side.
 - This matters because RKCK's stage at c = 1 has weight 0. So a step ending just past the
@@ -305,29 +324,127 @@ concept EndsStepsAtSignChanges =
 - The retake is the final-step path: the step lands on its target, and
   `step_size_last` is unchanged, exactly as a schedule time is landed on. There is one
   retake per step.
-- *Estimated cost:* about 4 full evaluations per root, 530 roots on dry, about 2100
-  evaluations, or +6.5% of the forward's evaluations. The forward is about a quarter of a
-  gradient run.
-- *An option if that shows:* locate on the polynomial through the step's seven readings,
-  with no evaluations.
+- *Locating a root, first choice:* on the polynomial through the step's seven readings,
+  with no evaluations. G0 decides whether that is accurate enough.
+- *Fallback, only if G0 fails:* read the value at the dense state y(u), about 4 full
+  evaluations per root, roughly +6.5% of the forward's evaluations on dry. These
+  evaluations call `derivs` without a solved-values scope, so they store nothing in the
+  row (§ Review).
 
 **4. Recording, replays and the sweep.**
-- Nothing new: a stopped step is a row.
-- The sweep holds its end time fixed, which is exact where the rate is continuous (see
-  *What this makes hard*).
+- `instruction` gains `bool ends_at_sign_change = false`, set on a row whose end was
+  located.
+- *A pinned replay* steps such a row to the zero of a shared sign value nearest the
+  recorded end, located on its own step, plus the margin. The next row steps to its
+  recorded time.
+- *An invader's walk* steps it to the recorded time. The invader's own leaf switch
+  reaches no soil, and its net production is C1 through it.
+- *The sweep* holds the end of the pass it differentiates. For a kink this is exact to
+  ΔG × margin: the end stage has weight 0, and the first stage after it holds the new
+  arm, recorded and loaded as such.
 
 **5. plant.**
-- TF24 reports each node's f_hi and f_lo. phylloptim keeps them per solve; it computes
-  them on every solve today and discards them.
+- TF24 reports each node's f_hi in `shared`, and net production in `blocks` as today.
+  phylloptim keeps f_hi per solve; it computes it on every solve today and discards it.
 - NaN, where no collar solve ran, never counts as a sign change.
 
 **6. Gates, registered before the build.**
 
+Sequence: #274 first, so every gate runs on libS, and the unstopped nudge on libS is
+measured before the build.
+
 | # | What | Bar |
 |---|---|---|
-| G1 | Dry, sharp gate, 3e-4 against 2.85e-4. Location is odelia's own, with full evaluations at dense states, not JT's per-node evaluation in the field | nudge rms ≤ 0.006; expected ≈ 0.002 |
+| G0 | Spike on JT's saved S1 data: roots of the polynomial through each step's seven readings, against the 400-point scan of the dense output | within 1e-3 of the step; if not, the fallback |
+| G1 | Dry, sharp gate, 3e-4 against 2.85e-4, location as G0 chose | nudge rms ≤ 0.006; expected ≈ 0.002 |
 | G2 | The cost | rows ≤ +14%; forward evaluations reported |
 | G3 | Central differences on the stopped run's pinned steps | within 0.01ε |
 | G4 | The ten-case bank on libS | no failures; cuts per record; the nudge on long drought and episodic; rows ≤ +14% |
 | G5 | A System without the concept (FF16) | the same steps, bit for bit |
 | G6 | Walks: the invader's nudge on dry | no worse than without stops |
+| G7 | Pinned replays of the stopped run at θ(1 ± u), u = 1e-3, 1e-2, 1e-1, along `TF24_cost_scale` and `root_P50`, with relocation on and off; dt_c/dθ read off the relocated ends | relocation on: the gradient continuous in u, no jumps above 0.01ε; off: records how far the protection reaches |
+
+## Review: the record, and the principles
+
+A second pass, after the user asked whether storing and loading what evaluations solved
+for interacts with the design, and for a critical review against the principles. The
+draft had asserted "a stopped step is a row, nothing new" without reading the record.
+
+**The record of what each evaluation solved for.** Read on ODELIA-55 and PLANT-110.
+- Every evaluation stores each leaf's collar and the arm it was placed on
+  (`leaf_solved_point {collar, kind}`). A forward pass stores; only the sweep loads; a
+  walk searches again.
+- A retaken step writes the same scratch row a rejected attempt does, so nothing from the
+  first attempt reaches the row.
+- Location evaluations at dense states must store nothing. Without a solved-values
+  scope `leaf_solved_points` stores and loads nothing. With a row's slot they would append
+  points past what the stages made, and the sweep's `load()` would refuse. They do add to
+  `operating_point_counts`.
+- A stopped step's end evaluation is the next step's first stage, and the sweep loads its
+  arm. The margin puts it on the new arm. Without the margin the arm at the zero is
+  whatever the leaf's search returned, and the sweep would load that.
+- So at the run's own θ the record needs nothing new. The arm that candidate A wanted held
+  across a step is already recorded per evaluation, and the sweep replays it.
+
+**Found by that check: a located end held as a chosen one** (*Model the Domain*,
+*Foundational Thinking*).
+- The record already knows two kinds of boundary.
+  - A row end is chosen by the controller or the grid. Replays and the sweep hold it,
+    since moving it changes `J` only at the method's order.
+  - A cut is located at a zero. Replays locate it again and the sweep moves it, since a
+    held cut reads the zero off-centre with a stage's weight (`design-grid-controller.md`,
+    "Why the cuts move and the steps do not").
+- The draft made a located point into a row end, then held it as a chosen one.
+  - At the run's θ that is right to ΔG × margin.
+  - In a pinned replay at θ′ the zero moves by dt_c/dθ·Δθ while the end stays. Past the
+    margin, which is minutes, the next step's first stage (weight 37/378) reads the old
+    arm, and the error is 0.1·h·ΔG again.
+  - That is the jitter this design removes, back on every analysis that replays the
+    resident's grid away from θ₀: chords of gradients at u = 1e-2, regnans's convergence
+    Jacobian at 1e-3, the resident within ±10%. The gradient on that grid also jumps
+    wherever a zero crosses a stage, against *Continuous in the traits*.
+  - dt_c/dθ is unmeasured; G7 measures it.
+- *Revision:* a row records that its end was located, and each pass that has the zero
+  locates it again (§ The design, 4). Each pass is then exact for its own program, as the
+  split's passes are.
+- *Not taken:* the whole-state split, which integrates every block in pieces inside the
+  row, cut at the zeros. It keeps every row end a chosen one and needs no new field. But
+  it needs pieces of the whole state in the sweep and in every invader's walk: more code
+  for the same forward.
+
+***Subtract Before You Add* and the *Laziness Protocol*.**
+- *Sequence.* #274 comes first: drop the knot pulses and move the baseline to libS.
+  - Every number in this design is from libD, where about half the steps end at a knot.
+  - On libS steps are longer, so both the jitter and what the stop buys are larger.
+  - R2's margin of 1.2 points may not hold there. The unstopped nudge on libS is the first
+    measurement.
+- *f_lo.* It changes sign 0 times on dry and on long drought. Declaring it is a
+  speculative edge case, so it is dropped.
+- *Location by evaluations.* It is a new evaluation path in `step()`, with the store hazard
+  above. G0 can show the seven readings suffice, deleting the path before it is written.
+- *The flag for the bracket.* It was state held across steps that a reader must keep in
+  sync with what the previous step did. Replaced by the attempt's last root kept as a
+  target, the same kind of thing as `time_max`.
+
+***Minimize Reader Load* and *Foundational Thinking*.**
+- *Two parallel reading arrays.* A second sign-value list would have duplicated
+  `sign_values_in`, the per-stage `std::array<std::vector<double>, 6>` and
+  `read_end_sign_values`, beside a second concept.
+  - Instead there is one reading per evaluation, with two named parts.
+  - Plant's split reads `blocks`; odelia's step reads `shared`.
+  - There is no index convention between them, which JT's build had (f_hi at blocks
+    n..2n−1).
+- *"Reach".* The draft said a point ends a step for the part of the state its rates reach.
+  - The leaf's switch changes only the soil's rates, yet the step ends for every node,
+    because every node reads the soil's potential within the step.
+  - What decides it is everything that reads the changed rates within a step. The soil
+    split measured this: 0.010, because the nodes' own integration read the main step's
+    soil.
+  - The commitment is reworded.
+
+**What the review leaves as it was:**
+- the winner: steps end at shared sign changes, and odelia owns it;
+- one value per point from the model;
+- `Events` unchanged;
+- the split for a block's own sign changes;
+- ends held in the sweep, which is exact for kinks.
