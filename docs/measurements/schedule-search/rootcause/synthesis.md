@@ -93,3 +93,43 @@ committed run's error as well as the finer check does.
 
 *Refuted if* reads fall under 0.5 or above 2 on the hydraulic quantities: the
 pre-asymptotic mode. The fallback then is a companion at r = 1.3.
+
+## The two locations, root-caused (`founders/notes.md`, `closing/notes.md`)
+
+**Founders.**
+- *Mechanism:* each founder's fate falls nearly exponentially with birth date
+  (time scale 0.4–0.8 y), because survival runs on the calendar for all of them. Linear
+  hats in birth date misread that curve twice: in J's sum, and in the founders' uptake,
+  which dries the soil for everyone.
+- *Size:* the founders hold 44–94% of the inset committed run's squared error on nine of
+  ten cases.
+- *Simpson's rule over the founders' window:* 12 intervals reach the run-to-run floor
+  (0.052ε rms on dry, 0.027ε on episodic-lma). The committed run's 17–19 trapezium
+  intervals give 0.135 and 0.335. Rows fall 6–9%.
+- Two cases only, on a patched build that does not reproduce libS exactly.
+
+**Closing edge.**
+- *Mechanism:* a seedling born later in a drying spell meets the drought with fuller
+  reserves. The closing cohorts' hydraulic sensitivity turns over about 10 d before the
+  edge, a position set by the seedling's reserves, not by the spacing. The 12-d inset node
+  sits on that turn, so the inset is a tuned cancellation with no power law.
+- *Cancellation:* on dry the closing regions' error cancels a larger hydraulic error
+  elsewhere in the layout (root_P50 +0.34 against −0.64). Where that error lives (founders,
+  opening strips or interior) is not yet attributed.
+- *Equal intervals to the edge:* they halve the strip's error and keep its sign, but give
+  order about 1, not 2, at +40% rows. Not worth it.
+- *The fine side of any ladder sits on the derivative's jitter floor:* 0.024 rms, about
+  0.09 along M.
+
+**Consequence for H1.** A coarser companion fails because the closing strip's error has no
+power law. It also fails because the layout's small dry error is a balance between regions
+that a uniform coarsening moves.
+
+## H5 (next, not yet registered in detail)
+
+*Hypothesis:* the layout's error becomes one clean second-order term (founders by Simpson,
+closing edge by a node at the edge and a fixed node at c − 12 d, everything else scaled with
+the spacing). Then a coarser companion or the pilot's constant predicts it.
+- Run on one build that reproduces libS.
+- First attribute the −0.64 root_P50 elsewhere, because removing the founders' error
+  could expose the closing-edge error it now cancels.
