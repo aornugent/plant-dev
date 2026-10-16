@@ -220,3 +220,10 @@ than the rates. All are step ends today.
 | Resource pulse | `TF24_Environment::add_water_pulse_to_layer` | One layer's θ rises by min(depth, capacity)/dz. sum_rainfall, sum_infiltration and sum_pulse_runoff rise by depth, the amount accepted and the excess. | 0 | The harness's zero-depth pulses at the 2951 active knots on dry change nothing and end a step |
 | Harvest | `Patch::apply_event`, `scale_node_densities` | For each node whose height is in [size_min, size_max]: log density += log(1 − f), mortality −= log(1 − f) | 0 | Whether a node is in the band is a sign of height − bound, so J jumps in θ wherever a node's height sits at a band edge |
 | Climate extreme | same | Every node of the target: log density −= damage, mortality += damage. damage comes from the event's parameters by a half-hourly loop with max(0, level − threshold). | 0 | Does not read the state |
+
+**13, 21 on the bank** (`jump-census/results2.md`, libS, accepted stages).
+- Determined collars and potential-ceiling hits occur on three records (long-wet,
+  wet-adG2, ld-105), each in a single step late in the run, and only in split substeps.
+- Their cause is the split's soil field. It is interpolated across a rain arrival inside
+  the step and reads the top layer 100–500× drier than the stages around it.
+- Gradient effect: ≤ 5e-5ε.

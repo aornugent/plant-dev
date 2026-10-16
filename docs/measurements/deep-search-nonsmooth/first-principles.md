@@ -103,3 +103,25 @@ reproduces its saved J exactly.
   - an R reader for the recorded solved values; or
   - one gradient comparison on long-wet with step ends placed at the Determined
     transitions.
+
+## Where the Determined collars come from, and what they cost (`kinks/jump-census/results2.md`)
+
+**Where.**
+- On each of the three records, every Determined solve and every potential-ceiling hit
+  falls in one step late in the run (t 35.7 or 38.8). They occur only in the split's
+  substep evaluations, never in a main stage.
+- Inside that step a rain arrival wets the top layer. The split's soil field is
+  interpolated from five samples across the step, and it reads the top layer 100–500×
+  drier than the stages around it, up to the ceiling. The older nodes' leaves then pass
+  Interior → Determined → BoundaryCrit → Interior within the first substep.
+
+**What it costs.**
+- Reverse mode matches central differences to ≤ 0.013ε.
+- Two step ends that remove every Determined solve and every ceiling hit move the
+  elasticities by ≤ 5e-5ε.
+
+Neither the collar nor the ceiling matters at ε, so nothing is built for them.
+
+**A separate finding.** The split reads a wrong soil field across a rain arrival inside
+the step. The cost measured here is negligible, but it is a defect in how the split
+samples the field, and it is recorded in the inventory's notes.
