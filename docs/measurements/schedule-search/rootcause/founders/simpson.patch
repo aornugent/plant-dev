@@ -1,0 +1,68 @@
+--- /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/schedtest/S_src/plant/inst/include/plant/species.h	2026-10-14 04:30:50.980997338 +0000
++++ plant/inst/include/plant/species.h	2026-10-16 13:02:26.812397828 +0000
+@@ -2,6 +2,8 @@
+ #ifndef SPECIES
+ #define SPECIES
+ 
++#include <cstdlib>
++#include <cmath>
+ #include <vector>
+ #include <algorithm>
+ #include <limits>
+@@ -301,14 +303,54 @@
+   // either side of its birth date. The boundary node's is boundary_weight().
+   template <typename F>
+   void for_each_establishment_weight(F visit) const {
++    const double until = simpson_until();
++    if (until <= 0.0) {
++      value_type from_previous(0.0);
++      for (size_t j = 0; j < size(); ++j) {
++        const node_type& end = j + 1 < size() ? nodes[j + 1] : new_node;
++        const auto share = nodes[j].interval_shares(
++          end.introduction_time() - nodes[j].introduction_time());
++        visit(nodes[j], from_previous + share.first);
++        from_previous = share.second;
++      }
++      return;
++    }
++    // DIAGNOSTIC: Simpson's rule on complete pairs of equal intervals from node 0
++    // whose far node is born by `until`; trapezium weights elsewhere.
++    std::vector<value_type> w(size(), value_type(0.0));
++    std::vector<value_type> e(size(), value_type(0.0));
+     value_type from_previous(0.0);
+     for (size_t j = 0; j < size(); ++j) {
+       const node_type& end = j + 1 < size() ? nodes[j + 1] : new_node;
+-      const auto share = nodes[j].interval_shares(
++      const std::pair<value_type, value_type> share = nodes[j].interval_shares(
+         end.introduction_time() - nodes[j].introduction_time());
+-      visit(nodes[j], from_previous + share.first);
++      w[j] = from_previous + share.first;
++      e[j] = share.first + share.second;
+       from_previous = share.second;
+     }
++    for (size_t j = 0; j + 2 < size(); j += 2) {
++      const double b0 = nodes[j].introduction_time();
++      const double b1 = nodes[j + 1].introduction_time();
++      const double b2 = nodes[j + 2].introduction_time();
++      if (b2 > until + 1e-9 ||
++          std::abs((b2 - b1) - (b1 - b0)) > 1e-6 * (b2 - b0)) {
++        break;
++      }
++      const value_type pair = e[j] + e[j + 1];
++      w[j] = w[j] - pair / 12.0;
++      w[j + 1] = w[j + 1] + pair / 6.0;
++      w[j + 2] = w[j + 2] - pair / 12.0;
++    }
++    for (size_t j = 0; j < size(); ++j) {
++      visit(nodes[j], w[j]);
++    }
++  }
++  static double simpson_until() {
++    static const double v = [] {
++      const char* s = std::getenv("PLANT_SIMPSON_UNTIL");
++      return s ? std::atof(s) : 0.0;
++    }();
++    return v;
+   }
+   // The boundary node's establishment weight: the newest node's interval's share
+   // at its upper end.
