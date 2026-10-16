@@ -1,8 +1,10 @@
 # h1_score.R: H1 scored. The E6 committed run (val_ins75_c) with its error estimated by the
 # coarse companion, err_est = (Q_coarse - Q_committed)/(1/s_c - 1), s_c = proxy(committed)/
 # proxy(coarse), beside E6's own finer check (score_pair). References on lib19 as E6's.
+# TAG=insx12 scores the 12-day-inset diagnostic companions instead.
 suppressMessages(source("/home/user/plant-dev/docs/measurements/schedule-search/round4/AG/lib.R"))
 H1 <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/h1"
+TAG <- Sys.getenv("TAG", "insx")
 HYD <- c("a_l1", "root_P50", "omega", "root_c", "stem_c", "storage_relaxation_offset")
 LEAF <- c("a", "curv_fact_elec_trans", "k_I", "jmax_25", "lma", "vcmax_25", "R_d_25")
 cls <- function(k) ifelse(k == "lnJ", "lnJ", ifelse(k %in% HYD, "hydraulic", ifelse(k %in% LEAF, "leaf", "other")))
@@ -12,7 +14,7 @@ c3 <- function(err, sest) { big <- pmax(abs(err), abs(sest)) > 1 / 3
 reads <- function(est, ec, k) { j <- abs(ec) > 0.2; r <- est / ec
   sapply(c(all = "all", leaf = "leaf", hydraulic = "hydraulic", lnJ = "lnJ", other = "other"), function(g) { m <- j & (g == "all" | cls(k) == g); if (any(m)) median(r[m]) else NA }) }
 out <- list(); RD <- list(); QQ <- list()
-for (cs in ALL) { fx <- file.path(H1, "runs", sprintf("val_insx_x_%s.rds", cs)); if (!file.exists(fx)) { cat(cs, ": companion missing\n"); next }
+for (cs in ALL) { fx <- file.path(H1, "runs", sprintf("val_%s_x_%s.rds", TAG, cs)); if (!file.exists(fx)) { cat(cs, ": companion missing\n"); next }
   xx <- readRDS(fx); if (is.null(xx$stand$elasticity)) { cat(cs, ": companion has no gradient\n"); next }
   xc <- ag_run(sprintf("val_ins75_c_%s", cs)); xf <- ag_run(sprintf("val_ins75_f_%s", cs)); ref <- refq(cs)
   z6 <- score_pair(cs, xc, xf, ref)
@@ -42,7 +44,7 @@ for (cs in ALL) { fx <- file.path(H1, "runs", sprintf("val_insx_x_%s.rds", cs));
   RD[[cs]] <- rbind(H1 = reads(est, ec, k), E6 = reads(est6, ec, k))
   QQ[[cs]] <- data.frame(case = cs, q = k, cls = cls(k), ec = ec, ex = ex, ef = ef, est = est, est6 = est6) }
 O <- do.call(rbind, out); rownames(O) <- NULL; Q <- do.call(rbind, QQ); rownames(Q) <- NULL
-saveRDS(list(O = O, RD = RD, Q = Q), file.path(H1, "h1_score.rds"))
+saveRDS(list(O = O, RD = RD, Q = Q), file.path(H1, sprintf("h1_score_%s.rds", TAG)))
 op <- options(width = 250)
 cat("== per case: the companion (H1) beside E6's finer check\n")
 print(O[, c("case", "n_c", "n_x", "n_f", "s_c", "s_f", "meas_s", "meas_s_hyd", "meas_s_leaf", "worst_c", "wq", "worst_est", "commit", "C1", "C2", "C3", "C5", "C3n", "pass", "read", "corr", "rms_ratio", "miss")], digits = 3)

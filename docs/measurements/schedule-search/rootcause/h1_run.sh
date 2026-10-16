@@ -1,6 +1,7 @@
 #!/bin/bash
 # h1_run.sh: H1's coarse companions, the E6 committed runs' setting with only TIMES changed
 # (one_nk.sh's environment; libS, no knot stops, 1e-4), four at a time.
+# TAG=insx12 runs the 12-day-inset diagnostic schedules instead.
 A=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/schedtest/adjmap
 DEV=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev
 H1=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/h1
@@ -14,12 +15,12 @@ one() { cs=$1; case $cs in
     ld-105) rec=long-drought; extra="SEED=105"; w=long-drought ;;
     *) rec=$cs; extra=""; w=$cs ;;
   esac
-  name=val_insx_x_$cs; [ -s $H1/runs/$name.rds ] && return 0
+  name=val_${TAG:-insx}_x_$cs; [ -s $H1/runs/$name.rds ] && return 0
   env REGIME=$rec TOL=3e-5 ATOL=1e-4 WEIGHT_SOIL=10 WEIGHT=$DEV/window/rule_A/weight_$rec.rds \
     WEIGHT_MAX=100 HMAX=15 SHARE=0.1 SPLIT=1 OUT=$H1/runs/$name.rds \
-    TIMES=$H1/sched/insx_$cs.rds WEIGHT=$DEV/window/rule_A/weight_$w.rds TOL=1e-4 LIB=$A/libS KNOTS=0 $extra \
+    TIMES=$H1/sched/${TAG:-insx}_$cs.rds WEIGHT=$DEV/window/rule_A/weight_$w.rds TOL=1e-4 LIB=$A/libS KNOTS=0 $extra \
     Rscript $A/adj_run_nk.R > $H1/logs/$name.log 2>&1
   echo "done $name $? $(date +%T)" >> $H1/queue.out; }
-export -f one; export A DEV H1
+export -f one; export A DEV H1 TAG
 printf "%s\n" ${@:-long-wet wet-adG2 long-drought ld-102 ld-105 dry-flat episodic dry episodic-lma dry-p50} | xargs -P 4 -I{} bash -c 'one {}'
 echo "all done $(date +%T)" >> $H1/queue.out
