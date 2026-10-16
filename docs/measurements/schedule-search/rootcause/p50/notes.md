@@ -134,3 +134,118 @@ dry-flat I4, O4, I2; long-wet I4, O4.
   half of its −0.59 (its interiors are fewer and shorter: 26 intervals, median 39–51 d,
   against dry's 43 at ~70 d), the opening side more (O ≤ −0.25) — 45%.
 - **R2d (long-wet).** long-wet's interiors carry |root_P50| ≤ 0.15 — 65%.
+
+### R1 results, all five regions (`r1_score.R dry`; F2 pending at the time of writing) [m]
+
+| region (run, nodes) | rms | along M | ln J | root_P50 | omega | TF24_cost_scale | stem_c | a_l1 | root_c | a |
+|---|---|---|---|---|---|---|---|---|---|---|
+| B: b1 closing edge (B, 544) | 0.018 | +0.06 | +0.01 | +0.03 | +0.01 | −0.06 | −0.01 | −0.03 | −0.00 | +0.03 |
+| O: opening side (O4, 705) | 0.049 | +0.07 | +0.04 | −0.18 | +0.10 | +0.13 | −0.02 | −0.07 | +0.09 | −0.02 |
+| **I: interiors (I4, 662)** | 0.140 | +0.02 | −0.22 | **−0.51** | +0.31 | +0.22 | −0.11 | +0.42 | +0.22 | −0.15 |
+| L: late (L4, 572) | 0.023 | +0.02 | −0.01 | +0.03 | −0.02 | −0.06 | +0.03 | +0.00 | −0.01 | +0.02 |
+| sum B + O + I + L | 0.153 | +0.17 | −0.19 | −0.63 | +0.39 | +0.24 | −0.11 | +0.32 | +0.30 | −0.13 |
+| e_res − sum | 0.134 | −0.19 | +0.11 | −0.01 | +0.03 | +0.16 | −0.28 | −0.12 | +0.01 | −0.19 |
+
+- B and L are at the jitter floor (rms 0.018, 0.023 against 0.024).
+- **R1a holds** (I −0.51 ∈ [−0.60, −0.25]); **R1b refuted** (O −0.18); **R1c holds**
+  (L +0.03); **R1d holds** narrowly (B +0.03, positive, small); **R1f holds** (I along M
+  +0.02 with root_P50 −0.51: the error is off M).
+- What remains after B + O + I + L (root_P50 −0.01, stem_c −0.28, a −0.19, ln J +0.11) is
+  the founders' signature; F2 will close the sum.
+
+### R1 results, closed with F2 (`r1_score_dry.log`) [m]
+
+| | rms | along M | ln J | root_P50 | omega | TF24_cost_scale | stem_c | a_l1 | sro | root_c | a |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| F: founders on res (F2, 550, ×4/3) | 0.132 | −0.16 | +0.10 | −0.09 | +0.01 | +0.16 | −0.18 | −0.04 | +0.11 | +0.02 | −0.21 |
+| sum F + B + O + I + L | 0.215 | +0.01 | −0.09 | −0.72 | +0.40 | +0.40 | −0.29 | +0.28 | +0.12 | +0.32 | −0.34 |
+| e_res | 0.209 | −0.02 | −0.08 | −0.64 | +0.42 | +0.39 | −0.39 | +0.19 | +0.01 | +0.31 | −0.32 |
+| e_res − sum | **0.039** | −0.03 | +0.01 | +0.08 | +0.02 | −0.00 | −0.10 | −0.08 | −0.11 | −0.01 | +0.02 |
+
+- **The regions add**: e_res − sum has rms 0.039 (five runs' jitter ≈ 0.024·√5 ≈ 0.05)
+  and root_P50 +0.08. **R1e holds** on both counts (root_P50 within ±0.15; rms ≤ 0.06).
+- **Where res's root_P50 −0.64 lives** [m]: interiors −0.51 (80%), opening side −0.18
+  (28%), founders −0.09, b1 edge +0.03, late +0.03. omega likewise (+0.31 of +0.42 in the
+  interiors), root_c (+0.22 of +0.31), a_l1 (+0.42). The founders carry stem_c, a and
+  TF24_cost_scale +0.16; the interiors and founders split TF24_cost_scale.
+
+## R3. Mechanism in the interiors (dry)
+
+**Process note.** Three analyses of saved runs were run before a prediction was written
+for them (an error of process; their numbers are reported as found, with no score):
+`m1_split.R` (the nested split of I4 − res into establishment, field and interpolation
+parts, the founders' q2_shape split generalised to any nesting), `m2_who.R` (whose fates
+carry the field part) and `m3_traj.R` / `m3b_shape.R` on a forward trajectory run of the I4
+schedule (`traj.R`: interior cohorts' height, mortality integral, and the top soil layer).
+
+### Exploratory results (unregistered) [m]
+
+- **ln J's interior error is all field**: −0.223ε = establishment −0.000 + field −0.251 +
+  interpolation +0.036 (`m1_split.R dry I4`). The opening side: +0.035 = field +0.043,
+  interpolation −0.006.
+- **The field part lowers every cohort's fate by about the same fraction**: median
+  ln nrr (res − I4) −0.006 for founders, −0.007 for cohorts born b1–10, −0.002 (10–17),
+  −0.010 (17–25). The founders hold 84% of J, so they carry −0.203 of the −0.251; the
+  interior cohorts themselves −0.049 (`m2_who.R`).
+- **The interior cohorts' leaf area is convex in birth date inside each res interval, and
+  res's hats over-count it.** Proxy x = h^(1/a_l2)·exp(−mortality) per recruit
+  (a_l2 = 0.306): at t = 8 / 15 / 22 y, across one interior interval, ln(size) falls
+  −2.2 / −1.0 / −0.5 per year of later birth (a later birth is a smaller, delayed copy)
+  while ln(survival) rises +0.5 / +0.2 / +0.2 per year with curvature +3.7 / +1.8 / +1.9
+  per y² (a later birth has had less time to die, and met its first drought with fuller
+  reserves). The hat chord over-reads x by a median 1.1% / 0.8% / 0.5% of the
+  interval's own leaf area (`m3b_shape.R`); summed over all interiors and weighted by
+  establishment, the over-count is 0.7–4% of the interior cohorts' leaf area every year
+  from 4 to 40 y, falling from 3–4% (years 4–6) to 0.7–0.9% (years 15–40) (`m3_traj.R`).
+- Reading [i]: res's interior hats over-count the understory's leaf area and so its
+  water uptake; the soil runs drier for everyone; the founders, whose crowns sit above
+  the understory and so cannot be shaded by it, lose fate through the soil alone. This
+  is the founders' soil field part (founders/notes D) one level down: there the founders'
+  own uptake was over-counted; here the interior cohorts' uptake is.
+
+### Pre-registration R3 (before the pinned finite differences and the res trajectory run)
+
+Runs: the I4 schedule forward at root_P50 × (1 ± 0.01), each step pinned to the stored I4
+run (PIN), so the interpolation part's root_P50 derivative is free of step jitter
+(`m4_fd.R`); and the res schedule's forward trajectory (`traj.R`) for its soil.
+- **R3a.** The interpolation part carries under a third of the interiors' root_P50 error
+  (|d interp / d ln root_P50| ≤ 0.17ε against −0.51): the elasticity error, like ln J's,
+  is field — 65%.
+- **R3b.** res's soil is drier than I4's: the top layer's mean over drydown days (top
+  layer below its 20th percentile on I4) is lower on res, and the difference is ≥ 3× its
+  difference over wet days — 60%.
+- **R3c.** The guard: the pinned run at root_P50 × 1 is not run; instead the central
+  difference of ln J from the ± pair reproduces I4's own root_P50 elasticity within 2% —
+  80%.
+
+### R2 results, dry ladder (I8 pending) (`r2_ladder.R dry`) [m]
+
+| move | rms | along M | ln J | root_P50 | omega | TF24_cost_scale | a_l1 | root_c |
+|---|---|---|---|---|---|---|---|---|
+| res → I2 (interior intervals halved, ~35 d) | 0.109 | +0.01 | +0.17 | +0.39 | −0.23 | −0.19 | −0.32 | −0.17 |
+| I2 → I4 (~18 d) | 0.023 | −0.02 | +0.04 | +0.08 | −0.06 | −0.01 | −0.07 | −0.04 |
+| ratio (law 4) | 4.65 | — | 4.29 | **4.77** | 4.15 | — | 4.39 | — |
+
+Projected ratio ⟨d1, d2⟩/|d2|² 4.46, cos(d1, d2) 0.96. The region error by Richardson from
+res→I2 (×4/3) and from res→I4 (×16/15) agree to 0.01–0.03 in every quantity (root_P50
+−0.52 / −0.51, ln J −0.23 / −0.22). The second move's rms (0.023) is at the jitter floor,
+but its direction is the first's (cos 0.96), so the ratio is read on signal [i].
+
+### R2 results, dry eras (`r2_era_dry.log`) [m]
+
+| era (run, nodes) | rms | along M | ln J | root_P50 | omega | TF24_cost_scale | a_l1 | root_c |
+|---|---|---|---|---|---|---|---|---|
+| Ia (b1, 10) (Ia4, 578; 15 intervals) | 0.119 | −0.06 | −0.14 | **−0.38** | +0.22 | +0.23 | +0.28 | +0.16 |
+| Ib [10, 17) (Ib4, 581; 16 intervals) | 0.051 | +0.05 | −0.07 | −0.12 | +0.08 | +0.03 | +0.12 | +0.06 |
+| Ic [17, 25) (Ic4, 569; 12 intervals) | 0.013 | +0.00 | −0.01 | −0.02 | +0.01 | +0.00 | +0.04 | +0.01 |
+| Ia + Ib + Ic | 0.146 | −0.01 | −0.22 | −0.52 | +0.31 | +0.26 | +0.43 | +0.22 |
+| I4 − (Ia + Ib + Ic) | 0.010 | +0.03 | +0.00 | +0.02 | +0.00 | −0.05 | −0.01 | −0.00 |
+
+- The eras add to the whole within rms 0.010. **R2a: additivity holds; "no era above
+  60%" is refuted**: the first era after b1 carries 73% of the interiors' root_P50 with a
+  third of their intervals; the last era (17–25), with intervals as wide, carries 4%.
+- The interval widths are alike across eras (median 68–72 d), so what falls 20× from Ia to
+  Ic is the weight of an understory error, not its size per interval [i]: cohorts born
+  b1–10 are the understory, already large (t = 8 y leaf-area proxy), during the founders'
+  reproductive years (t ≈ 15–28), when the founders' fate is set; cohorts born after 17
+  are still seedlings then.

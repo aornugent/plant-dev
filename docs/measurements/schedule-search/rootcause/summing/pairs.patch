@@ -1,0 +1,171 @@
+--- plant.orig/inst/include/plant/species.h	2026-10-16 20:47:20.486757530 +0000
++++ plant/inst/include/plant/species.h	2026-10-16 20:59:15.058685358 +0000
+@@ -2,6 +2,9 @@
+ #ifndef SPECIES
+ #define SPECIES
+ 
++#include <cstdlib>
++#include <cstring>
++#include <string>
+ #include <vector>
+ #include <algorithm>
+ #include <numeric>
+@@ -306,15 +309,137 @@
+   // either side of its birth date. The boundary node's is boundary_weight().
+   template <typename F>
+   void for_each_establishment_weight(F visit) const {
++    if (pair_rule().mode == 0) {
++      value_type from_previous(0.0);
++      for (size_t j = 0; j < size(); ++j) {
++        const node_type& end = j + 1 < size() ? nodes[j + 1] : new_node;
++        const auto share = nodes[j].interval_shares(
++          end.introduction_time() - nodes[j].introduction_time());
++        visit(nodes[j], from_previous + share.first);
++        from_previous = share.second;
++      }
++      return;
++    }
++    std::vector<value_type> w(size(), value_type(0.0));
++    std::vector<char> touched;
++    pair_corrections(w, touched);
+     value_type from_previous(0.0);
+     for (size_t j = 0; j < size(); ++j) {
+       const node_type& end = j + 1 < size() ? nodes[j + 1] : new_node;
+-      const auto share = nodes[j].interval_shares(
++      const std::pair<value_type, value_type> share = nodes[j].interval_shares(
+         end.introduction_time() - nodes[j].introduction_time());
+-      visit(nodes[j], from_previous + share.first);
++      visit(nodes[j], from_previous + share.first + w[j]);
+       from_previous = share.second;
+     }
+   }
++  // DIAGNOSTIC (PLANT_SIMPSON, read once): "off" or unset, the hat weights; "all",
++  // every complete pair of intervals from node 0; "lo:hi[,lo:hi]", the pairs lying
++  // inside one of these birth-date windows. PLANT_SIMPSON_LIGHT=0 leaves the light
++  // on the hat weights.
++  struct pair_rule_setting {
++    int mode;  // 0 off, 1 all, 2 windows
++    std::vector<std::pair<double, double>> windows;
++    bool light;
++    bool moment;  // PLANT_SIMPSON_FORM=moment
++  };
++  static const pair_rule_setting& pair_rule() {
++    static const pair_rule_setting setting = [] {
++      pair_rule_setting r{0, {}, true, false};
++      const char* v = std::getenv("PLANT_SIMPSON");
++      if (v != nullptr && *v != 0 && std::strcmp(v, "off") != 0) {
++        if (std::strcmp(v, "all") == 0) {
++          r.mode = 1;
++        } else {
++          r.mode = 2;
++          std::string s(v);
++          std::size_t at = 0;
++          while (at < s.size()) {
++            std::size_t comma = s.find(',', at);
++            if (comma == std::string::npos) comma = s.size();
++            const std::string item = s.substr(at, comma - at);
++            const std::size_t colon = item.find(':');
++            if (colon == std::string::npos) {
++              util::stop("PLANT_SIMPSON: expected off, all or lo:hi[,lo:hi]");
++            }
++            r.windows.emplace_back(std::atof(item.substr(0, colon).c_str()),
++                                   std::atof(item.substr(colon + 1).c_str()));
++            at = comma + 1;
++          }
++        }
++      }
++      const char* l = std::getenv("PLANT_SIMPSON_LIGHT");
++      r.light = !(l != nullptr && std::strcmp(l, "0") == 0);
++      const char* form = std::getenv("PLANT_SIMPSON_FORM");
++      r.moment = form != nullptr && std::strcmp(form, "moment") == 0;
++      return r;
++    }();
++    return setting;
++  }
++  static bool pair_selected(double b0, double b2) {
++    const pair_rule_setting& r = pair_rule();
++    if (r.mode == 1) return true;
++    for (const auto& win : r.windows) {
++      if (b0 >= win.first - 1e-9 && b2 <= win.second + 1e-9) return true;
++    }
++    return false;
++  }
++  // Each node's correction from the hat weights to the pair's quadratic weights,
++  // added into `d`; `touched` marks the nodes of a corrected pair. For a pair of
++  // widths h1, h2 (H = h1 + h2) holding establishment E, the correction is
++  // E/H times the composite Simpson weights less the hat weights for a uniform
++  // density: H/6 (2 - h2/h1) - h1/2, H^3/(6 h1 h2) - H/2, H/6 (2 - h1/h2) - h2/2.
++  // They sum to zero, so the pair's establishment is kept. The moment form
++  // instead integrates each quadratic basis function against the establishment,
++  // each interval's second moment taken from the linear density with its
++  // establishment and first moment (h M - h^2 E / 6, kept within what a
++  // non-negative density on the interval allows).
++  static value_type second_moment(const value_type& est, const value_type& M,
++                                  double h) {
++    value_type m2 = h * M - h * h * est / 6.0;
++    if (est > 0.0) {
++      const value_type lo = M * M / est, hi = h * M;
++      if (m2 < lo) m2 = lo;
++      if (m2 > hi) m2 = hi;
++    }
++    return m2;
++  }
++  void pair_corrections(std::vector<value_type>& d,
++                        std::vector<char>& touched) const {
++    touched.assign(size(), 0);
++    for (size_t j = 0; j + 2 < size(); j += 2) {
++      const double b0 = nodes[j].introduction_time();
++      const double b1 = nodes[j + 1].introduction_time();
++      const double b2 = nodes[j + 2].introduction_time();
++      if (!pair_selected(b0, b2)) continue;
++      const double h1 = b1 - b0, h2 = b2 - b1, H = h1 + h2;
++      if (!(h1 > 0 && h2 > 0)) continue;
++      const std::pair<value_type, value_type> s0 = nodes[j].interval_shares(h1);
++      const std::pair<value_type, value_type> s1 = nodes[j + 1].interval_shares(h2);
++      touched[j] = touched[j + 1] = touched[j + 2] = 1;
++      if (pair_rule().moment) {
++        const value_type E1 = s0.first + s0.second, M1 = s0.second * h1;
++        const value_type E2 = s1.first + s1.second, M2 = s1.second * h2;
++        const value_type m0 = E1 + E2;
++        const value_type m1 = M1 + M2 + h1 * E2;
++        const value_type m2 = second_moment(E1, M1, h1) +
++          second_moment(E2, M2, h2) + 2.0 * h1 * M2 + h1 * h1 * E2;
++        const value_type w0 = (m2 - (h1 + H) * m1 + h1 * H * m0) / (h1 * H);
++        const value_type w1 = (m2 - H * m1) / (-h1 * h2);
++        const value_type w2 = (m2 - h1 * m1) / (H * h2);
++        d[j] += w0 - s0.first;
++        d[j + 1] += w1 - (s0.second + s1.first);
++        d[j + 2] += w2 - s1.second;
++        continue;
++      }
++      const value_type est = s0.first + s0.second + s1.first + s1.second;
++      const double c0 = (2.0 - h2 / h1) / 6.0 - h1 / (2.0 * H);
++      const double c1 = H * H / (6.0 * h1 * h2) - 0.5;
++      const double c2 = (2.0 - h1 / h2) / 6.0 - h2 / (2.0 * H);
++      d[j] += est * c0;
++      d[j + 1] += est * c1;
++      d[j + 2] += est * c2;
++    }
++  }
+   // The boundary node's establishment weight: the newest node's interval's share
+   // at its upper end.
+   value_type boundary_weight() const {
+@@ -354,6 +479,18 @@
+     for (size_t i = 0; i + 1 < size(); ++i) {
+       for_each_interval_crown(nodes[i], nodes[i + 1], visit);
+     }
++    if (pair_rule().mode == 0 || !pair_rule().light) {
++      return;
++    }
++    // The pairs' corrections, each a crown at its node's own top.
++    std::vector<value_type> d(size(), value_type(0.0));
++    std::vector<char> touched;
++    pair_corrections(d, touched);
++    for (size_t j = 0; j < size(); ++j) {
++      if (touched[j]) {
++        visit(nodes[j].height(), value_type(d[j] * nodes[j].compute_competition(0.0)));
++      }
++    }
+   }
+   // A crown with top `top` and leaf area `leaf_area`, read at `height`.
+   void add_crown(with_slope<value_type>& sum, const value_type& top,

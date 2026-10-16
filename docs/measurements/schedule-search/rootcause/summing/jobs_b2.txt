@@ -1,0 +1,12 @@
+H2off H2 episodic-lma off lib1
+H2all H2 episodic-lma all lib1
+H2off H2 dry off lib1
+H2all H2 dry all lib1
+H2off H2 long-wet off lib1
+H2all H2 long-wet all lib1
+H4off H4 episodic-lma off lib1
+H4off H4 dry off lib1
+H4off H4 long-wet off lib1
+H2off H2 dry-flat off lib1
+H2all H2 dry-flat all lib1
+H4off H4 dry-flat off lib1

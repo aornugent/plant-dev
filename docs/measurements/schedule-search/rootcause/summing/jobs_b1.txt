@@ -1,0 +1,22 @@
+g1 insc episodic-lma off lib1
+g1 insc dry off lib1
+Loff L episodic-lma off lib1
+Loff L dry off lib1
+Loff L long-wet off lib1
+Loff L dry-flat off lib1
+Lfounders L episodic-lma @founders lib1
+Lfounders L dry @founders lib1
+Lfounders L long-wet @founders lib1
+Lfounders L dry-flat @founders lib1
+Lall L episodic-lma all lib1
+Lall L dry all lib1
+Lall L long-wet all lib1
+Lall L dry-flat all lib1
+Lallm L episodic-lma all lib1 PLANT_SIMPSON_FORM=moment
+Lallm L dry all lib1 PLANT_SIMPSON_FORM=moment
+Lallm L long-wet all lib1 PLANT_SIMPSON_FORM=moment
+Lallm L dry-flat all lib1 PLANT_SIMPSON_FORM=moment
+Lnogap L episodic-lma @nogap lib1
+Lnogap L dry @nogap lib1
+Lnogap L long-wet @nogap lib1
+Lnogap L dry-flat @nogap lib1

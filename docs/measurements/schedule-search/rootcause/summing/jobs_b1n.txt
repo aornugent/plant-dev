@@ -1,0 +1,4 @@
+Lallnl L episodic-lma all lib1 PLANT_SIMPSON_LIGHT=0
+Lallnl L dry all lib1 PLANT_SIMPSON_LIGHT=0
+Lallnl L long-wet all lib1 PLANT_SIMPSON_LIGHT=0
+Lallnl L dry-flat all lib1 PLANT_SIMPSON_LIGHT=0

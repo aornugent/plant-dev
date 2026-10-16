@@ -1,0 +1,13 @@
+p5_I2_dry I2 dry
+p5_Ia4_dry Ia4 dry
+p5_Ib4_dry Ib4 dry
+p5_Ic4_dry Ic4 dry
+fd_I4p_dry I4 dry FORWARD=1 PIN=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/p50/runs/p5_I4_dry.rds TRAIT_REL=root_P50=0.01
+fd_I4m_dry I4 dry FORWARD=1 PIN=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/p50/runs/p5_I4_dry.rds TRAIT_REL=root_P50=-0.01
+traj_res_dry res dry SCRIPT=traj.R BLO=3.5 BHI=25
+p5_I4_dry-flat I4 dry-flat
+p5_O4_dry-flat O4 dry-flat
+p5_I4_long-wet I4 long-wet
+p5_I8_dry I8 dry
+p5_I2_dry-flat I2 dry-flat
+p5_O4_long-wet O4 long-wet
