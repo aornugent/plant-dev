@@ -417,3 +417,111 @@ sensitivity integrand has a 10–15 d turn before the edge with 2× the level an
 far-zone curvature of long-wet's. The inset's committed layout sits on the strip at 12 d,
 right where that turn is; on long-wet the same layout errs 10× less in root_P50, so its
 non-power-law part is too small to disturb a pair.
+
+### Pre-registration Q4d (jitter floor of the ladder; one run, added after the first ladder rungs were read)
+
+The fine rungs' zone errors (rms 0.02–0.05) are at the record's jitter scale (0.02–0.04
+between equivalent schedules). One run measures it for this layout: edg3 on dry with the
+tolerance nudged +5% (1.05e-4). **Q4d.** edg3(1.05e-4) − edg3(1e-4): rms 0.015–0.05 and
+along M |·| ≤ 0.1 — 65%.
+
+### Q4 results (`q4_score.R`, `q4_own.R dry`) [m]
+
+Zone error = Q(rung) − Q(resZ), ε. Proposed rungs edg2 / edg3 / edg5 (Z/N ≈ 37 / 25 / 15 d);
+inset rungs insx (19.2 d) / committed (12 d) / insf (7.5 d, last interval split).
+
+| case | ladder | nodes | zone rms | along M | ratios along M (law) | rms ratios (law) | projected per quantity |
+|---|---|---|---|---|---|---|---|
+| dry | proposed | 176 / 203 / 257 | 0.077 / 0.047 / 0.018 | −0.44 / −0.28 / −0.05 | 1.57 (2.25), 5.91 (2.78) | 1.61, 2.59 | 1.35, 1.56 |
+| dry | inset | 149 / 149 / 180 | 0.098 / 0.098 / 0.050 | −0.27 / −0.55 / −0.30 | **0.48** (2.56), 1.88 (2.56) | 1.00, 1.98 | 0.81, 1.72 |
+| dry-p50 | proposed | 182 / 211 / 269 | 0.060 / 0.040 / 0.032 | −0.29 / −0.25 / −0.17 | 1.18 (2.25), 1.47 (2.78) | 1.49, 1.25 | 0.92, 1.07 |
+| dry-p50 | inset | 153 / 153 / 194 | 0.114 / 0.130 / 0.045 | −0.22 / −0.34 / −0.14 | **0.65** (2.56), 2.45 (2.56) | 0.88, 2.91 | 0.86, 2.59 |
+
+Jitter floor (Q4d, edg3 dry at tolerance 1.05e-4 against 1e-4): rms 0.024, along M +0.09
+(a_st1 +0.07, TF24_cost_scale −0.06, storage_relaxation_offset +0.06). **Q4d holds.**
+
+The own part on the root_P50 sensitivity integrand (fate map, 10 zones, against a
+15-interval reference) [m, model]: proposed x/c 2.16, c/f 3.06; inset x/c 0.94, c/f 2.62;
+a variant with the edge a node *and* a fixed node at c − 12 d, [p, c − 12] in 1/2/3
+intervals: 3.44 (law 4), 2.12 (law 2.25). A one-turn model (the integrand's slope turns
+δ = 10 d before the edge; an interval of width h ending at the edge errs ∝ δ(h − δ))
+gives 1.84 and 3.06 for the proposed rungs.
+
+Scored:
+- **Q4a refuted.** The proposed ladder does not follow the square law along M: dry 1.57
+  and 5.91, dry-p50 1.18 and 1.47 against 2.25 and 2.78; per quantity 0.92–1.56. Signs
+  are kept and the error grows monotonically with spacing on both cases (rms 0.077 →
+  0.047 → 0.018; 0.060 → 0.040 → 0.032), so it is predictable in sign, not in order.
+  The coarse step's apparent order from rms is 1.2 (dry) and 1.0 (dry-p50). The fine
+  step sits on the jitter floor (dry-p50's edg5 rms 0.032 against jitter 0.024; along M
+  the floor is ≈ 0.09 per run), so it cannot be scored.
+- **Q4b holds.** At the strip alone the inset ladder is non-monotone toward the coarse
+  side on both cases (along M 0.48 and 0.65 of the committed run's error; rms ratio 1.00
+  and 0.88) and close to the law toward the fine side (rms 1.98, 2.91; per quantity 1.72,
+  2.59), as the own-part model predicted (0.94, 2.62).
+- **Q4c holds, both parts.** edg3's zone error along M is −0.28 (dry) and −0.25 (dry-p50),
+  under 0.6 and under the inset's own committed zone error (−0.55, −0.34); rms 0.047 and
+  0.040 against 0.098 and 0.130. Cost: +54 and +58 nodes, rows +40% and +42%.
+
+### What the ladders say about the mechanism [i]
+
+The integrand that carries the closing-edge error is the cohorts' hydraulic sensitivity,
+and it turns over a 5–10 d width about 9–12 d before the edge (Q3d). That is where
+P's error-free inset (12–15 d committed, ≈ 11 d at the check's spacing, 9–10 d under the
+averaged gate) sits: the 12-d node lands on the turn. Hence:
+- the inset's coarse rung (19.2 d) moves the node off the turn, and its error is set by
+  the node's distance from the turn, not by h: no growth, sign changes along M (H1's dry
+  +0.29 / −0.30);
+- the inset's fine rung keeps a node near the turn and refines the smooth part: square
+  law toward the fine side (bisC, insf);
+- the proposed edge-node ladder places nodes by Z/N, not at the turn; an interval that
+  spans a turn of fixed position errs ∝ δ(h − δ): first order with an offset, which is
+  what the coarse step shows (1.2 and 1.0).
+So the strip is not second order in h under any layout whose intervals (25–37 d) are
+wider than the turn's width, and at the committed spacing the remaining zone error with
+the edge as a node (rms 0.04–0.05) is within 2× of the derivative's step jitter (0.024).
+
+### Next hypothesis (not run)
+
+H5: the edge a node, a fixed node at the turn (c − 12 d, the same in every run: a
+property of the seedling's reserve dynamics, not of the spacing), and only [p, c − 12]
+scaled with h. The strip [c − 12, c] is then a fixed, small interval whose error both
+runs of a pair share (≈ 0 in the own part), and the scaled part lies on the smooth side
+of the turn: own-part ladder 3.44 / 2.12 against 4 / 2.25. Its test needs a quieter
+derivative (a step stop at the leaves' arm switch, per JT) or a jitter-averaged ladder,
+since its zone errors at the committed spacing would sit at the 0.024 floor.
+
+## Predictions scored
+
+| # | prediction | P | result |
+|---|---|---|---|
+| Q1a | dry region along M −0.15 to −0.45 | 60% | holds (−0.28) |
+| Q1a | dry region share 15–50% | 55% | refuted: −23% (anti-aligned with the rest) |
+| Q1b | dry-p50 region along M −0.25 to −0.55 | 55% | refuted narrowly (−0.23) |
+| Q1b | dry-flat share ≥ 30% | 50% | refuted (−2%) |
+| Q1b | long-wet share ≤ 25%, \|M\| ≤ 0.1 | 65% | holds (+3%, −0.10) |
+| Q1c | bisC's M read outside [0.7, 1.4] of the region's | 60% | holds (1.47; per quantity it reads 0.95) |
+| Q1d | res2x − res along M < 0.1 | 70% | holds (+0.06, rms 0.022) |
+| Q2a | slope steepens ≥ 1.5× toward the edge | 55% | partly: on rising edges; falling edges flatten; convex on 23/24 |
+| Q2a′ | near-kink | 15% | refuted |
+| Q2a″ | no steepening | 30% | refuted |
+| Q2b | fate keeps rising into long gaps | 75% | holds (12/12) |
+| Q2c | pr at c − 2 d ≥ 0.5 of the spell mean | 65% | holds (median 0.74) |
+| Q2d | ≥ 60% of the fate gain is survival by the gap's end + 30 d | 50% | holds (88% at 6.49; 200% at 14.45) |
+| Q2e | later-born hold more storage relative to size | 45% | holds at c + 15 d; gone by the gap's end |
+| Q3a | long-wet region small | 60% | holds |
+| Q3b | long-wet fate flatter (k ≤ 0.5× dry) | 55% | refuted (1.67× dry's) |
+| Q3c | dry-flat region rms ≥ dry's | 60% | refuted (0.054 vs 0.085) |
+| Q3d | sensitivity curvature ≥ 3× on dry | 60% | refuted (1.85×) |
+| Q3d′ | dry's sensitivity curvature concentrated near the edge (≥ 2×) | 50% | holds (4.0×) |
+| Q4a | proposed ladder on the square law along M, both cases | 55% | refuted (1.57/5.91; 1.18/1.47) |
+| Q4a′ | per quantity too, cos ≥ 0.8 | 45% | refuted (cos 0.16, 0.53) |
+| Q4b | inset x/c < 1.6 or sign change on one case | 65% | holds (0.48, 0.65) |
+| Q4c | edg3 zone error along M ≤ 0.6 | 55% | holds (0.28, 0.25) |
+| Q4c′ | ≤ the inset's committed zone error | 30% | holds |
+| Q4d | jitter rms 0.015–0.05, \|M\| ≤ 0.1 | 65% | holds (0.024, +0.09) |
+
+Runs: 27 completed, all exit 0, at most two of this round's at a time: Q1 9 (res ×4,
+bisC ×4, res2x), the trajectory fate map 1, the forward-difference maps 4, Q4 12 (resZ,
+edg2/3/5, insx, insf on two cases), the jitter run 1. Two launcher variants used for the
+second lane (`run2.sh`, `jit.sh`) sit in the output directory beside `queue.out`.
