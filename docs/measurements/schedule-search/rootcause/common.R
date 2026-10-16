@@ -15,7 +15,11 @@ TAB$case[TAB$name %in% c("m_lma1252_episodic", "m_lma1254_episodic", "m_lma125_e
 # Runs with the rain's knot stops removed on a knot-stopping build (E's defect probe), or
 # a silent gradient blow-up of the legacy long-drought setting (round 3 D).
 TAB$bad <- TAB$name %in% c("E_k0_dry", "E_k0f5_dry", "E_k25_dry", "G_k25_c_dry", "G_k25w10_c_dry") | grepl("^val_a10s_|^val_a10n1", TAB$name)
-TAB$legacy <-TAB$split %in% c("0", "")   # long-drought records' old setting (no soil share, no splits)
+# Long-drought records' old setting (no soil share, no splits); runs older than the SPLIT
+# key ran the proper setting elsewhere (map_dry_u215 = u215_dry bit for bit).
+TAB$legacy <- TAB$split == "0" | (TAB$split == "" & TAB$regime == "long-drought")
+# The lumped studies ran another build (d108_episodic differs between them and placed2).
+TAB$bad <- TAB$bad | grepl("lumped", TAB$dir)
 qof <- function(id) { r <- RR[[id]]; if (is.null(r$el)) return(NULL); quantities(list(stand = list(J = r$J, elasticity = r$el))) }
 Q <- names(qof("schedtest/adjmap/runs/val_a09_c_dry"))
 EPS <- eps_vec(Q)
