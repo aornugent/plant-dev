@@ -349,3 +349,15 @@ the ten has measured region errors on disk, so none is scored.
 | I3′ | W ranks at least as well as U (same) | 60% |
 | I4 | founders against the rest, ten cases: W picks the larger for ln J on ≥ 7 | 55% |
 | I4′ | the same for the elasticities' rms on ≥ 7 | 45% |
+
+## Q3. Routes to the elasticities' region errors, with costs (dry; seconds in this session)
+
+| route | what it gives | cost | status |
+|---|---|---|---|
+| ln J's map split applied to each quantity | nothing usable: signed split wrong (S); \|ln J\| ranks regions (cos 0.94 with the rms profile) | free | [m] |
+| drop1 + sweep, field change passive (as built) | λ's θ-derivative in a frozen field change; misses dδenv/dθ and the own part | one coarse gradient run per region | **refuted** (cos −0.11, 0.46) [m] |
+| **pinned real coarsening of the coarse run, per region** | the region's move in all 50 quantities, all orders, no step jitter | one coarse gradient run per region: rows 0.61–0.68 of the committed run's | **works**: cos 0.96 / 0.98, slope 0.98 / 1.22 [m] |
+| drop1 with an active field change | first order in the field, all quantities; the own part's θ-derivative still missing | a patch to `drop_crowns`/`drop_uptake` (return active values), then as drop1 | not built: the route above is simpler and exact [i] |
+| (a) a tangent inside the adjoint | the mixed second derivative, all regions per direction | odelia refuses a tangent above an adjoint (`tangent.hpp` static_assert); an adjoint above a tangent needs `active_scalar<double>` generalised at 9 sites and second derivatives at the 4 supplied-derivative sites (the leaf optimum's implicit node, the leaf kernels, one TF24 site) | deprioritised [code] |
+| (b) 3 directions only | the 3 directions that hold 90% of the error | 2 pinned map replays per direction (central differences of the map in θ): 6 coarse map runs | not run [i] |
+| (c) differencing the map across the θ ± δ runs a local analysis makes | the region split's derivative along those moves only | +5% per run that carries the map | not run [i] |

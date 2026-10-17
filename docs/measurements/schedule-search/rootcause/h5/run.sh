@@ -18,7 +18,7 @@ one() { kind=${1%%/*}; cs=${1#*/}; sk=${kind%%@*}; trait=""
   esac
   [ -n "$TRAIT_EXTRA" ] && trait=${trait:+$trait,}$TRAIT_EXTRA
   name=h5_${kind}_$cs; [ -s $H5/runs/$name.rds ] && return 0
-  while [ $(pgrep -c -f "R --|Rscript|exec/R") -ge 4 ]; do sleep 30; done
+  while [ $(pgrep -c -f "R --|Rscript|exec/R") -ge 4 ]; do sleep $((5 + RANDOM % 10)); done
   echo "start $name $(date +%T) (R procs $(pgrep -c -f 'R --|Rscript|exec/R'))" >> $H5/queue.out
   env REGIME=$rec TOL=3e-5 ATOL=1e-4 WEIGHT_SOIL=10 WEIGHT_MAX=100 HMAX=15 SHARE=0.1 SPLIT=1 OUT=$H5/runs/$name.rds \
     TIMES=$H5/sched/${sk}_$cs.rds WEIGHT=$DEV/window/rule_A/weight_$w.rds TOL=${RTOL:-1e-4} LIB=$A/libS KNOTS=0 \
