@@ -280,3 +280,72 @@ per region.
 | E5 | the pinned x \ D_I run moves ln J within 10% of the map's D_I (−1.601ε) | 70% |
 | E6 | its move /3/2.56 has cos ≥ 0.8 with the measured interiors' vector, and root_P50 within ×[0.5, 2] of −0.51 | 50% |
 | E7 | the founders' (x \ D_F) move /3/2.56 has cos ≥ 0.7 with the measured founders on c | 50% |
+
+### E′ results: pinned real coarsenings of the coarse run (`score_plain_x_dry.log`) [m]
+
+Both replays took x's 4382 steps with the region's nodes removed (rows 238 394 interiors,
+266 149 founders, against x's 287 292; forward 26–29 s).
+
+| | ln J | root_P50 | omega | cost | stem_c | a_l1 | sro | root_c | a | cos, all quantities | slope meas/est |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| interiors: (x \ D_I − x)/3/2.56 | −0.22 | −0.48 | +0.32 | +0.18 | −0.06 | +0.47 | +0.01 | +0.22 | −0.10 | **0.96** | 0.98 |
+| interiors, measured (res, I4) | −0.22 | −0.51 | +0.31 | +0.22 | −0.11 | +0.42 | +0.04 | +0.22 | −0.15 | | |
+| founders: (x \ D_F − x)/3/2.56 | +0.11 | −0.02 | −0.02 | +0.12 | −0.14 | −0.14 | +0.12 | −0.01 | −0.16 | **0.98** (c), 0.98 (res) | 1.22 |
+| founders on c, measured (fbis) | +0.10 | −0.04 | +0.01 | +0.09 | −0.26 | −0.04 | +0.12 | +0.01 | −0.21 | | |
+
+- ln J: −1.683ε (interiors) and +0.858ε (founders) against the map's D −1.601 and +0.769
+  (1.05×, 1.12×). **E5 holds.** E6 holds (cos 0.96, root_P50 −0.48). E7 holds (cos 0.98).
+- So the per-quantity region split comes from the coarse run itself, one pinned coarse
+  gradient run per region (rows 0.61–0.68 of the committed run's each), with h² scaling
+  to the committed spacing; the two regions' vectors are nearly orthogonal (cos −0.16),
+  as measured (0.28).
+
+## Indicators for where to refine (added by the user, before any run they concern)
+
+**Indicator 1, the field integrands' curvature, from one run.** For each node j with its
+neighbours kept, the over-count its omission makes in the per-recruit leaf area and uptake
+sums: δ_j(t) = (Wsp.first − Wb.first) x_{j−1} + (Wsp.second − Wa.second) x_{j+1} −
+(Wb.second + Wa.first) x_j, with the shares of the intervals below (b), above (a) and
+spanning (sp) from the stored E, M (`drop_uptake`'s form); x the per-recruit quantity. It is
+a weighted second difference in birth date. Two weightings:
+- **W, by the environment's adjoints**: exactly the drop map's column for node j (light by
+  height through the crowns, uptake by layer), plus its own part. Region value: D_g = own +
+  field over g's drops.
+- **U, plain**: x_j(t) = LA(h_j(t))·exp(−m_j(t))·patch density at birth (leaf area at
+  ground per recruit, LA = (h/a_l1)^(1/a_l2); the same proxy for uptake, which scales with
+  leaf area), from every node's state at ~150 recorded times; region value: the time mean
+  of |Σ_{j∈g} δ_j(t)| / Σ_j W_j x_j(t).
+- **A, plant's old omit-one on fate** (the baseline): |own_g| alone.
+
+Regions on c: F, I, L from the every-other subset (mk_drop2's rule); the edge regions by the
+omit-one of their edge nodes (ranking only, not an h² error): O = the nodes after opening
+edges in (b1, 25), C = the inset nodes before closing edges in (b1, 25), B = b1's. Measured
+region errors: F from fbis on c (ten cases); C as c − res (four cases); I, O = Os + O1, L,
+B from p50's runs on res (dry, dry-flat; long-wet I, O); otherwise rest = e_c − F (− C).
+
+**Indicator 2, the per-band source split of an iteration move.** For nested runs C ⊂ P,
+the move in the field splits exactly by the birth band whose interpolation changed:
+field_P − field_C = Σ over P's added nodes of (their actual contribution − the hat chord of
+their neighbours), evaluated in the coarse run's states. Evaluated instead in the fine run's
+states it is Σ δ_j over the added nodes, i.e. indicator 1 on the fine run restricted to the
+added nodes; the two differ by the field change itself (≈1%, second order) [i]. No nested
+pair with several regions refined at once is on disk on libS, so indicator 2 is scored as U
+(and W) on c's every-other regions, which is c's own move to c with every other node removed
+in every region at once, split by band.
+
+Runs: two omit-one map replays per committed run (odd and even nodes, so drops are never
+adjacent), on all ten cases, the odd one keeping the node states (NODEREC). No case outside
+the ten has measured region errors on disk, so none is scored.
+
+### Pre-registration I (before the omit-one runs)
+
+| # | prediction | P |
+|---|---|---|
+| I0 | every replay reproduces its saved J `identical()` | 85% |
+| I1 | W's Spearman with \|ln J\|'s measured region errors ≥ 0.6 on dry and on dry-flat | 45% |
+| I1′ | W's top region is the measured top for ln J on ≥ 2 of dry, dry-flat, long-wet | 55% |
+| I2 | W's Spearman with the elasticities' rms region errors ≥ 0.5 on dry and on dry-flat | 45% |
+| I3 | U ranks at least as well as A (mean Spearman over the three p50 cases, both quantities) | 60% |
+| I3′ | W ranks at least as well as U (same) | 60% |
+| I4 | founders against the rest, ten cases: W picks the larger for ln J on ≥ 7 | 55% |
+| I4′ | the same for the elasticities' rms on ≥ 7 | 45% |

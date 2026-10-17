@@ -1,5 +1,6 @@
 # adj_run_nk.R with SWEEP=1 also sweeping in drop1 mode (the trait gradient of the
-# coarser field to first order). Otherwise unchanged.
+# coarser field to first order), and NODEREC=1 keeping every node's state at ~150 recorded
+# times (for the field integrands' curvature). Otherwise unchanged.
 # adj_run.R with KNOTS=0: the rain's knots are not passed as stops (agents R, S).
 # One stand run on the stack tip (PLANT-110 + the node drop), at the harness's
 # settings with lib_109's control names mapped to the stack's. Modes:
@@ -112,6 +113,16 @@ out$stand <- list(J = sum(scm$offspring_production), times = scm$ode_times,
                   substep_ends = scm$ode_soil_substep_ends, splits = scm$ode_splits,
                   nodes = per_node(scm), rows = rows_of(scm), cpu = cpu() - c0)
 save()
+# NODEREC=1: every node's state at about 150 recorded times, and each node's birth bookkeeping.
+if (Sys.getenv("NODEREC") == "1") {
+  rows <- scm$store_trajectory()
+  keep <- unique(round(seq(1, length(rows), length.out = 150)))
+  sp <- scm$patch$species[[1]]
+  out$noderec <- list(names = sp$new_node$ode_names, time = vapply(rows[keep], `[[`, 0, "time"),
+                      state = lapply(rows[keep], `[[`, "state"), patch_density = sp$patch_densities,
+                      a_l1 = p$strategies[[1]]$pars$a_l1, a_l2 = p$strategies[[1]]$pars$a_l2)
+  rm(rows); save()
+}
 # SOILREC=1: the soil layers at every recorded state, and the forward clamp tallies.
 if (Sys.getenv("SOILREC") == "1") {
   rows <- scm$store_trajectory()

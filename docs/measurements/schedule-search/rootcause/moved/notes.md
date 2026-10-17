@@ -8,7 +8,37 @@ concerns. Scripts are in this directory; outputs in `scratchpad/deep/rootcause/m
 
 ## Summary
 
-(written after the results)
+Three moved cases were run on their parent's E6 committed grid (libS, no knot stops, 1e-4,
+gradient on; guards G1–G3 hold) and scored against their own references [m]:
+
+| moved case (move) | W on parent grid | W on own grid | parent's W on its grid | growth W_mp/W_pp | reserve r = 1 − 1/growth | rebuild effect W_mp/W_mm |
+|---|---|---|---|---|---|---|
+| dry-p50 (root_P50 × 1.2) | 0.28 (rms 0.124) | 0.35 (0.141) | 0.35 (0.159) | 0.81 | 0 (rms 0) | 0.81 |
+| wet-adG2 (a_dG2 × 1.25) | 0.55 (0.150) | 0.44 (0.123) | 0.36 (0.093) | 1.51 | 0.34 (rms 0.38) | 1.25 |
+| episodic-lma (lma × 1.25) | 1.17 (0.575) | 1.28 (0.678) | 0.30 (0.129) | 3.90 | 0.74 (rms 0.78) | 0.91 |
+
+- **The reserve comes from the trait, not from a stale grid.** Rebuilding the grid at the
+  moved θ with the same rule changes W by ×0.81–1.25, and cos(e_mp, e_mm) is 0.99 on
+  wet-adG2 and episodic-lma: the moved error is the same vector on either grid. What
+  grows is the error constant K(θ) itself. So a loop cannot buy the reserve back by
+  rebuilding; it has to hold it, or refine for the worst θ in the analysis.
+- **Measured reserves [m]** at moves of 20–25% (outside the resident's ±10%, inside the
+  invaders' ×0.5–×2): 0, 0.34, 0.74, matching the near-layout reading (0.2–0.75) in
+  shape. On a power law in θ [i, one move per case]: at the resident's ±10%, 0.11
+  (root_P50 −10%), 0.16 (a_dG2 +10%), 0.44 (lma +10%), each in one direction only.
+  episodic-lma is a near-extinction move (J 1.98 → 0.031), so its law is the least safe.
+- **Estimate transfer: the parent's estimate reads θ₀'s error, not the moved one's.** Its
+  read of e_mp is about 1/growth: E6's check reads 1.38 (dry-p50, C3 4/5), 0.64 (wet-adG2,
+  C3 2/2), 0.15 (episodic-lma, C3 0/30, C1 fails); the x–c pair 0.21, 0.64, −0.03. It
+  transfers where K does not move (dry-p50; the check only, as on dry itself), under-reads
+  by the growth where it does, and loses the direction on the lma move (cos(e_mp, e_pp)
+  0.67). A loop needs either the reserve or one estimate taken at the analysis's worst θ.
+- **Grid-to-grid jitter** between two near grids at one θ is rms 0.035–0.145 (dry-p50 0.082,
+  cos 0.82), the same size as the whole trait effect on dry (rms 0.116).
+- **Invader plan (not run):** invaders at lma ×0.5 and ×2 (and θ′ = θ as the baseline,
+  whose reference exists) on dry's grid: about 10 min for the walks on the grid and
+  about 60 min for the u215/u429 invader references [i]; risks are the ×2 walk's
+  stability (it failed on dry without a 15-day step cap) and J′ ≈ 1e-21 at ×2.
 
 ## Data and definitions (read before predicting)
 
@@ -61,10 +91,97 @@ parent grids have 149, 157, 135 nodes against the moved grids' 153, 158, 120.
 | R8 | The parent's x–c estimate transfers on wet-adG2 (read 0.5–2), not on dry-p50 (dry's own x–c read is 0.10) nor on episodic-lma | 60% |
 | R9 | Rows of each new run within ±10% of the parent's committed rows (same nodes; the step count moves little with one trait) | 70% |
 
-## Results 1
+## Results 1 (`run.sh`, `score.R`; `scratchpad/deep/rootcause/moved/score.log`) [m]
 
-(after the runs)
+Guards: G1 the three TIMES files equal the parents' committed node times bit for bit; G2
+each run's setting equals the moved case's committed run's but TIMES; G3 the forward rerun
+of episodic-lma on its own grid gives J 0.0312817366740029, bit-identical, same 3332
+steps. Runs took 2–4 min each (forward 42–82 s, sweep 92–164 s); rows ×0.94–1.03 of the
+parent's.
+
+| | dry-p50 on dry | wet-adG2 on long-wet | episodic-lma on episodic |
+|---|---|---|---|
+| nodes (own grid) | 149 (153) | 157 (158) | 135 (120) |
+| e_mp: W (quantity), rms, along M, ln J | 0.28 (a), 0.124, −0.10, −0.16 | 0.55 (a), 0.150, −0.01, +0.10 | 1.17 (TF24_cost_scale), 0.575, +1.49, −0.29 |
+| e_mm: own grid | 0.35 (a), 0.141, −0.42, −0.16 | 0.44 (a), 0.123, +0.06, +0.13 | 1.28 (r_l), 0.678, +1.97, −0.25 |
+| e_pp: parent | 0.35 (a), 0.159, −0.30, −0.15 | 0.36 (a), 0.093, −0.02, +0.08 | 0.30 (a_l1), 0.129, +0.18, −0.23 |
+| growth W (rms) → reserve W (rms) | 0.81 (0.78) → 0 (0) | 1.51 (1.61) → 0.34 (0.38) | 3.90 (4.46) → 0.74 (0.78) |
+| rebuild effect W_mp/W_mm (rms) | 0.81 (0.88) | 1.25 (1.22) | 0.91 (0.85) |
+| cos(e_mp, e_mm), rms diff | 0.82, 0.082 | 0.99, 0.035 | 0.99, 0.145 |
+| cos(e_mp, e_pp), rms diff | 0.69, 0.116 | 0.93, 0.072 | 0.67, 0.498 |
+| parent's check → e_pp: read, corr, C3 | 1.06, 0.84, 4/5 | 0.97, 0.98, 1/1 | 1.09, 0.99, 2/2 |
+| parent's check → e_mp: read, corr, C3, W read | 1.38, 0.80, 4/5, 1.85 | 0.64, 0.95, 2/2, 0.64 | 0.15, 0.65, 0/30, 0.32 |
+| parent's x–c → e_pp | 0.10, 0.01, 0/2 | 0.95, 0.88, 1/1 | 0.80, 0.69, 1/2 |
+| parent's x–c → e_mp | 0.21, 0.42, 0/1 | 0.64, 0.91, 2/2 | −0.03, 0.00, 0/30 |
+| moved case's own check → e_mm | 1.15, 0.94, 3/4 | 0.89, 0.99, 1/1 | 1.18, 1.00, 31/31 |
+
+- On wet-adG2 the same leaf quantities lead on all three runs (a, curv_fact_elec_trans,
+  k_I, jmax_25), each about ×1.5 larger at the moved θ; the estimates keep the parent's
+  size (a: est −0.35 against err −0.55). On episodic-lma the moved error is a new
+  pattern (TF24_cost_scale, r_l, vcmax_25, a_r1, lma, K_s all near ±1, parent's under
+  0.25) that the parent's estimates do not contain.
+- On dry-p50 the moved run on dry's grid is more accurate than on its own (0.28 against
+  0.35): the trait effect is smaller than the jitter between two near grids.
+- Power-law reading [i] (post hoc, not a prediction), K ∝ θ^k from the one move:
+  k = −1.16 (root_P50), 1.85 (a_dG2), 6.10 (lma); at ±10% growth 1.13 / 1.19 / 1.79 in the
+  growing direction, so reserves 0.11 / 0.16 / 0.44 for the resident's range.
+
+## Invader plan (not run; for the main session to approve)
+
+Invaders at lma ×0.5 and ×2 on dry's E6 committed grid, plus the θ′ = θ invader as the
+baseline whose error plays the role of e_pp.
+
+- **Runner.** A copy of `adj_run_nk.R` with one addition: with INVADER_GRADIENTS=1, after
+  each `scm$run_mutant(moved(p, inv))` take `census_trait_gradient_tf24(scm,
+  "offspring_production")` and store J′, gradient and elasticity per invader (as
+  `harness/run_record.R` does). FORWARD=1 skips the stand's sweep; INVADERS_REL =
+  `lma=-0.5,lma=1,lma=0` (×0.5, ×2, θ′ = θ). One process.
+- **References.** `harness/run_record.R` at the dry reference's setting (u215_dry /
+  u429_dry: TOL 3e-5, ATOL 1e-4, SPLIT 1, SHARE 0.1, knots as stops), NODES 215 and 429,
+  INVADERS=`lma=0.5,lma=2`, INVADER_GRADIENTS=1, STAND_GRADIENT=0, HMAX=15; extrapolated
+  on the square law as every reference is. Its built-in θ′ = θ invader doubles as a guard
+  against the saved u215_dry / u429_dry invader (elasticity lma −35.48 / −35.52), so the
+  baseline needs no new reference.
+- **Scoring.** Invader ε from `eps.csv` (role invader: ln J 0.025, lma 0.198, a_dG2 0.050,
+  ...). Reserve for invaders = 1 − W(θ′ = θ)/W(θ′) on the same grid; also whether the
+  resident's check estimate reads the invaders' errors.
+- **Cost [i]** (on the saved phase times: walk ≈ 0.88 of the stand's forward, walk
+  gradient ≈ 0.78 of the stand's sweep): on the grid 70 + 3 × (62 + 119) ≈ 610 s; u215
+  97 + 3 × (85 + 263) ≈ 1140 s; u429 237 + 3 × (174 + 553) ≈ 2420 s. About 70 min in one
+  process, three outputs of about 1 MB.
+- **Risks.** (1) The ×2 walk on dry failed in the sign-changes bank (density overflow at
+  year 35.5 after a 26.9-day step, past the ×2 invader's 26.1-day stability limit); E6's
+  HMAX 15 should prevent it on the grid, and HMAX 15 is added to the references for the
+  same reason — the guard on the θ′ = θ invader checks this does not move the reference.
+  (2) J′ at ×2 is about 1e-21 on the other records (ln J′ ≈ −48): its ln J′ and
+  elasticities are defined but come from a few early nodes, and ε set at θ′ = θ may not
+  be the right yardstick there. (3) Invader errors at ×0.5 (J′ ≈ 790 on dry) may be set
+  by where the grid puts nodes for a much more fecund strategy.
+
+### Pre-registration 2 (for the invader run, if approved)
+
+| # | prediction | probability |
+|---|---|---|
+| I1 | All three walks and their gradients finish on dry's grid and at u215 and u429 (with HMAX 15) | 80% |
+| I2 | The reference's θ′ = θ invader matches the saved u215_dry / u429_dry invader within ε/10 on every quantity | 75% |
+| I3 | The invader at lma ×0.5 on dry's grid has W(θ′)/W(θ′ = θ) ≥ 1.5 (reserve ≥ 0.33) | 55% |
+| I4 | The invader at lma ×2 has W(θ′)/W(θ′ = θ) ≥ 2 (reserve ≥ 0.5) or fails its walk | 60% |
+| I5 | The resident's E6 check estimate reads the ×0.5 invader's error with median read outside 0.5–2 | 60% |
 
 ## Predictions scored
 
-(after the results)
+| # | P | outcome |
+|---|---|---|
+| R1 | 95% | confirmed (G1–G3 hold) |
+| R2 | 70% | confirmed (W 0.28, reserve 0) |
+| R3 | 65% | confirmed (W 0.55, reserve 0.34) |
+| R4 | 70% | confirmed (W 1.17, reserve 0.74) |
+| R5 | 50% | confirmed (1.17 < 1.28) |
+| R6 | 65% | refuted (dry-p50 0.82; wet-adG2 0.99) |
+| R7 | 55% | confirmed (1.38 and 0.64, C3 passes; episodic-lma 0.15) |
+| R8 | 60% | confirmed (wet-adG2 0.64; dry-p50 0.21; episodic-lma −0.03) |
+| R9 | 70% | confirmed (×0.94–1.03) |
+
+8 confirmed (mean P 66%), 1 refuted (65%). The registrations were close to the near-layout
+reading, so they tested little beyond it; the finding they did not anticipate is that the
+rebuild effect is near 1 (the reserve is K(θ), not staleness). I1–I5 are open.
