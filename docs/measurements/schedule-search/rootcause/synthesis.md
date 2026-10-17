@@ -133,3 +133,20 @@ the spacing). Then a coarser companion or the pilot's constant predicts it.
 - Run on one build that reproduces libS.
 - First attribute the −0.64 root_P50 elsewhere, because removing the founders' error
   could expose the closing-edge error it now cancels.
+
+## C1–C5 for a loop whose last run is the answer
+
+The loop: runs R1, …, Rk at shrinking spacing. The answer is Qk. Its signed estimate is
+ek = (Q(k−1) − Qk)/(rk² − 1), from the pair with its predecessor. Rk's schedule is the
+one the uses run on. T = Σ cost(Ri) + 2·cost(Rk).
+
+| | Today | In the loop |
+|---|---|---|
+| C1 | every \|error\| ≤ ε | unchanged, on Rk. The final spacing is tuned to just meet ε at θ₀, which removes the slack the fixed rule had for the local analysis. So C1 is judged over the shared grid's uses at moved θ, or the loop stops at ε·(1 − reserve) with the reserve measured |
+| C2 | every error over ε/2 has an estimate over ε/4 | unchanged, but it now also decides when to stop, so it is scored with the loop's decisions made on noisy values (stress draws) |
+| C3 | 80% of estimates within ×2, sign right | unchanged, scored the same way. Stopping when a noisy estimate reads low biases the accepted estimates low. Plus a noise check: jitter/(rk² − 1) under ε/3, so a final ratio near 1 cannot make an estimate out of noise |
+| C4 | nothing refuses or throws | extended to every iteration, and to termination (a bounded k) |
+| C5 | never commit an answer whose own estimate exceeds ε | becomes the stopping rule, so it holds by construction except at the iteration cap. The test moves into C2/C3 |
+
+An optional diagnostic: if the loop is stopped after any iteration i ≥ 2, (Qi, ei) still
+passes C2/C3.

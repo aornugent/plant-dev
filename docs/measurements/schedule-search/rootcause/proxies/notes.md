@@ -153,5 +153,41 @@ Scored:
   against 3.06), but P1 beats P0 too, by a margin within noise (×2.91 against ×3.06 on
   both), while ranking the cases the wrong way (Spearman −0.62).
 - A11 **refuted**: P5, P3a and P4s reach 69% within ×2, and P0 62%.
-- A12 **refuted, narrowly**: P5's worst misread of committed rms is ×2.03 (dry-flat... see log:
-  episodic-lma 0.49).
+- A12 **refuted, narrowly**: P5's worst misread of committed rms is ×2.03 (episodic-lma
+  reads 0.49).
+
+## Pre-registration B (before any loop is replayed; `b_loop.R`)
+
+**Replay model.** Spacing r is relative to E6's committed run. Three error modes:
+- **meas** (today's layout): the stored rungs r = 1.6, 1, 1/1.6 exactly; between rungs,
+  each quantity linear in r² between the neighbouring rungs, plus the share of jitter
+  the interpolation removes [i]; r is clipped to [1/1.6, 1.6], since no E6-family run
+  exists outside it.
+- **clean** (what H5 aims at): err_q(r) = e_c,q · r² plus fresh jitter for every run [i],
+  r in [0.5, 2.0] (r > 1.6 extrapolates past the coarsest measured run: marked).
+- **order** (clean with pre-asymptotic scatter): err_q(r) = e_c,q · r^p_q, p_q drawn per
+  case, quantity and draw from N(2, 0.3²) truncated to [1.2, 3] (the measured per-quantity
+  orders 1.8–2.5) [i].
+Jitter per run: N(0, 0.020²) per quantity plus 0.09·z along M (0.024 rms in all). A
+nested repeat of a spacing reuses its jitter. Rows: log rows piecewise linear in log r
+through the three rungs, end slopes beyond [i]. Estimates use the a09 shrink
+s = proxy(r_b)/proxy(r_a), interpolated the same way, as E6 does.
+
+**Policies.** E6 (c then f, commit c when every |est| < 1); E6-shaped with other r1 and
+ratio ("commit coarse"); the last-run loop: gradient run 1 at r1; run 2 at r1/R2 (fixed)
+or where P5 (S_el of run 1, LOCO scale) or P0 predicts W = t2; stop when max|est| < τ;
+else the controller r_next = r·(t/est)^(1/2), each step clipped to a pair ratio in
+[R_min, 2], at most four gradient runs; damping options none / clip / blend (geometric
+mean of this and the previous measured constant); forward-first (two forward runs, ln J
+constant, P4's LOCO scale picks the gradient pair).
+
+| # | prediction | probability |
+|---|---|---|
+| B1 | The replay reproduces E6 from the stored rungs exactly: T 9287, 10/10 | 95% |
+| B2 | meas: no last-run loop passes 10/10 below E6's T; every loop whose pair spans 1.6 → ≤ 1.28 fails C3 on dry or dry-p50 | 70% |
+| B3 | clean: the best last-run loop passes all ten in ≥ 95% of draws at T ≤ 0.80 × E6's | 60% |
+| B4 | clean: choosing run 2 by P5 beats the best fixed ratio (same r1) by ≥ 5% in T at equal pass rate | 45% |
+| B5 | Forward-first is never on the T–pass front, in any mode | 75% |
+| B6 | Without step clipping the controller oscillates (≥ 4 gradient runs) in ≥ 5% of case-draws; clipping to [R_min, 2] removes it | 40% |
+| B7 | At the front's cheapest feasible point the constraint that binds is C3, not C1 or C5 | 55% |
+| B8 | order mode costs the best clean policy ≥ 5 points of pass rate (case-draws) at the same parameters | 50% |
