@@ -125,3 +125,19 @@ Deferred by the coordinator until the loop is built; the references here are its
    by `score.R`'s C1–C5 and stress code; the reserve taken from `../moved/notes.md`
    (0.11–0.44 at ±10% depending on the trait) unless the loop estimates at the analysis's
    worst θ.
+
+## Pre-registration 2 (after three cases were scored, before any third reference rung)
+
+Three references moved more than expected on their own [m, interim]: largest
+(u429 − u215)/3 is 0.13ε (dry-lma125), 0.18ε (flat-al1125, `a`) and 0.28ε (wet-lma08,
+`a_l1`), against a 0.15ε acceptance line. A two-rung reference whose own move is that size
+can be off by a comparable amount if the order is not 2. So every case whose own move
+exceeds 0.15ε gets a third rung, u857 (same recipe, 857 uniform nodes), and its reference
+is re-read as u429 → u857; the order is read from the two moves (p = log2(|m1|/|m2|) on
+quantities whose u215 → u429 move exceeds 0.3ε).
+
+| # | prediction | probability |
+|---|---|---|
+| R1 | On every such case, the u429 → u857 reference agrees with the u215 → u429 one within 0.15ε on every quantity | 55% |
+| R2 | The pooled order of the reference ladder on those cases is in 1.6–2.4 | 70% |
+| R3 | No case's E6 verdict (C1–C5 pass or fail, real runs) changes when it is scored against the u429 → u857 reference | 80% |

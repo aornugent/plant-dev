@@ -490,3 +490,46 @@ Intervals in each spell's scaled stretch [o + 12, c − 12 d] (spells ≥ 26 d a
 
 - **U4.** On dry-flat U's coarse pair passes C1–C5 — 40%; its fine pair passes — 55%; at
   s = 1 its rows are ≤ 1.3× E6's committed (N: 1.74×) — 60%.
+
+### B results: the bank, rule N, s = 1.6 and 1 (`score_bank.R`, `bank_N.rds`) [m]
+
+The coarse pair's estimate of the committed (s = 1) rung's error; "pass" is all of C1–C5;
+E6 and H1 columns from their own pairs.
+
+| case | nodes x / c (E6 c) | rows c / E6 c | worst c (quantity) | along M c | worst E6 c | worst est | C1 C2 C3 C5 | C3 | read | corr | unseen | pass (E6, H1) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| episodic | 157 / 185 (135) | 188 / 136 | 0.60 (a_l1) | −0.20 | 0.30 | 0.97 | ✓ ✓ ✓ ✓ | 3/4 (root_P50) | 1.27 | 0.83 | 0.140 | yes (yes, yes) |
+| dry | 193 / 224 (149) | 290 / 188 | 0.60 (a_l1) | −0.65 | 0.35 | 0.66 | ✓ ✓ ✓ ✓ | 4/4 | 1.03 | 0.96 | 0.048 | yes (yes, **no**) |
+| long-wet | 214 / 245 (157) | 359 / 220 | 0.41 (a) | −0.05 | 0.36 | 0.38 | ✓ ✓ ✓ ✓ | 1/1 | 0.94 | 0.97 | 0.028 | yes (yes, yes) |
+| long-drought | 216 / 244 (155) | 355 / 218 | 0.46 (a) | −0.38 | 0.37 | 0.42 | ✓ ✓ ✓ ✓ | 2/2 | 0.99 | 0.91 | 0.057 | yes (yes, yes) |
+| episodic-lma | 129 / 158 (120) | 151 / 112 | 1.53 (r_l) | +2.00 | 1.28 | 1.13 | ✗ ✓ ✓ ✗ | 31/31 | 0.72 | 1.00 | 0.229 | after the finer run: yes (yes, yes after the finer run) |
+| dry-flat | 311 / 328 (191) | 668 / 384 | 0.80 (a) | −0.83 | 0.58 | 0.69 | ✓ **✗** ✓ ✓ | 5/6 (a_l1) | 0.80 | 0.90 | 0.111 | **no** (yes, yes) |
+| ld-102 | 194 / 219 (143) | 297 / 191 | 0.42 (vcmax_25) | +0.10 | 0.41 | 0.48 | ✓ ✓ ✓ ✓ | 2/2 | 1.03 | 0.96 | 0.042 | yes (yes, yes) |
+| ld-105 | 183 / 215 (146) | 279 / 185 | 0.35 (a) | −0.18 | 0.32 | 0.43 | ✓ ✓ ✓ ✓ | 2/2 | 1.13 | 0.96 | 0.044 | yes (yes, yes) |
+| dry-p50 | 196 / 226 (153) | 297 / 193 | 0.72 (a_l1) | −1.01 | 0.35 | 0.72 | ✓ ✓ ✓ ✓ | 5/5 | 0.95 | 0.97 | 0.049 | yes (yes, **no**) |
+| wet-adG2 | 224 / 252 (158) | 388 / 233 | 0.50 (a) | −0.00 | 0.44 | 0.56 | ✓ ✓ ✓ ✓ | 2/2 | 1.16 | 0.95 | 0.061 | yes (yes, yes) |
+| **all ten** | 2017 / 2296 (1507) | **1.59×** (1.34–1.74) | | | | | | | median **1.01** [0.72, 1.27] | | | **9/10** (E6 10/10, H1 9/10 counted alike; H1 table 8/10) |
+
+(H1's own table reads 8/10 with episodic-lma "yes, after the finer run"; it failed dry and
+dry-p50. H5 passes those two and fails dry-flat instead.)
+
+- Pooled reads over |err| > 0.2 (n 106): 0.92 [10–90%: 0.61, 1.17]; leaf 0.96 [0.71,
+  1.14], hydraulic 0.68 [0.23, 1.18], ln J 1.07, other 0.75 [0.62, 1.17].
+- **The failing quantity is the M direction where spells do not refine**: dry-flat's a_l1
+  (err 0.62, est 0.14) and episodic's root_P50 (C3 miss, inside the allowance).
+- Rows: N10 over E6's committed 1.59× summed (1.34 episodic-lma – 1.74 dry-flat); N16 1.39×.
+  The committed rung's worst error exceeds E6's on all ten.
+- episodic-lma's fixed strips (`score_strips.R episodic-lma`): rms 0.036, max 0.065 (a_dG1,
+  lma, r_l), under ε/10. **E1 refuted**: the part that does not shrink there (unseen 0.13–0.23)
+  is not the 12-d strips [m]; the short spells that do not refine (9 of 22) and the
+  reference are what is left [i].
+
+| # | prediction | P | result |
+|---|---|---|---|
+| B1 | coarse pair passes on ≥ 9 of 10 (protocol as H1's) | 55% | holds (9/10; dry-flat fails C2) |
+| B2 | median case read in [0.8, 1.25] | 70% | holds (1.01) |
+| B2′ | no case read under 0.6 | 60% | holds (min 0.72) |
+| B3 | N10/E6 rows 1.4–1.7 summed | 70% | holds (1.59) |
+| B4 | N10 worst > E6's on ≥ 7 of 10 | 60% | holds (10/10) |
+| E1 | episodic-lma strips max ≥ 0.1 | 35% | refuted (0.065) |
+| E1′ | its strips rms ≥ 0.1 | 15% | refuted (0.036) |
