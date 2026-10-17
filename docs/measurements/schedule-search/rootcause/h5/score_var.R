@@ -6,7 +6,7 @@
 source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/h5/score_lib.R")
 cs <- if (length(commandArgs(TRUE))) commandArgs(TRUE)[1] else "dry"; ref <- ref5(cs)
 row_of <- function(lay, s, x) { e <- err_of(x, ref); data.frame(layout = lay, s = s, n = length(x$node_times), rows = rows_of(x), cpu = cpu_of(x), worst = max(abs(e)), wq = names(e)[which.max(abs(e))], rms = r2(e), M = onM(e)) }
-VR <- list(); for (L in c("N", "M", "T", "C")) for (k in c("20", "16", "10", "06")) { x <- h5_run(sprintf("h5_%s%s_%s", L, k, cs)); if (!is.null(x)) VR[[paste0(L, k)]] <- row_of(L, c("20" = 2, "16" = 1.6, "10" = 1, "06" = 0.625)[[k]], x) }
+VR <- list(); for (L in c("N", "M", "T", "U", "C")) for (k in c("20", "16", "10", "06")) { x <- h5_run(sprintf("h5_%s%s_%s", L, k, cs)); if (!is.null(x)) VR[[paste0(L, k)]] <- row_of(L, c("20" = 2, "16" = 1.6, "10" = 1, "06" = 0.625)[[k]], x) }
 VR$E6c <- row_of("E6", 1, ag_run(sprintf("val_ins75_c_%s", cs))); VR$E6f <- row_of("E6", 1 / 1.6, ag_run(sprintf("val_ins75_f_%s", cs)))
 VR <- do.call(rbind, VR); op <- options(width = 200); print(VR, digits = 3, row.names = FALSE)
 at <- function(d, col, target) { d <- d[order(d$rows), ]; y <- log(d[[col]]); x <- log(d$rows)
