@@ -1,0 +1,7 @@
+trajF_res_dry res dry SCRIPT=traj.R BLO=0 BHI=3.52
+trajF_I4_dry I4 dry SCRIPT=traj.R BLO=0 BHI=3.52
+p5_F2_dry-flat F2 dry-flat
+p5_B_dry-flat B dry-flat
+p5_L4_dry-flat L4 dry-flat
+p5_O4_long-wet O4 long-wet
+p5_I2_dry-flat I2 dry-flat

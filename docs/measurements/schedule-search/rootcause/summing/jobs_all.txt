@@ -1,0 +1,43 @@
+H2off H2 long-wet off lib1
+Lallnl L long-wet all lib1 PLANT_SIMPSON_LIGHT=0
+Lnogap L long-wet @nogap lib1
+LKwin L long-wet @K lib1
+LPwin L long-wet @P lib1
+LIwin L long-wet @I lib1
+Lallr L long-wet @r lib1
+C2off C2 long-wet off lib1
+C2all C2 long-wet all lib1
+LFoff LF long-wet off lib1
+LKoff LK long-wet off lib1
+LPoff LP long-wet off lib1
+LIoff LI long-wet off lib1
+LFall LF long-wet all lib1
+LKall LK long-wet all lib1
+LPall LP long-wet all lib1
+LIall LI long-wet all lib1
+Loff_t105 L dry off lib1 TOL=1.05e-4
+LFallnl LF dry all lib1 PLANT_SIMPSON_LIGHT=0
+Lfoundersnl L dry @founders lib1 PLANT_SIMPSON_LIGHT=0
+H2all H2 dry-flat all lib1
+Lnogap L dry-flat @nogap lib1
+Lallr L dry-flat @r lib1
+C2off C2 dry-flat off lib1
+C2all C2 dry-flat all lib1
+H4off H4 dry-flat off lib1
+LKwin L episodic-lma @K lib1
+LPwin L episodic-lma @P lib1
+LIwin L episodic-lma @I lib1
+Lallr L episodic-lma @r lib1
+C2off C2 episodic-lma off lib1
+C2all C2 episodic-lma all lib1
+LFoff LF episodic-lma off lib1
+LKoff LK episodic-lma off lib1
+LPoff LP episodic-lma off lib1
+LIoff LI episodic-lma off lib1
+LKwin L dry-flat @K lib1
+LPwin L dry-flat @P lib1
+LIwin L dry-flat @I lib1
+LFoff LF dry-flat off lib1
+LKoff LK dry-flat off lib1
+LPoff LP dry-flat off lib1
+LIoff LI dry-flat off lib1

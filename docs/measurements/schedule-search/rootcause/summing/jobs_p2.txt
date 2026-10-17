@@ -1,0 +1,4 @@
+P2allq P2 long-wet all lib2 PLANT_SIMPSON_LIGHT=quad
+P2allq P2 dry all lib2 PLANT_SIMPSON_LIGHT=quad
+P2off P2 dry off lib1
+P2off P2 long-wet off lib1

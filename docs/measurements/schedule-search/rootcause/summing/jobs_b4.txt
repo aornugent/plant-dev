@@ -1,0 +1,2 @@
+LFallnl LF dry all lib1 PLANT_SIMPSON_LIGHT=0
+Lfoundersnl L dry @founders lib1 PLANT_SIMPSON_LIGHT=0

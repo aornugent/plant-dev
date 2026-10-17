@@ -241,3 +241,174 @@ One species, birth date; reference = Richardson (order 2) of H, HH under `off` =
 | F6 | (registered before the run) With the light left on the hats (`PLANT_SIMPSON_LIGHT=0`) the field part of the S0 move shrinks by more than half | 60% |
 | F7 | (registered before the run) Two species, against their own H/HH Richardson reference: `all` with the light on the hats errs less than `off` at the default schedule on both species | 55% |
 | E10 | (registered before the runs, after F1–F7) TF24 at L: `all` with the light on the hats (`Lallnl`) differs from `all` by < 0.05 rms on every case (TF24's light is a minor channel) | 55% |
+
+### Pre-registration R (before the region, ladder, jitter and guarded runs)
+
+Runs: windows K, P, I under `all` (F is `founders`); L with one region's pairs halved (L_F,
+L_K, L_P, L_I) under `off` (all four cases) and under `all` (dry, long-wet); C2 under `off`
+and `all` (all four); dry at tol 1.05e-4 under `all` and `off`; `allr`, the pair rule on the
+pairs whose two widths are within a factor 2 (any region). Region errors as in `region.R`
+(`off` by −4/3 × the region-halving move; `all` = off + the rule's change in that region).
+
+| # | prediction | probability |
+|---|---|---|
+| R1 | Under `off` the founders' region carries ≥ 60% of L's squared error (projection) on dry, episodic-lma and dry-flat | 70% |
+| R2 | `founders` removes ≥ 75% of the founders' region error (\|e_off(F) + d(F)\| ≤ 0.25 \|e_off(F)\|) on all four | 65% |
+| R3 | Interiors: e_off(I) rms ≤ 0.1 and d(I) rms ≤ 0.1 on all four | 60% |
+| R4 | Edge pairs: d(K) + d(P) has rms ≥ 0.15 and \|along M\| ≥ 0.1 on dry and dry-flat | 60% |
+| R5 | The rule hurts at the edges: rms of e_all(K + P) > rms of e_off(K + P) on at least 2 of 4 | 55% |
+| O1 | `off`, dry and long-wet: pooled order over C2 / L / H2 is 1.6–2.4 | 65% |
+| O2 | `all`: pooled order over C2 / L / H2 is ≥ 2.5 on neither case | 65% |
+| O3 | Interiors under `all` (L_I against e_all(I)): order ≥ 3 on dry and long-wet | 45% |
+| J1 | dry, `all` at tol × 1.05: move rms ≤ 0.04 and \|along M\| ≤ 0.12 (as `off`'s floor, 0.024 / 0.09) | 60% |
+| A1 | `allr` errs (rms) at most `founders` + 0.03 on all four, and less than `all` on at least 3 | 50% |
+
+### Pre-registration L (before `LFallnl_dry`, `Lfoundersnl_dry`; after seeing dry's region split, where the founders' residual under `all` still moves 0.089 rms when the founders are halved, order ≈ 1.8)
+
+| # | prediction | probability |
+|---|---|---|
+| L1 | dry: with the light on the hats, halving the founders under `all` moves the run more than with the light corrected (0.089 rms): the residual founders' error is the light's | 50% |
+| L2 | dry: `founders` with the light on the hats differs from `founders` by ≤ 0.05 rms | 55% |
+
+### Why the light does not follow the rule in libS, and a fourth light setting (registered before building lib2)
+
+Reading after the reference runs (dry, episodic-lma, long-wet scored; numbers in Result E
+below): on long-wet `founders` barely helps (0.459 → 0.399) and H2 under `all` equals H2
+under `off` (0.120 / 0.118), while the trapezium shrinks ×4 from H2 to H4: what is left is
+second order and of the light-capture family (a, a_l1, curv_fact_elec_trans), the family
+the founders' round found for long-wet's founders. In FF16 the point-crown correction made
+J worse (Step 3) and leaving the light on the hats made it 9× better.
+
+Derivation [i]: in libS the light at height z is a sum over crowns spread through each
+interval (eight per interval, tops and leaf areas linearly interpolated between the two
+nodes). Adding Σ_k Δw_k·LA_k·Q(z/h_k) at the nodes gives S[g] + (crowns − T[g]), with
+g(b) = LA(b)·Q(z/h(b)), S and T the node rules. crowns − T[g] is O(h²), so the light stays
+second order whatever the node weights; only its constant changes. In libF the light was a
+node sum, so the founders' patch reached it. A light that follows the rule needs the crowns
+themselves built from the pair's quadratic: `PLANT_SIMPSON_LIGHT=quad` (lib2) places each
+selected pair's 16 crowns at the same places as the hats', with top = the quadratic through
+the three nodes' heights and leaf area = the hats' establishment density × the quadratic
+through the three nodes' leaf areas (no point corrections). Other intervals keep the hats.
+
+| # | prediction | probability |
+|---|---|---|
+| Q0 | lib2 with `PLANT_SIMPSON=off` reproduces lib1/libS bit for bit (dry guard) | 95% |
+| Q1 | long-wet at L: `all` with `quad` light errs < 0.25 rms (all 0.41, founders 0.40) | 50% |
+| Q2 | long-wet: H2 under `all` + `quad` is within 0.06 rms of the reference (H2 off 0.118) | 45% |
+| Q3 | dry and episodic-lma at L: `all` + `quad` within ±0.05 rms of `all` | 50% |
+| Q4 | FF16 one species, S0: `all` + `quad` errs less in ln J than `off` (0.045) | 55% |
+
+Results so far for this setting [m]: Q0 **confirmed** (lib2 `off` = lib1 = libS on dry, J,
+steps, weights, 50 elasticities `identical()`). FF16 with `all` + `quad` (lib2): one species
+ln J error +0.0126 (S0), +0.0015 (H), −0.0001 (HH), against `off`'s +0.045, +0.0098, +0.0025;
+two species −0.0001/−0.0002 against +0.0019/+0.0103 at their default schedule. **Q4
+confirmed.** long-wet at L: `founders` + `quad` 0.176 rms (hat light 0.399), `all` + `quad`
+0.241 (0.412). **Q1 confirmed** (0.241 < 0.25), but its largest errors are now hydraulic
+(root_P50 −0.98, omega +0.63, along M +0.62), the signature of dry's K pairs.
+
+### Pre-registration Q2 (before the second set of lib2 runs)
+
+From here the rule's candidates run with the light on the pair's quadratic crowns (`q`):
+`foundersq`, `allq`, `nogapq` (F, I, Z pairs), H2 under `allq` (all four cases), the region
+windows K, P, I and L_R under `allq` (dry, long-wet, episodic-lma off-halved only), C2 under
+`allq`, dry at tol × 1.05 under `allq`.
+
+| # | prediction | probability |
+|---|---|---|
+| Q5 | Under `allq` the K pairs' change d(K) still has \|along M\| ≥ 0.3 on dry and long-wet (the K-pair shift comes from J's and the uptake's weights, not the light) | 70% |
+| Q6 | `nogapq` errs least (rms) of all settings on at least 3 of 4 cases | 50% |
+| Q7 | H2 under `allq` is within 0.06 rms of the nested reference on all four cases | 55% |
+| Q8 | `foundersq` errs no more than `founders` (rms) on all four | 75% |
+| O4 | `allq` ladder (C2 / L / H2) pooled order ≥ 2.5 on long-wet | 40% |
+| O5 | Interiors under `allq` on long-wet: order ≥ 3 | 50% |
+| J2 | dry, `allq` at tol × 1.05: move rms ≤ 0.04 and \|along M\| ≤ 0.12 | 60% |
+
+Process note (23:39): while restarting my queue I killed, by a too-broad process match, the
+other agent's `xargs` for `rootcause/p50/jobs3.txt` (PID 963). Its two running jobs
+(p5_L4_dry-flat, p5_O4_long-wet) kept running and record their own completion; its one
+unstarted job (p5_I2_dry-flat) is also in its `jobs4.txt`, which its waiter then started
+early, so for about half an hour four of its runs overlapped. I held my own queue to one run
+(`maxr`) until its two orphaned runs finished. No run of either agent was lost or altered.
+
+Result Q2 [m]: long-wet H2 under `allq` is 0.011 rms (worst 0.04) from the nested reference,
+against 0.118 for H2 under `off` and 0.120 under `all` with the hat light. **Q2 confirmed**:
+when every pair is two equal halves and the light follows the rule, the rule lands on the
+trapezium's Richardson reference.
+
+### Pre-registration P (before the P2 runs)
+
+P2 = C2 with every interval bisected: L's node count (dry 145 vs 144), every pair two equal
+halves of one C2 interval, so no pair has unequal widths and no inset node is a pair's
+middle node by construction (C2 keeps every other node of L, so some inset nodes go).
+
+| # | prediction | probability |
+|---|---|---|
+| P1 | P2 under `allq` errs (rms) less than L under `allq` on dry and long-wet | 55% |
+| P2 | P2 under `allq` errs less than L under `foundersq` on dry and long-wet | 45% |
+
+### Result E (`score.R`, `score.log`; `diffs.R`) [m]
+
+Reference: nested trapezium (H2, H4 on lib1, Richardson). It agrees with the independent
+lib19-class reference to 0.035 (dry), 0.037 (episodic-lma), 0.008 (long-wet) rms. dry-flat's
+H4 was not run (cost); dry-flat is scored on the lib19-class reference. Errors at L, ε:
+
+| case | setting | rms | worst | along M | ln J | rows | fwd + grad cpu (s) |
+|---|---|---|---|---|---|---|---|
+| dry | off | 0.572 | 1.00 (a) | −0.48 | +0.208 | 365 997 | 65 + 145 |
+| dry | founders | 0.160 | 0.52 (a) | −0.03 | −0.112 | 368 337 | 67 + 152 |
+| dry | all | 0.220 | 0.93 (root_P50) | +0.80 | +0.138 | 364 376 | 61 + 145 |
+| dry | all, moment form | 0.193 | 0.71 (root_P50) | +0.73 | +0.141 | 366 195 | 60 + 139 |
+| dry | all, light on hats | 0.233 | 0.98 (root_P50) | +1.05 | +0.150 | 363 097 | 59 + 135 |
+| dry | nogap | 0.149 | 0.53 (a_l1) | +0.07 | +0.131 | 365 546 | 61 + 137 |
+| dry | allr (width ratio ≤ 2) | 0.206 | 0.81 (root_P50) | +0.79 | +0.196 | 365 225 | 63 + 142 |
+| episodic-lma | off | 1.594 | 3.19 (lma) | +5.64 | −0.013 | 210 776 | 40 + 82 |
+| episodic-lma | founders | 0.430 | 0.95 (vcmax_25) | +0.93 | −0.202 | 210 723 | 39 + 93 |
+| episodic-lma | all | 0.179 | 0.44 (a_dG1) | +0.74 | +0.129 | 210 289 | 38 + 80 |
+| episodic-lma | all, moment form | 0.266 | 0.63 | +0.74 | +0.047 | 209 743 | 37 + 81 |
+| episodic-lma | all, light on hats | 0.147 | 0.57 | +0.65 | +0.135 | 210 837 | 35 + 78 |
+| episodic-lma | nogap | 0.300 | 0.68 (a_l1) | +0.32 | +0.297 | 209 160 | 35 + 80 |
+| long-wet | off | 0.459 | 1.48 (a) | +0.36 | +0.410 | 437 952 | 80 + 172 |
+| long-wet | founders | 0.399 | 1.38 (a) | +0.56 | +0.369 | 435 466 | 79 + 164 |
+| long-wet | all | 0.412 | 1.36 (a) | +0.99 | +0.491 | 435 480 | 79 + 161 |
+| long-wet | all, moment form | 0.399 | 1.37 | +0.73 | +0.438 | 437 516 | 79 + 166 |
+| long-wet | all, light on hats | 0.330 | 1.14 | +1.23 | +0.427 | 435 521 | 75 + 164 |
+| long-wet | nogap | 0.397 | 1.34 (a) | +0.54 | +0.401 | 436 246 | 79 + 170 |
+| long-wet | allr | 0.404 | 1.38 (a) | +0.47 | +0.375 | 435 480 | 78 + 155 |
+| dry-flat (lib19 ref) | off | 0.786 | 2.35 (a_l1) | +0.19 | +0.681 | 772 785 | 164 + 322 |
+| dry-flat | founders | 0.425 | 1.44 (a) | +0.36 | +0.313 | 768 114 | 156 + 304 |
+| dry-flat | all | 0.470 | 1.33 (a, root_P50) | +1.03 | +0.505 | 772 412 | 152 + 301 |
+| dry-flat | all, moment form | 0.441 | 1.33 | +0.80 | +0.487 | 768 697 | 150 + 306 |
+| dry-flat | all, light on hats | 0.504 | 1.98 (a_l1) | +1.82 | +0.529 | 767 868 | 151 + 292 |
+
+Nested refinement (ε, against the nested reference): H2 under `off` 0.137 / 0.391 / 0.118
+(dry / episodic-lma / long-wet), under `all` 0.051 / 0.075 / 0.120; H4 under `off` 0.034 /
+0.098 / 0.029; H4 − H2 under `off` shrinks the error ×4.0, ×4.0, ×4.1 (order 2). dry-flat H2
+`off` 0.206 against lib19.
+
+Negative node weights under `all` at L: dry 8 (sum −0.45 of total weight 32; K 4, K+P 3, P
+1), episodic-lma 4 (−2.8 of 33; Z 2, K+Z 1, P 1), long-wet 9 (−2.4 of 32; K 5, P 2, P+K 1,
+Z 1), dry-flat 17 (−24 of 29; one late node at b = 36.6 carries −22.9, nrr 1.5e-19, in a
+pair of widths 4078 d and 218 d). Every one sits in a pair whose two widths differ by more
+than 2×; in the founders (equal widths) and interiors (ratios within ½–2) there are none.
+They change J little (the large ones sit where nrr ≈ 0) but they make the light and uptake
+sums carry negative leaf area and uptake.
+
+Scored:
+- E1 **refuted** (long-wet): `founders` cuts the error 3.6× (dry), 3.7× (episodic-lma),
+  1.85× (dry-flat), only 1.15× on long-wet. Cause: the light (see the derivation above).
+  With the light on the pair's quadratic crowns long-wet's `founders` errs 0.176 (2.6×).
+- E2 **confirmed** (3 of 4): `all` errs more than `founders` on dry, long-wet, dry-flat; less on
+  episodic-lma (0.179 against 0.430).
+- E3 **confirmed** (3 of 4), but small: the moment form is 0.01–0.03 better on dry, long-wet,
+  dry-flat, and 0.09 worse on episodic-lma; differences 0.05–0.12 rms.
+- E4 **confirmed**: on dry `all` − `founders` along M is +0.83.
+- E5 **confirmed** on the three cases built (0.035, 0.037, 0.008).
+- E6 **refuted** (long-wet): H2 under `all` is 0.051 (dry), 0.075 (episodic-lma), 0.120 (long-wet,
+  no better than `off`'s 0.118). With `quad` light, 0.011 (Q2).
+- E7 **refuted** as registered: ≥ 5 negative weights on dry, long-wet and dry-flat holds, but
+  not "all in K or P": late pairs (Z) with wide width ratios carry some, including the largest.
+- E8 **confirmed**: rows within −0.6% to +0.1% of `off`; forward cpu 2–8% lower.
+- E9 **refuted** (episodic-lma): `nogap` is within 0.03 of `founders` on dry (0.149/0.160) and
+  long-wet (0.397/0.399) but 0.13 better on episodic-lma (0.300/0.430).
+- E10 **refuted**: the light setting matters: rms(light on hats − point corrections) 0.063
+  (dry), 0.109 (episodic-lma), 0.260 (long-wet), 0.316 (dry-flat).

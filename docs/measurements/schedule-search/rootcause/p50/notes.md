@@ -16,9 +16,74 @@ TF24_cost_scale −0.23, stem_c −0.21, ...). Scripts are in this directory; ou
 `scratchpad/deep/rootcause/p50/` (`runs/`, `sched/`, `logs/`, `*.log`). **[m]** measured,
 **[i]** inferred.
 
-## Summary
+## Summary (written last)
 
-(written last)
+**Where (dry).** Region bisection on top of res, five disjoint regions whose errors add to
+e_res within rms 0.039 (root_P50 −0.72 against −0.64) [m]:
+
+| region (dry) | root_P50 | omega | TF24_cost_scale | a_l1 | ln J |
+|---|---|---|---|---|---|
+| **spell interiors after b1** (from the spell's first interval to c − 36 d) | **−0.51** | +0.31 | +0.22 | +0.42 | −0.22 |
+| of which b1–10 / 10–17 / 17–25 | −0.38 / −0.12 / −0.02 | | | | |
+| opening strips [o, o + 12 d] (read on the gap chord) | −0.14 | +0.09 | +0.01 | −0.11 | +0.06 |
+| spell's first interval after the opening inset | −0.05 | +0.01 | +0.05 | +0.00 | −0.02 |
+| founders [0, b1) | −0.09 | +0.01 | +0.16 | −0.04 | +0.10 |
+| b1 closing edge; late (b > 23.9) | +0.03; +0.03 | | | | |
+
+dry-flat (−0.63): interiors −0.27, opening side −0.11, founders −0.05, late −0.04, b1 edge
+0.00, unplaced −0.16 (every other quantity closes, rms 0.035). long-wet: interiors −0.06,
+opening side −0.06 (jitter-sized). The founders' window does not hold the root_P50 error
+(−0.04 to −0.09); it holds stem_c, a and a_l1.
+
+**Mechanism [m, with the channel i].**
+1. It is a field error, not an interpolation of fate: the interiors' ln J error is field
+   −0.251, interpolation +0.036; their root_P50 error is 89% field (pinned finite
+   differences: interpolation part −0.056 of −0.505).
+2. The integrand is the interior cohorts' leaf area (and with it their resource use) as a
+   function of birth date. Inside a wet spell a later birth is a smaller delayed copy
+   (ln size −2.2 / −1.0 / −0.5 per year of birth at t = 8 / 15 / 22 y) but has had less time
+   to die and met its first drought with fuller reserves (ln survival +0.5 to +0.2 per
+   year, curvature +2 to +4 per y²). The product is convex, so the 60–100 d interior hats
+   over-read the understory's leaf area by 0.5–1.1% of it (3–4% in years 4–6).
+3. The over-counted understory lowers every cohort's fate by about the same fraction
+   (dry: founders −0.0061 in ln nrr, born b1–10 −0.0071). The founders hold 84% of J, so
+   they carry 80% of the field part. They lose it as extra mortality (+0.0067, 86% of it
+   accrued in drydowns), entering drydowns with 0.07–0.28% less storage and growing
+   6e-4 m less at 10–15 y; their seed output does not fall.
+4. The soil layers agree between the coarse and fine runs to 1e-5 and cumulative uptake
+   differs by 0.01%, so the founders' carbon shortfall is more likely light at their lower
+   crowns than water [i]. libS has no node drop, so the channel is not separated.
+5. Why hydraulic traits and why dry: ln J's part is small (−0.22ε); its trait derivative
+   is large where the founders' survival of drydowns sets J, because the field moves
+   exactly that (reserve-driven mortality, a_dG2 = 20). The traits that set drydown
+   survival (root_P50, root_c, TF24_cost_scale, seed mass omega) and the one that sets the
+   understory's leaf area per height (a_l1) take the error. On dry every cohort's fate
+   moves −1.4 per unit ln root_P50; the founders' fate shift falls from dry (−0.0061) to
+   dry-flat (−0.0020) to long-wet (−0.0012), and the interiors' root_P50 error with it
+   (−0.51, −0.27, −0.06). dry-flat's interiors are also shorter (39–51 d against ~70 d).
+   Within dry, 73% sits in the cohorts born b1–10: they are the understory during the
+   founders' reproductive years.
+
+**Order [m].** The interiors are clean second order on dry: halving them twice (≈70 → 35
+→ 18 d) moves root_P50 +0.39 then +0.08 (ratio 4.77; omega 4.15, a_l1 4.39, ln J 4.29,
+rms 4.65; projected 4.46; cos(move1, move2) 0.96), and Richardson from either pair gives
+the same region error to 0.01–0.03. DRYFLAT_LADDER
+
+**What it implies [i].** The interiors are the founders' case one level down: an h²
+hat error in birth date of a smooth, edge-free profile, carried by the field into the
+founders' survival. So:
+- a check that refines the spell interiors by the same ratio reads them on the square law,
+  and a coarser/finer pair predicts them;
+- Simpson weights over pairs of equal interior intervals, on every sum over nodes (J,
+  light, uptake), i.e. `founders/simpson.patch` extended from [0, b1) to each spell's
+  interior between its inset nodes, removes the leading term; the ladder's h⁴ content is
+  under the jitter floor (the second halving moved root_P50 +0.08 against the square
+  law's +0.10). Simpson in the founders' window alone removes only the founders' −0.09.
+- The committed run's small root_P50 error (−0.31) is a balance: closing strips +0.34 (no
+  power law), interiors −0.51 (h²), opening strips −0.14 (fixed 12-d strip, order not
+  measured), founders −0.09 (h²). Fixing the interiors and founders alone would leave about
+  +0.2 to +0.3 from the closing strips [i]. The three must change together (interiors and
+  founders by Simpson or h², closing strips by H5's fixed node at c − 12 d).
 
 ## R0. What the saved runs already say (no new run)
 
@@ -249,3 +314,224 @@ but its direction is the first's (cos 0.96), so the ratio is read on signal [i].
   b1–10 are the understory, already large (t = 8 y leaf-area proxy), during the founders'
   reproductive years (t ≈ 15–28), when the founders' fate is set; cohorts born after 17
   are still seedlings then.
+
+### R3 results, part 1: the pinned finite differences (`m4_fd.R dry`) [m]
+
+- **Guard (R3c) holds**: the pinned pair's d ln J / d ln root_P50 −1.32493 against I4's
+  adjoint −1.32505 (ratio 0.9999).
+- **R3a holds: the interiors' root_P50 error is field.** The interpolation part (res's
+  hats on I4's fates, I4's field) contributes −0.056ε of the region's −0.505ε (11%); the
+  field part (with establishment, which is 0 in ln J) −0.449ε (89%). ln J: interpolation
+  +0.036, field −0.251 (`m1_split.R`).
+- Per-cohort d ln nrr / d ln root_P50 (median): founders −1.37, born b1–10 −0.82, 10–17
+  −1.59, 17–25 −1.10, after 25 −0.33: every cohort's fate is strongly root_P50-dependent
+  on dry.
+
+### R3 results, part 2: the soil and the cohorts' final state (`m5_soil.R`, `m6_state.R`) [m]
+
+- **R3b refuted.** res's top five soil layers are not drier than I4's on drydown days:
+  on the driest 2% of I4's days res − I4 is +3e-4 in layers 1–3 (+0.2% of the layer's
+  water, res slightly wetter); over all days the top layer differs by +3e-5. By era the
+  mean differences are ±1e-3 with no consistent sign. (Wet-day differences of −3e-3 to
+  −1.6e-2 sit on rain pulses, where two runs' different step times make the interpolated
+  layer jump; not read.)
+- **The founders' fate falls through their own mortality, not their output** (res − I4 at
+  res's nodes, medians): founders d ln nrr −0.0061, mortality integral +0.0067, ln
+  lifetime seed output +0.0008, height +0.0002 m; cohorts born b1–10 likewise (−0.0071,
+  +0.0067, +0.0011). So res's founders grow and reproduce marginally *more* and die
+  marginally *more*. Light cannot give that (less light would cut growth and output) [i];
+  a drier soil would show in the layers, and does not in the top five.
+- So the channel is still open. The reading in R3's exploratory part ("the over-counted
+  understory dries the soil") is not supported by the top five layers.
+
+### Pre-registration R3d (before the founders' trajectory runs, `jobs3.txt`)
+
+Runs: res and I4 forward with the founders' (b < b1) height, mortality integral and
+storage at every recorded step, and all ten environment states (soil layers).
+- **R3d.** The founders' extra mortality in res (+0.0067) accrues in the drydown pulses:
+  ≥ 60% of it accrues on days when the founders' mortality rate is above its 90th
+  percentile — 55%.
+- **R3e.** In those pulses res's founders hold less storage than I4's (median relative
+  storage difference < 0) — 55%; and the deeper soil layers (6–10) are drier on res on
+  those days — 35%.
+
+### R2 results, dry-flat (`r2_dryflat.log`) [m]
+
+| region (run, nodes) | rms | along M | ln J | root_P50 | omega | TF24_cost_scale | stem_c | a_l1 | root_c | a |
+|---|---|---|---|---|---|---|---|---|---|---|
+| e_res (880) | 0.196 | +0.10 | +0.09 | −0.63 | +0.21 | +0.24 | −0.19 | −0.04 | +0.25 | −0.53 |
+| I interiors (I4, 958) | 0.069 | +0.09 | −0.09 | **−0.27** | +0.11 | +0.06 | −0.01 | +0.12 | +0.11 | −0.11 |
+| O opening side (O4, 1183) | 0.026 | +0.04 | −0.00 | −0.11 | +0.07 | +0.03 | −0.03 | +0.04 | +0.06 | −0.01 |
+| e_res − (O + I) | 0.147 | −0.03 | +0.18 | −0.25 | +0.02 | +0.15 | −0.15 | −0.20 | +0.08 | −0.42 |
+
+- ln J's interior error is again all field (−0.089 = field −0.089, interpolation +0.002),
+  and the founders (97% of dry-flat's J) carry all of it.
+- The interiors carry 43% of dry-flat's root_P50 (−0.27 of −0.63), the opening side 17%.
+  **R2c: holds in its first part** (interiors under half); its second (O ≤ −0.25) is
+  refuted (−0.11).
+- −0.25 is left, with the founders' signature in the other quantities (a −0.42, a_l1
+  −0.20, ln J +0.18; the founders on c: a −0.36, a_l1 −0.33, ln J +0.19, root_P50 −0.04).
+  So −0.2 of root_P50 is not yet placed on dry-flat; F2, B and L4 on dry-flat are queued.
+- Process note: the dry I8 rung was dropped (I2 → I4 already sits at the jitter floor, so
+  I4 → I8, ~4× smaller, could not be read); killing it stopped that queue, so the
+  remaining jobs moved to `jobs3.txt`.
+
+### Pre-registration R2e (before dry-flat's F2, B and L4)
+
+- **R2e.** dry-flat's founders on res (F2) carry root_P50 in [−0.10, 0] — 60%.
+- **R2f.** dry-flat's b1 edge (B) carries |root_P50| ≥ 0.10 — 30%.
+- **R2g.** dry-flat's late region (L4: one interval 24.8–36.0 y quadrisected) carries
+  |root_P50| ≥ 0.10 — 30%.
+- **R2h.** F2 + B + O + I + L gives dry-flat's e_res root_P50 (−0.63) within ±0.15 — 50%.
+  If it does not, the gap is within the reference's own extrapolation step on dry-flat
+  (|u429 − u215|/3 in root_P50 ≥ the gap) — 40%.
+
+### R2 results, long-wet (`r2_longwet.log`) [m]
+
+Interiors (I4, 719 nodes): rms 0.022 (the jitter floor), root_P50 −0.06, ln J −0.04
+(field −0.050, interpolation +0.016); the founders carry −0.040 of the field part, with a
+fate shift of −0.0012 in ln nrr (dry −0.0061, dry-flat −0.0020). **R2d holds.**
+
+### R3 results, part 3: the founders' trajectories (`m7_founders.R`, `m8_drydown.R`) [m]
+
+- res's founders end with +0.0068 more mortality (J-weighted), as at res's nodes. It
+  accrues across 5–30 y (+0.0010, +0.0028, +0.0017, +0.0011, +0.0015 per 5-y era), not in
+  one era. Their height is lower than I4's by 1–8e-4 m over 5–30 y (they grow marginally
+  less) and ends +2e-4 m higher among survivors.
+- **R3d and R3e cannot be read on this run**: the trajectory was thinned to 1200 rows
+  (≈ 12 d apart), so daily increments of the mortality difference are dominated by the
+  two runs' different pulse timing (the "share on pulse days" comes out −52), and drydown
+  timing (lag res − I4 at the top layer crossing 0.17 / 0.15 / 0.14: −0.20 / +0.06 /
+  +0.20 d, mixed sign) is below the record's resolution. On the founders' pulse days the
+  top layer reads 1.6e-3 lower on res (1.1% of 0.139) and 1.9e-4 higher in the 10 days
+  before; at this resolution that is not evidence either way.
+- Reading so far [i]: the field part moves every cohort's fate by a similar fraction
+  (founders −0.0061, born b1–10 −0.0071, 17–25 −0.0099). Light from an over-counted
+  understory would fall on the understory and much less on the founders' crowns above it;
+  a shared soil pool reaches everyone alike. The founders lose fate through extra
+  mortality, which in TF24 is reserve-driven (a_dG1·exp(−a_dG2·r)) and comes in drydown
+  pulses. So the soil channel is the likely one; not yet measured on libS (libS has no
+  node drop, and the lib build that has it is not libS).
+
+### Pre-registration R3f (before the full-resolution founders' trajectories, `jobs4.txt`)
+
+Runs: as R3d with every recorded step kept (NKEEP all).
+- **R3f.** During drydowns (I4's top layer falling and below 0.17), res's top layer is
+  lower than I4's on average, and the founders' extra mortality accrues mostly (≥ 60%) in
+  those drydown periods — 50%.
+
+### Pre-registration R1g (before the opening side is split, `jobs4.txt`)
+
+The opening side O (dry: root_P50 −0.18) lumps the strip [o, o + 12 d] (read on the gap's
+chord) and the spell's first interval [o + 12 d, x2] (median 62 d, an interior interval in
+all but name). Runs Os4 (strip only) and Ofirst4 (first interval only).
+- **R1g.** The first interval carries at least two thirds of O's root_P50, and its error is
+  field in ln J like the interiors' — 60%.
+
+### R3 results, part 4: full-resolution founders' trajectories (`m7_founders.R dry trajG`, `m8_drydown.R`, `m9_when.R`) [m]
+
+Every recorded step kept (res 5643 rows, I4 5921), founders' state and all ten
+environment states (five soil layers, then cumulative rainfall, infiltration, drainage,
+root uptake, runoff).
+- **The soil is the same on both runs.** At the 1078 step times the two runs share, the
+  top layer differs by median 0, mean −1.4e-5 (water content ~0.14–0.26); on the founders'
+  mortality-pulse days all five layers differ by under 1e-5; drydowns cross 0.17 / 0.15 /
+  0.14 at the same time to within 0.01–0.04 d in 10–30 y (`m8_drydownG_dry.log`). res's
+  cumulative root uptake is higher by 1.8e-4 / 2.2e-4 / 3.5e-4 m at 15 / 20 / 25 y (0.01%
+  of the total) and its drainage lower: the over-counted understory takes a little more
+  water, and the soil gives it from drainage, not from storage in the layers.
+- Cumulative *rainfall* differs between the two runs at the same time (−0.012 m at 10 y,
+  −0.07 at 25 y, +0.27 at 30 y): with the rain's knots not stops (KNOTS=0), each step
+  integrates the rain over its own placement, so the input itself carries step jitter.
+  This is part of the jitter floor; it does not scale with the interior spacing.
+- **The founders' extra mortality accrues in drydowns**: of +0.0066 (4–25 y), +0.0057
+  (86%) on drying days (I4's top layer below 0.17 and falling; 35% of the time), +0.0015
+  on wet days (top layer ≥ 0.20). The founders hold 0.07% less storage than I4's over
+  10–15 y (0.28% less on pulse days) and are 6e-4 m shorter at 10–15 y; height and
+  storage increments split by soil class are dominated by step-placement noise (±4e-3
+  between classes) and are not read.
+- **R3f: half holds.** The extra mortality accrues in drydowns (86% ≥ 60%); the top layer
+  is not lower on res in drydowns (+3e-5).
+- Reading [i]: the field part reaches the founders as a small carbon shortfall (lower
+  reserves, slightly slower growth during the race) that turns into mortality when
+  drydowns drain reserves (TF24's mortality is a_dG1·exp(−a_dG2·r), a_dG2 = 20). Since the
+  soil layers agree to 1e-5, the shortfall is more likely light at the founders' lower
+  crowns from the over-counted understory than water. Not separated on libS: libS has no
+  node drop (the lib build that has it is not libS; not used, per the round's rule).
+
+### R2e results: dry-flat closed, long-wet's opening side (`r1_score_dryflat.log`, `r2_longwet.log`) [m]
+
+| dry-flat region | rms | ln J | root_P50 | omega | TF24_cost_scale | a_l1 | a |
+|---|---|---|---|---|---|---|---|
+| F founders on res (F2, ×4/3) | 0.142 | +0.19 | −0.05 | −0.02 | +0.05 | −0.30 | −0.37 |
+| B b1 edge | 0.005 | +0.00 | −0.00 | +0.00 | −0.01 | +0.00 | +0.01 |
+| O opening side | 0.026 | −0.00 | −0.11 | +0.07 | +0.03 | +0.04 | −0.01 |
+| I interiors | 0.069 | −0.09 | −0.27 | +0.11 | +0.06 | +0.12 | −0.11 |
+| L late (24.8–36.6) | 0.018 | −0.02 | −0.04 | −0.00 | +0.03 | +0.03 | −0.02 |
+| sum | 0.176 | +0.09 | −0.47 | +0.17 | +0.16 | −0.11 | −0.50 |
+| e_res − sum | **0.035** | +0.00 | **−0.16** | +0.04 | +0.08 | +0.07 | −0.03 |
+
+- R2e holds (F2 −0.05); R2f refuted (B −0.00); R2g refuted (L −0.04).
+- **R2h refuted narrowly** on both counts: the sum misses root_P50 by −0.16 (registered
+  ±0.15), and the reference's own extrapolation step on dry-flat is 0.10 in root_P50
+  (|u429 − u215|/3), under the gap. Every other quantity closes (rms 0.035). Five region
+  reads, each with one run's jitter (×16/15 or ×4/3), sum to an expected spread of about
+  0.1 in one quantity [i]; res's own residual in dry-flat's 92 resolved closing regions
+  (checked by res2x on dry only) is the other candidate. −0.16 is left unplaced.
+- **dry-flat's root_P50 −0.63 is, in order**: interiors −0.27, opening side −0.11,
+  founders −0.05, late −0.04, b1 edge 0.00, unplaced −0.16.
+- long-wet: opening side −0.06, interiors −0.06 (each rms 0.02, the jitter floor).
+
+### R1g results: the opening side split (`r1g_dry.log`) [m]
+
+| dry | rms | along M | ln J (field / interp) | root_P50 | omega | TF24_cost_scale | a_l1 |
+|---|---|---|---|---|---|---|---|
+| Os: strip [o, o + 12 d] on the gap chord (Os4, 633) | 0.036 | +0.17 | +0.06 (+0.072 / −0.012) | **−0.14** | +0.09 | +0.01 | −0.11 |
+| Ofirst: first interval [o + 12 d, x2] (Ofirst4, 605) | 0.019 | −0.01 | −0.02 (−0.027 / +0.006) | −0.05 | +0.01 | +0.05 | +0.00 |
+| Os + Ofirst | | +0.16 | +0.04 | −0.19 | +0.10 | +0.06 | −0.11 |
+| O (O4, both at once) | 0.049 | +0.07 | +0.04 | −0.18 | +0.10 | +0.13 | −0.07 |
+
+- The two parts add to O (root_P50 −0.19 against −0.18). **R1g refuted**: the opening
+  strip, not the first interval, carries the opening side's root_P50 (−0.14 of −0.18).
+  Its ln J error is field too (+0.072), of the opposite sign to the interiors'.
+
+## Predictions scored
+
+| # | prediction | P | result |
+|---|---|---|---|
+| R0a | founders' root_P50 in [−0.21, 0] on dry | 55% | holds (−0.04) |
+| R0a′ | same on dry-flat | 45% | holds (−0.04) |
+| R0b | founders' TF24_cost_scale ≥ +0.15 on dry | 55% | refuted (+0.09; stem_c −0.26 holds) |
+| R0c | rest root_P50 ≤ −0.40 on dry and dry-flat, omega ≥ +0.2 on dry | 55% | holds (−0.60, −0.59; +0.41) |
+| R0d | long-wet rest \|root_P50\| ≤ 0.15 | 60% | holds (−0.11) |
+| R1a | interiors' root_P50 in [−0.60, −0.25] | 45% | holds (−0.51) |
+| R1b | opening side's root_P50 in [−0.60, −0.25] | 25% | refuted (−0.18) |
+| R1c | late \|root_P50\| ≤ 0.10 | 75% | holds (+0.03) |
+| R1d | b1 edge root_P50 > 0, ≤ 0.2 | 50% | holds (+0.03) |
+| R1e | regions add to e_res's root_P50 within ±0.15 | 55% | holds (−0.72 against −0.64) |
+| R1e′ | vector sum within rms 0.06 | 40% | holds (0.039) |
+| R1f | carrying region off M (\|M\| ≤ 0.2) | 60% | holds (+0.02) |
+| R1g | first interval carries ≥ 2/3 of the opening side | 60% | refuted (the strip carries −0.14 of −0.18) |
+| R2a | eras add (rms ≤ 0.05) and no era > 60% | 50% | refuted (add within 0.010; b1–10 holds 73%) |
+| R2b | interiors second order on dry, ratios in [3, 5.5], cos ≥ 0.9 | 55% | holds on the measurable pair (4.77 root_P50, 4.65 rms, cos 0.96); the I4 → I8 step was dropped (below the jitter floor) |
+| R2c | dry-flat interiors < half and opening ≤ −0.25 | 45% | refuted (first part holds, −0.27; opening −0.11) |
+| R2d | long-wet interiors \|root_P50\| ≤ 0.15 | 65% | holds (−0.06) |
+| R2e | dry-flat founders' root_P50 in [−0.10, 0] | 60% | holds (−0.05) |
+| R2f | dry-flat b1 edge \|root_P50\| ≥ 0.10 | 30% | refuted (−0.00) |
+| R2g | dry-flat late \|root_P50\| ≥ 0.10 | 30% | refuted (−0.04) |
+| R2h | dry-flat regions add within ±0.15 | 50% | refuted narrowly (gap −0.16) |
+| R2h′ | gap within the reference's extrapolation step | 40% | refuted (step 0.10) |
+| R3a | interpolation part < 1/3 of the interiors' root_P50 | 65% | holds (11%) |
+| R3b | res's top soil drier in drydowns | 60% | refuted (no difference above 1e-5) |
+| R3c | pinned pair reproduces the adjoint within 2% | 80% | holds (0.9999) |
+| R3d, R3e | founders' extra mortality on pulse days; storage and deep soil there | 55%, 55%/35% | not readable on the thinned run; replaced by R3f |
+| R3f | res's top layer lower in drydowns, and ≥ 60% of the extra mortality there | 50% | half: mortality 86% in drydowns; soil not lower |
+
+Exploratory analyses run before registration (process error, not scored): `m1_split.R`,
+`m2_who.R`, `m3_traj.R`, `m3b_shape.R`, `m6_state.R`.
+
+Runs: 27 completed, all exit 0 (I8 on dry started and was dropped), at most two of this round's at a time except two
+windows (four at once for about a minute at 20:40, and for about ten minutes after a queue
+exited early at 23:39; both caught and cut back to two). Region refinements: dry I4, O4,
+L4, B, F2, I2, Ia4, Ib4, Ic4, Os4, Ofirst4; dry-flat I4, O4, L4, B, F2, I2; long-wet I4,
+O4. Pinned finite differences 2; forward trajectories 6 (traj, trajF, trajG on res and I4).

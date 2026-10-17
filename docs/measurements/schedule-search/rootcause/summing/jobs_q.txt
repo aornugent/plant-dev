@@ -1,0 +1,52 @@
+Lallq L long-wet all lib2 PLANT_SIMPSON_LIGHT=quad
+Lfoundersq L long-wet @founders lib2 PLANT_SIMPSON_LIGHT=quad
+Lallq L dry all lib2 PLANT_SIMPSON_LIGHT=quad
+Lallq L episodic-lma all lib2 PLANT_SIMPSON_LIGHT=quad
+H2allq H2 long-wet all lib2 PLANT_SIMPSON_LIGHT=quad
+Lfoundersq L dry @founders lib2 PLANT_SIMPSON_LIGHT=quad
+Lallq L dry-flat all lib2 PLANT_SIMPSON_LIGHT=quad
+H2allq H2 dry all lib2 PLANT_SIMPSON_LIGHT=quad
+H2allq H2 episodic-lma all lib2 PLANT_SIMPSON_LIGHT=quad
+Lfoundersq L episodic-lma @founders lib2 PLANT_SIMPSON_LIGHT=quad
+Lfoundersq L dry-flat @founders lib2 PLANT_SIMPSON_LIGHT=quad
+Lnogapq L long-wet @nogap lib2 PLANT_SIMPSON_LIGHT=quad
+Lnogapq L dry @nogap lib2 PLANT_SIMPSON_LIGHT=quad
+Lnogapq L episodic-lma @nogap lib2 PLANT_SIMPSON_LIGHT=quad
+Lnogapq L dry-flat @nogap lib2 PLANT_SIMPSON_LIGHT=quad
+LKwinq L long-wet @K lib2 PLANT_SIMPSON_LIGHT=quad
+LPwinq L long-wet @P lib2 PLANT_SIMPSON_LIGHT=quad
+LIwinq L long-wet @I lib2 PLANT_SIMPSON_LIGHT=quad
+LFoff LF long-wet off lib1
+LKoff LK long-wet off lib1
+LPoff LP long-wet off lib1
+LIoff LI long-wet off lib1
+LFallq LF long-wet all lib2 PLANT_SIMPSON_LIGHT=quad
+LKallq LK long-wet all lib2 PLANT_SIMPSON_LIGHT=quad
+LPallq LP long-wet all lib2 PLANT_SIMPSON_LIGHT=quad
+LIallq LI long-wet all lib2 PLANT_SIMPSON_LIGHT=quad
+LKwinq L dry @K lib2 PLANT_SIMPSON_LIGHT=quad
+LPwinq L dry @P lib2 PLANT_SIMPSON_LIGHT=quad
+LIwinq L dry @I lib2 PLANT_SIMPSON_LIGHT=quad
+LFallq LF dry all lib2 PLANT_SIMPSON_LIGHT=quad
+LKallq LK dry all lib2 PLANT_SIMPSON_LIGHT=quad
+LPallq LP dry all lib2 PLANT_SIMPSON_LIGHT=quad
+LIallq LI dry all lib2 PLANT_SIMPSON_LIGHT=quad
+C2allq C2 dry all lib2 PLANT_SIMPSON_LIGHT=quad
+C2allq C2 long-wet all lib2 PLANT_SIMPSON_LIGHT=quad
+Lallq_t105 L dry all lib2 PLANT_SIMPSON_LIGHT=quad TOL=1.05e-4
+Loff_t105 L dry off lib1 TOL=1.05e-4
+LFallnl LF dry all lib1 PLANT_SIMPSON_LIGHT=0
+Lfoundersnl L dry @founders lib1 PLANT_SIMPSON_LIGHT=0
+H4off H4 dry-flat off lib1
+H2allq H2 dry-flat all lib2 PLANT_SIMPSON_LIGHT=quad
+C2off C2 dry-flat off lib1
+C2allq C2 dry-flat all lib2 PLANT_SIMPSON_LIGHT=quad
+LKwinq L episodic-lma @K lib2 PLANT_SIMPSON_LIGHT=quad
+LPwinq L episodic-lma @P lib2 PLANT_SIMPSON_LIGHT=quad
+LIwinq L episodic-lma @I lib2 PLANT_SIMPSON_LIGHT=quad
+LFoff LF episodic-lma off lib1
+LKoff LK episodic-lma off lib1
+LPoff LP episodic-lma off lib1
+LIoff LI episodic-lma off lib1
+C2off C2 episodic-lma off lib1
+C2allq C2 episodic-lma all lib2 PLANT_SIMPSON_LIGHT=quad

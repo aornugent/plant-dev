@@ -1,5 +1,5 @@
 --- plant.orig/inst/include/plant/species.h	2026-10-16 20:47:20.486757530 +0000
-+++ plant/inst/include/plant/species.h	2026-10-16 20:59:15.058685358 +0000
++++ plant/inst/include/plant/species.h	2026-10-16 23:20:48.453161633 +0000
 @@ -2,6 +2,9 @@
  #ifndef SPECIES
  #define SPECIES
@@ -10,7 +10,7 @@
  #include <vector>
  #include <algorithm>
  #include <numeric>
-@@ -306,15 +309,137 @@
+@@ -306,15 +309,140 @@
    // either side of its birth date. The boundary node's is boundary_weight().
    template <typename F>
    void for_each_establishment_weight(F visit) const {
@@ -42,16 +42,18 @@
 +  // DIAGNOSTIC (PLANT_SIMPSON, read once): "off" or unset, the hat weights; "all",
 +  // every complete pair of intervals from node 0; "lo:hi[,lo:hi]", the pairs lying
 +  // inside one of these birth-date windows. PLANT_SIMPSON_LIGHT=0 leaves the light
-+  // on the hat weights.
++  // on the hat weights; =quad builds each selected pair's crowns from the quadratic
++  // through its three nodes (tops and leaf areas) instead of adding the corrections.
 +  struct pair_rule_setting {
 +    int mode;  // 0 off, 1 all, 2 windows
 +    std::vector<std::pair<double, double>> windows;
 +    bool light;
++    bool light_quad;  // PLANT_SIMPSON_LIGHT=quad
 +    bool moment;  // PLANT_SIMPSON_FORM=moment
 +  };
 +  static const pair_rule_setting& pair_rule() {
 +    static const pair_rule_setting setting = [] {
-+      pair_rule_setting r{0, {}, true, false};
++      pair_rule_setting r{0, {}, true, false, false};
 +      const char* v = std::getenv("PLANT_SIMPSON");
 +      if (v != nullptr && *v != 0 && std::strcmp(v, "off") != 0) {
 +        if (std::strcmp(v, "all") == 0) {
@@ -76,6 +78,7 @@
 +      }
 +      const char* l = std::getenv("PLANT_SIMPSON_LIGHT");
 +      r.light = !(l != nullptr && std::strcmp(l, "0") == 0);
++      r.light_quad = l != nullptr && std::strcmp(l, "quad") == 0;
 +      const char* form = std::getenv("PLANT_SIMPSON_FORM");
 +      r.moment = form != nullptr && std::strcmp(form, "moment") == 0;
 +      return r;
@@ -150,7 +153,24 @@
    // The boundary node's establishment weight: the newest node's interval's share
    // at its upper end.
    value_type boundary_weight() const {
-@@ -354,6 +479,18 @@
+@@ -351,9 +479,72 @@
+   // node to the boundary node is added once the boundary node is known.
+   template <typename F>
+   void for_each_crown_between_nodes(F visit) const {
++    if (pair_rule().mode != 0 && pair_rule().light_quad) {
++      std::vector<char> paired(size(), 0);
++      for (size_t j = 0; j + 2 < size(); j += 2) {
++        if (for_each_pair_crown(j, visit)) {
++          paired[j] = paired[j + 1] = 1;
++        }
++      }
++      for (size_t i = 0; i + 1 < size(); ++i) {
++        if (!paired[i]) {
++          for_each_interval_crown(nodes[i], nodes[i + 1], visit);
++        }
++      }
++      return;
++    }
      for (size_t i = 0; i + 1 < size(); ++i) {
        for_each_interval_crown(nodes[i], nodes[i + 1], visit);
      }
@@ -166,6 +186,43 @@
 +        visit(nodes[j].height(), value_type(d[j] * nodes[j].compute_competition(0.0)));
 +      }
 +    }
++  }
++  // The pair of intervals from node j as 2 crowns_per_interval crowns, each with
++  // its top and leaf area from the quadratic through the pair's three nodes, and
++  // the hats' establishment density at its place. False (no crowns) when the
++  // pair is not selected.
++  template <typename F>
++  bool for_each_pair_crown(size_t j, F visit) const {
++    const double x1 = nodes[j + 1].introduction_time() - nodes[j].introduction_time();
++    const double x2 = nodes[j + 2].introduction_time() - nodes[j].introduction_time();
++    if (!pair_selected(nodes[j].introduction_time(), nodes[j + 2].introduction_time()) ||
++        !(x1 > 0 && x2 > x1)) {
++      return false;
++    }
++    const value_type la[3] = {nodes[j].compute_competition(0.0),
++                              nodes[j + 1].compute_competition(0.0),
++                              nodes[j + 2].compute_competition(0.0)};
++    const value_type top[3] = {nodes[j].height(), nodes[j + 1].height(),
++                               nodes[j + 2].height()};
++    for (int k = 0; k < 2; ++k) {
++      const double lo = k == 0 ? 0.0 : x1, width = k == 0 ? x1 : x2 - x1;
++      const auto share = nodes[j + k].interval_shares(width);
++      for (int s = 0; s < crowns_per_interval; ++s) {
++        const double u = (s + 0.5) / crowns_per_interval;
++        const double x = lo + u * width;
++        const double L0 = (x - x1) * (x - x2) / (x1 * x2);
++        const double L1 = x * (x - x2) / (x1 * (x1 - x2));
++        const double L2 = x * (x - x1) / (x2 * (x2 - x1));
++        value_type h = L0 * top[0] + L1 * top[1] + L2 * top[2];
++        if (!(h > 0.0)) {
++          h = top[k] + u * (top[k + 1] - top[k]);
++        }
++        const value_type density = (share.first * (2.0 * (1.0 - u)) +
++                                    share.second * (2.0 * u)) / crowns_per_interval;
++        visit(h, value_type(density * (L0 * la[0] + L1 * la[1] + L2 * la[2])));
++      }
++    }
++    return true;
    }
    // A crown with top `top` and leaf area `leaf_area`, read at `height`.
    void add_crown(with_slope<value_type>& sum, const value_type& top,

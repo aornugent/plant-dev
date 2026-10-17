@@ -1,0 +1,5 @@
+trajG_res_dry res dry SCRIPT=traj.R BLO=0 BHI=3.52 NKEEP=100000
+trajG_I4_dry I4 dry SCRIPT=traj.R BLO=0 BHI=3.52 NKEEP=100000
+p5_Os4_dry Os4 dry
+p5_Ofirst4_dry Ofirst4 dry
+p5_I2_dry-flat I2 dry-flat

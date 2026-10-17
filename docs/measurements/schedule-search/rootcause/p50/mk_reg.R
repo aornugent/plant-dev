@@ -1,6 +1,6 @@
 # mk_reg.R CASE [k]: region refinements on top of the closing round's res schedule.
 # Regions (boundaries at res's own nodes, so the regions are disjoint and should add):
-#   O  opening strips: for each opening edge o in (b1, 25) whose spell res did not resolve
+#   O  opening side (Os the strip, Ofirst the first interval): for each opening edge o in (b1, 25) whose spell res did not resolve
 #      whole, the strip [o, o + 12 d] (nodes o, o + {12/k ...}: the strip cut into k) and the
 #      spell's first interval [o + 12 d, x2] cut into k.
 #   I  spell interiors: every res interval from x2 to the closing region (c - 36 d) cut into k;
@@ -30,7 +30,7 @@ refine <- function(cs, region, k) { R <- regions(cs); S <- R$S; add <- c()
   if (region == "B") { et <- edge_table(cs); b1 <- R$b1; c0 <- sort(rd5(sprintf("val_insk_c_%s", cs))$node_times)
     gap <- et$gap[abs(et$b - b1) < 1e-9 & !et$opening]; nn <- b1 - OFF$res / 365; gp <- c(2, if (gap > 25) c(5, 10)); gp <- gp[gp < gap - 3]
     S <- S[!(S > b1 - 36 / 365 + 1e-9 & S <= b1 + 1e-9)]; return(sort(unique(round(c(S, nn, b1 + gp / 365), 10)))) }
-  want <- switch(region, O = c("Os", "O1"), I = c("Ia", "Ib", "Ic"), region)
+  want <- switch(region, O = c("Os", "O1"), I = c("Ia", "Ib", "Ic"), Ofirst = "O1", region)
   for (i in which(R$lab %in% want)) {
     if (R$lab[i] == "Os") { o <- R$op[R$op > R$lo[i] & R$op < R$hi[i]]; add <- c(add, o, cut_k(o, R$hi[i], k)) }
     else add <- c(add, cut_k(R$lo[i], R$hi[i], k)) }

@@ -4,7 +4,7 @@
 # seed and trait move as in jobs_insk.txt) with TIMES = sched/SCHED_CASE.rds, output
 # runs/NAME_CASE.rds, PLANT_SIMPSON = RULE (off, all, or lo:hi windows), on build
 # build/LIB; RULE @X reads the case's window from sched/rule_X.txt. Two at a time (P).
-# A run already started is skipped. At most MAXR (2) runs at once across queues; while
+# A run already started is skipped. At most `maxr` (a file; 2 if absent) runs at once; while
 # the file `hold` exists no new run starts.
 A=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/schedtest/adjmap
 DEV=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev
@@ -21,11 +21,12 @@ one() { set -- $1; nm=$1; sc=$2; cs=$3; rule=$4; lib=$5; shift 5
   esac
   case $rule in @*) rule=$(grep "^$cs " $SU/sched/rule_${rule#@}.txt | cut -d' ' -f2) ;; esac
   name=${nm}_$cs; grep -q "^start $name " $SU/queue.out 2>/dev/null && return 0
-  # At most MAXR of these runs at once, across every queue; none starts while `hold` exists.
+  # At most `maxr` of these runs at once, across every queue; none starts while `hold` exists.
   exec 9>$SU/.lock
   while true; do flock 9
     n=$(( $(grep -c '^start ' $SU/queue.out) - $(grep -c '^done ' $SU/queue.out) ))
-    if [ ! -e $SU/hold ] && [ $n -lt ${MAXR:-2} ]; then
+    mx=$(cat $SU/maxr 2>/dev/null || echo 2)
+    if [ ! -e $SU/hold ] && [ $n -lt $mx ]; then
       echo "start $name $(date +%T) rule=${rule:0:40} lib=$lib $*" >> $SU/queue.out; flock -u 9; break; fi
     flock -u 9; sleep 5; done
   s0=$(date +%s)
