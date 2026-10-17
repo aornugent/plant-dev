@@ -17,15 +17,17 @@ Sys.setenv(BG = 90, R = 1.6)
 suppressMessages(source("/home/user/plant-dev/docs/measurements/schedule-search/round4/P/lib.R"))
 H5 <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/h5"
 D <- 1 / 365
-place <- function(a, b, hfun, cp) { u <- seq(a, b, length.out = 801); um <- (head(u, -1) + tail(u, -1)) / 2
+# n0, W, s (round u): a stretch at least W days wide gets at least ceiling(n0 / s) intervals.
+place <- function(a, b, hfun, cp, n0 = 0, W = Inf, s = 1) { u <- seq(a, b, length.out = 801); um <- (head(u, -1) + tail(u, -1)) / 2
   w <- 1 / pmin(vapply(um, hfun, 0), cp); cw <- c(0, cumsum(w * diff(u))); n <- ceiling(tail(cw, 1) - 1e-9)
+  if ((b - a) * 365 >= W) n <- max(n, ceiling(n0 / s - 1e-9))
   if (n <= 1) return(numeric(0))
   x <- if (diff(range(w)) < 1e-12) seq(a, b, length.out = n + 1) else approx(cw / tail(cw, 1), u, seq(0, 1, length.out = n + 1), ties = "ordered")$y
   while (any(diff(x) > cp + 1e-10)) { n <- n + 1; x <- approx(cw / tail(cw, 1), u, seq(0, 1, length.out = n + 1), ties = "ordered")$y }
   x[2:n] }
-h5_sched <- function(cs, s, open = c("node", "inset", "raw", "node1"), d_o = 12, close = TRUE, strip = 12, H = 39.6, tcut = 25) {
+h5_sched <- function(cs, s, open = c("node", "inset", "raw", "node1"), d_o = 12, close = TRUE, strip = 12, H = 39.6, tcut = 25, n0 = 0, W = Inf) {
   open <- match.arg(open); p <- pilot_of(cs); h <- alg$hfun_of(p); hs <- function(b) s * h(b)
-  et <- edge_table(cs); ends <- sort(unique(c(0, p$edges, H))); G <- c()
+  et <- edge_table(cs); ends <- sort(unique(c(0, p$edges, H))); G <- c(); SEG <- list()
   kind <- function(x) { j <- which(abs(et$b - x) < 1e-9); if (!length(j)) "late" else if (x >= tcut) (if (et$opening[j]) "open_i" else "close_i") else if (et$opening[j]) "open" else "close" }
   gap_before <- function(x) et$gap[abs(et$b - x) < 1e-9]
   for (i in seq_len(length(ends) - 1)) { a <- ends[i]; b <- ends[i + 1]; ka <- if (a == 0) "start" else kind(a); kb <- if (b >= H) "end" else kind(b)
@@ -44,11 +46,11 @@ h5_sched <- function(cs, s, open = c("node", "inset", "raw", "node1"), d_o = 12,
       fixed <- c(); if (L > 13 && (ka != "open" || open %in% c("node", "node1"))) fixed <- (a + b) / 2
       if (ka == "open" && open == "inset" && kb == "close" && L > 13) fixed <- b - min(strip, L / 2) * D
       G <- c(G, fixed); next }
-    G <- c(G, fixed, place(lo, hi, hs, cp)) }
+    pz <- place(lo, hi, hs, cp, n0, W, s); SEG[[length(SEG) + 1]] <- c(lo = lo, hi = hi, n = length(pz) + 1); G <- c(G, fixed, pz) }
   if (close) G <- c(G, et$b[!et$opening & et$b < tcut])
   G <- G[!(round(G, 10) %in% round(et$b[!et$opening & et$b >= tcut], 10))]                         # closing edges as nodes (segment ends)
   G <- sort(unique(round(G, 10))); late <- round(p$edges[p$edges > 25], 10); G <- G[!(G %in% late)]
-  stopifnot(all(diff(G) > 1e-6)); G }
+  stopifnot(all(diff(G) > 1e-6)); attr(G, "seg") <- as.data.frame(do.call(rbind, SEG)); G }   # seg: each placed stretch and its interval count
 # Loaders: runs, references, the E6 pair.
 ADJ <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/schedtest/adjmap/runs"
 h5_run <- function(nm) { f <- file.path(H5, "runs", paste0(nm, ".rds")); if (!file.exists(f)) return(NULL); x <- readRDS(f); if (is.null(x$stand$elasticity)) return(NULL); x }

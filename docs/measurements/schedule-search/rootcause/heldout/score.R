@@ -62,4 +62,5 @@ pooled <- unlist(lapply(keep, function(k) (k$estc / k$ec)[abs(k$ec) > 0.2])); ca
 for (cs in names(keep)) { k <- keep[[cs]]; big <- pmax(abs(k$err), abs(k$sest)) > 1 / 3
   ok <- abs(k$sest) >= abs(k$err) / 2 & abs(k$sest) <= 2 * abs(k$err) & sign(k$sest) == sign(k$err)
   cat(sprintf("\n%s (s %.3f): %s\n", cs, k$s, paste(sprintf("%s%s ec %+.2f ef %+.2f est %+.2f own %+.2f", ifelse(ok[big], "", "*"), Q[big], k$ec[big], k$ef[big], k$sest[big], k$own[big]), collapse = "; "))) }
+write.csv(TB, file.path(HO_OUT, "score_tab.csv"), row.names = FALSE)
 saveRDS(list(tab = TB, bank = BK, keep = keep, Q = Q), file.path(HO_OUT, "score.rds"))

@@ -4,6 +4,9 @@
 # scattered about 2). Usage: Rscript b_loop.R PASS NDRAW [policy file]
 args <- commandArgs(TRUE); PASS <- if (length(args)) args[1] else "1"; ND <- if (length(args) > 1) as.integer(args[2]) else 10
 PO <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/proxies"
+# OUTDIR, TAG (output name suffix) and INT (the interval check's threshold, d) default to
+# the proxies round's values.
+OUTDIR <- Sys.getenv("OUTDIR", PO); INT <- as.numeric(Sys.getenv("INT", "110"))
 LAD <- Sys.getenv("LAD", file.path(PO, "lad.rds")); D <- readRDS(LAD); L <- D$L; Q <- D$Q; EPS <- D$EPS; M <- D$M_unit[Q]; ALL <- names(L)
 EL <- setdiff(Q, "lnJ"); rms <- function(x) sqrt(mean(x^2)); NQ <- length(Q)
 SEC <- 113e-6; SWEEP <- 3.27; cost <- function(rows, grad = TRUE) rows * SEC * (1 + if (grad) SWEEP else 0)
@@ -75,7 +78,7 @@ simulate <- function(pol, ci, d, mode) {
   rb <- cl(rb); if (rb >= ra - 1e-9) return(list(ok = FALSE))
   hist <- list(list(r = ra, v = A$v))
   flag <- function(ra, rb, B, est) { hist[[length(hist) + 1]] <<- list(r = rb, v = B$v); n <- length(hist); R <- ra / rb
-    f_int <- exp(lli(ra, CS[[ci]]$lmi)) < 110; f_noise <- SIGM / (R^2 - 1) < 1 / 3
+    f_int <- exp(lli(ra, CS[[ci]]$lmi)) < INT; f_noise <- SIGM / (R^2 - 1) < 1 / 3
     f_order <- NA; if (n >= 3) { a <- hist[[n - 2]]; b <- hist[[n - 1]]; d1 <- a$v - b$v; d2 <- b$v - B$v; law <- (a$r^2 - b$r^2) / (b$r^2 - rb^2)
       q <- sqrt(sum(d1^2) / sum(d2^2)) / law; f_order <- q > 0.5 && q < 2 && sum(d1 * d2) / sqrt(sum(d1^2) * sum(d2^2)) >= 0.9 }
     pr <- max(abs(est)) / (B5[[ci]] * CS[[ci]]$Sel * rb^2); f_prox <- pr > 0.5 && pr < 2
@@ -134,8 +137,9 @@ S0 <- STRESS; STRESS <- 0; e6 <- lapply(seq_along(ALL), function(ci) simulate(gr
 cat(sprintf("E6 replay: T %.0f, pass %d/10, per case T %s\n", sum(vapply(e6, `[[`, 0, "T")), sum(vapply(e6, `[[`, TRUE, "pass")), paste(round(vapply(e6, `[[`, 0, "T")), collapse = " ")))
 OUTG <- run_grid(grid, c("meas", "clean", "order"), ND)
 cat(sprintf("%d policy-mode rows in %.0f s\n", nrow(OUTG), as.numeric(Sys.time() - t0, units = "secs")))
-saveRDS(OUTG, file.path(PO, sprintf("b_loop_pass%s_%s%s.rds", PASS, NOISE, if (LAD != file.path(PO, "lad.rds")) "_h5" else "")))
-if (DUMP) { FM <- do.call(rbind, FLAGS[seq_len(NF)]); saveRDS(list(F = FM, ids = vapply(grid, `[[`, "", "id"), ix = vapply(grid, `[[`, 0, "ix")), file.path(PO, sprintf("d_flags_pass%s_%s.rds", PASS, NOISE))) }
+TAG <- Sys.getenv("TAG", if (LAD != file.path(PO, "lad.rds")) "_h5" else "")
+saveRDS(OUTG, file.path(OUTDIR, sprintf("b_loop_pass%s_%s%s.rds", PASS, NOISE, TAG)))
+if (DUMP) { FM <- do.call(rbind, FLAGS[seq_len(NF)]); saveRDS(list(F = FM, ids = vapply(grid, `[[`, "", "id"), ix = vapply(grid, `[[`, 0, "ix")), file.path(OUTDIR, sprintf("d_flags_pass%s_%s%s.rds", PASS, NOISE, TAG))) }
 E6T <- sum(vapply(e6, `[[`, 0, "T"))
 for (mode in c("meas", "clean", "order")) { z <- OUTG[OUTG$mode == mode, ]; z$Trel <- z$T / E6T
   cat(sprintf("\n== %s: cheapest policies with every case passing in >= 95%% of draws (all10 >= 0.95)\n", mode))
