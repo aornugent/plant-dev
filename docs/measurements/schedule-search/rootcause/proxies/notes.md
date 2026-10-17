@@ -191,3 +191,17 @@ constant, P4's LOCO scale picks the gradient pair).
 | B6 | Without step clipping the controller oscillates (≥ 4 gradient runs) in ≥ 5% of case-draws; clipping to [R_min, 2] removes it | 40% |
 | B7 | At the front's cheapest feasible point the constraint that binds is C3, not C1 or C5 | 55% |
 | B8 | order mode costs the best clean policy ≥ 5 points of pass rate (case-draws) at the same parameters | 50% |
+
+**Scoring amended before any replay (coordinator's message, registered here before the
+first run).** Loops are judged on the last run R_k with e_k = (Q_{k−1} − Q_k)/(R² − 1),
+R = r_{k−1}/r_k (the spacing ratio, not the a09 shrink; E6 keeps its own rule and
+shrink). T = Σ cost(R_i) + 2·cost(R_k); the wasted part Σ_{i<k} cost(R_i) and k are
+reported. STRESS: every decision (stop, next spacing, the proxy's run-2 choice, the
+forward pair) is made on perturbed values, truth + the scorer's miss (N(0, 0.025²) per
+quantity, shared by the case's runs) + N(0, 0.04²) per run; C1 and the reads (C2, C3)
+are judged against the truth. Reported per policy: the amplified floor 0.09/(R_k² − 1)
+along M (flag > ε/3) and 0.024/(R_k² − 1) rms; C4 = termination (k ≤ 4) and no run
+outside the measured range [1/1.6, 1.6] (in clean/order, r > 1.6 is reported as
+"outside the evidence", since whether those runs refuse is unknown); interruptibility
+(do C2 and C3 hold on every intermediate (Q_i, e_i), i ≥ 2). B1 is scored without
+STRESS (the stored rungs exactly).

@@ -150,3 +150,21 @@ one the uses run on. T = Σ cost(Ri) + 2·cost(Rk).
 
 An optional diagnostic: if the loop is stopped after any iteration i ≥ 2, (Qi, ei) still
 passes C2/C3.
+
+**Diagnosis instead of interruptibility.** Each iterate is not required to pass C2/C3.
+Instead, every iterate reports:
+- its estimate;
+- a validity flag with reasons: asymptotic spacing, amplified noise under ε/3, order
+  confirmed once there are three runs, agreement with the a-priori proxy;
+- the estimate split by region.
+
+The scored requirement is that the flag does not lie: a low false-valid rate over the bank
+and the stress draws.
+
+**Location by multi-parameter extrapolation.** The regions' errors add (dry, five region
+runs: rms 0.039), so e(Q) ≈ Σ_g K_g h_g², one spacing scale per region family.
+- Runs with non-collinear spacing vectors identify the K_g: G regions plus the truth need
+  G + 1 runs.
+- The same K_g give the cost-optimal final layout: minimise rows subject to
+  Σ K_g h_g² ≤ ε·(1 − reserve).
+- The fixed strips' error does not scale with spacing, so it is bounded separately.
