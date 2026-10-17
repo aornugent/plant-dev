@@ -1,0 +1,337 @@
+diff -ruN plant/R/RcppExports.R plant/R/RcppExports.R
+--- plant/R/RcppExports.R	2026-10-17 02:23:10.514050633 +0000
++++ plant/R/RcppExports.R	2026-10-17 22:35:51.488668915 +0000
+@@ -4749,6 +4749,14 @@
+     invisible(.Call('_plant_node_drop_set_tf24', PACKAGE = 'plant', obj_, nodes, bands, light, soil))
+ }
+ 
++node_drop_census_set_tf24 <- function(obj_, census) {
++    invisible(.Call('_plant_node_drop_census_set_tf24', PACKAGE = 'plant', obj_, census))
++}
++
++node_drop_census_tf24 <- function(obj_) {
++    .Call('_plant_node_drop_census_tf24', PACKAGE = 'plant', obj_)
++}
++
+ #' Generate a suitable set of default node introduction times,
+ #' biased so that introductions are more closely packed at the
+ #' beginning of time, become increasingly spread out.
+diff -ruN plant/inst/include/plant/patch.h plant/inst/include/plant/patch.h
+--- plant/inst/include/plant/patch.h	2026-10-17 02:23:10.514535813 +0000
++++ plant/inst/include/plant/patch.h	2026-10-17 22:35:32.737281218 +0000
+@@ -252,11 +252,16 @@
+   // its k-th node. At zero no number moves, and a coefficient's adjoint is the
+   // census's move from that node's drop over that band. A dropped node counts
+   // from when the node after it exists.
++  // With census at 1, offspring production takes the merged weights of every
++  // dropped node (Species::drop_census); at 0 it is untouched.
+   struct node_drop_type {
+     std::vector<size_t> nodes;
+     std::vector<double> bands;
+     std::vector<value_type> light, soil;
++    double census = 0.0;
+   };
++  // Offspring production's gain from merging every dropped node's intervals.
++  value_type node_drop_census() const;
+   node_drop_type node_drop;
+   void set_node_drop(const std::vector<size_t>& nodes,
+                      const std::vector<double>& bands,
+@@ -691,6 +696,7 @@
+   out.recorded_birth_dates = recorded_birth_dates;
+   out.node_drop.nodes = node_drop.nodes;
+   out.node_drop.bands = node_drop.bands;
++  out.node_drop.census = node_drop.census;
+   for (const value_type& c : node_drop.light) {
+     out.node_drop.light.push_back(U(odelia::util::to_passive(c)));
+   }
+@@ -1681,6 +1687,8 @@
+   using moments = std::array<value_type, CanopyShape<value_type>::max_moments>;
+   using passive_moments =
+     std::array<double, CanopyShape<value_type>::max_moments>;
++  moments zero;
++  zero.fill(value_type(0.0));
+   const auto& shape = species[0].strategy_ptr()->canopy_shape;
+   const size_t n_moments = shape.n_moments();
+   if (n_moments == 0) {
+@@ -1709,29 +1717,31 @@
+     if (j + 1 >= species[0].size()) {
+       break;
+     }
+-    std::vector<std::pair<double, double>> crowns = species[0].drop_crowns(j);
+-    std::sort(crowns.begin(), crowns.end(),
+-              [](const auto& a, const auto& b) { return a.first > b.first; });
++    std::vector<std::pair<value_type, value_type>> crowns =
++      species[0].drop_crowns(j);
++    std::sort(crowns.begin(), crowns.end(), [](const auto& a, const auto& b) {
++      return to_passive(a.first) > to_passive(b.first);
++    });
+     // prefix[i] sums the i tallest crowns.
+-    std::vector<passive_moments> prefix(crowns.size() + 1, passive_moments{});
++    std::vector<moments> prefix(crowns.size() + 1, zero);
+     for (size_t i = 0; i < crowns.size(); ++i) {
+-      shape.crown_moments(value_type(1.0 / crowns[i].first), a);
+-      const passive_moments mom = passive();
++      const value_type top_inv = 1.0 / crowns[i].first;
++      shape.crown_moments(top_inv, a);
+       for (size_t q = 0; q < n_moments; ++q) {
+-        prefix[i + 1][q] = prefix[i][q] + crowns[i].second * mom[q];
++        prefix[i + 1][q] = prefix[i][q] + crowns[i].second * a[q];
+       }
+     }
+     const value_type& c = node_drop.light[d * n_bands + band];
+     size_t reach = crowns.size();
+     for (size_t k = 0; k < x.size(); ++k) {
+       const double z = to_passive(x[k]);
+-      while (reach > 0 && crowns[reach - 1].first < z) {
++      while (reach > 0 && to_passive(crowns[reach - 1].first) < z) {
+         --reach;
+       }
+       if (reach == 0) {
+         break;
+       }
+-      double value = 0.0, slope = 0.0;
++      value_type value(0.0), slope(0.0);
+       for (size_t q = 0; q < n_moments; ++q) {
+         value += weight[k][q] * prefix[reach][q];
+         slope += weight_slope[k][q] * prefix[reach][q];
+@@ -1743,6 +1753,18 @@
+ }
+ 
+ template <typename T, typename E>
++typename Patch<T,E>::value_type Patch<T,E>::node_drop_census() const {
++  value_type ret(0.0);
++  for (size_t j : node_drop.nodes) {
++    if (j + 1 >= species[0].size()) {
++      break;
++    }
++    ret += species[0].drop_census(j);
++  }
++  return ret;
++}
++
++template <typename T, typename E>
+ void Patch<T,E>::add_node_drop_uptake(
+     std::vector<value_type>& depletion) const {
+   const size_t band = node_drop_band();
+@@ -1752,7 +1774,7 @@
+     if (j + 1 >= species[0].size()) {
+       break;
+     }
+-    const std::vector<double> gain =
++    const std::vector<value_type> gain =
+       species[0].drop_uptake(j, depletion.size());
+     const value_type& c = node_drop.soil[d * n_bands + band];
+     for (size_t i = 0; i < depletion.size(); ++i) {
+diff -ruN plant/inst/include/plant/scm.h plant/inst/include/plant/scm.h
+--- plant/inst/include/plant/scm.h	2026-10-17 02:23:10.514843857 +0000
++++ plant/inst/include/plant/scm.h	2026-10-17 22:35:32.738099297 +0000
+@@ -176,6 +176,9 @@
+     for (size_t i = 0; i < p.size(); ++i) {
+       tot += p.at_species(i).offspring_production();
+     }
++    if (p.node_drop.census != 0.0) {
++      tot += p.node_drop.census * p.node_drop_census();
++    }
+     return tot;
+   }
+ 
+@@ -265,6 +268,13 @@
+     patch.set_node_drop(nodes, bands, light, soil);
+     solver.get_system_ref().set_node_drop(nodes, bands, light, soil);
+   }
++  void set_node_drop_census(double census) {
++    patch.node_drop.census = census;
++    solver.get_system_ref().node_drop.census = census;
++  }
++  double node_drop_census() const {
++    return odelia::util::to_passive(patch.node_drop_census());
++  }
+ 
+   // The four references the ladder checks census_trait_gradient against.
+ 
+diff -ruN plant/inst/include/plant/species.h plant/inst/include/plant/species.h
+--- plant/inst/include/plant/species.h	2026-10-17 02:23:10.515053084 +0000
++++ plant/inst/include/plant/species.h	2026-10-17 22:35:07.014463694 +0000
+@@ -117,11 +117,13 @@
+ 
+   // What the field gains when the schedule drops node j, so that one interval
+   // spans its two: that interval's crowns less the two's, each as its top and
+-  // signed leaf area, and the uptake from each layer. Passive, since only a
+-  // coefficient scaling the gain is differentiated. Node j needs a node either
+-  // side.
+-  std::vector<std::pair<double, double>> drop_crowns(size_t j) const;
+-  std::vector<double> drop_uptake(size_t j, size_t n_layers) const;
++  // signed leaf area, and the uptake from each layer. Node j needs a node
++  // either side.
++  std::vector<std::pair<value_type, value_type>> drop_crowns(size_t j) const;
++  std::vector<value_type> drop_uptake(size_t j, size_t n_layers) const;
++  // What offspring production gains when node j is dropped: the merged
++  // interval's weights on its two ends less the three nodes' own.
++  value_type drop_census(size_t j) const;
+ 
+   // The inflow boundary condition the field build reads; on the birth-date
+   // coordinate, only the newborn's initial state and density.
+@@ -366,7 +368,7 @@
+   // The shares of node j's intervals below and above it, and of the one
+   // interval spanning both.
+   struct drop_shares {
+-    std::pair<double, double> below, above, spanning;
++    std::pair<value_type, value_type> below, above, spanning;
+   };
+   drop_shares shares_around(size_t j) const;
+   // The crowns of every interval between two nodes. The interval from the newest
+@@ -1063,20 +1065,16 @@
+ 
+ template <typename T, typename E>
+ typename Species<T,E>::drop_shares Species<T,E>::shares_around(size_t j) const {
+-  using odelia::util::to_passive;
+   const double t = nodes.at(j).introduction_time();
+   const double h_below = t - nodes.at(j - 1).introduction_time();
+   const double h_above = nodes.at(j + 1).introduction_time() - t;
+-  const auto passive = [](const std::pair<value_type, value_type>& s) {
+-    return std::make_pair(to_passive(s.first), to_passive(s.second));
+-  };
+-  drop_shares ret{passive(nodes[j - 1].interval_shares(h_below)),
+-                  passive(nodes[j].interval_shares(h_above)), {}};
++  drop_shares ret{nodes[j - 1].interval_shares(h_below),
++                  nodes[j].interval_shares(h_above), {}};
+   // The spanning interval holds both counts, and the first moments about its
+   // lower end: the upper one's shifted by h_below.
+-  const double above = ret.above.first + ret.above.second;
+-  const double moment = ret.below.second * h_below +
+-                        ret.above.second * h_above + above * h_below;
++  const value_type above = ret.above.first + ret.above.second;
++  const value_type moment = ret.below.second * h_below +
++                            ret.above.second * h_above + above * h_below;
+   ret.spanning.second = moment / (h_below + h_above);
+   ret.spanning.first = ret.below.first + ret.below.second + above -
+                        ret.spanning.second;
+@@ -1084,18 +1082,18 @@
+ }
+ 
+ template <typename T, typename E>
+-std::vector<std::pair<double, double>>
++std::vector<std::pair<typename Species<T,E>::value_type,
++                      typename Species<T,E>::value_type>>
+ Species<T,E>::drop_crowns(size_t j) const {
+-  using odelia::util::to_passive;
+   const drop_shares s = shares_around(j);
+-  std::vector<std::pair<double, double>> ret;
++  std::vector<std::pair<value_type, value_type>> ret;
+   ret.reserve(3 * crowns_per_interval);
+   auto add = [&](const node_type& node, const node_type& end,
+-                 const std::pair<double, double>& share, double sign) {
++                 const std::pair<value_type, value_type>& share, double sign) {
+     for_each_interval_crown(
+-      node, end, {value_type(share.first), value_type(share.second)},
++      node, end, share,
+       [&](const value_type& top, const value_type& leaf_area) {
+-        ret.emplace_back(to_passive(top), sign * to_passive(leaf_area));
++        ret.emplace_back(top, value_type(sign * leaf_area));
+       });
+   };
+   add(nodes[j - 1], nodes[j + 1], s.spanning, 1.0);
+@@ -1106,22 +1104,36 @@
+ 
+ // The change in the three nodes' establishment weights, times their uptake.
+ template <typename T, typename E>
+-std::vector<double> Species<T,E>::drop_uptake(size_t j, size_t n_layers) const {
+-  using odelia::util::to_passive;
++std::vector<typename Species<T,E>::value_type>
++Species<T,E>::drop_uptake(size_t j, size_t n_layers) const {
+   const drop_shares s = shares_around(j);
+-  std::vector<double> ret(n_layers);
++  std::vector<value_type> ret(n_layers);
+   for (size_t i = 0; i < n_layers; ++i) {
+     const int layer = static_cast<int>(i);
+     ret[i] = (s.spanning.first - s.below.first) *
+-               to_passive(nodes[j - 1].consumption_rate(layer)) +
++               nodes[j - 1].consumption_rate(layer) +
+              (s.spanning.second - s.above.second) *
+-               to_passive(nodes[j + 1].consumption_rate(layer)) -
++               nodes[j + 1].consumption_rate(layer) -
+              (s.below.second + s.above.first) *
+-               to_passive(nodes[j].consumption_rate(layer));
++               nodes[j].consumption_rate(layer);
+   }
+   return ret;
+ }
+ 
++template <typename T, typename E>
++typename Species<T,E>::value_type Species<T,E>::drop_census(size_t j) const {
++  const drop_shares s = shares_around(j);
++  auto fate = [&](size_t i) -> value_type {
++    return nodes[i].weighted_fecundity(strategy->pars.S_D) *
++           extrinsic_drivers().evaluate("birth_rate",
++                                        nodes[i].introduction_time());
++  };
++  const value_type ret = (s.spanning.first - s.below.first) * fate(j - 1) +
++                         (s.spanning.second - s.above.second) * fate(j + 1) -
++                         (s.below.second + s.above.first) * fate(j);
++  return ret;
++}
++
+ template <typename T, typename E>
+ std::vector<double> Species<T,E>::log_birth_date_densities() const {
+   using odelia::util::to_passive;
+diff -ruN plant/src/RcppExports.cpp plant/src/RcppExports.cpp
+--- plant/src/RcppExports.cpp	2026-10-17 02:23:10.518237557 +0000
++++ plant/src/RcppExports.cpp	2026-10-17 22:35:51.487417889 +0000
+@@ -13368,6 +13368,28 @@
+     return R_NilValue;
+ END_RCPP
+ }
++// node_drop_census_set_tf24
++void node_drop_census_set_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_, double census);
++RcppExport SEXP _plant_node_drop_census_set_tf24(SEXP obj_SEXP, SEXP censusSEXP) {
++BEGIN_RCPP
++    Rcpp::RNGScope rcpp_rngScope_gen;
++    Rcpp::traits::input_parameter< plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > >::type obj_(obj_SEXP);
++    Rcpp::traits::input_parameter< double >::type census(censusSEXP);
++    node_drop_census_set_tf24(obj_, census);
++    return R_NilValue;
++END_RCPP
++}
++// node_drop_census_tf24
++double node_drop_census_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_);
++RcppExport SEXP _plant_node_drop_census_tf24(SEXP obj_SEXP) {
++BEGIN_RCPP
++    Rcpp::RObject rcpp_result_gen;
++    Rcpp::RNGScope rcpp_rngScope_gen;
++    Rcpp::traits::input_parameter< plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > >::type obj_(obj_SEXP);
++    rcpp_result_gen = Rcpp::wrap(node_drop_census_tf24(obj_));
++    return rcpp_result_gen;
++END_RCPP
++}
+ // node_schedule_times_default
+ std::vector<double> node_schedule_times_default(double max_time);
+ RcppExport SEXP _plant_node_schedule_times_default(SEXP max_timeSEXP) {
+@@ -14739,6 +14761,8 @@
+     {"_plant_node_schedule_default__Parameters___K93__K93_Env", (DL_FUNC) &_plant_node_schedule_default__Parameters___K93__K93_Env, 1},
+     {"_plant_make_node_schedule__Parameters___K93__K93_Env", (DL_FUNC) &_plant_make_node_schedule__Parameters___K93__K93_Env, 1},
+     {"_plant_node_drop_set_tf24", (DL_FUNC) &_plant_node_drop_set_tf24, 5},
++    {"_plant_node_drop_census_set_tf24", (DL_FUNC) &_plant_node_drop_census_set_tf24, 2},
++    {"_plant_node_drop_census_tf24", (DL_FUNC) &_plant_node_drop_census_tf24, 1},
+     {"_plant_node_schedule_times_default", (DL_FUNC) &_plant_node_schedule_times_default, 1},
+     {"_plant_test_stem_effective_path_length", (DL_FUNC) &_plant_test_stem_effective_path_length, 3},
+     {"_plant_FF16_strategy_expand_allometry", (DL_FUNC) &_plant_FF16_strategy_expand_allometry, 4},
+diff -ruN plant/src/node_drop.cpp plant/src/node_drop.cpp
+--- plant/src/node_drop.cpp	2026-10-17 02:23:10.519221632 +0000
++++ plant/src/node_drop.cpp	2026-10-17 22:35:51.481752851 +0000
+@@ -15,3 +15,16 @@
+   }
+   obj_->set_node_drop(from_zero, bands, light, soil);
+ }
++
++// Offspring production with every dropped node's intervals merged (1) or not
++// (0), at every scalar the run and its sweeps take.
++// [[Rcpp::export]]
++void node_drop_census_set_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_, double census) {
++  obj_->set_node_drop_census(census);
++}
++
++// What merging every dropped node's intervals adds to offspring production now.
++// [[Rcpp::export]]
++double node_drop_census_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_) {
++  return obj_->node_drop_census();
++}

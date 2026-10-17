@@ -1,0 +1,10 @@
+single dry S_dry SWEEP0=1 REGIONS=F,Ia,Ib,Ic,L,I
+plain dry R0_I_dry TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_I_dry.rds
+plain dry R0_F_dry TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_F_dry.rds
+drop1a dry A_I_dry REGION=I
+drop1a dry A_F_dry REGION=F
+plain dry R0_Ia_dry TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_Ia_dry.rds
+plain dry R0_Ib_dry TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_Ib_dry.rds
+plain dry R0_Ic_dry TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_Ic_dry.rds
+plain dry R0_L_dry TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_L_dry.rds
+single dry Sh_dry SCALE=0.5 REGIONS=I

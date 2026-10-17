@@ -13,7 +13,7 @@ cosv <- function(x, y) sum(x * y) / sqrt(sum(x^2) * sum(y^2))
 REQ <- tempfile(); out <- list(); hon <- list()
 for (cs in cases) { cr <- case_of_refine(cs, tol); R <- ref_ladder(cs); k <- 2
   repeat { t <- tryCatch(refine_schedule(cr, target = tg, max_runs = k, noise = noise), need_run = function(e) NULL)
-    if (is.null(t) || nrow(t$history) < k) break
+    if (is.null(t) || nrow(t$history) < k) { t <- last; break }; last <- t
     err <- (t$answer - R$ref) / EPS; meas <- names(t$remainder)
     sh <- t$regions$share; names(sh) <- t$regions$region
     est_sh <- if (k == 2) t$E1 else Reduce(`+`, t$remainder, 0 * t$E1) + t$E1 * sum(sh[setdiff(REGIONS, meas)])

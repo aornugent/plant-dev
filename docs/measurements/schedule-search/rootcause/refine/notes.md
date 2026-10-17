@@ -11,7 +11,69 @@ Scripts are in this directory; outputs in `scratchpad/deep/rootcause/refine/` (`
 
 ## Summary (written last)
 
-(pending)
+**The tool** (`harness/schedule/refine.R`, `refine_schedule(case, start = "E6", target)`,
+about 140 lines). It starts with E6's pair (S0, S1) and E1 = (Q0 − Q1)/(1.6² − 1). It stops
+at S1 when every |E1| is under the target. Otherwise it refines one region per run, nested:
+F, I1–I3 and L by bisection, O and C by halving each edge's inset. Regions are ranked by the
+S1 map's |ln J| share per added row. The estimate is E1 − Σ measured S1 errors (4/3 of each
+region's first move) + Σ remainders (m/3, or the measured ratio once a second move exceeds
+half the first). The target is the only knob (no reserve). The backends are E6's saved runs
+and map runs on a scratch libS + node-drop build, which reproduces libS `identical()`.
+Tolerance is 1e-4 for ε and ε/2, and 3e-5 for ε/4, where the 5% nudge floor falls from
+0.024 to 0.004–0.012 rms [m].
+
+**ε (1e-4): E6 itself, 17/17 scored pass** [m]: E1 is under 1 everywhere (0.07–0.56), so
+every case stops at S1 after 2 runs. Uniform refinement does the same.
+
+**ε/2 (1e-4)** [m]: 17 of 18 stop at S1. Every S1 is within ε/2, but **6 of 10 scored pass**:
+E1 reads S1's error with cos 0.33–0.54 on the dry records (dry, dry-p50, flat-al1125
+C2/C3) and −0.17 / 0.15 on near-extinction dry-lma125. episodic-lma refines in 7 runs
+(I3, L, L, I2, F). Its final is at 0.41 of ε/2 with 0.93× uniform's rows at matched error,
+but its estimate reads ×2.1 (C3 fails). Seven cases are unscored at ε/2 because their
+references move 0.17–0.30ε on their own.
+
+**ε/4 (3e-5, six cases with references under ε/12)** [m]: 3/6 pass, all three at S1
+(ld104-p50125, epi-hmat08, ld107-adG2125). flat-al1125 stops at S1 on E1 0.85 of ε/4 while
+its error is 1.78. episodic-lma takes 8 runs (I3 L L I2 I3 F): it ends at 0.36 of ε/4 with
+0.40× uniform's rows at matched error [i, extrapolated], but reads ×2.3. dry-lma125
+(near extinction) hits the 10-run cap at 798 nodes. Its true error is under ε/4 from run 5,
+but no run's estimate reads it (cos −0.55 to 0.75), and it costs 1.49× uniform's rows at
+matched error.
+
+**What limits convergence, in order** [m, mechanism i]:
+1. **E6's pair is off the square law at S1's level.** It under-reads flat-al1125 ×0.63 and
+   epi-hmat08 ×0.58 and over-reads episodic-lma ×1.32. The next uniform pair (S1 → S2u)
+   reads flat-al1125 at 0.98 (cos 0.99), and its cos beats E1's on 4/4. The 12-d committed
+   inset sits on the closing edge's turn, so S0's strip error is small for a reason the pair
+   cannot see.
+2. **The bookkeeping drifts.** With each region refined once, the estimate is exactly
+   E1 − (Q1 − Q_k). E1's absolute misread therefore stays in it and grows relative to a
+   shrinking error (reads ×2.1–2.3 at the end). The literal share rule (Σ remainders + E1 ×
+   unmeasured |ln J| shares) loses E1 as regions get measured. It reads the finals better on
+   episodic-lma (1.15 and 1.65, C3 passes) but is no better overall (C3 8 against 7 runs of
+   19).
+3. **The ln-J-only ranking.** The founders held episodic-lma's elasticity error (lma 0.21–0.23
+   of 0.40), but ln J's map ranked them third and their rows are the dearest, so they came
+   last. Cheap regions with small ln J (L) were taken first and repeatedly. On dry-lma125
+   that raised the error, because the regions cancel.
+4. **The near-extinction case.** The late region's moves alternate in sign (cos −0.8 to
+   −0.95) and stop shrinking. The non-asymptotic flag fires, but its extra refinement
+   cannot fix a region with no order. The case's old reference was also off by 0.24ε
+   (the u857 rung shows a sign change between rungs). Against the new one S1's error is
+   0.27, not 0.48, but E1 still reads it at cos 0.15.
+5. **References and noise.** ε/2 is unscored on seven cases, and ε/4 on twelve. 3e-5
+   brings the floor under ε/12 (0.004–0.012 rms), so noise was not the binding limit at ε/4.
+   epi-hmat08's S2u error (0.089) sits at its reference's own move (0.077).
+
+**Region honesty** [m]: the interiors keep their direction from one refinement to the next
+(cos 0.82–0.98) and land within ×2 of the predicted remainder (4·m2/m1 0.62, 1.94). The late
+region never keeps its direction. Founders and strips were never refined twice, so their
+second-move honesty is untested here.
+
+**Verdict** [i]: the decomposition removes error where it refines (every run nests, and the
+interiors behave). But its estimate is only as honest as E6's pair, and that pair is off the
+law exactly where tighter targets need it. A fix would re-anchor on the finest pair the
+tool has run, rather than on E1, and rank by a per-quantity indicator rather than ln J.
 
 ## Setup
 
@@ -336,3 +398,96 @@ third and their rows are the dearest, so they came sixth.
 - Final: within ε/4 (0.36; C1 holds) but read ×2.3 (C3 fails), the same over-read as at ε/2.
 - The duplicate of `un_episodic-lma_3e-05_k2` (queued by hand and by the driver at once)
   cost one extra run.
+
+## Results 9: the near-extinction case at ε/4, and the ε/4 table (`steps.R`, `score.R 3e-5`) [m]
+
+dry-lma125 ran to the cap (10 runs): S1 → L → L → I3 → I2 → I3 → L → L → I1, 204 → 798 nodes,
+final rows 1 626 422 (2.52× S1), all runs' rows 9.7 M. The tenth run was queued by the
+driver's pass already in flight when the wrap-up came. The S1 map put L at 0.14 of the
+|ln J| profile, and late rows are cheap, so L came first and returned four times.
+
+| run | region | W (ε/4) | tool est max / cos | share est max / cos |
+|---|---|---|---|---|
+| S1 | – | 1.22 | 1.24 / 0.14 | = |
+| 3 | L | 1.51 | 2.02 / 0.75 | 0.85 / 0.82 |
+| 5 | I3 | 0.79 | 1.70 / −0.19 | 1.00 / −0.07 |
+| 6 | I2 | 0.53 | 2.00 / −0.10 | 0.67 / 0.25 |
+| 8 | L | 0.58 | 2.02 / −0.17 | 0.44 / 0.17 |
+| 10 | I1 | 0.85 | 1.45 / −0.55 | 0.55 / −0.28 |
+
+Moves (ε): L 0.090, 0.023, 0.037, 0.025 rms (TF24_cost_scale +0.25 first, cos with the
+previous move −0.84, −0.78, −0.95: the late region alternates, flagged at its second move);
+I3 0.084 then 0.042 (4·m2/m1 1.94, cos 0.82); I2 0.038; I1 0.014. The true error fell
+under ε/4 from run 5 on and wandered (0.53–0.85), while the estimate stayed at 1.5–2.4 of
+ε/4 with the wrong pattern: no run of the ten reads it (C3 0/8 for both bookkeepings).
+
+**ε/4 per case** (3e-5; W and est in ε/4 units; rows of the final run; uniform's rows at the
+tool's worst error from log-log interpolation on its k = 1–3 ladder [i]):
+
+| case | runs | regions | nodes / rows | W | est max | read | pass | uniform (rule) | uniform at tool's W |
+|---|---|---|---|---|---|---|---|---|---|
+| flat-al1125 | 2 | – | 235 / 1.27 M | **1.78** | 0.85 | 0.63 | no (C1 C2 C3) | k = 1, the same | – |
+| ld104-p50125 | 2 | – | 209 / 0.82 M | 0.33 | 0.44 | 1.22 | yes | k = 1 | – |
+| epi-hmat08 | 2 | – | 215 / 0.61 M | 0.52 | 0.27 | 0.58 | yes | k = 1 | – |
+| ld107-adG2125 | 2 | – | 200 / 0.77 M | 0.49 | 0.33 | 0.77 | yes | k = 1 | – |
+| episodic-lma | 8 | I3 L L I2 I3 F | 409 / 1.02 M (all 5.1 M) | 0.36 | 0.68 | 2.28 | no (C3) | k = 2: 0.76 M, W 0.81, pass | ≈ 2.5 M (extrapolated past k = 3): tool 0.40× |
+| dry-lma125 | 10 (cap) | L L I3 I2 I3 L L I1 | 798 / 1.63 M (all 9.7 M) | 0.85 | 1.45 | −1.27 | no (C2 C3 C5) | k = 2: 0.95 M, W 0.97, C3 fails | ≈ 1.09 M: tool 1.49× |
+
+At ε/2 (1e-4) episodic-lma's final (0.66 M rows, W 0.41) against uniform's k = 2 (0.57 M,
+W 0.55) and k = 3 (0.90 M, W 0.30): uniform needs ≈ 0.71 M at the tool's W, tool 0.93×.
+
+## Region honesty: the predicted remainder against the next refinement's move [m]
+
+A first move m1 predicts the region's remainder m1/3, which the next refinement reads as
+(4/3)·m2; their ratio is 4·m2/m1 (1 = order 2), rms over the quantities m1 put over three
+noise sds.
+
+| case (tol) | region | 4·m2/m1 | cos(m1, m2) | 4·m3/m2, 4·m4/m3 |
+|---|---|---|---|---|
+| episodic-lma (1e-4) | L | 0.79 | −0.78 | |
+| episodic-lma (3e-5) | I3 | 0.62 | 0.98 | |
+| episodic-lma (3e-5) | L | 0.58 | 0.53 | |
+| dry-lma125 (3e-5) | I3 | 1.94 | 0.82 | |
+| dry-lma125 (3e-5) | L | 1.00 | −0.84 | 5.21, 2.68 |
+
+The interiors keep their direction (cos 0.82–0.98) and land within ×2 of the prediction;
+the late region does not keep its direction anywhere, and on the near-extinction case its
+moves stop shrinking. The founders and the strips were refined once at most, so their
+second-move honesty is untested here (dwr and p50 found the founders and interiors clean
+order 2 on the bank).
+
+## Predictions scored
+
+| # | P | outcome |
+|---|---|---|
+| Z1 | 70% | refuted (new and old episodic-lma references differ by 0.084) |
+| Z2 | 50% | holds (own 0.065) |
+| Z3 | 50% | holds (own 0.038) |
+| Z4 | 60% | refuted (0.241, sign change between rungs) |
+| A1 | 70% | holds (17/17 scored at ε) |
+| A2 | 40% | refuted (6/10 at ε/2) |
+| A3 | 70% | holds (C3 23/25 on the old reference, 17/19 on the new) |
+| A4 | 70% | holds (I3) |
+| A5 | 55% | refuted (C3 fails, read 2.1) |
+| A6 | 50% | holds (0.93×, interpolated) |
+| B1 | 55% | refuted narrowly (flat 0.0122) |
+| B2 | 70% | holds (rms 0.003–0.028 on all six) |
+| B3 | 65% | holds |
+| B4 | 60% | refuted (E1 0.212) |
+| B5 | 60% | refuted (flat 1.78) |
+| B6 | 30% | refuted (3/6) |
+| B7 | 55% | refuted (episodic-lma 0.40×, dry-lma125 1.49×) |
+| B8 | 55% | holds on the two instances (I3 0.62, 1.94) |
+| B9 | 35% | untested (no strip refined) |
+| B10 | 35% | refuted (C3 0/30 at the end) |
+| U1 | 50% | holds (0.436 against 0.445) |
+| U2 | 60% | holds (4/4) |
+| U3 | 75% | holds |
+| V1 | 60% | holds narrowly (the tool's cos higher on 10 of 19 refined runs: 10/11 on episodic-lma, 0/8 on dry-lma125) |
+| V2 | 55% | refuted (C3 passes: tool 7, share variant 8) |
+
+25 scored: 13 held (mean P 59%), 11 refuted (mean P 57%), 1 untested.
+
+Runs: 49 in this round (4 references, 2 nudges, 32 map runs on the scratch build, 11 uniform
+runs on 10 schedules, one of them twice), all exit 0. The scratch build is deleted; run summaries stay in `runs/`
+(26 MB).

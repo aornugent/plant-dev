@@ -1,0 +1,220 @@
+# adj_run_single.R: dwr/adj_run_dwr.R on the active-drop build (single/active_drop.patch),
+# with two more modes. Env as adj_run_dwr.R, plus DROPS (rds from mk_regions.R: node index
+# per drop and its region) and REGIONS (comma list, default every region in DROPS).
+#   single: the run at c = 0, the map sweep (every drop's light and soil column), then per
+#           region one sweep over the run's own rows with that region's drop at c = SCALE
+#           (default 1) in every band and the merged-weight census on (B).
+#   drop1a: per run, one region (REGION) at c = 1 with the census on, through the forward and
+#           its sweep (A).
+# adj_run_nk.R with SWEEP=1 also sweeping in drop1 mode (the trait gradient of the
+# coarser field to first order), and NODEREC=1 keeping every node's state at ~150 recorded
+# times (for the field integrands' curvature). Otherwise unchanged.
+# adj_run.R with KNOTS=0: the rain's knots are not passed as stops (agents R, S).
+# One stand run on the stack tip (PLANT-110 + the node drop), at the harness's
+# settings with lib_109's control names mapped to the stack's. Modes:
+#   plain: the stand (and gradient unless FORWARD=1), then INVADERS_REL walks.
+#   map:   the stand, then the sweep of offspring_production with the node drop
+#          at zero: every dropped node's light and soil coefficient per time band
+#          is a gradient column after the 50 traits.
+#   drop1: the stand with the drop's coefficients at LIGHT and SOIL (default 1),
+#          so its field is the coarser schedule's to first order; then the
+#          INVADERS_REL walks in that field.
+# Env: as harness/run_record.R (REGIME SEED TOL ATOL NODES TIMES WEIGHT_SOIL WEIGHT
+# WEIGHT_MAX HMAX SHARE SPLIT TRAIT_REL INVADERS_REL OUT), plus MODE, LIB, PIN
+# (replay that run's steps), COARSE (rds of the coarser schedule, or "odd": drop
+# every other node, the first and last kept).
+A <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/schedtest/adjmap"
+Sys.setenv(PLANT_LIB = Sys.getenv("LIB", file.path(A, "lib")))
+source("/home/user/plant-dev/harness/long_drought.R")
+mode <- Sys.getenv("MODE", "plain")
+regime <- Sys.getenv("REGIME", SCEN)
+seed <- as.integer(Sys.getenv("SEED", RAIN_SPECS[[regime]]$seed))
+tol <- as.numeric(Sys.getenv("TOL", "3e-5"))
+atol <- as.numeric(Sys.getenv("ATOL", "1e-4"))
+scen <- sprintf("%s, seed %d", regime, seed)
+RAIN_SPECS[[scen]] <- modifyList(RAIN_SPECS[[regime]], list(seed = seed))
+knots <- active_knots(scen)
+times <- uniform_times(as.integer(Sys.getenv("NODES", "108")))
+if (nzchar(Sys.getenv("TIMES"))) times <- readRDS(Sys.getenv("TIMES"))
+out_file <- Sys.getenv("OUT")
+BANDS <- c(0.5, 1, 2, 3, 5, 10, 20)
+
+p <- scm_base_parameters("TF24")
+p$max_patch_lifetime <- LIFETIME
+p <- add_strategies(p, trait_matrix(LMA0, "lma"))
+moved <- function(q, spec) {
+  s <- q$strategies[[1]]
+  for (kv in strsplit(strsplit(spec, ",")[[1]], "=")) {
+    s$pars[[kv[1]]] <- s$pars[[kv[1]]] * (1 + as.numeric(kv[2]))
+  }
+  q$strategies[[1]] <- s
+  q
+}
+if (nzchar(Sys.getenv("TRAIT_REL"))) p <- moved(p, Sys.getenv("TRAIT_REL"))
+p$node_schedule_times <- list(times)
+if (nzchar(Sys.getenv("PIN"))) {
+  base <- readRDS(Sys.getenv("PIN"))$stand
+  p$ode_times <- base$times
+  p$ode_step_sizes <- base$sizes
+  p$ode_soil_input_slopes <- base$input_slopes
+  p$ode_soil_substep_ends <- base$substep_ends
+}
+ct <- control()
+ct$ode_tol_rel <- tol
+ct$ode_tol_abs <- atol * tol
+ct$node_density_in_birth_date <- TRUE
+env_num <- function(v) as.numeric(Sys.getenv(v))
+if (nzchar(Sys.getenv("WEIGHT_SOIL"))) ct$ode_tol_factor_soil <- env_num("WEIGHT_SOIL")
+if (nzchar(Sys.getenv("WEIGHT"))) {
+  w <- readRDS(Sys.getenv("WEIGHT"))
+  ct$ode_tol_factor_times <- w$t
+  ct$ode_tol_factor_values <- w$weight
+}
+if (nzchar(Sys.getenv("WEIGHT_MAX"))) ct$ode_tol_factor_max <- env_num("WEIGHT_MAX")
+if (nzchar(Sys.getenv("HMAX"))) ct$ode_step_size_max <- env_num("HMAX") / 365
+if (Sys.getenv("SPLIT") == "1") ct$ode_split_sign_changes <- TRUE
+if (nzchar(Sys.getenv("SHARE"))) ct$ode_soil_substep_max_uptake <- env_num("SHARE")
+ev <- if (Sys.getenv("KNOTS", "1") == "0") events(events_default(p)) else
+  events(events_default(p), pulse_rows(sort(unique(knots))))
+
+# The dropped nodes, counting from one: those of `times` the coarser schedule lacks.
+dropped <- NULL
+DR <- if (nzchar(Sys.getenv("DROPS"))) readRDS(Sys.getenv("DROPS")) else NULL
+if (mode == "single") dropped <- DR$drop
+if (mode == "drop1a") dropped <- DR$drop[DR$region %in% (if (Sys.getenv("REGION") == "I") c("Ia", "Ib", "Ic") else Sys.getenv("REGION"))]
+if (is.null(dropped) && nzchar(Sys.getenv("COARSE"))) {
+  cs <- Sys.getenv("COARSE")
+  dropped <- if (cs == "odd") seq(2, length(times) - 1, by = 2) else
+    which(!(round(times, 10) %in% round(readRDS(cs), 10)))
+}
+nb <- length(BANDS) + 1
+
+cpu <- function() sum(proc.time()[c("user.self", "sys.self")])
+per_node <- function(scm) {
+  sp <- scm$patch$species[[1]]
+  state <- matrix(sp$ode_state, ncol = sp$size, dimnames = list(sp$new_node$ode_names))
+  list(birth = sp$node_times, establishment = sp$establishment_weights,
+       nrr = sp$net_reproduction_ratio_by_node, state = state)
+}
+# Accepted steps times the nodes alive at each step's start, the boundary node with them.
+rows_of <- function(scm) {
+  t <- scm$ode_times
+  sum(vapply(t[-length(t)], function(s) sum(times <= s) + 1, 0))
+}
+out <- list(mode = mode, setting = list(regime = regime, seed = seed, tol = tol, atol = atol,
+            env = Sys.getenv(c("KNOTS", "WEIGHT_SOIL", "WEIGHT", "WEIGHT_MAX", "HMAX", "SHARE", "SPLIT",
+                               "TRAIT_REL", "PIN", "COARSE", "LIB")), lifetime = LIFETIME),
+            node_times = times, dropped = dropped, bands = BANDS, started = format(Sys.time()))
+save <- function() if (nzchar(out_file)) saveRDS(out, out_file)
+
+types <- plant:::extract_RcppR6_template_types(p, "Parameters")
+scm <- do.call(plant:::SCM, types)(p, mkenv(scen), ev, ct)
+if (mode == "single") {
+  k <- length(dropped) * nb
+  plant:::node_drop_set_tf24(scm, dropped, BANDS, rep(0, k), rep(0, k))
+}
+if (mode == "drop1a") {
+  k <- length(dropped) * nb
+  plant:::node_drop_set_tf24(scm, dropped, BANDS, rep(1, k), rep(1, k))
+  plant:::node_drop_census_set_tf24(scm, 1)
+}
+if (mode %in% c("map", "drop1")) {
+  stopifnot(length(dropped) > 0)
+  k <- length(dropped) * nb
+  light <- if (mode == "map") 0 else as.numeric(Sys.getenv("LIGHT", "1"))
+  soil <- if (mode == "map") 0 else as.numeric(Sys.getenv("SOIL", "1"))
+  plant:::node_drop_set_tf24(scm, dropped, BANDS, rep(light, k), rep(soil, k))
+}
+scm$record_trajectory <- TRUE
+c0 <- cpu()
+scm$run()
+out$stand <- list(J = sum(scm$offspring_production), census_gain = if (mode %in% c("single", "drop1a")) plant:::node_drop_census_tf24(scm) else NA,
+                  times = scm$ode_times,
+                  sizes = scm$ode_step_sizes, input_slopes = scm$ode_soil_input_slopes,
+                  substep_ends = scm$ode_soil_substep_ends, splits = scm$ode_splits,
+                  nodes = per_node(scm), rows = rows_of(scm), cpu = cpu() - c0)
+save()
+# NODEREC=1: every node's state at about 150 recorded times, and each node's birth bookkeeping.
+if (Sys.getenv("NODEREC") == "1") {
+  rows <- scm$store_trajectory()
+  keep <- unique(round(seq(1, length(rows), length.out = 150)))
+  sp <- scm$patch$species[[1]]
+  out$noderec <- list(names = sp$new_node$ode_names, time = vapply(rows[keep], `[[`, 0, "time"),
+                      state = lapply(rows[keep], `[[`, "state"), patch_density = sp$patch_densities,
+                      a_l1 = p$strategies[[1]]$pars$a_l1, a_l2 = p$strategies[[1]]$pars$a_l2)
+  rm(rows); save()
+}
+# SOILREC=1: the soil layers at every recorded state, and the forward clamp tallies.
+if (Sys.getenv("SOILREC") == "1") {
+  rows <- scm$store_trajectory()
+  out$soil <- list(time = vapply(rows, `[[`, 0, "time"),
+                   theta = t(vapply(rows, function(r) head(tail(r$state, 10), 5), numeric(5))))
+  out$forward_clamps_all <- tryCatch(plant:::census_clamp_counts_tf24(scm), error = function(e) conditionMessage(e))
+  out$forward_clamps <- tryCatch(setNames(plant:::census_clamp_counts_tf24(scm)[[1]][3:5],
+    c("moisture_floor", "potential_ceiling", "positivity")), error = function(e) conditionMessage(e))
+  save()
+}
+cat(sprintf("%s %s: J %.12g, %d steps, %.0f rows, %.0f s\n", scen, mode, out$stand$J,
+            length(out$stand$times), out$stand$rows, out$stand$cpu))
+
+# SWEEP0=1: first the sweep without the drop's columns, timed, in the same process.
+if (mode %in% c("map", "single") && Sys.getenv("SWEEP0") == "1") {
+  plant:::node_drop_set_tf24(scm, integer(0), BANDS, numeric(0), numeric(0))
+  c0 <- cpu()
+  g0 <- plant:::census_trait_gradient_tf24(scm, "offspring_production")
+  out$sweep0_cpu <- cpu() - c0
+  out$sweep0_gradient <- setNames(g0$gradient[[1]], plant:::census_trait_names_tf24(scm))
+  k <- length(dropped) * nb
+  plant:::node_drop_set_tf24(scm, dropped, BANDS, rep(0, k), rep(0, k))
+  save()
+}
+if ((mode == "plain" && Sys.getenv("FORWARD") != "1") || mode %in% c("map", "single", "drop1a") ||
+    (mode == "drop1" && Sys.getenv("SWEEP") == "1")) {
+  c0 <- cpu()
+  g <- plant:::census_trait_gradient_tf24(scm, "offspring_production")
+  out$sweep_cpu <- cpu() - c0
+  grad <- setNames(g$gradient[[1]], plant:::census_trait_names_tf24(scm))
+  out$refusal <- g$refusal
+  traits <- grad[!grepl("^drop\\.", names(grad))]
+  pars <- p$strategies[[1]]$pars
+  theta <- vapply(names(traits), function(n) pars[[sub("^1\\.", "", n)]], 0)
+  out$stand$gradient <- traits
+  out$stand$elasticity <- ifelse(theta == 0, 1, theta) * traits / out$stand$J
+  out$theta <- theta
+  if (mode %in% c("map", "single")) {
+    m <- length(dropped) * nb
+    out$light <- matrix(grad[length(traits) + seq_len(m)], nrow = nb)
+    out$soil <- matrix(grad[length(traits) + m + seq_len(m)], nrow = nb)
+    cat(sprintf("map: light %+.5f%%, soil %+.5f%% of J; sweep %.0f s\n",
+                100 * sum(out$light) / out$stand$J, 100 * sum(out$soil) / out$stand$J, out$sweep_cpu))
+  }
+  save()
+}
+if (mode == "single") {
+  sc <- as.numeric(Sys.getenv("SCALE", "1"))
+  regs <- if (nzchar(Sys.getenv("REGIONS"))) strsplit(Sys.getenv("REGIONS"), ",")[[1]] else unique(DR$region)
+  out$B <- list()
+  for (g in regs) {
+    dg <- if (g == "I") DR$drop[DR$region %in% c("Ia", "Ib", "Ic")] else DR$drop[DR$region == g]
+    k <- length(dg) * nb
+    plant:::node_drop_set_tf24(scm, dg, BANDS, rep(sc, k), rep(sc, k))
+    plant:::node_drop_census_set_tf24(scm, sc)
+    gain <- plant:::node_drop_census_tf24(scm)
+    c0 <- cpu()
+    g1 <- plant:::census_trait_gradient_tf24(scm, "offspring_production")
+    gr <- setNames(g1$gradient[[1]], plant:::census_trait_names_tf24(scm))
+    gr <- gr[!grepl("^drop\\.", names(gr))]
+    out$B[[g]] <- list(dropped = dg, scale = sc, census_gain = gain, gradient = gr, refusal = g1$refusal, cpu = cpu() - c0)
+    cat(sprintf("B %s (%d drops, c = %g): census gain %+.4f%% of J, sweep %.0f s\n", g, length(dg), sc, 100 * gain / out$stand$J, out$B[[g]]$cpu))
+    save()
+  }
+  plant:::node_drop_census_set_tf24(scm, 0)
+}
+for (inv in strsplit(Sys.getenv("INVADERS_REL", ""), ",")[[1]]) {
+  c0 <- cpu()
+  scm$run_mutant(moved(p, inv))
+  out$invaders[[inv]] <- list(J = sum(scm$offspring_production), nodes = per_node(scm), cpu = cpu() - c0)
+  save()
+}
+out$finished <- format(Sys.time())
+save()

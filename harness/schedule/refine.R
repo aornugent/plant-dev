@@ -12,6 +12,14 @@
 # or the name of a case that case_of_refine(name) turns into that list.
 # Returns the final schedule, its answer and per-quantity estimate (in eps), the region
 # table and the run history.
+#
+# Known weak spots, each a silent misread (refine/notes.md):
+# - The estimate is E1 minus everything moved since S1, so E1's own misread stays in it in
+#   absolute terms and grows relative to a shrinking error (read x2.1-2.3 at the end).
+# - Regions are ranked by ln J's map alone; the elasticity error can sit in a region it
+#   ranks low (the founders on episodic-lma, refined last).
+# - E6's pair is off the square law at S1's level on the dry records (reads 0.58-0.63,
+#   cos down to -0.17), so a target of eps/2 or finer can stop at S1 on a wrong estimate.
 
 REGIONS <- c("F", "I1", "I2", "I3", "O", "C", "L")
 MAP_REGIONS <- c("F", "I1", "I2", "I3", "L")
