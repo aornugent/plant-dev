@@ -428,3 +428,65 @@ there is the fixed strips. **E1.** max |N10r − N10| on episodic-lma ≥ 0.1 (t
 part of the offset) — 35%; rms ≥ 0.1 (they are most of it) — 15%.
 **E2.** N10r on dry-flat too (93 closing edges, the most strips): max |N10r − N10| ≥ 0.1 —
 40%.
+
+### L′ results, dry-flat (`score_ladder.R N dry-flat`) [m]
+
+| | dry-flat |
+|---|---|
+| nodes / rows x, c, f (E6 c / f) | 311 / 328 / 363, rows 625 / 668 / 752 (E6 191 / 258, rows 384 / 530) |
+| committed worst / rms / along M (E6 c) | 0.80 (a) / 0.248 / −0.83 (0.58 / 0.184) |
+| pooled p, meas/law, cos | **1.35**, 0.75, 0.89 |
+| per-quantity order median [min, max] | 1.93 [0.10 a_l1, 2.76 a_y] |
+| coarse pair | read 0.80, **C2 fails** (a_l1 err 0.62, est 0.14; root_P50 err −0.22, est −0.06), C3 5/6, unseen 0.111 |
+| fine pair | read 0.92, C1–C5 pass, C3 6/6, unseen 0.056 |
+
+- dry-flat's rows are 1.74× E6's at s = 1 (its 93 closing and 80 opening edge nodes).
+- a_l1, the M direction, barely moves from s = 1.6 to 1 (d1 0.19, d2 0.34: order 0.1 on the
+  coarse step), so the coarse pair misses it.
+
+### Why the order stays under 2: stretches that do not refine (`stretch.R`; schedule only) [m]
+
+Intervals in each spell's scaled stretch [o + 12, c − 12 d] (spells ≥ 26 d after b1), rule N:
+
+| case | spells | median intervals s = 2 / 1.6 / 1 / 1/1.6 | stretches of one interval | same count 1.6 vs 1 | 1 vs 1/1.6 | 2 vs 1.6 |
+|---|---|---|---|---|---|---|
+| dry | 28 | 1.5 / 2 / 2.5 / 4 | 14 / 8 / 7 / 6 | 13 | 6 | 21 |
+| dry-p50 | 29 | 1 / 2 / 2 / 4 | 15 / 9 / 8 / 7 | 14 | 7 | 22 |
+| long-wet | 42 | 1 / 1 / 1 / 1 | 32 / 30 / 27 / 23 | 29 | 25 | 40 |
+| dry-flat | 53 | 1 / 1 / 1 / 1 | 50 / 48 / 41 / 35 | 43 | 37 | 49 |
+| episodic-lma | 22 | 1 / 2 / 2 / 4 | 12 / 9 / 6 / 5 | 9 | 7 | 14 |
+
+- A stretch's count is ceil(∫ 1/(s·h)), so a spell whose stretch is shorter than one
+  interval keeps one interval at every s: its whole layout (o, o + 12, c − 12, c and one
+  interval) is fixed, and its error is shared by both runs of a pair. Half of dry's spells
+  and 80% of dry-flat's do not refine from s = 1.6 to 1; on dry-flat the error along M sits
+  in exactly those spells' closing edges [i], so a_l1 does not move on the coarse step. The
+  s = 2.0 rung adds almost nothing for the same reason (21 of 28 dry stretches unchanged).
+- So "fixed" in practice is not only the 12-d strips (which err rms 0.015 on dry): it is
+  every short spell. The proxy counts those intervals as unchanged, but weights them by the
+  pilot's offspring, not by where the M error lives, so the pooled order falls to 1.35–1.56
+  where short spells carry the edge-node bias, and stays near 2 on the founders and long
+  interiors (per-quantity medians 1.6–2.1) [i].
+
+### U results (`score_ladder.R U dry`, `score_var.R dry`) [m]
+
+| layout (dry) | nodes x / c / f | rows x / c / f | worst x / c / f | pooled p | cos | coarse pair | fine pair | rows at E6's worst / rms |
+|---|---|---|---|---|---|---|---|---|
+| U (o a node; E6's inset from b = 10) | 124 / 155 / 205 | 168 / 207 / 275 | 1.04 / 0.42 / 0.11 | 1.20 | 0.94 | read 0.91, pass, unseen 0.047 | read 1.21, pass, unseen 0.071 | 216 (1.15×) / 209 (1.11×) |
+
+- **The cheapest variant that keeps both pairs honest on dry is U**: 1.10× E6's committed rows
+  at s = 1, 1.15× at matched worst error (N 1.69×), both pairs pass C1–C5 with C3 4/4 and
+  5/5. Its pooled order is lower still (1.20): more of the layout is E6's fixed inset, whose
+  error the pair does not see but which is small on dry (unseen 0.047 / 0.071, N's 0.048 /
+  0.062).
+
+| # | prediction | P | result |
+|---|---|---|---|
+| U1 | U's pairs both pass with reads in [0.7, 1.4] | 55% | holds (0.91, 1.21) |
+| U2 | U's unseen part (fine) ≤ 0.08 | 50% | holds (0.071) |
+| U3 | U ≤ 0.9× T's rows at matched worst error | 40% | holds (216 / 268 = 0.81) |
+
+### Pre-registration U′ (U on dry-flat, before its runs)
+
+- **U4.** On dry-flat U's coarse pair passes C1–C5 — 40%; its fine pair passes — 55%; at
+  s = 1 its rows are ≤ 1.3× E6's committed (N: 1.74×) — 60%.

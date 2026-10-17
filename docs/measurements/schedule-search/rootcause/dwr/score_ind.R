@@ -42,14 +42,18 @@ for (cs in commandArgs(TRUE)) {
     own <- interp_part(c0, S[-k]) / u; d <- rowSums(sapply(k, function(j) delta_of(j, S, E, Mm, X)), na.rm = TRUE)
     c(W = (own + sum(fld[k])) / 3, own = own / 3, field = sum(fld[k]) / 3, light = sum(li[k]) / 3, U = mean(abs(d) / tot, na.rm = TRUE)) }))
   M <- measured(cs, c0)
-  regs <- intersect(names(M), rownames(ind)); if ("rest" %in% names(M)) regs <- c("F", "rest")
-  val <- function(g, col) if (g == "rest") { k <- setdiff(rownames(ind), "F"); if (col == "U") sum(ind[k, col], na.rm = TRUE) else sum(ind[k, col], na.rm = TRUE) } else ind[g, col]
-  tab <- data.frame(region = regs, meas_lnJ = sapply(regs, function(g) M[[g]]["lnJ"]), meas_rms = sapply(regs, function(g) r2e(M[[g]])),
-                    W = sapply(regs, val, "W"), A = sapply(regs, val, "own"), U = sapply(regs, val, "U"))
-  sc <- sapply(c("W", "A", "U"), function(k) c(sp_lnJ = spear(abs(tab[[k]]), abs(tab$meas_lnJ)), sp_rms = spear(abs(tab[[k]]), tab$meas_rms),
-    top_lnJ = which.max(abs(tab[[k]])) == which.max(abs(tab$meas_lnJ)), top_rms = which.max(abs(tab[[k]])) == which.max(tab$meas_rms)))
+  score <- function(pool) { # pool: the indicator regions allowed (edge regions are omit-ones, not h2 errors)
+    regs <- intersect(names(M), pool); if ("rest" %in% names(M)) regs <- c("F", "rest")
+    val <- function(g, col) if (g == "rest") sum(ind[setdiff(intersect(pool, rownames(ind)), "F"), col], na.rm = TRUE) else ind[g, col]
+    tab <- data.frame(region = regs, meas_lnJ = sapply(regs, function(g) M[[g]]["lnJ"]), meas_rms = sapply(regs, function(g) r2e(M[[g]])),
+                      W = sapply(regs, val, "W"), A = sapply(regs, val, "own"), U = sapply(regs, val, "U"))
+    sc <- sapply(c("W", "A", "U"), function(k) c(sp_lnJ = spear(abs(tab[[k]]), abs(tab$meas_lnJ)), sp_rms = spear(abs(tab[[k]]), tab$meas_rms),
+      top_lnJ = which.max(abs(tab[[k]])) == which.max(abs(tab$meas_lnJ)), top_rms = which.max(abs(tab[[k]])) == which.max(tab$meas_rms)))
+    list(tab = tab, sc = sc) }
+  all <- score(rownames(ind)); h2 <- score(c("F", "I", "L"))
   cat(sprintf("== %s (guard J identical %s; unplaced in measured: %s)\n", cs, guard, if (!is.null(M$unplaced)) sprintf("lnJ %+.2f rms %.3f", M$unplaced["lnJ"], r2e(M$unplaced)) else "-"))
-  print(format(cbind(round(ind, 3)), digits = 3)); print(format(tab, digits = 3), row.names = FALSE); print(round(sc, 2))
-  out[[cs]] <- list(ind = ind, tab = tab, sc = sc, M = M)
+  print(round(ind, 3)); cat("-- all regions (edges by omit-one)\n"); print(format(all$tab, digits = 3), row.names = FALSE); print(round(all$sc, 2))
+  cat("-- h2 regions only (F, I, L; rest = I + L)\n"); print(format(h2$tab, digits = 3), row.names = FALSE); print(round(h2$sc, 2))
+  out[[cs]] <- list(ind = ind, all = all, h2 = h2, M = M)
 }
 saveRDS(out, file.path(DW, sprintf("score_ind_%s.rds", paste(names(out), collapse = "_"))))

@@ -10,7 +10,64 @@ inferred (derivation, reading or estimate). Errors and moves are in ε of each q
 
 ## Summary (written last)
 
-(pending)
+**The estimator.** Drop every other node of a region on paper. The region's move is
+D_g = own_g + field_g. The own part is exact from the stored weights and fates. The field
+part is (1/J)∫λ_env·δenv_g dt, contracted inside the tape by a coefficient held at 0: the
+`adjmap-probe` node drop (fa9afe76), which applies to libS cleanly. Then e_g = D_g/3. The
+light has no row adjoint (it lives on each step's tape), so the contraction has to happen
+in the tape. One scratch build: libS + `node_drop.patch`. Every replay reproduced its saved
+run's J and gradient `identical()` [m].
+
+**ln J by region, from one run [m].**
+- The committed run's own map gives dry's measured region errors: interiors −0.221 against
+  −0.22, founders +0.108 against +0.10, eras −0.125 / −0.079 / −0.018 against −0.14 / −0.07
+  / −0.01, late −0.009 against −0.01.
+- Over the ten cases, the founders' W tracks the measured with cor 0.99 and rms 0.009ε.
+  F + (I + L) gives each committed run's whole ln J error within rms ≈ 0.02ε.
+- The field part is soil, and it acts after 10 y. First order suffices: drop1 applies the
+  field change in full and moves ln J 0.99–1.01× the map's figure.
+- The region split is stable across spacing. The coarse companion x (1.6× spacing, rows
+  0.74 of the committed run's) gives, after /1.6², interiors −0.208 and founders +0.100.
+  That is 0.94× and 0.93× of the committed run's own map.
+- The map costs +5% of a sweep with 26–39 drops and +8% with 74.
+
+**Elasticities [m].**
+- ln J's signed split does not carry over: median |cos| 0.58 across regions. Allocated by
+  it, root_P50's founders' part would be +0.80, against −0.09 measured. |ln J| does rank
+  the regions for the elasticities' rms (profile cos 0.94).
+- drop1 with a sweep fails: cos −0.11 and 0.46. The drop's field change is passive in the
+  build, so dδenv/dθ is lost.
+- **One pinned coarse gradient run per region works.** Run the coarse run with the region's
+  nodes actually removed, on the coarse run's own steps. That gives the region's error in
+  all 50 quantities after /3/1.6²: cos 0.96 (interiors) and 0.98 (founders) with the
+  measured, slopes 0.98 and 1.22, root_P50 −0.48 against −0.51. Each such run costs 0.61–0.68
+  of the committed run's rows.
+- A tangent nested in the adjoint is refused by odelia and would need second derivatives
+  at the supplied-derivative sites. It was not pursued.
+
+**Where to refine (indicator 1, plus 2, which is the same thing on the finer iterate) [m].**
+- On the h² regions (founders, interiors, late), the adjoint-weighted indicator W gets the
+  top region right in 10/10 cases for ln J and 9/10 for the elasticities' rms. Its
+  Spearman is 1 on dry and on dry-flat.
+- The plain second difference of per-recruit leaf area (U) scores 8/10 and 7/10. fate's
+  own part alone (plant's old idea, A) scores 7/10 and 8/10.
+- Edge regions by omit-one (removing an inset node) are not error estimates: 2–15× the
+  measured. With them in the pool every indicator ranks poorly (W 5/10). None of these
+  indicators sees the edge strips' errors (opening strips, closing strips, b1).
+- No out-of-bank case with measured regions is on disk.
+
+**Verdict [i].**
+- One committed gradient run, plus the map at +5–8% of its sweep, locates and sizes ln J's
+  error by region, and in total, at the run-to-run floor. A pair costs 1.6× and gives only
+  the total.
+- For the elasticities, one run gives their location (|ln J| ranks the regions) but not
+  their size or direction. Those come from one pinned coarse run per region, G runs at
+  0.6–0.7× each. That costs less than G + 1 refinement runs at ≥ 1× each, and less than a
+  finer pair once G ≤ 2.
+- The coarse run is a good locator: its split matches the committed run's within 7%. It
+  saves only 26% of rows, because edges keep it from being coarser.
+- Not covered: the edge strips, where most of the committed elasticity error on dry sits
+  (closing +0.34 root_P50 on c, opening −0.14). They need their own fixed-offset check.
 
 ## Q1. What the code holds (no runs)
 
@@ -361,3 +418,97 @@ the ten has measured region errors on disk, so none is scored.
 | (a) a tangent inside the adjoint | the mixed second derivative, all regions per direction | odelia refuses a tangent above an adjoint (`tangent.hpp` static_assert); an adjoint above a tangent needs `active_scalar<double>` generalised at 9 sites and second derivatives at the 4 supplied-derivative sites (the leaf optimum's implicit node, the leaf kernels, one TF24 site) | deprioritised [code] |
 | (b) 3 directions only | the 3 directions that hold 90% of the error | 2 pinned map replays per direction (central differences of the map in θ): 6 coarse map runs | not run [i] |
 | (c) differencing the map across the θ ± δ runs a local analysis makes | the region split's derivative along those moves only | +5% per run that carries the map | not run [i] |
+
+### Indicator results: omit-one maps on the ten committed runs (`score_ind.R`, `score_ind.log`) [m]
+
+All 20 replays reproduce their saved J `identical()` (**I0 holds**). The omit-one map (73–74
+drops a run on dry) costs a sweep of 156–158 s against the plain sweep's 145 s (+8%).
+
+**The h² regions (F, I, L) from one committed run's map, W = (own + field)/3, ln J (ε):**
+
+| case | F: W | F: measured (fbis) | F: own alone (A) | I + L: W | rest measured (e_c − F, edges included) |
+|---|---|---|---|---|---|
+| dry | +0.108 | +0.102 | +0.175 | −0.231 | −0.249 |
+| dry-flat | +0.187 | +0.191 | +0.304 | −0.165 | −0.134 |
+| long-wet | +0.128 | +0.137 | +0.185 | −0.037 | −0.061 |
+| dry-p50 | +0.105 | +0.108 | +0.177 | −0.255 | −0.266 |
+| episodic | −0.011 | −0.021 | +0.043 | −0.230 | −0.211 |
+| episodic-lma | +0.067 | +0.082 | +0.110 | −0.338 | −0.333 |
+| long drought | +0.099 | +0.103 | +0.152 | −0.092 | −0.099 |
+| ld-102 | +0.139 | +0.149 | +0.187 | −0.092 | −0.101 |
+| ld-105 | +0.112 | +0.120 | +0.161 | −0.089 | −0.095 |
+| wet-adG2 | +0.171 | +0.181 | +0.219 | −0.040 | −0.054 |
+
+- **The founders' ln J error on all ten cases**: W against measured cor 0.99, median ratio
+  0.94, rms difference 0.009ε; the own part alone (plant's old indicator, made exact) is off
+  by rms 0.061ε (it misses the field part, −28% to −68% of W; episodic's founders' own and
+  field nearly cancel).
+- **ln J's whole committed error from one run**: W(F) + W(I + L) against e_c is within
+  rms ≈ 0.02ε over the ten (largest −0.035, dry-flat), at the run-to-run floor. The edge
+  regions add little to ln J on c (closing −0.03 to −0.07, opening +0.04 to −0.00 where
+  measured).
+- **Edge regions by omit-one are not error estimates**: the omit-one of the node after an
+  opening edge reads +0.14 to +0.54ε against measured opening-side errors of −0.00 to
+  +0.04; before a closing edge −0.04 to −0.21 against −0.03 to −0.07. Removing an inset
+  node merges an interval across the edge, a move of a different kind from the strip's
+  error. Including them wrecks the ranking.
+
+**Ranking scores** (Spearman with |measured| on the p50 cases; top region right over ten):
+
+| pool | indicator | Spearman ln J (dry, dry-flat, long-wet) | Spearman rms (same) | top right, ln J | top right, rms |
+|---|---|---|---|---|---|
+| all regions (edges by omit-one), as registered | W | 0.54, 0.31, −0.40 | 0.54, 0.60, 0.00 | 5/10 | 6/10 |
+| | A (own) | 0.66, 0.54, 0.20 | 0.66, 0.77, 0.40 | 7/10 | 8/10 |
+| | U (plain curvature) | 0.66, 0.37, −0.40 | 0.66, 0.60, 0.00 | 3/10 | 2/10 |
+| h² regions only (F, I, L; rest = I + L) | W | 1, 1, (2 regions) | 1, 1, – | **10/10** | **9/10** |
+| | A | 0.5, 1, – | 0.5, 1, – | 7/10 | 8/10 |
+| | U | 1, 1, – | 1, 1, – | 8/10 | 7/10 |
+
+- U (the plain second difference of per-recruit leaf area, 0.3–1.5% of the stand's leaf
+  area) ranks the h² regions as W does on the p50 cases but loses F against the rest on
+  ld-102 and ld-105, where it calls the rest larger: without the adjoint it cannot weigh
+  soil against light or early against late (the interiors' field acts after 10 y, when
+  water is short). The rms miss under W is dry-p50 (founders' rms 0.145 against the rest's
+  0.137, a tie).
+- **Indicator 2** is indicator 1 on the finer iterate restricted to its added nodes (to
+  first order in the field), so the h² rows above are its scores for c's every-other move.
+  No libS nested pair refined in several regions at once exists to score it on a real
+  iteration [i].
+- No case outside the ten has measured region errors on disk, so the out-of-bank test was
+  not possible without new region runs.
+
+## Predictions scored
+
+| # | prediction | P | result |
+|---|---|---|---|
+| P0–P10 | runs A (res map) and B (I2 → res) | – | withdrawn: not run after the change of priorities (the c and x maps answer P2/P3's questions) |
+| L0 | Ax, Ac reproduce J and gradients | 85% | holds |
+| L1 | interiors carry x's largest estimate, negative | 70% | holds (−0.534) |
+| L2 | x /2.56 within ×[0.7, 1.4] of c's own estimates | 55% | holds (0.94, 0.93) |
+| L3 | signs of e_I, e_F at c from x right | 70% | holds |
+| L3′ | both within ×[0.67, 1.5] of measured | 35% | holds (0.95, 1.00) |
+| L4 | Ia ≥ 50% of x's interiors | 60% | refuted (46%) |
+| L5 | closing estimate on c differs from measured by > 0.05ε | 55% | holds, read on the omit-one of the closing inset nodes (−0.156 against −0.068); no closing node was droppable in the every-other set |
+| K1 | coarse rows ≥ 0.65 of committed | 80% | holds (0.74) |
+| K2 | map sweep ≤ 1.25× plain | 70% | holds (1.05) |
+| S1 | median \|cos\| (ln J, key elasticity) < 0.7 | 75% | holds (0.58) |
+| S2 | cos(signed ln J, rms profile) < 0.7 | 65% | holds (−0.32; unsigned 0.94) |
+| E1 | drop1 interiors root_P50 within ×[0.5, 2] | 50% | refuted (−0.04) |
+| E2 | drop1 interiors cos ≥ 0.8 | 55% | refuted (−0.11) |
+| E3 | drop1 founders cos ≥ 0.6 | 40% | refuted (0.46) |
+| E4 | cos(Cx-I, Cx-F) < 0.5 | 65% | holds (0.15) |
+| E5 | pinned x \ D_I within 10% of the map in ln J | 70% | holds (1.05) |
+| E6 | its cos ≥ 0.8 and root_P50 within ×[0.5, 2] | 50% | holds (0.96; −0.48) |
+| E7 | founders' cos ≥ 0.7 | 50% | holds (0.98) |
+| I0 | omit-one replays reproduce J | 85% | holds (20/20) |
+| I1 | W Spearman ln J ≥ 0.6 on dry and dry-flat | 45% | refuted (0.54, 0.31; 1, 1 on the h² regions) |
+| I1′ | W top right on ≥ 2 of 3 p50 cases | 55% | refuted (0/3 with edges; 3/3 on the h² regions) |
+| I2 | W Spearman rms ≥ 0.5 on dry and dry-flat | 45% | holds narrowly (0.54, 0.60) |
+| I3 | U ranks at least as well as A | 60% | refuted (mean 0.32 against 0.54) |
+| I3′ | W at least as well as U | 60% | refuted with edges (0.27 against 0.32); tie on the h² regions |
+| I4 | F against the rest, W right for ln J on ≥ 7/10 | 55% | holds narrowly (7/10; 10/10 on the h² regions) |
+| I4′ | the same for the rms | 45% | holds on the seven two-region cases (6/7); 9/10 on the h² regions |
+
+Runs: 26 replays on the scratch build, all exit 0: maps Ax and Ac; drop1 Cx-I and Cx-F;
+pinned coarsenings of x, interiors and founders; 20 omit-one maps on ten committed runs.
+One R process of this study at a time.
