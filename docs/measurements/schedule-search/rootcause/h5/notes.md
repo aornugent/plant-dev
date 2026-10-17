@@ -308,3 +308,62 @@ estimate d1/(1/s_x − 1) against the committed rung's true error, C1–C5 by `c
 - **B2.** Median of the case reads in [0.8, 1.25] — 70%; no case read under 0.6 — 60%.
 - **B3.** Rows: N10 over E6 committed 1.4–1.7 summed over the ten — 70%.
 - **B4.** N10's worst error exceeds E6 committed's on at least 7 of 10 — 60%.
+
+### V results on dry: variants and cost at matched error (`score_ladder.R M|T|C dry`, `score_var.R dry`, `var_dry.rds`) [m]
+
+| layout (dry) | nodes x / c / f | rows x / c / f | worst x / c / f | rms c | along M c | pooled p | cos | per-q order median [min, max] | coarse pair read, C1–C5, unseen | fine pair read, C1–C5, unseen |
+|---|---|---|---|---|---|---|---|---|---|---|
+| N (o + o + 12) | 193 / 224 / 273 | 248 / 290 / 360 | 1.46 / 0.60 / 0.16 | 0.170 | −0.65 | 1.56 | 0.92 | 2.12 [0.87, 3.49] | 1.02, pass, 0.048 | 0.96, pass, 0.062 |
+| M (o only) | 166 / 200 / 250 | 214 / 258 / 327 | 1.35 / 0.55 / 0.26 | 0.162 | −0.56 | 1.46 | 0.89 | 1.61 [0.59, 2.48] | 0.95, pass, 0.050 | 1.11, pass, 0.065 |
+| T (M; E6 inset from b = 17) | 143 / 176 / 226 | 194 / 237 / 304 | 1.30 / 0.54 / 0.22 | 0.166 | −0.58 | 1.44 | 0.92 | 1.49 [0.23, 3.82] | 0.92, pass, 0.048 | 1.14, pass, 0.062 |
+| C (opening inset 12 d fixed) | 147 / 178 / 227 | 192 / 233 / 302 | 1.31 / 0.44 / 0.17 | 0.148 | −0.42 | 1.48 | 0.76 | 2.63 [0.76, 4.19] | 1.22, pass, 0.090 | 0.88, pass, 0.096 |
+| E6 (committed / check) | 149 / 219 | 188 / 269 | 0.35 / 0.26 | 0.159 | −0.30 | — | — | — | — | E6 pair pass, read 1.06 |
+
+Rows needed to reach E6 committed's worst error (0.35) and rms (0.159), interpolated in log
+error against log rows between bracketing rungs:
+
+| layout | rows at worst 0.35 (× E6 committed) | rows at rms 0.159 (×) |
+|---|---|---|
+| N | 318 (1.69) | 295 (1.57) |
+| M | 298 (1.59) | 260 (1.38) |
+| T | 268 (1.43) | 240 (1.28) |
+| C | 248 (1.32) | 230 (1.22) |
+
+- **Where H5's extra rows come from:** the edge nodes, one per closing and one per opening
+  edge (V0); the fixed c − 12 d node is E6's inset node and costs nothing; the background is
+  sparser than E6's. Rows follow nodes (N/E6 rows 1.54 for nodes 1.50).
+- **Dropping o + 12 d (M)** keeps the pairs' reads and C1–C5 and saves 11% of rows at
+  s = 1 (6% at matched worst error, 12% at matched rms). Fate's corner is at o (O1), so the
+  node at o is the one that matters.
+- **E6's inset from b = 17 (T)** saves another 8% at s = 1 (rows 237): at matched worst
+  error 0.84× N's rows, with the same reads (0.92 / 1.14), C1–C5 on both pairs and the same
+  unseen part (0.048 / 0.062). The late strips' fixed error is too small to see on dry.
+- **The opening inset (C)** is cheapest (0.78× N's rows at matched worst error) and most
+  accurate per row, but its moves are not one term (cos 0.76, per-quantity order up to 4.2)
+  and the part no pair sees grows to 0.090 / 0.096 (N 0.048 / 0.062): the fixed opening
+  strip's offset (O2: rms 0.045, stem_c −0.2) enters every rung alike.
+- **No H5 variant matches E6's committed error per row** (1.22–1.69×). E6's committed run is
+  accurate for its rows because its inset cancels the edge-node bias along M (closing
+  round); H5's layouts carry that bias as a term that shrinks with s (along M −0.65 → −0.30
+  from s = 1 to 1/1.6 for N) instead.
+- No variant reaches order 2 either: pooled 1.44–1.56 on dry for all four.
+
+| # | prediction | P | result |
+|---|---|---|---|
+| V1 | M clean (p in [1.6, 2.4], cos ≥ 0.85) | 55% | refuted (p 1.46; cos 0.89) |
+| V1′ | M's committed worst within ±20% of N's | 50% | holds (0.55 vs 0.60) |
+| V1″ | M ≤ 0.9× N's rows at matched worst error | 55% | refuted (0.94; at matched rms 0.88) |
+| V2 | T clean | 45% | refuted (p 1.44; cos 0.92) |
+| V2′ | T's unseen rms ≤ 0.06 | 50% | refuted narrowly (fine pair 0.062; coarse 0.048) |
+| V2″ | T ≤ 0.85× N's rows at matched worst error | 50% | holds (0.84) |
+| V3 | C's moves clean | 55% | refuted (cos 0.76) |
+| V3′ | C's unseen part ≥ N's + 0.02 | 55% | holds (+0.042 / +0.034) |
+| V4 | every H5 variant needs more rows than E6 at E6's worst error | 80% | holds (1.32–1.69×) |
+
+### Pre-registration U (one more variant, before its runs)
+
+U: M with E6's inset from b = 10 (dry 155 nodes at s = 1). The p50 round put 73% of the
+interiors' root_P50 in the era b1–10, so edges after 10 may carry little.
+- **U1.** U's pairs both pass C1–C5 with reads in [0.7, 1.4] — 55%.
+- **U2.** U's unseen part (fine pair) ≤ 0.08 — 50%.
+- **U3.** At matched worst error U needs ≤ 0.9× T's rows — 40%.
