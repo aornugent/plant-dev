@@ -6,3 +6,5 @@ for (cs in c("dry", "long-wet", "episodic-lma")) put(h5_sched(cs, 2, "node"), "N
 sk <- c("16" = 1.6, "10" = 1, "06" = 1 / 1.6)
 for (k in names(sk)) { s <- sk[[k]]; put(h5_sched("dry", s, "node1"), paste0("M", k), "dry"); put(h5_sched("dry", s, "node1", tcut = 17), paste0("T", k), "dry")
   put(h5_sched("dry", s, "inset", d_o = 12), paste0("C", k), "dry") }
+# U (added after V): M with E6's inset from b = 10, on dry and dry-flat.
+for (cs in c("dry", "dry-flat")) for (k in names(sk)) put(h5_sched(cs, sk[[k]], "node1", tcut = 10), paste0("U", k), cs)

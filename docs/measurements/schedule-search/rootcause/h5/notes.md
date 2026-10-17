@@ -15,7 +15,62 @@ is the projection on P's unit hydraulic direction. Scripts are in this directory
 
 ## Summary (written last)
 
-(pending)
+**The rule as built (rule N, `lib.R h5_sched`).** a09's graded build at spacing s·h (range
+cap ×s), late edges out. Every closing edge c before 25 is a node, with a fixed node at
+c − 12 d; every opening edge o is a node, with a fixed node at o + 12 d; only the stretches
+between fixed nodes (founders, interiors, each spell's remaining stretch) scale with s.
+The opening side was decided first: the opening inset's error is not a power law in its
+width (O2: e(6) as large as e(12), rms 0.047 vs 0.045), and fate has a corner at the opening
+edge (O1: slope +0.51e-3/d before o, −2.18e-3/d after, on 22/22 edges; the gate opens at
+once; no sensitivity turn), so o is a node. [m]
+
+**Per case (s = 1.6 / 1 / 1/1.6)** [m]:
+
+| case | pooled order (cos) | per-q order median | coarse pair read, C1–C5 | fine pair read, C1–C5 | committed worst (E6) | rows ×E6 |
+|---|---|---|---|---|---|---|
+| dry | 1.56 (0.92) | 2.12 | 1.02, pass | 0.96, pass | 0.60 (0.35) | 1.54 |
+| dry-p50 | 1.50 (0.98) | 1.58 | 0.94, pass | 1.21, pass | 0.72 (0.35) | 1.54 |
+| long-wet | 1.76 (0.99) | 1.83 | 0.94, pass | 1.01, pass | 0.41 (0.36) | 1.63 |
+| dry-flat | 1.35 (0.89) | 1.93 | 0.80, C2 fails (a_l1) | 0.92, pass | 0.80 (0.58) | 1.74 |
+| episodic-lma | 0.92 (1.00) | 0.92 | 0.72, flags err > 1; passes after the finer run | 1.16, flags; passes after | 1.53 (1.28) | 1.34 |
+
+- **A pair predicts the error under H5, the coarse one included** (H1 retest): reads
+  0.94–1.02 on dry, dry-p50, long-wet where H1 read 0.10 and 0.37; the coarse pair's
+  estimate is ~2× quieter than the fine pair's (jitter noise 0.017 vs 0.039 rms). Bank
+  (s = 1.6 / 1, all ten): 9/10 pass as H1 counted (E6 10/10, H1 8/10), median case read
+  1.01 [0.72, 1.27]; dry-flat fails C2 on a_l1.
+- **The error is not clean second order.** One direction per case (cos 0.89–1.00), but
+  pooled order 1.35–1.76 (episodic-lma 0.92). Cause [m schedule, i reading]: a stretch's
+  count is ceil(∫ 1/(s·h)), so short spells keep one interval at every s and their whole
+  layout is fixed: 13/28 of dry's spells and 43/53 of dry-flat's do not refine from 1.6 to 1.
+  The edge-node bias along M (a_l1) lives at those spells' closing edges and so barely moves
+  on the coarse step (dry-flat d1 0.19 vs d2 0.34).
+- **Fixed strips' own error** (every 12-d strip cut at 3 d): dry rms 0.015 / max 0.059,
+  episodic-lma 0.036 / 0.065, dry-flat 0.018 / 0.069: **under ε/10 everywhere**, at or under
+  the jitter. **Jitter floor** (tol +5%, dry): rms 0.023, along M −0.06.
+- **Cost.** H5 N needs 1.59× E6's committed rows over the bank (1.34–1.74) and its committed
+  rung is less accurate on all ten (the edge-node bias returns along M as a shrinking term
+  instead of E6's cancellation). The extra rows are the edge nodes, all of them; c − 12 d is
+  E6's inset node and the background is sparser than E6's. At matched worst error N costs
+  1.69× (dry) and 1.82× (dry-flat) E6's committed rows.
+- **Cheapest honest variant: U** (o a node without o + 12 d; E6's 12-d inset for edges from
+  b = 10): 1.10× E6's committed rows at s = 1 on dry and dry-flat, 1.13–1.15× at matched
+  error, both pairs pass C1–C5 on both (it repairs dry-flat's coarse pair); pooled order
+  1.20 (dry) and 1.52 (dry-flat). Opening inset fixed (C) is cheaper per error (1.32×) but
+  its unseen part grows to 0.09 and its moves are not one term (cos 0.76).
+- **s = 2.0** (dry, long-wet, episodic-lma): barely coarser in nodes than 1.6 (dry 184 vs
+  193); the 2.0 → 1.6 step leaves the square law (dry: M saturates; long-wet and
+  episodic-lma: order ≈ 3), so the (2.0, 1.6) pair fails C3 on dry and long-wet; the wide
+  (2.0, 1) pair still reads s = 1's error (1.06 / 1.02 / 0.86). No run refused. The law holds
+  roughly up to the s = 1.6 rungs' widest intervals, 160–169 d before b = 20, and fails at
+  198–224 d.
+- **Predictions:** 51 registered, 27 held, 23 refuted, 1 did not arise.
+
+**Verdict.** Under H5 a pair predicts the committed error, and a coarser companion now
+reads as well as the finer check (9/10 on the bank, against H1's 8/10). H5's premise, one
+clean h² term, does not hold: the order is 1.35–1.76 because short spells do not refine,
+and H5's edge nodes cost 1.6× E6's rows for a less accurate committed rung. U keeps the
+honest pairs at 1.10–1.15× E6's rows on the two cases tested.
 
 ## The layout as built (`lib.R`, `h5_sched`)
 
@@ -533,3 +588,65 @@ dry-p50. H5 passes those two and fails dry-flat instead.)
 | B4 | N10 worst > E6's on ≥ 7 of 10 | 60% | holds (10/10) |
 | E1 | episodic-lma strips max ≥ 0.1 | 35% | refuted (0.065) |
 | E1′ | its strips rms ≥ 0.1 | 15% | refuted (0.036) |
+
+### U′ and E2 results, dry-flat (`score_ladder.R U dry-flat`, `score_var.R dry-flat`, `score_strips.R dry-flat`) [m]
+
+| layout (dry-flat) | nodes x / c / f | rows x / c / f | worst x / c / f | pooled p | cos | coarse pair | fine pair | rows at E6's worst / rms |
+|---|---|---|---|---|---|---|---|---|
+| N | 311 / 328 / 363 | 625 / 668 / 752 | 1.74 / 0.80 / 0.36 | 1.35 | 0.89 | read 0.80, **C2 fails**, unseen 0.111 | read 0.92, pass, 0.056 | 701 (1.82×) / 700 (1.82×) |
+| U | 174 / 195 / 227 | 372 / 421 / 496 | 1.74 / 0.70 / 0.27 | 1.52 | 0.91 | read 1.02, pass (C3 5/6), unseen 0.065 | read 1.03, pass (6/6), unseen 0.047 | 435 (1.13×) / 433 (1.13×) |
+| E6 c / f | 191 / 258 | 384 / 530 | 0.58 / — | | | | E6 pair pass, read 0.83 | |
+
+- On dry-flat U both cheapens the layout (1.10× E6's committed rows at s = 1, against N's
+  1.74×) and repairs the coarse pair (C2 passes; a_l1 now moves on the coarse step). Most of
+  dry-flat's 93 closing edges lie after b = 10 and now carry E6's inset.
+- dry-flat's fixed strips, −(N10r − N10) (628 nodes): rms 0.018, max 0.069 (TF24_cost_scale
+  −0.07), under ε/10. **E2 refuted.**
+
+| # | prediction | P | result |
+|---|---|---|---|
+| U4 | U's coarse pair passes on dry-flat | 40% | holds |
+| U4′ | U's fine pair passes on dry-flat | 55% | holds |
+| U4″ | U's rows ≤ 1.3× E6's at s = 1 | 60% | holds (1.10) |
+| E2 | dry-flat strips max ≥ 0.1 | 40% | refuted (0.069) |
+
+## summary.rds (for the offline study)
+
+`scratchpad/deep/rootcause/h5/summary.rds`, rebuilt by `collect.R` as runs land (51
+gradient runs at the end; forward-only fate maps are left out). A list:
+- `runs`: one row per run. `name` (h5_KIND_CASE), `case`, `kind`; layout: `rule` (N: o and
+  o + 12 d fixed; M: o only; T: M with E6's inset for edges at b ≥ `tcut` = 17; U: same with
+  `tcut` 10; C: opening inset 12 d fixed; O: the opening-step runs), `s` (spacing scale),
+  `open` (node / node1 / inset / resolved), `d_o` (opening inset, d), `tcut`, `close`,
+  `strip_days` (12), `tol` (1e-4; 1.05e-4 for the jitter run), `role` (ladder, opening
+  ladder, opening reference, strip refinement r); costs: `n_nodes`, `rows` (run_cost),
+  `cpu` (s), `steps`, `proxy` (a09's proxy_err on the node set); error against the
+  lib19-class reference in ε: `worst`, `worst_q`, `rms`, `along_M`, and `lnJ` (value).
+- `q`: long table, one row per run × quantity: `value`, `ref`, `eps`, `err` = (value −
+  ref)/eps, `cls` (leaf / hydraulic / lnJ / other).
+- `nodes`: node times (years) per run.
+- `schema`, `updated`.
+Ladder scores (orders, reads, C1–C5 per pair) are in `ladder_<RULE>[_RUNGS]_<cases>.rds`,
+the bank's in `bank_N.rds`, matched-error tables in `var_<case>.rds`.
+
+## All predictions scored
+
+| section | registered | holds | refuted | other |
+|---|---|---|---|---|
+| O (opening) | 7 | 1 (O2d) | 6 | |
+| L (first three cases) | 13 | 9 | 4 (L1, L1′, L3, L6) | |
+| L′ (dry-flat, episodic-lma) | 4 | 1 (L′3) | 3 (L′1; L′2 both parts: dry-flat's coarse pair fails C2, episodic-lma's pairs trip C1/C5 on an error > 1) | |
+| W (s = 2.0) | 4 | 1 (W1″) | 2 (W1, W1′) | W1‴ (a refusal, 10%) did not happen |
+| V (variants) | 9 | 4 (V1′, V2″, V3′, V4) | 5 | |
+| U, U′ | 6 | 6 | 0 | |
+| B (bank) | 5 | 5 | 0 | |
+| E (strips elsewhere) | 3 | 0 | 3 | |
+| **all** | **51** | **27** | **23** | 1 |
+
+Runs: 52 completed, all exit 0 (51 gradient runs and 2 forward maps; h5_C10_dry is a copy
+of h5_oin12_dry, the same schedule). Up to three of this round's ran at a time (two queues
+overlapping); none was started while the machine had four R processes (`run.sh` gate), but
+the count reached five a few times when other agents' runs started after mine, and two of
+my lanes were held at the gate for 20–35 minutes by other agents'
+runs. One process slip: the opening ladder was first scored with
+`establishment_window` included (source order); rescored, the numbers did not change.
