@@ -35,10 +35,19 @@ gradient on; guards G1–G3 hold) and scored against their own references [m]:
   0.67). A loop needs either the reserve or one estimate taken at the analysis's worst θ.
 - **Grid-to-grid jitter** between two near grids at one θ is rms 0.035–0.145 (dry-p50 0.082,
   cos 0.82), the same size as the whole trait effect on dry (rms 0.116).
-- **Invader plan (not run):** invaders at lma ×0.5 and ×2 (and θ′ = θ as the baseline,
-  whose reference exists) on dry's grid: about 10 min for the walks on the grid and
-  about 60 min for the u215/u429 invader references [i]; risks are the ×2 walk's
-  stability (it failed on dry without a 15-day step cap) and J′ ≈ 1e-21 at ×2.
+- **No single gradient run predicts the growth** (Results 3). S_el, the unnormalised
+  sensitivity scale and the median elasticity ratio all read 1.00 / 0.98 / 2.4–2.9
+  against growth 0.81 / 1.51 / 3.90: they flag the large lma move (as a lower bound) and
+  miss the a_dG2 growth entirely. For invaders S_el runs the wrong way (Results 4). A
+  fixed reserve stays; S_el well above 1 can only raise it.
+- **Invaders at lma ×0.5 and ×2 on dry's grid** (Results 4): all within ε, all at or
+  under the resident's own worst error (W 0.33 and 0.07 in invader ε against the
+  resident's 0.35), so against the θ₀ estimate they need no reserve; against the θ′ = θ
+  invader the ×0.5 one grows ×1.79 in root_P50 alone. ln J′ errors are ≤ 0.004 in
+  absolute terms, 0.0006 at J′ ≈ 7e-23. The resident's check covers them in size
+  (W read 1.5–7.4) but not per quantity.
+- **Limits:** one scoring step (`score_inv.R`, about 30 s) was started while 4 other R
+  processes ran, one over the limit; every run respected it.
 
 ## Data and definitions (read before predicting)
 
@@ -126,7 +135,7 @@ parent's.
   k = −1.16 (root_P50), 1.85 (a_dG2), 6.10 (lma); at ±10% growth 1.13 / 1.19 / 1.79 in the
   growing direction, so reserves 0.11 / 0.16 / 0.44 for the resident's range.
 
-## Invader plan (not run; for the main session to approve)
+## Invader plan (approved and run as below; Results 4)
 
 Invaders at lma ×0.5 and ×2 on dry's E6 committed grid, plus the θ′ = θ invader as the
 baseline whose error plays the role of e_pp.
@@ -138,7 +147,7 @@ baseline whose error plays the role of e_pp.
   `lma=-0.5,lma=1,lma=0` (×0.5, ×2, θ′ = θ). One process.
 - **References.** `harness/run_record.R` at the dry reference's setting (u215_dry /
   u429_dry: TOL 3e-5, ATOL 1e-4, SPLIT 1, SHARE 0.1, knots as stops), NODES 215 and 429,
-  INVADERS=`lma=0.5,lma=2`, INVADER_GRADIENTS=1, STAND_GRADIENT=0, HMAX=15; extrapolated
+  INVADERS_REL=`lma=-0.5,lma=1` (lma alone; see below), INVADER_GRADIENTS=1, STAND_GRADIENT=0, HMAX=15 (already in the reference's command); extrapolated
   on the square law as every reference is. Its built-in θ′ = θ invader doubles as a guard
   against the saved u215_dry / u429_dry invader (elasticity lma −35.48 / −35.52), so the
   baseline needs no new reference.
@@ -225,6 +234,42 @@ against the same ratios from those runs (9 points; grids differ, so noisier).
   growth of ×1.5 passed with S_el = 0.98. Post hoc only: S_el^1.5 = 3.88 on episodic-lma;
   one point does not fix an exponent.
 
+### Results 4: invaders on dry's grid (`run_inv.sh`, `adj_run_inv.R`, `score_inv.R`; `score_inv.log`) [m]
+
+Guards: the grid run's stand J equals `val_insk_c_dry`'s bit for bit and its θ′ = θ
+invader's J′ equals the stand's J bit for bit; both references reproduce u215_dry's and
+u429_dry's stand J and θ′ = θ invader elasticities bit for bit; no walk or sweep failed
+(HMAX 15 throughout). Cost: grid 526 s (stand 64 s; each walk 38–44 s + sweep 104–113 s),
+u215 1041 s, u429 2125 s; 62 min in all against 70 planned.
+
+Errors in invader ε (`eps.csv`, role invader; ≥ 0.01), against u215/u429 extrapolated:
+
+| invader (lma alone) | J′ (ref) | ln J′ error, absolute (ε) | W (quantity) | rms | ref's own (u429 − u215)/3, W | growth vs θ′ = θ → reserve | W / resident's W (0.35) | S_el ratio | resident check: read, W read |
+|---|---|---|---|---|---|---|---|---|---|
+| θ′ = θ | 1.196 (1.200) | −0.0037 (−0.15) | 0.18 (root_P50) | 0.087 | 0.10 | 1 | 0.53 | 1 | —, 2.67 |
+| × 0.5 | 6212 (6223) | −0.0017 (−0.07) | 0.33 (root_P50) | 0.068 | 0.03 | 1.79 → 0.44 | 0.94 | 0.38 | −1.26 (one quantity), 1.49 |
+| × 2 | 6.66e-23 (6.66e-23) | +0.0006 (+0.02) | 0.07 (r_l) | 0.026 | 0.03 | 0.36 → 0 | 0.19 | 4.93 | —, 7.37 |
+
+- **Every invader is within ε on the resident's committed grid, and none is worse than the
+  resident** (W 0.07–0.33 in invader ε against the resident's 0.35 in its own). Counted
+  against the resident's error, which is what a loop at θ₀ estimates, the lma invaders
+  on dry need no reserve. Counted against the θ′ = θ invader, the ×0.5 invader grows
+  ×1.79 (reserve 0.44), all of it in one quantity (root_P50: −0.18 → +0.33, ε 0.012);
+  its rms falls (0.087 → 0.068).
+- **ln J′ in absolute terms** is accurate everywhere: |error| ≤ 0.0037 (under ε/6), and
+  at ×2 (J′ ≈ 7e-23, ln J′ ≈ −51) it is 0.0006. Near extinction the invader is easy for
+  the grid; ε at θ′ = θ is not too strict there.
+- **The θ′ = θ invader's error is partly the reference's own**: its reference moves 0.10
+  ε between u215 and u429 (root_P50), against an error of 0.18. The moved invaders'
+  references are tighter (0.03).
+- **The resident's estimate does not read the invaders per quantity** (×0.5: cos of the
+  errors with θ′ = θ's −0.32, corr with the resident's estimate −0.68), but in size it
+  covers them (W read 1.49–7.37): the resident's check over-states the invaders' worst
+  error on dry.
+- **S_el fails for invaders, inversely**: 0.38 where the error grows ×1.79, 4.93 where it
+  shrinks to ×0.36. [i] S_el follows the size of the elasticities, which tracks J′
+  (largest at ×2, J′ ≈ 7e-23), not how hard the run is to integrate.
+
 ## Predictions scored
 
 | # | P | outcome |
@@ -244,6 +289,15 @@ against the same ratios from those runs (9 points; grids differ, so noisier).
 | D3 | 30% | refuted (episodic-lma C3 10/32) |
 | D4 | 45% | confirmed as registered (0.93), but by two clusters, not a trend |
 
-R: 8 confirmed (mean P 66%), 1 refuted (65%). D: 1 confirmed (45%), 3 refuted (mean 42%). The registrations were close to the near-layout
+| I1 | 80% | confirmed (no failures, HMAX 15) |
+| I2 | 75% | confirmed (bit-identical) |
+| I3 | 55% | confirmed (×1.79, all root_P50) |
+| I4 | 60% | refuted (×0.36; the ×2 invader is the easiest) |
+| I5 | 60% | confirmed as registered (read −1.26), but on one quantity over 0.2 |
+| I6 | 30% | refuted (S_el ratio 0.38 and 4.93 against growth 1.79 and 0.36) |
+| I7 | 60% | refuted (0.0006 absolute) |
+
+R: 8 confirmed (mean P 66%), 1 refuted (65%). D: 1 confirmed (45%), 3 refuted (mean 42%).
+I: 4 confirmed (mean P 68%), 3 refuted (mean 50%). The registrations were close to the near-layout
 reading, so they tested little beyond it; the finding they did not anticipate is that the
-rebuild effect is near 1 (the reserve is K(θ), not staleness). I1–I5 are open.
+rebuild effect is near 1 (the reserve is K(θ), not staleness).

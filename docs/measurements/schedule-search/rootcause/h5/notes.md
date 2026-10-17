@@ -367,3 +367,64 @@ interiors' root_P50 in the era b1–10, so edges after 10 may carry little.
 - **U1.** U's pairs both pass C1–C5 with reads in [0.7, 1.4] — 55%.
 - **U2.** U's unseen part (fine pair) ≤ 0.08 — 50%.
 - **U3.** At matched worst error U needs ≤ 0.9× T's rows — 40%.
+
+### W results: the s = 2.0 rung (`score_ladder.R` RUNGS=20,16,10; `score_w.R`) [m]
+
+| case | nodes s = 2 / 1.6 / 1 | rows | worst error s = 2 / 1.6 / 1 | shrink P1.6/P2 | pooled p (2.0/1.6/1) | cos | along M of the moves 2→1.6, 1.6→1 | (2.0, 1.6) pair on s = 1.6's error | wide pair (2.0, 1) on s = 1's error: read, corr, C1–C5, unseen |
+|---|---|---|---|---|---|---|---|---|---|
+| dry | 184 / 193 / 224 | 234 / 248 / 290 | 1.89 / 1.46 / 0.60 | 0.713 | 1.95 | 0.82 | −0.13, −0.88 | read 1.13, C3 17/24 fail, unseen 0.27 | 1.06, 0.95, pass, 0.054 |
+| long-wet | 210 / 214 / 245 | 306 / 314 / 359 | 1.38 / 0.92 / 0.41 | 0.694 | 2.95 | 0.90 | +0.34, +0.01 | read 1.33, C3 9/14 fail, unseen 0.17 | 1.02, 0.95, pass, 0.040 |
+| episodic-lma | 117 / 129 / 158 | 108 / 121 / 151 | 5.30 / 2.95 / 1.53 | 0.588 | 2.90 | 0.99 | +3.21, +1.65 | read 1.15, C3 37/40, C1/C5 trip (err > 1) | 0.86, 1.00, C1/C5 trip (err 1.53), unseen 0.12 |
+
+- **No run refused**: all 57 runs of the round exited 0, including every s = 2.0 rung.
+- **s = 2.0 is barely coarser than 1.6 in nodes** (dry 184 against 193): the edge nodes and
+  fixed nodes do not scale, and most stretches already have one or two intervals at 1.6.
+  What s = 2.0 changes is the widest intervals: 198 / 211 / 224 d before b = 20 (160 / 169 /
+  168 d at 1.6), and 462 d in 20–25 on episodic-lma.
+- **The step 2.0 → 1.6 leaves the square law**, differently per case: on dry the error along
+  M stops growing (−0.13 where the law wants about −0.6: the edge-node bias saturates once
+  the spell's last stretch is ~200 d), on long-wet it grows faster than the law (order ≈ 3,
+  M +0.34), on episodic-lma the whole error grows at order ≈ 2.9. So the (2.0, 1.6) pair
+  misreads (C3 fails on dry and long-wet; unseen 0.17–0.27).
+- **The wide pair (2.0, 1) still reads s = 1's error** (reads 1.06 / 1.02 / 0.86, corr
+  0.95–1.00): its move is dominated by the 1.6 → 1 part, where the law holds roughly. A loop
+  that starts at 2.0 and pairs it with the next rung (1.25) is not tested here [i].
+- **Widest interval at which the law holds (rule N)**: up to the s = 1.6 rungs, widest
+  intervals 160–169 d before b = 20 (and 227–308 d in 20–25), with order 1.5–1.8 and reads
+  0.94–1.02 on dry, dry-p50, long-wet; at 198–224 d (s = 2.0) it fails on all three. On
+  episodic-lma it does not hold even below 160 d (next section).
+
+### L′ results, episodic-lma (`score_ladder.R N episodic-lma`) [m]
+
+| | episodic-lma |
+|---|---|
+| nodes / rows x, c, f (E6 c / f) | 129 / 158 / 211, rows 121 / 151 / 207 (E6 120 / 182, rows 112 / 174) |
+| committed worst / rms / along M (E6 c) | 1.53 (r_l) / 0.819 / +2.00 (1.28 / 0.678) |
+| worst x / f | 2.95 / 0.49 |
+| pooled p (1.6/1/0.625), meas/law, cos | **0.92**, 0.63, **1.00** |
+| per-quantity order median [min, max] | 0.92 [0.16 root_P50, 3.14 a_l1] (41 readable) |
+| coarse pair: read, C3, C1–C5, unseen | 0.72, 31/31, C1 and C5 trip (err > 1), 0.229 |
+| fine pair: read, C3, C1–C5, unseen | 1.16, 32/32, C1 and C5 trip, 0.133 |
+
+- One direction (cos 1.00), but the error falls slower than h² from s = 1 to 1/1.6 (order
+  0.9) while from 2.0 to 1.6 it falls at order 2.9: the error as a function of s bends,
+  steep at the coarse end and flat at the fine end. A part that does not shrink with s
+  (fixed strips, or the reference) is the simplest reading [i]; it is ~0.13–0.23 rms by the
+  unseen part. Both pairs flag the committed run (C5 trips because the estimate rightly
+  exceeds ε), so under the commit rule the case goes to the finer run, as E6 and H1 did.
+
+| # | prediction | P | result |
+|---|---|---|---|
+| W1 | pooled p (2.0/1.6/1) in [1.6, 2.4] on all three | 35% | refuted (1.95, 2.95, 2.90) |
+| W1′ | on at least two | 55% | refuted (dry only, and there cos 0.82) |
+| W1″ | (2.0, 1) pair read in [0.7, 1.4] on all three | 45% | holds (1.06, 1.02, 0.86) |
+| W1‴ | a run refuses | 10% | did not happen |
+| L′3 | episodic-lma committed worst > 1 | 55% | holds (1.53) |
+
+### Pre-registration E (one diagnostic run, before it)
+
+N10r on episodic-lma (fixed strips at 3 d), to test whether the part that does not shrink
+there is the fixed strips. **E1.** max |N10r − N10| on episodic-lma ≥ 0.1 (the strips are
+part of the offset) — 35%; rms ≥ 0.1 (they are most of it) — 15%.
+**E2.** N10r on dry-flat too (93 closing edges, the most strips): max |N10r − N10| ≥ 0.1 —
+40%.

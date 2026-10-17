@@ -45,7 +45,9 @@ for (cs in CS) { x <- h5_run(sprintf("h5_%s%s_%s", RULE, RG[1], cs)); c0 <- h5_r
       read_x = rd(estx), read_f = rd(estf), read_x_hyd = rd(estx, abs(ec) > 0.2 & cls(k) == "hydraulic"), read_f_hyd = rd(estf, abs(ec) > 0.2 & cls(k) == "hydraulic"),
       corr_x = cor(estx, ec), corr_f = cor(estf, ec), rmsr_x = r2(estx) / r2(ec), rmsr_f = r2(estf) / r2(ec),
       C1 = crx[["C1"]], C2x = crx[["C2"]], C3x = crx[["C3"]], C5x = crx[["C5"]], C3nx = c3n(estx), C2f = crf[["C2"]], C3f = crf[["C3"]], C5f = crf[["C5"]], C3nf = c3n(estf),
-      pass_x = all(crx), pass_f = all(crf), unseen_x = r2(ec - estx), unseen_f = r2(ec - estf), unseen_x_max = max(abs(ec - estx)), unseen_f_max = max(abs(ec - estf)),
+      pass_x = all(crx), pass_f = all(crf),
+      proto_x = if (all(abs(estx) < 1)) all(crx) else all(crit(ef, d2 * sf / (1 - sf))), proto_x_commit = if (all(abs(estx) < 1)) "c" else "f",
+      proto_f = if (all(abs(estf) < 1)) all(crf) else all(crit(ef, d2 * sf / (1 - sf))), proto_f_commit = if (all(abs(estf) < 1)) "c" else "f", unseen_x = r2(ec - estx), unseen_f = r2(ec - estf), unseen_x_max = max(abs(ec - estx)), unseen_f_max = max(abs(ec - estf)),
       noise_x = sig * sqrt(2) / (1 / sx - 1), noise_f = sig * sqrt(2) / (1 - sf), noise_c = sig))
     q <- cbind(q, data.frame(d1 = d1, d2 = d2, estx = estx, estf = estf, p = qo)) }
   OUT[[cs]] <- o; QQ[[cs]] <- q }
@@ -58,7 +60,7 @@ for (o in OUT) { cat(sprintf("\n== %s (%s): nodes x/c/f %s/%d/%s (E6 c/f %d/%d) 
   if (!is.null(o$rho)) {
     cat(sprintf("   order: s_x %.3f s_f %.3f law d1/d2 %.2f | measured %.2f (meas/law %.2f) cos %.2f | p pooled %.2f (nominal %.2f) | per quantity (n %d with |d1|>0.1,|d2|>0.05): median %.2f, min %.2f (%s), max %.2f (%s) | rms d1 %.3f d2 %.3f, M %+.2f %+.2f\n",
       o$s_x, o$s_f, o$law, o$rho, o$meas_law, o$cos12, o$p_pool, o$p_nom, o$n_big, o$p_med, o$p_min, o$p_minq, o$p_max, o$p_maxq, o$rms_d1, o$rms_d2, o$M_d1, o$M_d2))
-    cat(sprintf("   coarse pair: read %.2f (hyd %.2f) corr %.2f rms ratio %.2f | C1 %s C2 %s C3 %s (%s) C5 %s | unseen rms %.3f max %.2f | est noise %.3f\n", o$read_x, o$read_x_hyd, o$corr_x, o$rmsr_x, o$C1, o$C2x, o$C3x, o$C3nx, o$C5x, o$unseen_x, o$unseen_x_max, o$noise_x))
-    cat(sprintf("   fine pair:   read %.2f (hyd %.2f) corr %.2f rms ratio %.2f | C1 %s C2 %s C3 %s (%s) C5 %s | unseen rms %.3f max %.2f | est noise %.3f | E6 pass %s read %.2f\n", o$read_f, o$read_f_hyd, o$corr_f, o$rmsr_f, o$C1, o$C2f, o$C3f, o$C3nf, o$C5f, o$unseen_f, o$unseen_f_max, o$noise_f, o$E6_pass, o$E6_read))
+    cat(sprintf("   coarse pair: read %.2f (hyd %.2f) corr %.2f rms ratio %.2f | C1 %s C2 %s C3 %s (%s) C5 %s | unseen rms %.3f max %.2f | est noise %.3f | protocol: commit %s, pass %s\n", o$read_x, o$read_x_hyd, o$corr_x, o$rmsr_x, o$C1, o$C2x, o$C3x, o$C3nx, o$C5x, o$unseen_x, o$unseen_x_max, o$noise_x, o$proto_x_commit, o$proto_x))
+    cat(sprintf("   fine pair:   read %.2f (hyd %.2f) corr %.2f rms ratio %.2f | C1 %s C2 %s C3 %s (%s) C5 %s | unseen rms %.3f max %.2f | est noise %.3f | protocol: commit %s, pass %s | E6 pass %s read %.2f\n", o$read_f, o$read_f_hyd, o$corr_f, o$rmsr_f, o$C1, o$C2f, o$C3f, o$C3nf, o$C5f, o$unseen_f, o$unseen_f_max, o$noise_f, o$proto_f_commit, o$proto_f, o$E6_pass, o$E6_read))
     q <- QQ[[o$case]]; j <- abs(q$ec) > 0.2 | abs(q$estx) > 0.2 | abs(q$estf) > 0.2
     print(transform(q[j, c("q", "ec", "ex", "ef", "d1", "d2", "p", "estx", "estf", "e6c")], rx = round(estx / ec, 2), rf = round(estf / ec, 2)), digits = 2, row.names = FALSE) } }
