@@ -43,7 +43,7 @@ for (cs in names(HO)) {
     s_star = sqrt(1 / max(abs(ec))), T = Tc + Tf + 2 * (if (z$coarse) Tc else Tf), Tc = Tc, Tf = Tf,
     cpu = xc$stand$cpu + xc$sweep_cpu + xf$stand$cpu + xf$sweep_cpu, ref_cpu = a$stand$cpu + a$sweep_cpu + b$stand$cpu + b$sweep_cpu,
     st_coord = st["pass", "coord"], st_jit = st["pass", "jit"], st_coord_C3 = st["C3", "coord"], st_jit_C3 = st["C3", "jit"],
-    st_coord_C1 = st["C1", "coord"], st_coord_coarse = st["coarse", "coord"], st_Wmax = NA) }
+    st_coord_C1 = st["C1", "coord"], st_coord_coarse = st["coarse", "coord"]) }
 if (!length(rows)) quit()
 TB <- do.call(rbind, rows); rownames(TB) <- NULL
 options(width = 250); print(TB, digits = 3)
@@ -57,4 +57,9 @@ summ <- function(X, lab) cat(sprintf("%s: n %d | real pass %d | median Wc %.2f [
   lab, nrow(X), sum(X$pass), median(X$Wc), min(X$Wc), max(X$Wc), sum(X$Wc <= 0.39), sum(X$Wc > 1), median(X$read), mean(X$st_coord), mean(X$st_jit), sum(X$T), median(X$T)))
 cat("\n"); summ(TB, "held-out"); summ(BK, "bank    ")
 pooled <- unlist(lapply(keep, function(k) (k$estc / k$ec)[abs(k$ec) > 0.2])); cat(sprintf("pooled read over |e_c| > 0.2: median %.2f (n %d)\n", median(pooled), length(pooled)))
+# Per case: the quantities over eps/3 (committed error, check error, estimate, the
+# reference's own move), C3 misses marked.
+for (cs in names(keep)) { k <- keep[[cs]]; big <- pmax(abs(k$err), abs(k$sest)) > 1 / 3
+  ok <- abs(k$sest) >= abs(k$err) / 2 & abs(k$sest) <= 2 * abs(k$err) & sign(k$sest) == sign(k$err)
+  cat(sprintf("\n%s (s %.3f): %s\n", cs, k$s, paste(sprintf("%s%s ec %+.2f ef %+.2f est %+.2f own %+.2f", ifelse(ok[big], "", "*"), Q[big], k$ec[big], k$ef[big], k$sest[big], k$own[big]), collapse = "; "))) }
 saveRDS(list(tab = TB, bank = BK, keep = keep, Q = Q), file.path(HO_OUT, "score.rds"))
