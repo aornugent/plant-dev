@@ -205,3 +205,35 @@ outside the measured range [1/1.6, 1.6] (in clean/order, r > 1.6 is reported as
 "outside the evidence", since whether those runs refuse is unknown); interruptibility
 (do C2 and C3 hold on every intermediate (Q_i, e_i), i ≥ 2). B1 is scored without
 STRESS (the stored rungs exactly).
+
+## Pre-registration C (before the location study; `c_regions.R`)
+
+Region error vectors on disk: founders F on c (all ten, −4/3 × (fbis − c)); closing
+strips C = −(res − c) (dry, dry-p50, dry-flat, long-wet); on top of res: interiors I
+(−4/3 × (I2 − res), and I4 for an order check), opening side O, late L, b1 edge B (dry,
+dry-flat; long-wet I, O). Model per quantity: e(run) = e∞ + Σ_g K_g h_g², h_g relative
+to the base run.
+
+| # | prediction | probability |
+|---|---|---|
+| C1 | G + 1 axis runs (res + F2 + I2 [+ O4 + L4]) predict e_res within rms 0.06 on dry and dry-flat, and K_I from I2 predicts I4 within rms 0.04 | 60% |
+| C2 | Their noise amplification (sd of the predicted error per unit run jitter) is ≥ 2× that of E6's coarse estimate (2.3) for G = 4 | 75% |
+| C3 | Optimal per-region allocation (founders / rest on ten cases from c, fbis, f; four regions on dry and dry-flat) saves < 10% of T against one global scale at the same ε target, after paying for the extra runs | 70% |
+| C4 | Region directions transfer across cases within a family: cos ≥ 0.8 for the founders within each of the two families, and for I between dry and dry-flat | 55% |
+| C5 | On dry, I and C are nearly anti-parallel (cos ≤ −0.6), so one pair cannot split them (condition number of the 2-direction fit ≥ 5) | 60% |
+| C6 | One pair (c–f move) with directions from other cases recovers the founders' error within ×1.5 (norm) on ≥ 7 of 10 cases | 40% |
+| C7 | The Bayesian split (priors from part A's proxies, the pair fixes the total) has a posterior sd of the founders' share ≥ 0.15 on most cases | 55% |
+
+## Pre-registration D (before the validity flag is scored on the loop iterates; `d_flag.R`)
+
+Every iterate i ≥ 2 is flagged valid when all applicable checks hold: the coarser run's
+largest open interval before b = 20 is under 110 d; the amplified floor 0.09/(R² − 1) is
+under 1/3; with three runs, the two successive moves shrink within ×[0.5, 2] of the law
+and cos ≥ 0.9; max|e_i| is within ×[1/2, 2] of P5's a-priori prediction. False-valid =
+P(C2 or C3 fails | valid); false-invalid = P(invalid | C2 and C3 hold).
+
+| # | prediction | probability |
+|---|---|---|
+| D1 | The interval check marks every pair whose coarse run is r ≥ 1.28 invalid (a09 caps 100 d at r = 1, so 128 d at r = 1.28) | 85% |
+| D2 | In meas mode, the false-valid rate is ≤ 5%, but dry and dry-p50 x–c pairs that pass C3 by its one-miss allowance (reads 0.06–0.3) are flagged invalid only by the interval check, not by the order or proxy checks | 60% |
+| D3 | The false-invalid rate is ≥ 50% for the cheapest feasible loops (they use r1 ≥ 1.6), so a flag that must not lie costs most of the loop's saving | 65% |

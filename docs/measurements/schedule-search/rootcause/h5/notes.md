@@ -88,3 +88,56 @@ Decision registered with them: if O2b holds and e(6) is consistent with it (its 
 on e12 within 0.25·e12 ± the jitter), the opening inset scales with s (d_o = 12·s);
 otherwise the opening edge gets the closing side's treatment (`node` mode: o and o + 12 d
 fixed).
+
+### O2 results: the opening-inset ladder on dry (`score_open.R dry`, `open_dry.rds`) [m]
+
+| run | nodes | rows | err vs ref: rms / max / along M / root_P50 | e(d) = Q − Q(ores): rms / max / along M / ln J / top |
+|---|---|---|---|---|
+| oin24 | 172 | 224 | 0.193 / 0.57 / −0.14 / −0.57 | 0.151 / 0.48 / +0.45 / +0.215 / root_P50 −0.48, omega +0.38, a_l1 −0.36, a_dG2 −0.26 |
+| oin12 | 178 | 233 | 0.148 / 0.44 / −0.42 / −0.13 | 0.045 / 0.19 / +0.17 / +0.065 / stem_c −0.19, a_l1 −0.14, omega +0.09, TF24_cost_scale −0.07 |
+| oin6 | 184 | 241 | 0.153 / 0.47 / −0.44 / −0.01 | 0.047 / 0.21 / +0.15 / +0.011 / stem_c −0.21, TF24_cost_scale −0.17, a_l1 −0.11, root_P50 +0.08 |
+| ores | 373 | 480 | 0.160 / 0.58 / −0.59 / −0.08 | — |
+
+- e24 on e12: projected 2.34 (law 4), cos 0.71, rms ratio 3.32. e6 on e12: projected 0.67
+  (law 0.25), cos 0.64, rms ratio 1.04. The moves themselves are consistent: d1 = oin24 −
+  oin12 on d2 = oin12 − oin6 projected 2.94 (law 4), cos 0.94.
+- So the opening side's error is a d-dependent part (order ≈ 1.6 by the moves, log 2.94 /
+  log 2) plus a part that does not shrink with d: e(6) is as large as e(12) (rms 0.047 vs
+  0.045), with stem_c −0.19 / −0.21 and TF24_cost_scale in both. One run's jitter is ≈ 0.024
+  rms, so 0.034 of each e(d) is jitter; the shared stem_c −0.2 is ~3× that per quantity [i].
+  What ores changes beyond the strip (a node at o; spells under 26 d at 3 d) holds it [i].
+- **Scored:** O2a refuted narrowly (root_P50 −0.04; the strip's root_P50 error under H5's
+  closing nodes is a quarter of the p50 round's −0.14 on res). O2b refuted (2.34, cos 0.71).
+  O2c refuted (0.047). O2d holds (max 0.19, stem_c).
+- **Decision (as registered): not a power law → the opening edge gets the closing side's
+  treatment, rule N** (o a node and o + 12 d fixed). Scaling the opening inset with s
+  (rule S) would carry an offset of rms ≈ 0.045, max ≈ 0.2 that no pair sees, plus a part of
+  order ≈ 1.6. The fate maps (O1) are read below before the ladder is scored.
+
+## L. The ladder, rule N, first three cases
+
+Runs (`mk_ladder.R N ...`): N16 / N10 / N06 (s = 1.6, 1, 1/1.6) on dry, dry-p50, long-wet;
+N10r on dry (every fixed strip [c − 12, c] and [o, o + 12 d] cut at 3 d: the fixed strips'
+own error, −(N10r − N10), no order assumed); N10@jit on dry (tolerance 1.05e-4: the jitter
+floor under H5). Scoring (`score_ladder.R`): d1 = x − c, d2 = c − f; order against the
+proxy's shrink (p solves (Px^q − Pc^q)/(Pc^q − Pf^q) = ratio, p = 2q), pooled and per
+quantity (quantities with |d1| > 0.1 and |d2| > 0.05); the coarse pair's estimate
+d1/(1/s_x − 1) and the fine pair's d2/(1 − s_f) of the committed rung's error; C1–C5 by
+`crit` for each.
+
+### Pre-registration L (before any ladder run)
+
+- **L1 (order, pooled).** p_pool within [1.6, 2.4] on each of the three cases — 50%; on at
+  least two — 70%.
+- **L2 (direction).** cos(d1, d2) ≥ 0.85 on each of the three — 55%.
+- **L3 (worst quantity).** At least 80% of the quantities with readable moves have
+  per-quantity order in [1, 3], on each case — 45%.
+- **L4 (H1 retest).** The coarse pair's median read (|err| > 0.2) lies in [0.7, 1.4] on all
+  three — 50%; the coarse pair passes C1–C5 on at least two of three — 50%; the fine pair
+  passes on all three — 60%.
+- **L5 (what no pair sees).** rms(err_c − est_fine) ≤ 0.08 on each case — 45%.
+- **L6 (size).** The committed rung's worst error is at most E6 committed's on at least two
+  of three — 60%.
+- **L7 (fixed strips).** On dry, max |N10r − N10| < 0.1 (ε/10) — 50%; rms ≤ 0.04 — 60%.
+- **L8 (jitter).** N10@jit − N10 on dry: rms 0.015–0.04 and |along M| ≤ 0.12 — 65%.
+- **L9 (cost).** N10's rows ≥ 1.3 × E6 committed's on all three — 75%.
