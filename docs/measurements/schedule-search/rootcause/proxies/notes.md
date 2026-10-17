@@ -11,7 +11,45 @@ before the analysis it concerns. Scripts are in this directory; outputs in
 
 ## Summary
 
-(written last)
+**Proxies (part A, ten cases, E6-family ladder).** W varies little on nine cases
+(0.30–0.58) and 1.28 on episodic-lma, so the honest baseline is the null proxy (no case
+factor): worst misread ×3.06, stopping margin ×3.06. Every pilot-only proxy (a09
+J-normalised, the founders' form, an interiors' analogue) misreads episodic-lma by ~×3,
+and P1's case factor ranks the cases the wrong way (Spearman −0.62). The forward ln J pair
+is worse (×5.2: ln J's error cancels between regions). The one case factor that helps is
+the elasticity scale S_el of any gradient run (P5): worst misread ×1.76, margin ×1.72, 75%
+of within-ε runs accepted at it, no false accept — at the cost of a coarse gradient run,
+which a loop makes anyway. Per quantity no a-priori proxy gives signs or a pattern beyond
+a fixed rms envelope (62–69% within ×2). Frontier: cost 0 → margin ×2.9–3.1; 0.75 cr → ×1.72
+(P5) or the x–c pair (per-quantity read 0.12 in |log|, but misreads dry/dry-p50 per
+quantity); 1.47 cr → E6's check, ×1.13.
+
+**Loops (part B).** The saving comes from the last run being the answer (a pair at R 1.6
+amplifies jitter 0.91 against E6's 2.32), not from the proxy: P5, P0 and a fixed ratio land
+within ±2% of each other. On today's layout the x → c loop replays at ×0.856 of E6, all ten
+in 99% of draws, but dry and dry-p50 pass only by C3's one-miss allowance (reads 0.06,
+0.29). On a clean order-2 layout: ×0.81 with r1 = 1.6, ×0.76 with r1 = 2.0 (outside every
+measured run). E6 itself fails STRESS (72–87% of case-draws) by its coarse estimate's
+noise. Forward-first never pays (×0.95–1.01).
+
+**Location (coordinator's additions).** G + 1 axis runs identify region constants well
+(residual 0.03–0.06, order checks to 0.004–0.009), but amplify noise 3.3–6.4× (past ε/3
+along M from G = 3); one pair with directions from other cases does not locate (directions
+do not transfer: the founders' recovered direction is right on 4 of 10); a Gaussian split
+is overconfident. The per-region optimal layout saves 4% of the uses' rows and loses 22–24%
+net once its extra run is paid: location is a diagnostic, not a lever.
+
+**Diagnosis.** A validity flag with the 110-d interval check never lies (false-valid ≤
+1.6%) but rejects 89–100% of passing iterates, including every cheap loop's final; without
+it the flag is honest on clean/order layouts (≤ 1.9%) but not on today's (6–10.5%). H5's
+dry ladder reads its x–c pair at 0.86 with 160-d intervals, so the threshold needs
+recalibrating on H5.
+
+**H5 (dry only so far).** The coarse pair is honest (read 0.86 [0.67, 0.99], C1–C5 pass),
+but the layout costs 1.54× E6's committed rows for 1.7× its worst error; the best loop on
+it costs +30% against E6 on dry. Moved θ: no shared-grid runs exist; near-layout readings
+put the reserve at 0.2–0.75. Three real runs are proposed for each of the coarse rung and
+the moved-θ reserve (section C).
 
 ## Data and definitions (read before predicting)
 
@@ -304,3 +342,210 @@ Scored:
 - C6 **confirmed as registered** (norm within ×1.5 on 7 of 10), but the direction is right
   (cos ≥ 0.7) on only 4 and reversed on 2; as a locator it fails.
 - C7 **refuted**: posterior sd 0.03–0.11, under 0.15 on all ten — and overconfident.
+
+## Results B: loops replayed (`b_loop.R`; pass 1 `b_loop_pass1_{coord,jit}.log`, 1673 policies × 3 modes × 20 draws; pass 2 `b_loop_pass2_{coord,jit}.log`, `f_front.R`, the 84 survivors × 200 draws) [m on the stored rungs; i wherever a run is interpolated or r > 1.6]
+
+**Guard.** Without STRESS the replay gives E6 from the stored rungs exactly: T 9287,
+10/10, per case 614 832 990 964 634 1683 857 821 854 1038.
+
+**E6 itself under STRESS.** Deciding on perturbed values, E6 passes 72.5% of case-draws
+(coord) and 87% (measured jitter only); all ten together in 0.5% and 15% of draws. Its
+failures are C3 on dry, dry-flat and dry-p50: the coarse-run estimate d/(1 − s) amplifies
+a run's noise 1.64·√2 ≈ 2.3×, which is enough to push quantities near ε/3 out of ×2. E6's
+10/10 on the real runs holds for that one draw of the jitter.
+
+**Best feasible policy of each family** (all ten pass in ≥ 95% of 200 draws; T on ten,
+rows model; E6 9287):
+
+| mode / noise | policy | T | ×E6 | all ten | worst W | k mean | wasted | amp. floor along M | runs outside [1/1.6, 1.6] |
+|---|---|---|---|---|---|---|---|---|---|
+| meas / jit | loop r1 1.6, fixed R 1.6, τ 1, t 0.7 (x → c, a third run where needed) | 7948 | 0.856 | 0.99 | 0.80 | 2.11 | 1676 | 0.16 | 0 |
+| meas / jit | loop r1 1.6, P5 t2 0.4, τ 0.8, clip 1.5 | 7965 | 0.858 | 0.98 | 0.81 | 2.00 | 1554 | 0.07 | 0 |
+| meas / coord | loop r1 1.6, P0 t2 0.4, τ 1 | 8147 | 0.877 | 0.955 | 0.82 | 2.12 | 1689 | 0.21 | 0 |
+| meas / coord | loop r1 1.28, fixed R 1.25, clip 1.5 | 8783 | 0.946 | 1.00 | 0.94 | 2.00 | 1778 | 0.10 | 0 |
+| clean / both | loop r1 2.0, fixed R 1.6, τ 1, t 0.7 | 7023 | 0.756 | 1.00 | 0.90 | 2.10 | 1454 | 0.06 | all |
+| clean / both | loop r1 2.0, P5 t2 0.7, clip 1.5 | 7069 | 0.761 | 1.00 | 0.82 | 2.10 | 1472 | 0.07 | all |
+| clean / both | loop r1 1.6, fixed R 1.4, τ 0.9 | 7505 | 0.808 | 1.00 | 0.75 | 2.10 | 1655 | 0.09 | 0 |
+| order / jit | loop r1 2.0, fixed R 1.6, clip 1.25 | 7435 | 0.801 | 0.97 | 0.93 | 2.18 | 1699 | 0.16 | all |
+| order / jit | loop r1 1.6, fixed R 1.4, clip 1.25 | 7629 | 0.822 | 0.96 | 0.81 | 2.11 | 1705 | 0.16 | 3% |
+| any | forward-first (best) | 8784–9358 | 0.95–1.01 | 0.95–1.00 | 0.79–0.95 | 2.0–2.1 | 2392–2609 | ≤ 0.16 | 0–65% |
+
+- **The saving comes from the last run being the answer, not from the proxy.** A pair at
+  R = 1.6 whose finer run is the answer amplifies jitter 0.91 (against E6's 2.32), so the
+  loop is more robust than E6 under STRESS, and the coarse partner costs 0.75 cr instead of
+  the check's 1.47. P5, P0 and the fixed ratio land within ±2% of each other at the same
+  r1 (clean: 7023 / 7069 / 7083; meas-jit: 7948 / 7965 / 8109). Choosing run 2 by a proxy
+  only changes which cases need a third run.
+- **r1 sets the saving**: r1 = 1.28 → ×0.90–0.95, 1.6 → ×0.81–0.88, 2.0 → ×0.75–0.81. r1 = 2.0
+  is outside every measured run of this layout family: whether a run there keeps the square
+  law, or refuses, is unknown.
+- **No amplified floor exceeds ε/3** at any feasible point (0.06–0.21 along M); Rmin 1.25 is
+  enough for the last pair. Termination: k ≤ 3 on every feasible policy; the iteration cap
+  (4) is hit only by undamped policies off the front (up to 67% of case-draws for
+  `none` with small steps; 24–30% with the step clipped).
+- **meas mode passes dry and dry-p50 without reading them.** On today's layout the x–c pair
+  reads dry's error at 0.06 and dry-p50's at 0.29 (H1), yet C3 passes: with the spacing-ratio
+  estimate only one quantity exceeds ε/3, and C3 allows one miss. The pass is a scorer
+  allowance, not a correct estimate; the flag (Results D) is what has to catch it.
+- **Fronts.** T against pass rate (case-draws): the cheap end is E6-shaped pairs at
+  r1 = 1.6, R = 1.25 (×0.72–0.74, pass 18–78%, worst W 2.0–2.6: C1 and C3 fail); then the
+  last-run loops climb from pass 0.63 (×0.77) to ≥ 0.995 (×0.86 meas; ×0.75 clean). T
+  against the worst-case margin to ε among feasible policies (clean/jit): ×0.754 at margin
+  0.03, ×0.756 at 0.10, ×0.761 at 0.18, ×0.808 at 0.25, ×0.865 at 0.42 (meas/jit: ×0.856 at
+  0.20, ×0.862 at 0.42). The front has two sensible points: the cheapest loop (margin
+  0.10–0.18) and a margin-0.42 loop at +10% T (r1 1.6, R 1.6, τ 0.8, t 0.5: final at r = 1).
+
+Scored:
+- B1 **confirmed**.
+- B2 **refuted**: the x → c loop passes all ten in 99% (jit) of draws at ×0.856 — but dry
+  and dry-p50 pass C3 by its one-miss allowance with reads 0.06 and 0.29.
+- B3 **confirmed as registered** (×0.754–0.756), only with r1 = 2.0, outside the evidence;
+  inside it (r ≤ 1.6) the best is ×0.808.
+- B4 **refuted**: P5 is within ±2% of the best fixed ratio, either side.
+- B5 **confirmed** for the T–pass front (forward-first costs ×0.95–1.01: the forward pair
+  pays for nothing the first gradient run would not give); it sits on the T–margin front
+  in meas/coord only at ≥ ×1.0.
+- B6 **refuted**: the loop never oscillates (each step is finer); undamped small steps
+  creep to the iteration cap, and clipping the step reduces that (67% → 24–30% in the worst
+  policy) but does not remove it.
+- B7 **partly**: at the feasible frontier C3 is the constraint that binds (fC3 0.05, fC1 0);
+  just below it, the cheaper E6-shaped points fail C1 as well (worst W 2.0–2.6).
+- B8 **refuted**: order scatter costs the clean optimum 1.2 points of case-draw pass rate
+  (but 12 points of the all-ten rate: 1.00 → 0.88).
+
+## Results D: the validity flag (`d_flag.R`, `d_flag.log`; 420k iterates per noise) [m on replays]
+
+| mode / noise | valid | false-valid P(C2/C3 fail \| valid) | false-invalid P(invalid \| C2&C3 hold) | without the 110-d check: false-valid / false-invalid |
+|---|---|---|---|---|
+| meas / coord | 7.6% | 0.2% | 91% | 10.5% / 10% |
+| meas / jit | 7.8% | 0.0% | 91% | 5.9% / 11% |
+| clean / coord | 11% | 0.0% | 89% | 0.7% / 2.5% |
+| order / coord | 11.5% | 1.6% | 89% | 1.9% / 8.6% |
+| order / jit | 11.5% | 0.5% | 89% | 0.5% / 4.3% |
+
+- The interval check decides everything: every pair whose coarse run is r ≥ 1.28 is
+  invalid (a09 caps 100 d at r = 1), every pair at r ≤ 1.05 valid on it. With it the flag
+  never lies (≤ 1.6%) but rejects 89–100% of the iterates that pass, including every final
+  iterate of every cheapest feasible loop. C1 never fails on a valid iterate.
+- Without it, noise, order and proxy agreement are honest in clean and order modes
+  (false-valid 0.1–1.9%) and cheap to satisfy (false-invalid 0.4–8.6%), but not on today's
+  layout: 6–10.5% false-valid in meas. The proxy check catches 60–80% of dry's and
+  dry-p50's misread iterates; the order check needs three runs, which those cases do not
+  make.
+- **H5 changes the interval check's premise.** On H5's dry ladder (below) the x–c pair,
+  whose coarse run has intervals up to ~160 d, reads the committed run's error at a median
+  0.86 [0.67, 0.99], corr 0.96. The 110-d threshold came from edge-anchored spells (mode
+  A5); it should be recalibrated on H5's ladders, not carried over.
+- **Region split (labelled a-priori).** The a09 proxy's founders' band predicts the
+  founders' measured share of the committed error with Spearman 0.25, median miss 0.25
+  (episodic-lma 0.65 against 0.24, dry-p50 0.59 against 1.05). The run history of a
+  global-spacing loop does not identify regions (Results C); an a-priori split is a label,
+  not a measurement.
+
+Scored:
+- D1 **confirmed** (100% invalid at r ≥ 1.28, n = 84k–134k per mode).
+- D2 **refuted** in its second clause: false-valid is 0–0.2%, but the proxy check also
+  flags 60–80% of the dry / dry-p50 misreads, not only the interval check.
+- D3 **confirmed**: false-invalid 90–100% on the cheapest feasible loops' final iterates.
+
+## Slack for the local analysis (`e_moved.R`, `e_moved.log`) [m]
+
+No run in the library shares a grid between θ₀ and a moved θ: the three trait-moved cases
+built their own grids from their own pilots (1–4 shared nodes of 85–235). The nearest
+reading compares each moved case with its θ₀ case on the same record and the same rule:
+
+| θ₀ → moved | rung | W θ₀ / moved | cos of the error vectors | rms difference |
+|---|---|---|---|---|
+| dry → root_P50 0.2 | c | 0.35 / 0.35 | 0.90 | 0.070 |
+| long-wet → a_dG2 0.25 | c | 0.36 / 0.44 | 0.95 | 0.044 |
+| episodic → lma 0.25 (−22%) | c | 0.30 / 1.28 | 0.67 | 0.598 |
+
+A grid tuned to just meet ε at θ₀ would need a reserve of about 0.2 for the a_dG2 move and
+about 0.75 for the lma move, which lies outside the resident's ±10% but inside the
+invaders' ×0.5–×2. No invader errors are on disk. **Runs needed** (three, references
+exist): dry-p50 on dry's committed grid, wet-adG2 on long-wet's, episodic-lma on
+episodic's (each `adj_run_nk.R`, the θ₀ case's `val_insk_c` node times, the moved case's
+trait); then an invader at ×0.5 and ×2 lma on one θ₀ grid with u215/u429 invader
+references (four more runs plus references).
+
+## H5's ladder on dry (`build_h5.R`, `h5_check.R`, `b_loop.R` with LAD; dry-p50 still running) [m; loop replay i]
+
+| rung | nodes | rows × E6 committed | W | rms | along M |
+|---|---|---|---|---|---|
+| N16 (s 1.6) | 193 | 1.32 | 1.46 | 0.397 | −1.54 |
+| N10 (s 1) | 224 | 1.54 | 0.60 | 0.170 | −0.65 |
+| N06 (s 1/1.6) | 273 | 1.92 | 0.16 | 0.071 | −0.30 |
+| E6 committed | 149 | 1 | 0.35 | 0.159 | −0.30 |
+
+- The coarse side is now on the law in direction (cos(d1, d2) 0.92) and nearly in size
+  (|d1|/|d2| 2.02 against 2.56, p ≈ 1.5). The x–c pair, as the loop uses it, reads N10's
+  error at median 0.86 [0.67, 0.99], corr 0.96, C1–C5 pass: H1's dry failure is gone.
+- But H5's fixed nodes make it dearer and its committed rung less accurate than E6's:
+  1.54× the rows for 1.7× E6's worst error. The best replayed loop on H5-dry (x at s 1.6,
+  then s 1.14) costs T 1080 against E6's 832 on dry (+30%), passing in 100% of draws.
+- So on dry H5 buys honesty of the coarse pair at a price above the loop's saving.
+  H5's opening `inset` variant (178 nodes at s 1) would recover part of it.
+
+## C. How the search was run, and what to run for real
+
+- **Cheap-first ladder.** Pass 1: 1673 policies (E6-shaped, last-run loops over r1, the
+  run-2 rule, τ, the controller's target, damping and R_min; forward-first) × 3 error modes
+  × 10 cases × 20 draws, 4 min per noise model. Pass 2: the 84 policies on any pass-1 front
+  or best in a family, × 200 draws, with every iterate's flag recorded. Then H5's dry
+  ladder through the same replay (15 s).
+- **Constrained, not weighted.** Feasible = every case passes C1–C5 (C4: k ≤ 4, here
+  k ≤ 3) in ≥ 95% of draws, decisions on perturbed values; among feasible policies, least
+  T. The grid is small enough to enumerate, so the constrained optimum and the whole front
+  (non-convex parts included) are read directly; no weighted sum is tuned, and a damped
+  multiplier method is not needed at this size. Fronts are in Results B.
+- **Recommended real runs (ask the main session first).**
+  1. *The coarse rung the cheapest front point needs:* one run at s = 2.0 of the layout
+     that will be used (H5 rule N) on dry, episodic-lma and long-wet (3 runs). If the
+     2.0 → 1.25 pair keeps the square law there, the loop r1 2.0, R 1.6 is expected at
+     T ≈ ×0.76 of the same layout's E6-style cost (clean replay), all ten passing; risk:
+     intervals of ~200 d leave the law (mode A5) or the run refuses — then r1 = 1.6
+     (×0.81) is the fallback, which H5's own N16 rungs already test.
+  2. *Moved θ on a θ₀ grid* (3 runs, references exist): dry-p50 on dry's grid, wet-adG2 on
+     long-wet's, episodic-lma on episodic's. This sets the reserve a stopping target
+     ε·(1 − reserve) needs; the near-layout reading says 0.2 (a_dG2) to 0.75 (lma −22%).
+  3. *Nothing new for x → c on today's layout*: it is fully replayed from stored runs
+     (×0.856, all ten in 99% of draws), except episodic-lma's third run, interpolated at
+     r ≈ 0.67 (1 run would replace the interpolation). It should not be adopted while dry
+     and dry-p50 pass only by C3's allowance.
+
+## Predictions scored
+
+| # | P | outcome |
+|---|---|---|
+| A1 | 70% | confirmed |
+| A2 | 65% | refuted (margin ×2.91, but accepts 61%) |
+| A3 | 55% | confirmed |
+| A4 | 45% | refuted |
+| A5 | 75% | confirmed |
+| A6 | 65% | confirmed |
+| A7 | 85% | refuted as registered (worst misread is episodic's over-read) |
+| A8 | 80% | confirmed |
+| A9 | 40% | refuted (Spearman −0.50) |
+| A10 | 70% | refuted (P1 beats P0 by noise) |
+| A11 | 75% | refuted (69%) |
+| A12 | 55% | refuted narrowly (×2.03) |
+| B1 | 95% | confirmed |
+| B2 | 70% | refuted (passes by C3's allowance) |
+| B3 | 60% | confirmed (only with r1 2.0, outside the evidence) |
+| B4 | 45% | refuted |
+| B5 | 75% | confirmed |
+| B6 | 40% | refuted |
+| B7 | 55% | partly |
+| B8 | 50% | refuted |
+| C1 | 60% | confirmed |
+| C2 | 75% | confirmed |
+| C3 | 70% | confirmed |
+| C4 | 55% | refuted |
+| C5 | 60% | refuted |
+| C6 | 40% | confirmed as registered (norm), fails as a locator (direction) |
+| C7 | 55% | refuted (and overconfident) |
+| D1 | 85% | confirmed |
+| D2 | 60% | refuted |
+| D3 | 65% | confirmed |
+
+14 confirmed (mean P 69%), 1 partly, 15 refuted (mean P 58%).

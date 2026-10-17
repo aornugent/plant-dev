@@ -4,7 +4,7 @@
 # scattered about 2). Usage: Rscript b_loop.R PASS NDRAW [policy file]
 args <- commandArgs(TRUE); PASS <- if (length(args)) args[1] else "1"; ND <- if (length(args) > 1) as.integer(args[2]) else 10
 PO <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/proxies"
-D <- readRDS(file.path(PO, "lad.rds")); L <- D$L; Q <- D$Q; EPS <- D$EPS; M <- D$M_unit[Q]; ALL <- names(L)
+LAD <- Sys.getenv("LAD", file.path(PO, "lad.rds")); D <- readRDS(LAD); L <- D$L; Q <- D$Q; EPS <- D$EPS; M <- D$M_unit[Q]; ALL <- names(L)
 EL <- setdiff(Q, "lnJ"); rms <- function(x) sqrt(mean(x^2)); NQ <- length(Q)
 SEC <- 113e-6; SWEEP <- 3.27; cost <- function(rows, grad = TRUE) rows * SEC * (1 + if (grad) SWEEP else 0)
 RG <- c(x = 1.6, c = 1, f = 1 / 1.6)
@@ -12,16 +12,20 @@ CS <- lapply(ALL, function(cs) { l <- L[[cs]]; E <- t(sapply(names(RG), function
   list(case = cs, E = E, lrows = log(sapply(names(RG), function(k) l$runs[[k]]$rows)), lprox = log(sapply(names(RG), function(k) l$runs[[k]]$proxy)),
        Sel = rms(l$runs$x$q[EL] / EPS[EL]), Wc = max(abs(E["c", ])),
        lmi = log(sapply(names(RG), function(k) { S <- l$runs[[k]]$S; m <- (head(S, -1) + S[-1]) / 2; h <- diff(S) * 365; max(h[m < 20 & l$pilot$shut(m) < 0.5]) }))) })
-names(CS) <- ALL
+names(CS) <- ALL; CSH <- CS
 # log-log piecewise linear through the rungs, end segments extended
 lli <- function(r, ly) { lr <- log(r); if (lr >= 0) ly[["c"]] + lr * (ly[["x"]] - ly[["c"]]) / log(1.6) else ly[["c"]] + lr * (ly[["f"]] - ly[["c"]]) / log(1 / 1.6) }
 G <- function(ci, r) cost(exp(lli(r, CS[[ci]]$lrows)), TRUE); Fw <- function(ci, r) cost(exp(lli(r, CS[[ci]]$lrows)), FALSE)
 P <- function(ci, r) exp(lli(r, CS[[ci]]$lprox))
 Pinv <- function(ci, target) { g <- exp(seq(log(0.3), log(4), length.out = 2000)); v <- vapply(g, function(r) P(ci, r), 0); g[which.min(abs(log(v) - log(target)))] }
-# LOCO scales: committed W per unit of S_el (P5), plain (P0), per unit |ln J error| (P4)
+# LOCO scales: committed W per unit of S_el (P5), plain (P0), per unit |ln J error| (P4),
+# always fitted on the E6 ladder's other cases
 B5 <- B0 <- B4 <- numeric(length(ALL)); names(B5) <- names(B0) <- names(B4) <- ALL
-for (cs in ALL) { o <- setdiff(ALL, cs); B5[cs] <- exp(mean(log(sapply(o, function(z) CS[[z]]$Wc / CS[[z]]$Sel)))); B0[cs] <- exp(mean(log(sapply(o, function(z) CS[[z]]$Wc))))
+CS0 <- CS; if (LAD != file.path(PO, "lad.rds")) { L0 <- readRDS(file.path(PO, "lad.rds"))$L; CS0 <- lapply(L0, function(l) { E <- t(sapply(names(RG), function(k) (l$runs[[k]]$q - l$ref) / EPS))
+  list(E = E, Sel = rms(l$runs$x$q[EL] / EPS[EL]), Wc = max(abs(E["c", ]))) }) }
+for (cs in ALL) { o <- setdiff(names(CS0), cs); CS <- CS0; B5[cs] <- exp(mean(log(sapply(o, function(z) CS[[z]]$Wc / CS[[z]]$Sel)))); B0[cs] <- exp(mean(log(sapply(o, function(z) CS[[z]]$Wc))))
   B4[cs] <- exp(mean(log(sapply(o, function(z) CS[[z]]$Wc / abs(CS[[z]]$E["c", "lnJ"]))))) }
+CS <- if (LAD != file.path(PO, "lad.rds")) CSH else CS
 SIGI <- 0.020; SIGM <- 0.09
 noise <- function(ci, d, r) { set.seed(ci * 1e7 + d * 1e4 + round(r * 1000)); rnorm(NQ, 0, SIGI) + SIGM * rnorm(1) * M }
 porder <- function(ci, d) { set.seed(5e8 + ci * 1e4 + d); pmin(3, pmax(1.2, rnorm(NQ, 2, 0.3))) }
@@ -130,7 +134,7 @@ S0 <- STRESS; STRESS <- 0; e6 <- lapply(seq_along(ALL), function(ci) simulate(gr
 cat(sprintf("E6 replay: T %.0f, pass %d/10, per case T %s\n", sum(vapply(e6, `[[`, 0, "T")), sum(vapply(e6, `[[`, TRUE, "pass")), paste(round(vapply(e6, `[[`, 0, "T")), collapse = " ")))
 OUTG <- run_grid(grid, c("meas", "clean", "order"), ND)
 cat(sprintf("%d policy-mode rows in %.0f s\n", nrow(OUTG), as.numeric(Sys.time() - t0, units = "secs")))
-saveRDS(OUTG, file.path(PO, sprintf("b_loop_pass%s_%s.rds", PASS, NOISE)))
+saveRDS(OUTG, file.path(PO, sprintf("b_loop_pass%s_%s%s.rds", PASS, NOISE, if (LAD != file.path(PO, "lad.rds")) "_h5" else "")))
 if (DUMP) { FM <- do.call(rbind, FLAGS[seq_len(NF)]); saveRDS(list(F = FM, ids = vapply(grid, `[[`, "", "id"), ix = vapply(grid, `[[`, 0, "ix")), file.path(PO, sprintf("d_flags_pass%s_%s.rds", PASS, NOISE))) }
 E6T <- sum(vapply(e6, `[[`, 0, "T"))
 for (mode in c("meas", "clean", "order")) { z <- OUTG[OUTG$mode == mode, ]; z$Trel <- z$T / E6T

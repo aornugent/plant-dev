@@ -122,3 +122,66 @@ pre-asymptotic (the measured 70 → 35 → 18 d ladder ratio is 4.3–4.8, the 1
 unknown); P3 founders' fates are smooth exponentials with h/L ≈ 0.1–0.3 at 2h; P7 because
 p50 found the soil layers equal to 1e-5 (pointing to light) while the uptake differed by
 0.01% through drainage.
+
+## Change of priorities (from the user, before any run)
+
+1. **The locator is a COARSE run's adjoint.** Map the virtual coarsening inside the coarse
+   companion (H1's `val_insx_x_dry`: a09 at 1.6× the committed spacing, inset 19.2 d, 110
+   nodes against the committed 149, libS, a gradient run, so a pinned replay reproduces
+   it). Does its region split transfer to the committed spacing (against the measured
+   region errors on dry: p50 on res, the founders' bisections on c)? Is a coarse adjoint
+   run cheap enough to matter?
+2. **Magnitude per quantity from successive iterations' differences; the coarse map splits
+   it.** Does ln J's region split predict the elasticities' split? If not, what cheap
+   per-quantity map does?
+3. Nested tangents last.
+
+Runs B (I2 → res) and the res map are dropped unless 1 fails for a reason they would
+explain. Revised runs:
+- **Ax**: map replay of `val_insx_x_dry` (coarse), SWEEP0=1 for the cost.
+- **Ac**: map replay of `val_insk_c_dry` (committed): the same split one spacing finer.
+- **Cx-I, Cx-F**: drop1 on the coarse run with the interiors' (then the founders') drop at
+  1, pinned, with the full sweep: the field part of that region's virtual move in all 50
+  elasticities, one coarse gradient run per region.
+
+Regions on an inset schedule (`mk_drop2.R`), by node: every edge's inset node (the node
+nearest each edge, both sides) is kept; within each run of nodes between two kept nodes,
+every other node is dropped. A drop is labelled founders (b < the inset node before b1),
+late (after the last opening edge's inset node), closing zone (within 36 d before a
+closing edge) or interior (Ia/Ib/Ic by birth date: before 10, 10–17, 17–25). Opening
+strips and spells' first intervals have no node to drop. Scaling to the committed spacing
+for an h² region: e_g(c) ≈ e_g(x) / 1.6² [i: every interval of x is 1.6× c's].
+
+### Pre-registration L (before Ax, Ac)
+
+| # | prediction | P |
+|---|---|---|
+| L0 | Ax and Ac reproduce their saved runs' J and 50 trait gradients `identical()` | 85% |
+| L1 | On x, the interiors carry ln J's largest region estimate, and it is negative | 70% |
+| L2 | x's interior and founders' estimates /2.56 lie within ×[0.7, 1.4] of c's own estimates (location stable across spacing) | 55% |
+| L3 | signs of e_I and e_F at c (from x, /2.56) match the measured (−0.22, +0.10) | 70% |
+| L3′ | both within ×[0.67, 1.5] of the measured | 35% |
+| L4 | era Ia carries ≥ 50% of the interiors' estimate on x | 60% |
+| L5 | the closing zone's virtual estimate on c is not the measured closing error on c (−0.07): differ by > 0.05ε | 55% |
+| K1 | the coarse run's rows are ≥ 0.65 of the committed run's (edges keep it from 1/1.6² or 1/1.6) | 80% |
+| K2 | a map sweep costs ≤ 1.25× the plain sweep, same process | 70% |
+
+### Pre-registration S (before reading the saved region scores for priority 2)
+
+Already seen (the user's message, p50 summary): interiors ln J −0.22, root_P50 −0.51;
+founders ln J +0.10, root_P50 −0.09. So ln J's split already fails root_P50: allocating
+the two regions' root_P50 (−0.60) by ln J's split gives the founders +0.50.
+
+| # | prediction | P |
+|---|---|---|
+| S1 | over dry's region errors on res (F, I, Os, O1, L, B), the cosine between ln J's region vector and each of the 8 key elasticities' region vectors has median \|cos\| < 0.7 | 75% |
+| S2 | the cosine between ln J's region vector and the rms-over-elasticities region profile (each region's rms error) is < 0.7 | 65% |
+
+### Pre-registration E (before Cx-I, Cx-F)
+
+| # | prediction | P |
+|---|---|---|
+| E1 | Cx-I's root_P50 field part, /3 /2.56, is negative and within ×[0.5, 2] of the measured interiors' −0.51 | 50% |
+| E2 | cos(Cx-I field vector over the 50 quantities, measured interiors' vector) ≥ 0.8 | 55% |
+| E3 | cos(Cx-F field vector, measured founders' vector on c) ≥ 0.6 (the founders' own part, missing here, is a large share) | 40% |
+| E4 | the two drop1 vectors are far apart: cos(Cx-I, Cx-F) < 0.5 (a per-quantity map separates the regions where ln J's cannot) | 65% |
