@@ -2,7 +2,7 @@
 # against the committed run's (slope of e_f on e_c through 0, over |e_c| > 0.2) beside the
 # a09 shrink s and 1/1.6^2, and the slope a perfect read would need; the stress draws'
 # failure split by criterion. Usage: Rscript analyze.R [857]
-source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/heldout/cases.R", local = TRUE)
+HELDOUT <- list(); source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/heldout/cases.R", local = TRUE)
 tag <- if (length(commandArgs(TRUE))) commandArgs(TRUE)[1] else ""
 S <- readRDS(file.path(HO_OUT, sprintf("score%s.rds", tag))); K <- S$keep; TB <- S$tab
 out <- do.call(rbind, lapply(names(K), function(cs) { k <- K[[cs]]; m <- abs(k$ec) > 0.2

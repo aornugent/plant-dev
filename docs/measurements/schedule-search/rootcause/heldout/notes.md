@@ -10,7 +10,34 @@ here before the run or analysis it concerns. Scripts are in this directory; outp
 
 ## Summary (written last)
 
-(pending)
+**Held-out set.** Eight trait × climate combinations outside the bank: dry lma ×1.25 (near
+extinction, J 0.011), dry-flat a_l1 ×1.25, long-wet lma ×0.8 and hmat ×1.25, episodic hmat ×0.8
+and a_dG2 ×0.8, long-drought seed 104 root_P50 ×1.25 and seed 107 a_dG2 ×1.25: two each of dry,
+wet, episodic and long drought, four raising J and four lowering it (ln J −4.5 to +4.3).
+
+**References** (u215 → u429 at 3e-5, the bank's held-out recipe). Five of eight move under
+0.15ε on their own (0.07–0.14ε); flat-al1125, wet-lma08 and wet-hmat125 move 0.18, 0.28 and
+0.30ε, all on leaf quantities. flat-al1125's third rung (u857) confirms its reference: order
+1.91, shift 0.11ε. The other third rungs were stopped at the user's request, so wet-lma08 and
+wet-hmat125 carry an unchecked ~0.1–0.3ε uncertainty on `a`/`a_l1` [i].
+
+**E6 as built carries to unseen cases, with less slack** [m]. It passes C1–C5 on 7 of 8
+(bank 10/10) and commits its committed run on all eight. Every committed run is within ε:
+W_c 0.21–0.71, median 0.46 (bank's ordinary cases 0.37). On the square law [i] that puts the
+spacing that just meets ε at 1.19–2.21× E6's committed spacing: three cases could take one
+1.6 step coarser, one sits on that line, and four are within one step of ε (s* 1.19–1.38).
+None needs refining. The estimate reads the error at a pooled median 0.98. Under stress E6
+passes 79% (coord) / 86% (jit) of case-draws (77% / 84% with flat's three-rung reference),
+the bank's 74% / 87%; every stress failure is C3, never C1. T 612–1434 per case (rows model),
+median 829 (bank 856); dense stands (J raised) cost more.
+
+**The one failure** is the near-extinction case: its committed run is within ε (0.71), but the
+check's error points elsewhere (cos 0.43 with the committed error), so the pair over-reads
+(read 1.45) and C3 fails on the real runs and in ~100% of stress draws. The one-pair
+asymptotic assumption, not the start, is what breaks there.
+
+**Deferred** (coordinator): the s = 1.6 rungs, H5 rungs and loop policies B–D; plan at the end.
+These references are the truth for the loop when it runs.
 
 ## Scope
 
@@ -100,32 +127,6 @@ move in a_dG2 or lma.
 | V10 | Per-case T within ×0.6–1.6 of the bank's median (860) on all eight | 65% |
 | V11 | The cases that raise J (dense stands) cost more than those that lower it: median T of the four up-moves above the four down-moves | 60% |
 
-## Deferred: the loop on these cases (plan, not run)
-
-Deferred by the coordinator until the loop is built; the references here are its truth.
-
-1. **Rungs.** On each of the eight cases add the s = 1.6 coarse rung of E6's family
-   (a09 spacing ×1.6, cap ×1.6, inset 19.2 d; `../h1_mkcoarse.R`'s builder pointed at
-   `cases.R`), and H5's rungs at s = 2, 1.6, 1 once H5's rule is settled
-   (`../h5/lib.R` h5_sched). Each rung is one `adj_run_nk.R` run in the E6 committed
-   setting (`run.sh`'s `e6()` with another schedule): 8 + 24 runs, about 3–5 min each.
-2. **Policies, scored offline on the ladders with the loop rules of `../synthesis.md`**
-   (judge the last run; e_k = (Q_{k−1} − Q_k)/(R² − 1); T = Σ cost + 2·cost(last); stress
-   draws as `score.R`'s, decisions on perturbed values; amplified jitter 0.09/(R² − 1) under
-   ε/3 along M; k ≤ 4):
-   (A) E6 as is (scored here); (B) from E6's committed start, refine by 1.6 when the pair's
-   estimate exceeds ε·(1 − reserve), coarsen by 1.6 (H5 rungs only) when it is under
-   ε·(1 − reserve)/1.6²; (C) a cheap start at s = 2.0 refining by 1.6; (D) E6 committed with
-   one coarsening step when its estimate is under ε/2.56 (H5 only).
-3. **Per case and policy report:** T (rows model), iterations, wasted cost, the final s
-   against the oracle optimum (the coarsest rung meeting ε·(1 − reserve) against the
-   reference), C1–C5 pass rate under stress, worst final error, estimate read; across cases,
-   how often the start already sits at the optimum and whether iterating beats a good start.
-4. **Then the real loop**, once built, on the same eight cases with these references, scored
-   by `score.R`'s C1–C5 and stress code; the reserve taken from `../moved/notes.md`
-   (0.11–0.44 at ±10% depending on the trait) unless the loop estimates at the analysis's
-   worst θ.
-
 ## Pre-registration 2 (after three cases were scored, before any third reference rung)
 
 Three references moved more than expected on their own [m, interim]: largest
@@ -202,3 +203,97 @@ finite. E6 runs 3–7 min each, references 5–16 min.
 - **Cost.** T 612–1434 (rows model). The four cases that raise J cost a median 998 against
   765 for the four that lower it; flat-al1125 (dry-flat's dense season-free stand, as the
   bank's dry-flat 1683) is the only one outside ×0.6–1.6 of the bank's median.
+
+## Results 2: the third reference rung (`run857.sh`, `run857p.sh`; `score857.log`, `score_tab857.csv`) [m]
+
+Only flat-al1125's u857 finished (34 min). The user then asked to skip the extra references:
+the u857 runs for wet-lma08, dry-lma125 and wet-hmat125 were stopped part-way and their
+partial files deleted, and epi-adG208's never started. **Third rung present:** flat-al1125.
+**Third rung missing:** wet-lma08 and wet-hmat125 (own moves 0.28ε and 0.30ε, over the
+line), dry-lma125 and epi-adG208 (0.13ε, 0.14ε, under it), and epi-hmat08, ld104-p50125 and
+ld107-adG2125 (0.07–0.08ε, never planned). Those seven are scored on u215 → u429 only.
+
+- flat-al1125: ladder order 1.91 (median over the 22 quantities moving > 0.3ε); the
+  u429 → u857 reference differs from the u215 → u429 one by at most **0.11ε**, and its own
+  move falls to 0.05ε. E6's verdict is unchanged (pass, C3 18/18, read 0.95; W_c 0.68 → 0.71).
+  Its stress pass rate falls from 97% to 79% (coord) and from 99% to 76% (jit): quantities
+  near ε/3 move across the C3 line with a 0.1ε shift of the truth.
+- With flat-al1125 on its three-rung reference the held-out stress pass is 77% (coord) /
+  84% (jit) of case-draws, against 79% / 86% on the two-rung references.
+- On the two references still over the line (wet-lma08, wet-hmat125) the largest own moves
+  are on the quantity that also carries the committed run's worst error (a_l1, a). If their
+  order is near 2, as flat's, the shift is about 0.1ε [i]; their W_c (0.53, 0.71) and
+  verdicts are read with that uncertainty.
+
+## Results 3: why E6 misreads the near-extinction case (`analyze.R`, `analyze.log`; post hoc, not pre-registered) [m]
+
+The pair estimate d/(1 − s) is right when the check's error is the committed error shrunk
+by s. Measured slope of e_f on e_c (through 0, quantities with |e_c| > 0.2) and the
+cosine between the two error vectors:
+
+| case | a09 s | slope e_f/e_c | 1/1.6² | cos(e_f, e_c) |
+|---|---|---|---|---|
+| dry-lma125 | 0.41 | 0.26 | 0.39 | **0.43** |
+| flat-al1125 | 0.42 | 0.46 | 0.39 | 0.98 |
+| wet-lma08 | 0.26 | 0.37 | 0.39 | 0.94 |
+| wet-hmat125 | 0.43 | 0.40 | 0.39 | 0.97 |
+| epi-adG208 | 0.33 | 0.40 | 0.39 | 0.90 |
+| ld104-p50125 | 0.43 | 0.36 | 0.39 | 0.94 |
+| ld107-adG2125 | 0.41 | 0.51 | 0.39 | 0.94 |
+
+(epi-hmat08 has one quantity over 0.2.) On seven cases the check's error is the committed
+error shrunk by about the law (slope 0.36–0.51, cos 0.90–0.98), so the pair reads it. On the
+near-extinction case the check's error points elsewhere (cos 0.43): many quantities change
+sign between c and f (lma, a_r1, r_r, r_l, TF24_cost_scale), so the pair sees a move that is
+not the committed run's error alone and over-reads. Its reference is not the cause (own
+move 0.13ε). The committed run itself is within ε (0.71). So E6's start carries; what does
+not carry to a near-extinction stand is the assumption that one pair at 1.6 is on the
+asymptotic law. Whether a finer pair (f against a 1/1.6² rung) recovers the law there is the
+first thing to test when the loop runs on this case.
+
+## Predictions scored
+
+| # | P | outcome |
+|---|---|---|
+| V1 | 80% | confirmed (all 40 runs finished, finite; the stopped u857 runs were stopped by request) |
+| V2 | 65% | refuted (3 of 8 over 0.15ε: 0.18, 0.28, 0.30) |
+| V3 | 65% | confirmed (7/8) |
+| V4 | 55% | confirmed (median 0.46) |
+| V5 | 50% | refuted (largest W_c 0.71; E6 commits c on all eight) |
+| V6 | 45% | refuted, narrowly (dry-lma125 0.707 against wet-hmat125 0.711) |
+| V7 | 55% | refuted (3 of 8; a fourth at 0.390) |
+| V8 | 65% | confirmed (pooled 0.98) |
+| V9 | 60% | confirmed (79% coord) |
+| V10 | 65% | refuted (flat-al1125 1434 > 1376) |
+| V11 | 60% | confirmed (998 against 765) |
+| R1 | 55% | confirmed on the one case measured (flat 0.11ε); untested on wet-lma08, wet-hmat125 |
+| R2 | 70% | confirmed on the one case (order 1.91) |
+| R3 | 80% | confirmed on the one case |
+
+V: 6 confirmed (mean P 64%), 5 refuted (mean P 56%). R: 3 confirmed on one case of three.
+
+## Deferred: the loop on these cases (plan, not run)
+
+Deferred by the coordinator until the loop is built; the references here are its truth.
+
+1. **Rungs.** On each of the eight cases add the s = 1.6 coarse rung of E6's family
+   (a09 spacing ×1.6, cap ×1.6, inset 19.2 d; `../h1_mkcoarse.R`'s builder pointed at
+   `cases.R`), and H5's rungs at s = 2, 1.6, 1 once H5's rule is settled
+   (`../h5/lib.R` h5_sched). Each rung is one `adj_run_nk.R` run in the E6 committed
+   setting (`run.sh`'s `e6()` with another schedule): 8 + 24 runs, about 3–5 min each.
+2. **Policies, scored offline on the ladders with the loop rules of `../synthesis.md`**
+   (judge the last run; e_k = (Q_{k−1} − Q_k)/(R² − 1); T = Σ cost + 2·cost(last); stress
+   draws as `score.R`'s, decisions on perturbed values; amplified jitter 0.09/(R² − 1) under
+   ε/3 along M; k ≤ 4):
+   (A) E6 as is (scored here); (B) from E6's committed start, refine by 1.6 when the pair's
+   estimate exceeds ε·(1 − reserve), coarsen by 1.6 (H5 rungs only) when it is under
+   ε·(1 − reserve)/1.6²; (C) a cheap start at s = 2.0 refining by 1.6; (D) E6 committed with
+   one coarsening step when its estimate is under ε/2.56 (H5 only).
+3. **Per case and policy report:** T (rows model), iterations, wasted cost, the final s
+   against the oracle optimum (the coarsest rung meeting ε·(1 − reserve) against the
+   reference), C1–C5 pass rate under stress, worst final error, estimate read; across cases,
+   how often the start already sits at the optimum and whether iterating beats a good start.
+4. **Then the real loop**, once built, on the same eight cases with these references, scored
+   by `score.R`'s C1–C5 and stress code; the reserve taken from `../moved/notes.md`
+   (0.11–0.44 at ±10% depending on the trait) unless the loop estimates at the analysis's
+   worst θ.
