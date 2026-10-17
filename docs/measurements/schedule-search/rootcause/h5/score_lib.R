@@ -2,8 +2,8 @@
 # E6's pair scoring and C1-C5 (../../round4/AG/lib.R score_pair, ../../round4/F/lib.R crit),
 # and the H5 layout (lib.R).
 suppressMessages(source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/common.R"))
-suppressMessages(source("/home/user/plant-dev/docs/measurements/schedule-search/round4/AG/lib.R"))
 source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/h5/lib.R")
+suppressMessages(source("/home/user/plant-dev/docs/measurements/schedule-search/round4/AG/lib.R"))   # last: its score_pair and err_of
 err_of <- function(x, ref) { q <- quantities(x); k <- intersect(names(ref), names(q)); (q[k] - ref[k]) / eps_vec(k) }   # AG's, restored after common.R
 ref5 <- function(cs) refq(cs)
 mv <- function(x, y) { a <- quantities(x); b <- quantities(y); k <- intersect(names(a), names(b)); (a[k] - b[k]) / eps_vec(k) }

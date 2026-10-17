@@ -237,3 +237,70 @@ P(C2 or C3 fails | valid); false-invalid = P(invalid | C2 and C3 hold).
 | D1 | The interval check marks every pair whose coarse run is r ≥ 1.28 invalid (a09 caps 100 d at r = 1, so 128 d at r = 1.28) | 85% |
 | D2 | In meas mode, the false-valid rate is ≤ 5%, but dry and dry-p50 x–c pairs that pass C3 by its one-miss allowance (reads 0.06–0.3) are flagged invalid only by the interval check, not by the order or proxy checks | 60% |
 | D3 | The false-invalid rate is ≥ 50% for the cheapest feasible loops (they use r1 ≥ 1.6), so a flag that must not lie costs most of the loop's saving | 65% |
+
+### Results C (`c_regions.R`, `c_regions.log`) [m unless marked]
+
+**Region vectors on disk (rms, ε).** Founders on c: all ten (0.03–0.34). dry: C 0.085,
+F on res 0.132, I 0.145, O 0.049, L 0.023, B 0.018. dry-flat: C 0.054, F 0.142, I 0.069,
+O 0.026, L 0.018, B 0.005. long-wet: C 0.019, I4 0.022, O 0.021. dry-p50: C 0.104.
+
+**(1) Transfer.** The founders' directions cluster into two families, but loosely:
+{dry, dry-p50, ld-105, long drought, dry-flat} cos 0.81–0.99 among themselves;
+{long-wet, wet-adG2} 0.98 with each other and 0.61–0.89 with the first group;
+{episodic, episodic-lma, ld-102} cos only 0.47–0.60 among themselves and −0.78 to +0.37
+against the rest. ld-102 (a long-drought seed) sits with the episodic cases. Closing
+strips: dry, dry-flat, dry-p50 cos 0.91–0.98; long-wet 0.34–0.57 against them. I: dry
+against dry-flat 0.92. O: 0.72–0.83.
+
+**(2) Conditioning on one case.** No pair of regions is near-parallel: on dry
+cos(I, C) = −0.53, cos(F, L) = −0.86 (L is at the jitter floor), cos(C, O) = −0.86;
+κ(F+I+C) = 2.0 (dry), 1.4 (dry-flat); κ(F+I+C+O) = 4.3 and 5.1. Interiors and closing
+strips are separable on one case when their directions are known; the problem is knowing
+them.
+
+**G + 1 axis runs on res.** The fitted sum predicts e_res (rms 0.209 dry, 0.196 dry-flat)
+with residual rms 0.063 / 0.064 (G = 2: F, I), 0.062 / 0.043 (G = 3, + O), 0.052 / 0.033
+(G = 4, + L); cos 0.95–0.99; C2 and C3 hold on all. The interiors' order holds: K_I from
+I2 predicts I4 within rms 0.009 / 0.004 (cos 1.00). Noise amplification of the predicted
+error per unit run jitter [i, from the design]: G = 2 3.27, G = 3 4.32, G = 4 5.37, G = 5
+6.36 — against 2.32 for E6's coarse estimate and 0.91 for a last-run pair at R = 1.6. Along
+M (0.09 per run) that is 0.29, 0.39, 0.48, 0.57: past ε/3 from G = 3. The coordinator's
+mixed design (run 2 refines F ×2 and I ×1.4, run 3 the reverse) amplifies 1.98 against the
+axis design's 3.27 for G = 2.
+
+**(3) One pair, directions from other cases** (G = 2: the founders' and the rest's first
+principal direction over the other nine cases, fitted to the c–f estimate of e_c). The
+fit leaves 35–86% of the estimate's norm unexplained (median 0.60): the two directions
+from other cases do not span this case's error. Founders' norm recovered within ×1.5 on
+7 of 10, but with cos ≥ 0.7 on only 4 (dry 0.93, dry-p50 0.91, ld-105 0.81, long drought
+0.80); episodic −0.53 and ld-102 −0.47 come out with the wrong direction. The founders'
+share is misread by up to 0.6 (ld-102: 0.05 against 0.67; episodic-lma 0.92 against 0.41).
+Noise amplification of the founders' coefficient 2.5–3.4 per quantity, against 1.89 for
+the G + 1 run (fbis) that measures it directly.
+
+**(4) Gaussian split** (priors: P3-LOCO for the founders' norm, P5-LOCO for the rest;
+the pair fixes the total). Posterior sd of the founders' share 0.03–0.11, while the
+posterior mean misses the measured share by up to 0.62 (ld-102 0.05 against 0.67,
+episodic-lma 0.85 against 0.41, dry 0.80 against 0.58). The spread understates the
+misread: the model's error is in the directions, which the Gaussian treats as known.
+
+**What location is worth.** Ten cases, two regions (founders, rest), K from c, fbis and f,
+the cheapest final layout meeting max_q(|F_q| h_F² + |R_q| h_R²) ≤ target against one
+global scale: the uses' rows fall 4.1% (target ε) and 4.3% (0.7ε) summed over the ten
+(per case 0.2–10%: wet-adG2 10%, long-wet and ld-102 6.5–7%, long drought 0.3%). Paying
+for the fbis run turns that into a net T increase of about 22–24% per case. Four regions
+on res (dry, dry-flat; rows of res's dense closing layout, so [i]): 1.2–2.7%. **Location
+is a diagnostic, not a lever**: no per-region allocation found here pays for one extra
+run.
+
+Scored:
+- C1 **confirmed** for G ≥ 3 (residual 0.033–0.062; G = 2 is 0.063–0.064, at the edge);
+  the I2 → I4 order check holds to 0.004–0.009.
+- C2 **confirmed**: G = 4 amplifies 5.37, 2.3× E6's coarse estimate.
+- C3 **confirmed**: 4% of the uses' rows, a net loss once the extra run is paid.
+- C4 **refuted**: within the larger founders' family cos runs 0.61–0.99, and the second
+  "family" is three cases at 0.47–0.60; I between dry and dry-flat 0.92 holds.
+- C5 **refuted**: cos(I, C) on dry is −0.53, κ 1.8. The two are separable on one case.
+- C6 **confirmed as registered** (norm within ×1.5 on 7 of 10), but the direction is right
+  (cos ≥ 0.7) on only 4 and reversed on 2; as a locator it fails.
+- C7 **refuted**: posterior sd 0.03–0.11, under 0.15 on all ten — and overconfident.

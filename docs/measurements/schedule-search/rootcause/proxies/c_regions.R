@@ -79,7 +79,7 @@ for (cs in ALL) { o <- setdiff(ALL, cs); uF <- pc1(sapply(o, function(z) RV[[z]]
   s <- f_of(cs)$proxy / c_of(cs)$proxy; est <- (c_of(cs)$q - f_of(cs)$q) / EPS / (1 - s)
   sig <- sqrt((0.024 * sqrt(2) / (1 - s))^2 + median(ONE$fit_resid[ONE$case != cs])^2 * sum(est^2) / length(Q))
   P0 <- diag(c(pF[cs], pR[cs])^2); Sp <- solve(solve(P0) + crossprod(U) / sig^2); mu <- Sp %*% crossprod(U, est) / sig^2
-  set.seed(1); sm <- MASS::mvrnorm(4000, mu, Sp); sh <- sm[, 1]^2 / (sm[, 1]^2 + sm[, 2]^2)
+  set.seed(1); sm <- t(as.vector(mu) + t(chol(Sp)) %*% matrix(rnorm(8000), 2)); sh <- sm[, 1]^2 / (sm[, 1]^2 + sm[, 2]^2)
   BAY[[cs]] <- data.frame(case = cs, prior_F = pF[cs], prior_R = pR[cs], post_F = abs(mu[1]), sdF = sqrt(Sp[1, 1]), share_true = ONE$share_true[ONE$case == cs], share_mean = mean(sh), share_sd = sd(sh), corrFR = Sp[1, 2] / sqrt(Sp[1, 1] * Sp[2, 2])) }
 BAY <- do.call(rbind, BAY); print(BAY, digits = 2, row.names = FALSE)
 

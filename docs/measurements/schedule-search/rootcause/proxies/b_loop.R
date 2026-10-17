@@ -10,7 +10,8 @@ SEC <- 113e-6; SWEEP <- 3.27; cost <- function(rows, grad = TRUE) rows * SEC * (
 RG <- c(x = 1.6, c = 1, f = 1 / 1.6)
 CS <- lapply(ALL, function(cs) { l <- L[[cs]]; E <- t(sapply(names(RG), function(k) (l$runs[[k]]$q - l$ref) / EPS))
   list(case = cs, E = E, lrows = log(sapply(names(RG), function(k) l$runs[[k]]$rows)), lprox = log(sapply(names(RG), function(k) l$runs[[k]]$proxy)),
-       Sel = rms(l$runs$x$q[EL] / EPS[EL]), Wc = max(abs(E["c", ]))) })
+       Sel = rms(l$runs$x$q[EL] / EPS[EL]), Wc = max(abs(E["c", ])),
+       lmi = log(sapply(names(RG), function(k) { S <- l$runs[[k]]$S; m <- (head(S, -1) + S[-1]) / 2; h <- diff(S) * 365; max(h[m < 20 & l$pilot$shut(m) < 0.5]) }))) })
 names(CS) <- ALL
 # log-log piecewise linear through the rungs, end segments extended
 lli <- function(r, ly) { lr <- log(r); if (lr >= 0) ly[["c"]] + lr * (ly[["x"]] - ly[["c"]]) / log(1.6) else ly[["c"]] + lr * (ly[["f"]] - ly[["c"]]) / log(1 / 1.6) }
@@ -63,21 +64,31 @@ simulate <- function(pol, ci, d, mode) {
   if (pol$type == "fwd") { r1f <- cl(pol$rf1); r2f <- cl(pol$rf2); T <- T + Fw(ci, r1f) + Fw(ci, r2f)
     a <- err_at(ci, r1f, mode, d)[["lnJ"]] + if (STRESS) ms[1] + pert(ci, d, r1f)[1] else 0; b <- err_at(ci, r2f, mode, d)[["lnJ"]] + if (STRESS) ms[1] + pert(ci, d, r2f)[1] else 0
     K <- abs((a - b) / ((r1f / r2f)^2 - 1)) / r2f^2
-    rb <- cl(sqrt(pol$t2 / (B4[[ci]] * K))); ra <- cl(rb * pol$R2); A <- grun(ra) }
+    rb <- cl(sqrt(pol$t2 / (B4[[ci]] * K))); ra <- cl(rb * pol$R2); rb <- min(rb, ra / pol$R2); A <- grun(ra) }
   else { ra <- cl(pol$r1); A <- grun(ra)
     rb <- switch(pol$sel, fix = ra / pol$R2, P5 = sqrt(pol$t2 / (B5[[ci]] * CS[[ci]]$Sel)), P0 = sqrt(pol$t2 / B0[[ci]]))
     rb <- min(rb, ra / pol$Rmin); rb <- max(rb, ra / 2) }
   rb <- cl(rb); if (rb >= ra - 1e-9) return(list(ok = FALSE))
-  B <- grun(rb); est <- est_ratio(ra, A$v, rb, B$v); k <- 2; Kprev <- NA
+  hist <- list(list(r = ra, v = A$v))
+  flag <- function(ra, rb, B, est) { hist[[length(hist) + 1]] <<- list(r = rb, v = B$v); n <- length(hist); R <- ra / rb
+    f_int <- exp(lli(ra, CS[[ci]]$lmi)) < 110; f_noise <- SIGM / (R^2 - 1) < 1 / 3
+    f_order <- NA; if (n >= 3) { a <- hist[[n - 2]]; b <- hist[[n - 1]]; d1 <- a$v - b$v; d2 <- b$v - B$v; law <- (a$r^2 - b$r^2) / (b$r^2 - rb^2)
+      q <- sqrt(sum(d1^2) / sum(d2^2)) / law; f_order <- q > 0.5 && q < 2 && sum(d1 * d2) / sqrt(sum(d1^2) * sum(d2^2)) >= 0.9 }
+    pr <- max(abs(est)) / (B5[[ci]] * CS[[ci]]$Sel * rb^2); f_prox <- pr > 0.5 && pr < 2
+    cr <- crit(B$e, est); valid <- f_int && f_noise && f_prox && (is.na(f_order) || f_order)
+    if (DUMP) { NF <<- NF + 1; FLAGS[[NF]] <<- c(pol = pol$ix, mode = match(mode, c("meas", "clean", "order")), case = ci, d = d, i = n, r = rb, R = R, f_int = f_int, f_noise = f_noise, f_order = as.numeric(f_order), f_prox = f_prox,
+      valid = valid, C23 = cr[["C2"]] && cr[["C3"]], C1 = cr[["C1"]], W = max(abs(B$e)), est = max(abs(est)), read = median((est / B$e)[abs(B$e) > 0.2])) } }
+  B <- grun(rb); est <- est_ratio(ra, A$v, rb, B$v); k <- 2; Kprev <- NA; flag(ra, rb, B, est)
   while (max(abs(est)) >= pol$tau && k < pol$kmax) {
     cr <- crit(B$e, est); inter <- c(inter, cr[["C2"]] && cr[["C3"]])
     Kh <- max(abs(est)) / rb^2; if (pol$damp == "blend" && !is.na(Kprev)) Kh <- sqrt(Kh * Kprev); Kprev <- max(abs(est)) / rb^2
     rn <- sqrt(pol$t / Kh)
     if (pol$damp == "none") rn <- min(rn, rb / 1.02) else rn <- max(min(rn, rb / pol$Rmin), rb / 2)
     rn <- cl(rn); if (rn >= rb - 1e-9) break
-    Nn <- grun(rn); est <- est_ratio(rb, B$v, rn, Nn$v); Rl <- rb / rn; ra <- rb; A <- B; rb <- rn; B <- Nn; k <- k + 1 }
+    Nn <- grun(rn); est <- est_ratio(rb, B$v, rn, Nn$v); flag(rb, rn, Nn, est); Rl <- rb / rn; ra <- rb; A <- B; rb <- rn; B <- Nn; k <- k + 1 }
   fin(B$e, est, rb, k, ra / rb) }
 
+DUMP <- nzchar(Sys.getenv("DUMP")); FLAGS <- vector("list", 2e6); NF <- 0
 # ---- policy grid
 grid <- list(); add <- function(...) grid[[length(grid) + 1]] <<- list(...)
 add(type = "E6", r1 = 1, R2 = 1.6, tau = 1, name = "E6")
@@ -90,7 +101,7 @@ for (rf in list(c(1.6, 1), c(2, 1.6))) for (t2 in c(0.4, 0.55, 0.7)) for (R2 in 
 pname <- function(p) if (!is.null(p$name)) p$name else if (p$type == "E6") sprintf("E6s r1=%.2f R=%.2f tau=%.1f", p$r1, p$R2, p$tau) else if (p$type == "fwd")
   sprintf("fwd %.1f/%.1f t2=%.2f R=%.1f tau=%.1f", p$rf1, p$rf2, p$t2, p$R2, p$tau) else
   sprintf("loop r1=%.2f %s=%.2f tau=%.1f t=%.1f %s Rmin=%.2f", p$r1, p$sel, if (p$sel == "fix") p$R2 else p$t2, p$tau, p$t, p$damp, p$Rmin)
-for (i in seq_along(grid)) grid[[i]]$id <- pname(grid[[i]])
+for (i in seq_along(grid)) { grid[[i]]$id <- pname(grid[[i]]); grid[[i]]$ix <- i }
 if (length(args) > 2) { keep <- readLines(args[3]); grid <- grid[vapply(grid, function(p) p$id %in% keep, TRUE)] }
 
 run_grid <- function(grid, modes, nd) { out <- list()
@@ -120,6 +131,7 @@ cat(sprintf("E6 replay: T %.0f, pass %d/10, per case T %s\n", sum(vapply(e6, `[[
 OUTG <- run_grid(grid, c("meas", "clean", "order"), ND)
 cat(sprintf("%d policy-mode rows in %.0f s\n", nrow(OUTG), as.numeric(Sys.time() - t0, units = "secs")))
 saveRDS(OUTG, file.path(PO, sprintf("b_loop_pass%s_%s.rds", PASS, NOISE)))
+if (DUMP) { FM <- do.call(rbind, FLAGS[seq_len(NF)]); saveRDS(list(F = FM, ids = vapply(grid, `[[`, "", "id"), ix = vapply(grid, `[[`, 0, "ix")), file.path(PO, sprintf("d_flags_pass%s_%s.rds", PASS, NOISE))) }
 E6T <- sum(vapply(e6, `[[`, 0, "T"))
 for (mode in c("meas", "clean", "order")) { z <- OUTG[OUTG$mode == mode, ]; z$Trel <- z$T / E6T
   cat(sprintf("\n== %s: cheapest policies with every case passing in >= 95%% of draws (all10 >= 0.95)\n", mode))

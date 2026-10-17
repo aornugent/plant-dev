@@ -141,3 +141,27 @@ d1/(1/s_x − 1) and the fine pair's d2/(1 − s_f) of the committed rung's erro
 - **L7 (fixed strips).** On dry, max |N10r − N10| < 0.1 (ε/10) — 50%; rms ≤ 0.04 — 60%.
 - **L8 (jitter).** N10@jit − N10 on dry: rms 0.015–0.04 and |along M| ≤ 0.12 — 65%.
 - **L9 (cost).** N10's rows ≥ 1.3 × E6 committed's on all three — 75%.
+
+### O1 results: fate across opening edges on dry (`score_omap.R dry`, `omap_dry.rds`; 22 edges) [m]
+
+- **Fate has a corner at the opening edge.** ln nrr is continuous through o (o − 3 d and o
+  agree to 1e-3) but its slope changes sign there on all 22 edges: median +0.51e-3 /d on
+  the gap side (a recruit born closer to the rain's return waits through less drought) and
+  −2.18e-3 /d just after o (inside the wet spell a later birth is a smaller, later copy);
+  −2.56e-3 /d over the strip.
+- **The gate opens at once**: establishment at o + 0.5 d is already 1.00 of the spell's
+  mean (median; one edge 0.86). No ramp, unlike the closing side's 1–2 d.
+- Fate's curvature is concentrated in the strip: |k| over [o, o + 12 d] median 3.2× that
+  over [o + 12, o + 36 d] (median −0.24e-4 /d² against ≈ 0).
+- **The root_P50 sensitivity has no turn at openings**: s(b) = d ln nrr / d ln root_P50
+  is flat through the strip (median −1.639 / −1.641 / −1.640 / −1.633 at o − 3, o, o + 12,
+  o + 36 d); its slope keeps its sign from [0, 6] to [6, 12] d on 22/22 edges. The closing
+  side's 10-d turn has no opening counterpart.
+- **Scored:** O1a refuted (9/22 within 2×); O1b refuted (0/22: the jump exceeds the slope on
+  every edge, a corner); O1c refuted (0/22).
+- Reading [i]: the inset rule reads [o, o + d] on the chord from the closing side's node to
+  o + d, so the chord spans fate's corner at o; the chord's slope is set by the gap and the
+  closing side, not by d, and the strip's error carries that lever (a d-dependent part
+  plus what the gap sets, as O2 measured). A node at o puts the corner on a node and leaves
+  the strip [o, o + 12 d] a hat interval over smooth (if curved) fate. That is what rule N
+  does; the mechanism agrees with the decision O2 made.
