@@ -225,3 +225,86 @@ E6 committed's worst (dry 0.35) and rms (0.159).
 - **L′2.** The coarse pair passes C1–C5 on both — 45%; the fine pair on both — 55%.
 - **L′3.** episodic-lma's committed rung worst error > 1 (E6's committed erred 1.28 there) —
   55%.
+
+### L results, first three cases (`score_ladder.R N dry dry-p50 long-wet`, JIT = N10@jit; `ladder_N_dry+dry-p50+long-wet.rds`) [m]
+
+| | dry | dry-p50 | long-wet |
+|---|---|---|---|
+| nodes x / c / f (E6 c / f) | 193 / 224 / 273 (149 / 219) | 196 / 226 / 277 (153 / 222) | 214 / 245 / 286 (157 / 234) |
+| rows x / c / f (E6 c / f) | 248 / 290 / 360 (188 / 269) | 254 / 297 / 367 (193 / 274) | 314 / 359 / 424 (220 / 328) |
+| CPU s x / c / f (E6 c / f) | 267 / 312 / 388 (223 / 344) | 277 / 321 / 398 (221 / 352) | 357 / 393 / 457 (259 / 419) |
+| committed worst (quantity) / rms / along M | 0.60 (a_l1) / 0.170 / −0.65 | 0.72 (a_l1) / 0.207 / −1.01 | 0.41 (a) / 0.107 / −0.05 |
+| E6 committed worst / rms | 0.35 / 0.159 | 0.35 / 0.141 | 0.36 / 0.093 |
+| worst x / f | 1.46 / 0.16 | 1.66 / 0.28 | 0.92 / 0.18 |
+| proxy shrink s_x, s_f; law d1/d2 | 0.433, 0.414; 2.23 | 0.433, 0.404; 2.20 | 0.428, 0.434; 2.37 |
+| measured d1/d2 (projected), meas/law | 1.85, 0.83 | 1.77, 0.81 | 2.14, 0.90 |
+| **pooled order** p (nominal, r = 1.6) | **1.56** (1.31) | **1.50** (1.22) | **1.76** (1.61) |
+| **cos(d1, d2)** | **0.92** | **0.98** | **0.99** |
+| per-quantity order: n, median [10–90%], share in [1, 3] | 17, 2.12 [1.27, 3.31], 59% | 24, 1.58 [1.01, 2.03], 88% | 12, 1.83 [1.70, 2.00], 100% |
+| lowest / highest per-quantity order | hmat 0.87 / r_r 3.49 | TF24_cost_scale 0.10 / root_P50 2.50 | R_d_25 1.61 / sro 2.03 |
+| **coarse pair** (x, c): read, corr, C3, C1–C5 | **1.02**, 0.96, 4/4, pass | **0.94**, 0.97, 5/5, pass | **0.94**, 0.97, 1/1, pass |
+| **fine pair** (c, f): read, corr, C3, C1–C5 | 0.96, 0.95, 4/4, pass | 1.21, 0.99, 7/7, pass | 1.01, 0.97, 1/1, pass |
+| E6 pair (for reference): pass, read | pass, 1.06 | pass, 1.15 | pass, 0.97 |
+| unseen rms(err_c − est), coarse / fine (max) | 0.048 / 0.062 (0.16 / 0.27) | 0.049 / 0.052 (0.18 / 0.12) | 0.028 / 0.028 (0.09 / 0.12) |
+| estimate's jitter noise, coarse / fine (rms) | 0.017 / 0.039 | 0.017 / 0.038 | 0.017 / 0.040 |
+
+- **The pairs read the committed error, both of them**: per-quantity reads of the coarse
+  pair on dry 0.80–1.19 (TF24_cost_scale 0.80, lma 1.19), dry-p50 0.90–1.19 except
+  TF24_cost_scale 0.43 (C3 counts it inside the allowance), long-wet 0.92–1.03. H1's
+  failure (dry 0.10, dry-p50 0.37) is gone: the coarse pair now reads as well as the
+  finer one, and its estimate is ~2× quieter (0.017 against 0.039 rms from jitter).
+- **But the order is not 2.** Pooled against the proxy's shrink, 1.50–1.76; measured
+  d1/d2 is 0.81–0.90 of the square law's. The direction is stable (cos 0.92–0.99), so the
+  error is one term, of order ≈ 1.5–1.8. On dry the pooled order is pulled down by a_l1
+  (order 1.3; d1 0.86, d2 0.51), the M direction; the other quantities sit near 2 (median
+  2.12). Order 1.5 against an assumed 2 makes the pairs under-read by ×0.67 (coarse) and
+  ×0.83 (fine) in the model, which the reads (0.94–1.21) do not show [i]: the reads are
+  set against the reference, whose own error and the unseen part (rms 0.03–0.06) enter.
+- **The committed rung is less accurate than E6's** on all three (worst 0.60 / 0.72 / 0.41
+  against 0.35 / 0.35 / 0.36). The extra error is along M on the dry records (−0.65, −1.01
+  against E6's −0.30, −0.42): the closing edge node brings back the edge-node bias (A1)
+  that E6's 12-d inset cancelled, now as a term that shrinks with s instead of a balance.
+
+### L7–L8: fixed strips and jitter on dry (`score_strips.R dry`) [m]
+
+- **Fixed strips' own error**, −(N10r − N10), every [c − 12, c] and [o, o + 12 d] cut at 3 d
+  (392 nodes): rms 0.015, max 0.059 (stem_c +0.06, root_P50 −0.05), along M 0.00, ln J
+  −0.011; hydraulic rms 0.033, leaf 0.005. **Under ε/10 in every quantity**, and under one
+  run's jitter in rms.
+- **Jitter floor under H5**, N10@jit (tolerance 1.05e-4) − N10: rms 0.023, max 0.08
+  (TF24_cost_scale +0.08, a_st1 −0.06, a_dG2 −0.05), along M −0.06; leaf 0.011, hydraulic
+  0.025. As E6's (0.024, +0.09).
+
+### L scored
+
+| # | prediction | P | result |
+|---|---|---|---|
+| L1 | pooled p in [1.6, 2.4] on each of three | 50% | refuted (1.56, 1.50, 1.76) |
+| L1′ | on at least two | 70% | refuted (one) |
+| L2 | cos ≥ 0.85 on each | 55% | holds (0.92, 0.98, 0.99) |
+| L3 | ≥ 80% of readable quantities with order in [1, 3], each case | 45% | refuted (dry 59%; dry-p50 88%, long-wet 100%) |
+| L4 | coarse read in [0.7, 1.4] on all three | 50% | holds (1.02, 0.94, 0.94) |
+| L4′ | coarse pair passes C1–C5 on ≥ 2 of 3 | 50% | holds (3/3) |
+| L4″ | fine pair passes on all three | 60% | holds |
+| L5 | unseen rms ≤ 0.08 each | 45% | holds (0.062, 0.052, 0.028) |
+| L6 | committed worst ≤ E6's on ≥ 2 of 3 | 60% | refuted (0/3) |
+| L7 | fixed strips max < 0.1 | 50% | holds (0.059) |
+| L7′ | fixed strips rms ≤ 0.04 | 60% | holds (0.015) |
+| L8 | jitter rms 0.015–0.04, \|M\| ≤ 0.12 | 65% | holds (0.023, −0.06) |
+| L9 | N10 rows ≥ 1.3 × E6 committed on all three | 75% | holds (1.54, 1.54, 1.63) |
+
+## B. The ten-case bank at s = 1 and 1.6, rule N
+
+H5 holds in part on the first three cases: the pairs read the committed error (both, all
+C1–C5 passes, one stable direction), but the order is 1.5–1.8, not 2. The operational
+claim (a pair predicts the error) holds, so the bank is run as step 4 asks: N10 and N16 on
+the five cases not yet run (episodic, long-drought, ld-102, ld-105, wet-adG2), with dry-flat
+and episodic-lma from the L′ queue. Scored as H1 scored its companion: the coarse pair's
+estimate d1/(1/s_x − 1) against the committed rung's true error, C1–C5 by `crit`.
+
+### Pre-registration B (before the bank's new runs)
+
+- **B1.** The coarse pair passes C1–C5 on at least 9 of 10 cases (H1 8/10, E6 10/10) — 55%.
+- **B2.** Median of the case reads in [0.8, 1.25] — 70%; no case read under 0.6 — 60%.
+- **B3.** Rows: N10 over E6 committed 1.4–1.7 summed over the ten — 70%.
+- **B4.** N10's worst error exceeds E6 committed's on at least 7 of 10 — 60%.

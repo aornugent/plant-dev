@@ -167,6 +167,63 @@ baseline whose error plays the role of e_pp.
 | I3 | The invader at lma ×0.5 on dry's grid has W(θ′)/W(θ′ = θ) ≥ 1.5 (reserve ≥ 0.33) | 55% |
 | I4 | The invader at lma ×2 has W(θ′)/W(θ′ = θ) ≥ 2 (reserve ≥ 0.5) or fails its walk | 60% |
 | I5 | The resident's E6 check estimate reads the ×0.5 invader's error with median read outside 0.5–2 | 60% |
+| I6 | The S_el ratio (invader at θ′ against the θ′ = θ invader, both on dry's grid) is within ×1.5 of the W growth for both invaders | 30% |
+| I7 | At lma ×2 the absolute ln J′ error on dry's grid exceeds 0.025 (the ε set at θ′ = θ) | 60% |
+
+Approved by the main session as written (added at approval, before any invader run: I6, I7,
+and ln J′ errors reported in absolute terms too). Runs: `run_inv.sh` (`adj_run_inv.R` on
+dry's grid; `harness/run_record.R` on lib_109 for the references, the u215_dry / u429_dry
+command of `node-rule/ladder.sh` plus the invaders). Guards: the grid run's stand J equals
+`val_insk_c_dry`'s and its θ′ = θ invader's J′ equals the stand's J bit for bit; each
+reference's stand J and θ′ = θ invader equal u215_dry's / u429_dry's.
+The invaders move lma alone (×0.5, ×2; INVADERS_REL `lma=-0.5,lma=1` on both the grid and
+the references), as every trait-moved case here does; the sign-changes bank's J′ ≈ 1e-21
+was the invader moved through the hyperparameterisation (INVADERS), a different strategy.
+
+### Pre-registration 3 (before the diagnostic check; `diag.R`, offline on saved runs)
+
+Question: does a quantity a use computes anyway, from one gradient run at the moved θ on
+the shared grid, predict the growth W_mp/W_pp (measured 0.81, 1.51, 3.90)? If so, each use
+can rescale θ₀'s estimate for free and the loop needs no fixed reserve. Candidates, each a
+ratio of the moved run on the parent grid to the parent's committed run:
+- **S_el** = rms(E_q/ε_q) over the 46 elasticities;
+- **S_raw** = rms(E_q), the unnormalised ln J sensitivities;
+- **S_med** = median over q of |E_mq|/|E_pq|;
+- **per quantity**: the parent's check estimate rescaled, est_q · |E_mq/E_pq| (the relative
+  error of each elasticity held across θ), read against e_mp.
+Extra points: the three own-grid rung pairs (x, c, f) of each parent/moved pair, W growth
+against the same ratios from those runs (9 points; grids differ, so noisier).
+
+| # | prediction | probability |
+|---|---|---|
+| D1 | S_el ratio within ×1.5 of the measured W growth on all three cases | 35% |
+| D2 | S_el ratio orders the three growths correctly (dry-p50 < wet-adG2 < episodic-lma) | 60% |
+| D3 | The per-quantity rescaled check reads e_mp at median 0.5–2 and passes C3 on both wet-adG2 and episodic-lma | 30% |
+| D4 | On the 9 own-grid rung pairs, cor(log S_el ratio, log W growth) ≥ 0.7 | 45% |
+
+### Results 3 (`diag.R`, `diag.log`) [m]
+
+| case | W growth (rms) | S_el | S_raw | S_med | J ratio | check read of e_mp: plain → per-quantity rescale | C3 rescaled | W read: plain / × S_el |
+|---|---|---|---|---|---|---|---|---|
+| dry-p50 | 0.81 (0.78) | 1.00 | 1.00 | 1.00 | 0.83 | 1.38 → 1.30 | 3/3 pass | 1.85 / 1.86 |
+| wet-adG2 | 1.51 (1.61) | 0.98 | 0.99 | 0.99 | 1.25 | 0.64 → 0.69 | 2/2 pass | 0.64 / 0.63 |
+| episodic-lma | 3.90 (4.46) | 2.47 | 2.85 | 2.42 | 0.016 | 0.15 → 0.36 | 10/32 FAIL | 0.32 / 0.78 |
+
+- **No single-run ratio reproduces the growth.** The three candidates agree with each
+  other (they are the same signal) and see only the lma move: 2.4–2.9 against 3.90, and
+  per quantity the errors grow ×5–20 where the elasticities grow ×2.5–3.6 (r_l: E ×3.3,
+  error −0.11 → −1.09). On wet-adG2 the error grows ×1.5 with no change in any
+  elasticity's scale (0.98–0.99): the a_dG2 move changes how hard the leaf quantities are
+  to integrate, not their size.
+- The 9 own-grid rung pairs give cor(log ratio, log growth) 0.93 for each candidate, but
+  that is two clusters (episodic-lma at 2.5 against 2.7–4.4; the rest at 1.0 against
+  0.74–1.41); within the six non-lma rungs the ratio is flat while growth runs 0.74–1.41.
+- Rescaling the parent's estimate by S_el brings episodic-lma's W read from 0.32 to 0.78,
+  but not its pattern (C3 still fails), and does nothing for wet-adG2.
+- So a use's own gradient run can flag a large move (S_el well above 1 means the θ₀
+  estimate is too small, by at least that factor), but it cannot replace the reserve: a
+  growth of ×1.5 passed with S_el = 0.98. Post hoc only: S_el^1.5 = 3.88 on episodic-lma;
+  one point does not fix an exponent.
 
 ## Predictions scored
 
@@ -182,6 +239,11 @@ baseline whose error plays the role of e_pp.
 | R8 | 60% | confirmed (wet-adG2 0.64; dry-p50 0.21; episodic-lma −0.03) |
 | R9 | 70% | confirmed (×0.94–1.03) |
 
-8 confirmed (mean P 66%), 1 refuted (65%). The registrations were close to the near-layout
+| D1 | 35% | refuted (×1.54 off on wet-adG2, ×1.58 on episodic-lma) |
+| D2 | 60% | refuted (dry-p50 1.00 above wet-adG2 0.98) |
+| D3 | 30% | refuted (episodic-lma C3 10/32) |
+| D4 | 45% | confirmed as registered (0.93), but by two clusters, not a trend |
+
+R: 8 confirmed (mean P 66%), 1 refuted (65%). D: 1 confirmed (45%), 3 refuted (mean 42%). The registrations were close to the near-layout
 reading, so they tested little beyond it; the finding they did not anticipate is that the
 rebuild effect is near 1 (the reserve is K(θ), not staleness). I1–I5 are open.

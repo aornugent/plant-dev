@@ -15,13 +15,14 @@ qord <- function(Px, Pc, Pf, rho) { if (!is.finite(rho) || rho <= 0) return(NA);
   lo <- 0.05; hi <- 4; if (f(lo) * f(hi) > 0) return(if (f(hi) < 0) 2 * hi else 2 * lo); 2 * uniroot(f, c(lo, hi))$root }
 JIT <- Sys.getenv("JIT"); jit <- if (nzchar(JIT)) { j <- h5_run(JIT); jc <- h5_run(sub("@jit", "", JIT)); if (!is.null(j) && !is.null(jc)) mv(j, jc) }
 OUT <- list(); QQ <- list()
-for (cs in CS) { x <- h5_run(sprintf("h5_%s16_%s", RULE, cs)); c0 <- h5_run(sprintf("h5_%s10_%s", RULE, cs)); f <- h5_run(sprintf("h5_%s06_%s", RULE, cs))
+RG <- strsplit(Sys.getenv("RUNGS", "16,10,06"), ",")[[1]]   # coarse, committed, fine rung labels
+for (cs in CS) { x <- h5_run(sprintf("h5_%s%s_%s", RULE, RG[1], cs)); c0 <- h5_run(sprintf("h5_%s%s_%s", RULE, RG[2], cs)); f <- h5_run(sprintf("h5_%s%s_%s", RULE, RG[3], cs))
   if (is.null(c0)) { cat(cs, ": committed rung missing\n"); next }
   ref <- ref5(cs); p <- pilot_of(cs); P <- function(z) alg$proxy_err(p, sort(z$node_times))
   k <- names(ref); for (z in list(x, c0, f)) if (!is.null(z)) k <- intersect(k, names(quantities(z))); e <- eps_vec(k)
   E <- function(z) if (is.null(z)) NULL else ((quantities(z)[k] - ref[k]) / e)
   ex <- E(x); ec <- E(c0); ef <- E(f); e6c <- ag_run(sprintf("val_ins75_c_%s", cs)); e6f <- ag_run(sprintf("val_ins75_f_%s", cs)); z6 <- score_pair(cs, e6c, e6f, ref)
-  o <- data.frame(case = cs, rule = RULE, n_x = if (!is.null(x)) length(x$node_times) else NA, n_c = length(c0$node_times), n_f = if (!is.null(f)) length(f$node_times) else NA,
+  o <- data.frame(case = cs, rule = paste0(RULE, ":", paste(RG, collapse = "/")), n_x = if (!is.null(x)) length(x$node_times) else NA, n_c = length(c0$node_times), n_f = if (!is.null(f)) length(f$node_times) else NA,
     n_e6c = length(e6c$node_times), n_e6f = length(e6f$node_times), worst_c = max(abs(ec)), wq = k[which.max(abs(ec))], rms_c = r2(ec), M_c = onM(ec),
     worst_x = if (!is.null(ex)) max(abs(ex)) else NA, worst_f = if (!is.null(ef)) max(abs(ef)) else NA, worst_e6c = z6$cworst, rms_e6c = z6$crms,
     rows_x = if (!is.null(x)) rows_of(x) else NA, rows_c = rows_of(c0), rows_f = if (!is.null(f)) rows_of(f) else NA, rows_e6c = rows_of(e6c), rows_e6f = rows_of(e6f),
@@ -49,7 +50,7 @@ for (cs in CS) { x <- h5_run(sprintf("h5_%s16_%s", RULE, cs)); c0 <- h5_run(spri
     q <- cbind(q, data.frame(d1 = d1, d2 = d2, estx = estx, estf = estf, p = qo)) }
   OUT[[cs]] <- o; QQ[[cs]] <- q }
 O <- do.call(rbind, lapply(OUT, function(o) o[, intersect(names(OUT[[1]]), names(o))])); rownames(O) <- NULL
-saveRDS(list(O = OUT, Q = QQ, jit = jit), file.path(H5, sprintf("ladder_%s_%s.rds", RULE, paste(CS, collapse = "+"))))
+saveRDS(list(O = OUT, Q = QQ, jit = jit), file.path(H5, sprintf("ladder_%s%s_%s.rds", RULE, if (Sys.getenv("RUNGS") == "") "" else paste0("_", paste(RG, collapse = "-")), paste(CS, collapse = "+"))))
 op <- options(width = 250)
 for (o in OUT) { cat(sprintf("\n== %s (%s): nodes x/c/f %s/%d/%s (E6 c/f %d/%d) | rows %s/%.0f/%s (E6 %.0f/%.0f) | cpu %s/%.0f/%s (E6 %.0f/%.0f)\n", o$case, o$rule, o$n_x, o$n_c, o$n_f, o$n_e6c, o$n_e6f,
     format(round(o$rows_x)), o$rows_c, format(round(o$rows_f)), o$rows_e6c, o$rows_e6f, format(round(o$cpu_x)), o$cpu_c, format(round(o$cpu_f)), o$cpu_e6c, o$cpu_e6f))
