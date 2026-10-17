@@ -27,7 +27,13 @@ for (cs in names(HO)) {
   cat(sprintf("%-14s ref %s c %s f %s\n", cs, have["ref"], have["c"], have["f"])); if (!all(have)) next
   qa <- qv(a); qb <- qv(b); qc <- qv(xc); qf <- qv(xf); if (any(vapply(list(qa, qb, qc, qf), is.null, TRUE))) { cat("  missing quantities (refusal?)\n"); next }
   fin <- all(is.finite(c(qa, qb, qc, qf)))
-  ref <- extrap(qa, qb); own <- (qb - qa) / 3 / EPS
+  ref <- extrap(qa, qb); own <- (qb - qa) / 3 / EPS; p3 <- NA; dref <- NA; rung <- "215-429"
+  # REF=857: where the third rung exists, the reference is u429 -> u857; the order is read
+  # from the two moves, and the shift from the two-rung reference is reported.
+  x8 <- HO_RUN(sprintf("ref_%s_u857", cs))
+  if (!is.null(x8$finished) && !is.null(qv(x8))) { q8 <- qv(x8); m1 <- (qb - qa) / EPS; m2 <- (q8 - qb) / EPS; k <- abs(m1) > 0.3
+    p3 <- if (any(k)) median(log2(abs(m1[k] / m2[k]))) else NA; r8 <- extrap(qb, q8); dref <- max(abs((r8 - ref) / EPS))
+    if (Sys.getenv("REF") == "857") { ref <- r8; own <- m2 / 3; rung <- "429-857" } }
   ec <- (qc - ref) / EPS; ef <- (qf - ref) / EPS; d <- ec - ef
   p <- pilot_of(cs); s <- alg$proxy_err(p, xf$node_times) / alg$proxy_err(p, xc$node_times)
   z <- e6_rule(ec, ef, ec, ef, s); cr <- crit4(z$err, z$sest); estc <- d / (1 - s)
@@ -36,7 +42,7 @@ for (cs in names(HO)) {
   st <- stress(ec, ef, s, match(cs, names(HO)))
   keep[[cs]] <- list(ec = ec, ef = ef, own = own, s = s, ref = ref, estc = estc, err = z$err, sest = z$sest)
   rows[[cs]] <- data.frame(case = cs, lnJ = ref[["lnJ"]], nc = length(xc$node_times), nf = length(xf$node_times), s = s,
-    own_max = max(abs(own)), own_q = Q[which.max(abs(own))], own_rms = rms(own), finite = fin,
+    own_max = max(abs(own)), own_q = Q[which.max(abs(own))], own_rms = rms(own), rung = rung, order = p3, dref = dref, finite = fin,
     Wc = max(abs(ec)), Wc_q = Q[which.max(abs(ec))], rms_c = rms(ec), M_c = sum(ec * M), Wf = max(abs(ef)), rms_f = rms(ef),
     commit = if (z$coarse) "c" else "f", W = max(abs(z$err)), pass = all(cr), fails = paste(names(cr)[!cr], collapse = ""), C3n = sprintf("%d/%d", sum(ok3), sum(big)),
     read = median((estc / ec)[abs(ec) > 0.2]), corr = cor(estc, ec), est_max = max(abs(z$sest)),
@@ -62,5 +68,5 @@ pooled <- unlist(lapply(keep, function(k) (k$estc / k$ec)[abs(k$ec) > 0.2])); ca
 for (cs in names(keep)) { k <- keep[[cs]]; big <- pmax(abs(k$err), abs(k$sest)) > 1 / 3
   ok <- abs(k$sest) >= abs(k$err) / 2 & abs(k$sest) <= 2 * abs(k$err) & sign(k$sest) == sign(k$err)
   cat(sprintf("\n%s (s %.3f): %s\n", cs, k$s, paste(sprintf("%s%s ec %+.2f ef %+.2f est %+.2f own %+.2f", ifelse(ok[big], "", "*"), Q[big], k$ec[big], k$ef[big], k$sest[big], k$own[big]), collapse = "; "))) }
-write.csv(TB, file.path(HO_OUT, "score_tab.csv"), row.names = FALSE)
-saveRDS(list(tab = TB, bank = BK, keep = keep, Q = Q), file.path(HO_OUT, "score.rds"))
+write.csv(TB, file.path(HO_OUT, sprintf("score_tab%s.csv", Sys.getenv("REF"))), row.names = FALSE)
+saveRDS(list(tab = TB, bank = BK, keep = keep, Q = Q), file.path(HO_OUT, sprintf("score%s.rds", Sys.getenv("REF"))))

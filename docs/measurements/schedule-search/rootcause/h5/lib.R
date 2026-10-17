@@ -15,7 +15,7 @@
 # open = "raw", close = FALSE reproduces build_graded() exactly (the guard).
 Sys.setenv(BG = 90, R = 1.6)
 suppressMessages(source("/home/user/plant-dev/docs/measurements/schedule-search/round4/P/lib.R"))
-H5 <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/h5"
+H5 <- Sys.getenv("H5DIR", "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/h5")   # H5DIR: another round's output directory
 D <- 1 / 365
 # n0, W, s (round u): a stretch at least W days wide gets at least ceiling(n0 / s) intervals.
 place <- function(a, b, hfun, cp, n0 = 0, W = Inf, s = 1) { u <- seq(a, b, length.out = 801); um <- (head(u, -1) + tail(u, -1)) / 2

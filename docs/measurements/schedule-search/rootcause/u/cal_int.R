@@ -8,8 +8,8 @@ crit <- function(err, sest) { est <- abs(sest); big <- pmax(abs(err), est) > 1 /
   c(C1 = all(abs(err) <= 1), C2 = all(est[abs(err) > 0.5] > 0.25), C3 = if (any(big)) sum(!ok3) <= max(1, floor(0.2 * sum(big))) else TRUE, C5 = all(est <= 1)) }
 mi <- function(l, k) { S <- l$runs[[k]]$S; m <- (head(S, -1) + S[-1]) / 2; h <- diff(S) * 365; max(h[m < 20 & l$pilot$shut(m) < 0.5]) }
 T <- do.call(rbind, lapply(names(L), function(cs) { l <- L[[cs]]; e <- lapply(l$runs, function(r) (r$q - l$ref) / EPS)
-  pr <- function(a, b, ra, rb) { est <- (e[[a]] - e[[b]]) / ((ra / rb)^2 - 1); cr <- crit(e[[b]], est); j <- abs(e[[b]]) > 0.2; c(pass = all(cr), read = median((est / e[[b]])[j])) }
-  xc <- pr("x", "c", 1.6, 1); cf <- pr("c", "f", 1, 1 / 1.6)
+  pr <- function(a, b, ra, rb) { est <- (e[[a]] - e[[b]]) / ((ra / rb)^2 - 1); cr <- crit(e[[b]], est); j <- abs(e[[b]]) > 0.2; c(pass = all(cr), read = if (any(j)) unname(median((est / e[[b]])[j])) else NA) }
+  xc <- pr("x", "c", 1.6, 1); cf <- pr("c", "f", 1, 1 / 1.6); if (Sys.getenv("DBG") != "") print(list(cs, xc, cf))
   data.frame(case = cs, mi_x = mi(l, "x"), mi_c = mi(l, "c"), mi_f = mi(l, "f"), xc_pass = as.logical(xc[["pass"]]), xc_read = xc[["read"]], cf_pass = as.logical(cf[["pass"]]), cf_read = cf[["read"]]) }))
 T$ok <- T$xc_pass & T$xc_read >= 0.7 & T$xc_read <= 1.4
 INT <- if (any(!T$ok)) min(T$mi_x[!T$ok]) else max(T$mi_x) + 1

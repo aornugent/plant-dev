@@ -151,3 +151,67 @@ of the cheapest feasible loops.
 | D1 | The recalibrated INT is ≥ 150 d | 70% |
 | D2 | With it, false-valid ≤ 5% in meas mode under both noises | 65% |
 | D2′ | and false-invalid on the cheapest feasible loops' final iterates ≤ 30% (meas / jit) | 55% |
+
+### S results: stretch counts and the hybrid split (`mk_s.R`, `score_s.R dry dry-flat`, `score_s.rds`) [m]
+
+| | dry | dry-flat |
+|---|---|---|
+| placed stretches after b1 / in S* | 54 / 37 (69%) | 116 / 107 (92%) |
+| same count 1.6 vs 1 / 1 vs 1/1.6 / both | 30 / 27 / 20 | 102 / 97 / 92 |
+| median width, S* / R | 49 / 271 d | 42 / 151 d |
+| S* share of the committed rung's a09 proxy | 0.083 | 0.044 |
+| nodes x / c / f / xh / fh | 124 / 155 / 205 / 131 / 191 | 174 / 195 / 227 / 179 / 217 |
+| proxy law d1/d2: all / R only | 2.11 / 2.54 | 2.52 / 2.52 |
+| measured d1/d2 (projected): all / R | 1.51 / 2.29 | 2.04 / 2.58 |
+| **pooled order: all / R** | **1.20 / 1.75** | **1.52 / 2.05** |
+| **S*'s share of the deficit, (p_R − p)/(2 − p)** | **0.68** | **1.11** |
+| cos(d1, d2): all / R | 0.94 / 0.95 | 0.91 / 0.95 |
+| per-quantity order median: all / R | 1.33 / 1.72 | 1.99 / 2.18 |
+| rms d1, its S* part / rms d2, its S* part | 0.195, 0.127 / 0.122, 0.037 | 0.298, 0.053 / 0.134, 0.056 |
+| along M: d1, its S* part / d2, its S* part | −0.49, +0.26 / −0.31, +0.00 | −0.84, −0.19 / −0.41, −0.22 |
+| cos(S* part, move): d1 / d2 | −0.72 / +0.06 | +0.65 / +0.75 |
+| wide-only hybrids (dry): pooled order of R + narrow S*, share of S*'s part carried by the wide S* | 1.69, 0.89 | (running) |
+
+- S* is most stretches but a small part of the proxy (4–8%), and it carries most of the
+  order deficit: what refines on both steps (R) is near order 2 (1.75, 2.05; per quantity
+  1.72, 2.18), one direction (cos 0.95). On dry-flat S* carries all of it.
+- On dry the S* part of the coarse move runs against the move (cos −0.72, M +0.26 against
+  d1's −0.49): the stretches that go from 1 to 2 intervals on the coarse step and then stop
+  (1/2/2 at 286–329 d, 1/1/2) carry an error of the opposite sign, so their refinement
+  cancels part of the rest's move. 89% of S*'s share sits in the S* stretches ≥ 90 d wide.
+- On dry-flat the S* part runs with the move (cos 0.65 / 0.75) and is as large on the fine
+  step as on the coarse (0.053, 0.056 rms): it moves at order ≈ 0, a step that does not
+  shrink with s.
+
+| # | prediction | P | result |
+|---|---|---|---|
+| S1 | S* ≥ 40% (dry), ≥ 70% (dry-flat) | 65% | holds (69%, 92%) |
+| S2 | R's pooled order ≥ 1.7 on both | 45% | holds (1.75, 2.05) |
+| S2′ | S*'s share of the deficit ≥ 0.5 on both | 45% | holds (0.68, 1.11) |
+| S3 | cos(R's d1, d2) ≥ 0.9 on both | 55% | holds (0.95, 0.95) |
+| S4 | dry-flat: S*'s part of d1 along M ≥ half of d1's | 40% | refuted (−0.19 of −0.84) |
+
+**The fix tested: V.** U, with every placed stretch at least W = 90 d wide given at least
+ceiling(3/s) intervals (`h5_sched(..., n0 = 3, W = 90)`). ceiling(m/s) changes on both
+ratio-1.6 steps only when the stretch's measure m (its count at s = 1 before rounding) is
+at least 8/3, so 3 is the smallest minimum that makes every such stretch refine on every
+step (2 / 3 / 5 intervals at s = 1.6 / 1 / 1/1.6). W = 90 d targets the wide sticky
+stretches, which carry 89% of S*'s share on dry; narrower ones keep U's rule. Nodes
+(schedule only) [m]: dry 135 / 175 / 251 (U 124 / 155 / 205), dry-flat 200 / 239 / 316
+(U 174 / 195 / 227); S* after b1 falls from 37 to 21 (dry) and 107 to 84 (dry-flat); the
+proxy law is 2.21 / 2.43.
+
+### Pre-registration V (before the V runs)
+
+"Matched error": rows at E6 committed's worst and rms error, interpolated in log error
+against log rows along each layout's rungs (`score_var.R`'s rule), V against U.
+
+| # | prediction | P |
+|---|---|---|
+| V1 | V's pooled order ≥ 1.6 on both | 50% |
+| V2 | V's coarse and fine pairs both pass C1–C5 on both | 65% |
+| V3 | cos(d1, d2) ≥ 0.9 on both | 60% |
+| V4 | V10's rows ≥ 1.1× U10's on both | 75% |
+| V5 | At matched worst error, V needs ≤ 1.05× U's rows on both | 45% |
+| V5′ | At matched worst error, V needs fewer rows than U on at least one | 40% |
+| V6 | V's coarse read in [0.85, 1.2] on both | 50% |

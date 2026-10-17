@@ -19,7 +19,7 @@ for (cs in commandArgs(TRUE)) { p <- pilot_of(cs); G <- lapply(SK, function(s) u
   cat("   counts 1.6/1/0.625 of S* stretches (width d):", paste(sprintf("%s(%.0f)", apply(n[star & post, , drop = FALSE], 1, paste, collapse = "/"), w[star & post]), collapse = " "), "\n")
   xh <- swap(as.numeric(G[[1]]), as.numeric(G[[2]]), sg[[2]][star, ]); fh <- swap(as.numeric(G[[3]]), as.numeric(G[[2]]), sg[[2]][star, ])
   stopifnot(all(diff(xh) > 1e-6), all(diff(fh) > 1e-6))
-  saveRDS(xh, file.path(UOUT, "sched", sprintf("Uxh_%s.rds", cs))); saveRDS(fh, file.path(UOUT, "sched", sprintf("Ufh_%s.rds", cs)))
+  if (Sys.getenv("NOFIX") == "") saveRDS(xh, file.path(UOUT, "sched", sprintf("Uxh_%s.rds", cs))); saveRDS(fh, file.path(UOUT, "sched", sprintf("Ufh_%s.rds", cs)))
   wide <- star & w >= 90                                    # the wide S* stretches only (Uxw, Ufw)
   saveRDS(swap(as.numeric(G[[1]]), as.numeric(G[[2]]), sg[[2]][wide, ]), file.path(UOUT, "sched", sprintf("Uxw_%s.rds", cs)))
   saveRDS(swap(as.numeric(G[[3]]), as.numeric(G[[2]]), sg[[2]][wide, ]), file.path(UOUT, "sched", sprintf("Ufw_%s.rds", cs)))
@@ -27,6 +27,6 @@ for (cs in commandArgs(TRUE)) { p <- pilot_of(cs); G <- lapply(SK, function(s) u
   P <- function(S) alg$proxy_err(p, sort(S)); Px <- P(G[[1]]); Pc <- P(G[[2]]); Pf <- P(G[[3]])
   cat(sprintf("   nodes U x/c/f %d/%d/%d, Uxh %d, Ufh %d | proxy law d1/d2: all %.2f, R only %.2f\n", length(G[[1]]), length(G[[2]]), length(G[[3]]), length(xh), length(fh),
     (Px - Pc) / (Pc - Pf), (P(xh) - Pc) / (Pc - P(fh))))
-  for (n0 in c(1.6, 3)) for (W in c(30, 60, 90)) { V <- lapply(SK, function(s) u_sched(cs, s, n0 = n0, W = W)); nv <- sapply(lapply(V, attr, "seg"), `[[`, "n")
+  if (Sys.getenv("NOFIX") == "") for (n0 in c(1.6, 3)) for (W in c(30, 60, 90)) { V <- lapply(SK, function(s) u_sched(cs, s, n0 = n0, W = W)); nv <- sapply(lapply(V, attr, "seg"), `[[`, "n")
     st <- (nv[, 1] == nv[, 2] | nv[, 2] == nv[, 3]) & post
     cat(sprintf("   fix n0 = %.1f, W = %2d d: nodes %s | S* after b1 %d | proxy law %.2f\n", n0, W, paste(sapply(V, length), collapse = "/"), sum(st), (P(V[[1]]) - P(V[[2]])) / (P(V[[2]]) - P(V[[3]])))) } }
