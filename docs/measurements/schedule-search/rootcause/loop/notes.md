@@ -241,3 +241,53 @@ c − 12 d before 10, E6's inset after), with its background placed per case:
 | B6 | The final founders' scale is finer than the I1 scale (s_F < s_I1) on ≥ 12 of 18 | 55% |
 | B7 | Final background nodes within ±30% of E6's in both F and I1 on ≥ 12 of 18 | 40% |
 
+### X results: the U–E6 gap by region (`gap.R`, `gap.log`) [m]
+
+The map replays (U10 on all three; E6 committed on dry-flat, long-wet) reproduce their saved runs'
+J and 50 gradients `identical()` (checked on U10 dry; all exit 0). Rows are each node's accepted
+steps alive; map in ε of ln J; "strips" = measured ln J error − map total.
+
+| case | layout | rows (× E6) | strip nodes / rows | background F + I nodes / rows | map F | map I1 / I2 / I3 | strips | worst (q) | along M |
+|---|---|---|---|---|---|---|---|---|---|
+| dry | E6 | 389k (1.00) | 74 / 187k | 62 / 190k | +0.108 | −0.125 / −0.079 / −0.018 | −0.024 | 0.35 (a) | −0.30 |
+| dry | U10 | 430k (1.10) | 88 / 249k | 55 / 172k | +0.108 | −0.147 / −0.084 / −0.027 | −0.060 | 0.42 (a_l1) | −0.51 |
+| dry | E6+ | 509k (1.31) | 106 / 305k | 62 / 192k | +0.108 | −0.125 / −0.079 / −0.018 | −0.060 | 0.44 | −0.54 |
+| dry-flat | E6 | 797k (1.00) | 146 / 560k | 42 / 224k | +0.187 | −0.033 / −0.130 / −0.002 | +0.035 | 0.58 (a) | −0.10 |
+| dry-flat | U10 | 873k (1.10) | 156 / 666k | 37 / 200k | +0.184 | −0.037 / −0.219 / −0.002 | −0.008 | 0.70 (a) | −0.57 |
+| dry-flat | E6+ | 1109k (1.39) | 199 / 870k | 42 / 226k | +0.187 | −0.033 / −0.130 / −0.002 | +0.023 | 0.60 (a) | −0.19 |
+| long-wet | E6 | 457k (1.00) | 89 / 242k | 54 / 190k | +0.128 | −0.011 / −0.023 / −0.004 | −0.016 | 0.36 (a) | −0.02 |
+| long-wet | U10 | 520k (1.14) | 111 / 337k | 48 / 175k | +0.127 | −0.019 / −0.021 / −0.005 | −0.052 | 0.41 (a) | −0.03 |
+| long-wet | E6+ | 598k (1.31) | 122 / 381k | 54 / 192k | +0.128 | −0.011 / −0.023 / −0.004 | −0.027 | 0.36 (a) | −0.01 |
+
+(Short-spell centres and late nodes, 3–21k rows, are left out of the columns.)
+
+- **Where the rows go.** Strip nodes carry 48–70% of E6's rows. U adds one node per closing edge
+  and per opening edge before 10 (+14 / +10 / +22 nodes net in the strips), +62k / +106k / +95k
+  rows, and its background is 7 / 5 / 6 nodes and 18k / 24k / 15k rows sparser. U's extra cost is
+  more than all strips (**X1 holds**).
+- **Why U's background is sparser.** `h5_sched` places each spell's background over the stretch
+  with the 12-d strips already cut out (before 10: o to c − 12 d; after: o + 12 d to c − 12 d) and
+  rounds that shorter stretch's count up; E6's `build_graded` counts ceiling(∫ 1/h) over the whole
+  spell and `inset_rule` then drops only the interior nodes that fall inside the strips. Cutting
+  12–24 d out of a 150–330 d spell lowers ∫ 1/h by 0.1–0.3 intervals, so the ceiling loses a node in
+  8 of 48 spells (dry), 6 of 93 (dry-flat), 10 of 51 (long-wet), mostly spells over 150 d (dry 7 of
+  8). The range cap scales identically (s · cap, the same at s = 1) and both builders split at the
+  same pilot edges, so neither the cap nor merging differs; the short-spell rule differs slightly
+  (E6 2 centres on dry, U 1). **X2 refuted** (fewer on all three, but the deficit is in long spells).
+- **Where the accuracy goes.** Two separate losses:
+  1. *Edge nodes remove E6's closing-strip cancellation.* E6+ has E6's background (its map by
+     region is E6's to three places) and still loses along M on dry (−0.54 against −0.30; worst
+     0.44 against 0.35); on dry-flat and long-wet it loses little (−0.19, −0.01). This part is the
+     price of strips whose own error is small and does not cancel by tuning.
+  2. *U's sparser background.* The map's interior ln J error is larger on U on all three (dry
+     0.258 against 0.221; dry-flat 0.259 against 0.166, the I2 era −0.219 against −0.130;
+     long-wet 0.046 against 0.039; **X3 holds**). On dry-flat this is most of U's loss along M
+     (U −0.57, E6+ −0.19).
+  The founders' map is the same in all three layouts (same founders' nodes).
+- E6+ worst on dry-flat 0.60 against E6's 0.58 (**X4 holds**, narrowly). The strips' remainder is
+  under 0.1ε everywhere (−0.060 to +0.035; **X5 holds**).
+- So E6's per-row advantage is (a) 16 fewer edge nodes' worth of rows per case and a tuned
+  cancellation at the closing inset, and (b) a background one node denser in about one spell in
+  six. Route B keeps U's strips (honest, small own error) and lets each case's map place the
+  background, which addresses (b) and part of (a)'s rows, not the cancellation.
+
