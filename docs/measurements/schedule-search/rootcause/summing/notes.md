@@ -423,3 +423,109 @@ the K pairs carry 0.27 rms (root_P50 −1.09, along M +0.66) and the P pairs 0.0
 | # | prediction | probability |
 |---|---|---|
 | N1 | `noKq` errs ≤ `nogapq` + 0.02 on dry, long-wet and dry-flat, and ≥ 0.1 less than `nogapq` on episodic-lma | 45% |
+
+### Result Q (lib2: the light on the pair's quadratic crowns) (`score.R`, `score.log`) [m]
+
+Errors at L against the nested reference (dry-flat: lib19-class), ε:
+
+| case | off | founders (hat light) | foundersq | allq | nogapq | noKq | P2 allq | H2 allq (2× nodes) | H2 off | H4 off (4×) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| dry | 0.572 | 0.160 | 0.118 | 0.188 (M +0.36) | **0.044** | 0.101 (M −0.41) | 0.149 (M −0.65) | 0.031 | 0.137 | 0.034 |
+| episodic-lma | 1.594 | 0.430 | 0.408 | **0.116** | 0.346 | 0.300 | — | 0.090 | 0.391 | 0.098 |
+| long-wet | 0.459 | 0.399 | 0.176 | 0.241 (M +0.62) | **0.158** | 0.165 | 0.158 | 0.011 | 0.118 | 0.029 |
+| dry-flat | 0.786 | 0.425 | 0.139 | 0.322 (M +0.44) | **0.086** | 0.112 | — | (below) | 0.206 | — |
+
+Rows and cpu do not move with the setting (within ±1% of `off`'s rows at L; forward cpu 4–12%
+lower under the pair settings, as `off` at L). Worst single errors: `nogapq` 0.20 (dry, a_l1),
+0.66 (episodic-lma, k_s/D_c), 0.34 (long-wet, a_l1), 0.26 (dry-flat, vcmax_25); `allq`'s worst
+are hydraulic (root_P50 −0.89, −0.98, −1.44 on dry, long-wet, dry-flat).
+
+- Q3 **refuted**: on dry `allq` − `all` is 0.144 rms (rms 0.188 against 0.220); on
+  episodic-lma 0.165 (0.116 against 0.179). The light matters on every case.
+- Q5 **confirmed**: under `allq` the K pairs' change has along M +0.69 (dry), +0.66 (long-wet).
+- Q6 **confirmed** (3 of 4): `nogapq` errs least on dry, long-wet (0.158, tied with P2 at the
+  shown digits) and dry-flat; on episodic-lma `allq` is far better (0.116 against 0.346).
+- Q7 **refuted** (episodic-lma): H2 under `allq` 0.031 (dry), 0.011 (long-wet), 0.090
+  (episodic-lma; H4 `off` itself errs 0.098 there).
+- Q8 **confirmed**: `foundersq` ≤ `founders` on all four (0.118/0.160, 0.408/0.430,
+  0.176/0.399, 0.139/0.425).
+- P1 **confirmed**: P2 under `allq` errs less than L under `allq` on dry (0.149/0.188) and
+  long-wet (0.158/0.241). P2 **refuted**: not less than `foundersq` on dry (0.149/0.118).
+- N1 **refuted**: `noKq` is worse than `nogapq` on dry (0.101/0.044: the P pairs' change has
+  along M −0.57 on dry) and does not recover episodic-lma (0.300 against `allq`'s 0.116): on
+  episodic-lma the K pairs are what helps.
+
+### Result R (regions; `region.R`, `region_all.log`, `region_allq_*.log`) [m]
+
+Errors by region at L (rms, along M), ε. `off`: −4/3 × the region-halving move (order 2
+assumed); the rule: `off` + its change in that region; Z = the residual (late pairs plus
+non-additivity, and whatever the K strip's missing power law leaves).
+
+| case | region | off | all (hat + point light) | allq |
+|---|---|---|---|---|
+| dry | F founders | 0.597 (−0.57) | 0.124 (−0.12) | **0.049** (−0.24) |
+| dry | K (closing inset node as a pair's middle) | 0.045 (−0.22) | 0.199 (+0.71) | 0.231 (+0.47) |
+| dry | P (opening side) | 0.018 (−0.05) | 0.087 (−0.29) | 0.119 (−0.62) |
+| dry | I interiors | 0.143 (−0.25) | 0.056 (−0.07) | 0.058 (−0.08) |
+| dry | Z* residual | 0.136 (+0.61) | 0.119 (+0.57) | 0.178 (+0.82) |
+| long-wet | F | 0.462 (+0.43) | 0.399 (+0.62) | **0.162** (+0.16) |
+| long-wet | K | 0.009 | 0.183 (+0.47) | 0.267 (+0.64) |
+| long-wet | P | 0.006 | 0.030 | 0.037 |
+| long-wet | I | 0.030 | 0.020 | 0.031 |
+| long-wet | Z* | 0.014 | 0.027 | 0.027 |
+
+Shares of L's squared error by projection: `off` F 103% (dry), 100% (long-wet); `allq` K 111%
+(dry), 88% (long-wet).
+
+- R1: dry 103% ✓; episodic-lma and dry-flat in Result R2 below (episodic-lma) / not run
+  (dry-flat's region runs were dropped for cost).
+- R2 **refuted** (long-wet with the hat light: the founders' error falls only 0.462 → 0.399;
+  with `quad` 0.162). dry 0.597 → 0.124 (hat), 0.049 (quad).
+- R3 **refuted** on dry: the interiors' trapezium error is 0.143 (ln J −0.25); the rule takes it
+  to 0.056. On long-wet both are 0.02–0.03.
+- R4 **confirmed on dry** (K + P change 0.224 rms under `allq`, 0.28 under `all`; along M +0.12
+  and +0.69); dry-flat's region runs were not made.
+- R5 **confirmed**: the rule's edge-pair error exceeds the trapezium's on dry (0.23 against
+  0.05) and long-wet (0.24 against 0.01).
+
+Mechanism of the K-pair error [m + i]: under the trapezium the K region errs little (0.009–0.045)
+because the 12-d inset is a tuned cancellation (`closing/notes.md`). A K pair puts the closing
+inset node (c − 12 d) in the middle of an unequal pair whose second interval is the gap
+interval (its establishment in two 12-d strips at its ends), so the pair rule moves weight
+onto that node and off the opening inset node: the hydraulic quantities (root_P50, omega,
+root_c) move along M. Halving the K pairs (equal halves, a node mid-gap) removes it entirely
+(shrink 0.93–1.02 of e(K) under the rule), as does H2. It is a rule-made error of the L
+layout's pairing, not of the integrand.
+
+### Result O (ladders C2 / L / H2) and J (jitter) [m]
+
+| case | setting | C2 − L rms | L − H2 rms | pooled order | cos(m1, m2) | C2 error |
+|---|---|---|---|---|---|---|
+| dry | off | 1.601 | 0.442 | 1.86 | +0.98 | 2.162 |
+| dry | all | 0.849 | 0.192 | 2.15 | +0.36 | 0.960 |
+| dry | allq | 0.741 | 0.187 | 1.99 | +0.10 | 0.792 |
+| long-wet | off | 1.528 | 0.341 | 2.16 | +0.97 | 1.975 |
+| long-wet | all | 1.417 | 0.306 | 2.21 | +0.67 | 1.756 |
+| long-wet | allq | 0.307 | 0.245 | 0.33 | −0.38 | 0.318 |
+
+- O1 **confirmed** (off: 1.86, 2.16; the moves are parallel, cos 0.97–0.98).
+- O2 **confirmed**: no clean higher order at the layout level (`all` 2.15, 2.21; `allq` 1.99,
+  0.33, with the two moves near orthogonal): the K pairs' error appears at L and vanishes at H2.
+- O3: dry's interiors under `all` read order 3.26 (e(I) 0.056 → move 0.054); long-wet's
+  interiors err 0.02–0.03, the jitter floor, so no order can be read. **Not confirmed** (one
+  case of two).
+- O4 **refuted** (0.33). O5 **refuted**: long-wet's interior error under `allq` (0.031) is at
+  the floor; the reading 0.85 is noise.
+- By region the rule does reach higher order where the pairs are equal and the light follows:
+  founders on long-wet (shrink 0.98 of e(F) on halving, order > 4), P pairs on long-wet
+  (order > 4); dry's founders under `allq` sit at the floor (0.049).
+- J1 **confirmed at the edge** (dry, `all`, tol × 1.05: rms 0.030, along M +0.12). J2
+  **confirmed** (`allq`: rms 0.009, along M +0.03). For comparison `off` at L moves 0.054, along
+  M +0.25 under the same nudge.
+
+### Result L (the light under the founders) [m]
+
+- L1 **refuted**: with the light on the hats, halving the founders under `all` moves 0.035 rms,
+  less than the 0.089 with the point corrections; with `quad` 0.040. The point corrections
+  added a founders' residual of their own.
+- L2 **refuted**: `founders` with the light on the hats differs from `founders` by 0.116 rms.
