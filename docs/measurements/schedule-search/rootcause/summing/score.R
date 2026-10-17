@@ -27,7 +27,7 @@ for (cs in CS) { cat(sprintf("\n==== %s\n", cs))
     cat(sprintf("   H4 - H2 (trapezium): %s\n", fmt(qv(H4) - qv(H2)))) } else cat("no nested reference yet: errors below are against the lib19-class reference\n")
   ref <- if (is.null(rich)) L19 else rich
   rows <- list()
-  for (nm in c("Loff", "Lfounders", "Lfoundersnl", "Lfoundersq", "Lall", "Lallm", "Lallnl", "Lallq", "Lnogap", "Lnogapq", "LnoKq", "Lallr", "H2off", "H2all", "H2allm", "H2allq", "H4off", "C2off", "C2all", "C2allm", "C2allq", "P2off", "P2allq", "Lall_t105", "Lallq_t105", "Loff_t105")) { x <- rd(nm, cs); if (is.null(x)) next
+  for (nm in c("Loff", "Lfounders", "Lfoundersnl", "Lfoundersq", "Lall", "Lallm", "Lallnl", "Lallq", "Lnogap", "Lnogapq", "LnoKq", "LFIq", "Lallr", "H2off", "H2all", "H2allm", "H2allq", "H4off", "C2off", "C2all", "C2allm", "C2allq", "P2off", "P2allq", "Lall_t105", "Lallq_t105", "Loff_t105")) { x <- rd(nm, cs); if (is.null(x)) next
     e <- qv(x) - ref; rows[[nm]] <- e
     cat(sprintf("%-10s n %3d | %s | %s | negative weights %s\n", nm, length(x$node_times), fmt(e), cost(x, paste0(nm, "_", cs)), negw(x, cs, sub("(off|all|founders|nogap).*$", "", nm)))) }
   for (j in list(c("Lall_t105", "Lall"), c("Lallq_t105", "Lallq"), c("Loff_t105", "Loff"))) { x <- rd(j[1], cs); y <- rd(j[2], cs); if (is.null(x) || is.null(y)) next

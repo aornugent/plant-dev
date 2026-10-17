@@ -1,0 +1,4 @@
+LFIq L episodic-lma @FI lib2 PLANT_SIMPSON_LIGHT=quad
+LFIq L dry @FI lib2 PLANT_SIMPSON_LIGHT=quad
+LFIq L long-wet @FI lib2 PLANT_SIMPSON_LIGHT=quad
+LFIq L dry-flat @FI lib2 PLANT_SIMPSON_LIGHT=quad

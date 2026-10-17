@@ -10,7 +10,7 @@ Every number is marked **[m]** (measured) or **[i]** (inferred: a derivation, fi
 
 ## Summary
 
-(written last)
+Stopped at the user's request before the final scoring; the results below are as recorded. The decision was to keep the straight-line sums and pursue the H5 layout with a pair of runs instead (see `../h5/`, `../proxies/`).
 
 ## Step 0. A build that reproduces libS
 
@@ -529,3 +529,15 @@ layout's pairing, not of the integrand.
   less than the 0.089 with the point corrections; with `quad` 0.040. The point corrections
   added a founders' residual of their own.
 - L2 **refuted**: `founders` with the light on the hats differs from `founders` by 0.116 rms.
+
+### Pre-registration FI (before the `FIq` runs; after episodic-lma's region split)
+
+Seen [m]: on episodic-lma under `allq` the founders' residual is 0.020, but the K, P and late
+(Z) pairs each change the run by 0.27, 0.49 and 0.55 rms, in directions that partly cancel
+(root_P50 −0.89 in K, +0.97 in P; K_s, D_c −1.0 in Z); episodic-lma's late pairs are wide and
+unequal (162 d next to 775 d; the negative weights sit there). `FIq`: the founders' and
+interior pairs only, quad light.
+
+| # | prediction | probability |
+|---|---|---|
+| FI1 | `FIq` errs < 0.25 on episodic-lma, and within ±0.03 of `nogapq` on dry, long-wet and dry-flat | 50% |
