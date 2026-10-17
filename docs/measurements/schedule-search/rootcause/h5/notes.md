@@ -165,3 +165,63 @@ d1/(1/s_x − 1) and the fine pair's d2/(1 − s_f) of the committed rung's erro
   plus what the gap sets, as O2 measured). A node at o puts the corner on a node and leaves
   the strip [o, o + 12 d] a hat interval over smooth (if curved) fate. That is what rule N
   does; the mechanism agrees with the decision O2 made.
+
+## W, V. Added mid-round (coordinator): an s = 2.0 rung, and where H5's extra rows come from
+
+### V0. Where the extra nodes are (`decomp.R`; schedule only) [m]
+
+Nodes at s = 1 by kind (closing edge c; c − 12 d; opening edge o; o + 12 d; other nodes
+before 25; nodes after 25):
+
+| case | layout | n | c | c − 12 | o | o + 12 | other < 25 | ≥ 25 |
+|---|---|---|---|---|---|---|---|---|
+| dry | E6 committed | 149 | 0 | 28 | 0 | 28 | 82 | 11 |
+| dry | N | 224 | 48 | 28 | 46 | 28 | 63 | 11 |
+| dry | N1 (o a node, no o + 12) | 200 | 48 | 37 | 46 | 0 | 58 | 11 |
+| dry | C (opening inset 12 d fixed = oin12) | 178 | 48 | 30 | 0 | 28 | 61 | 11 |
+| dry | N, E6's inset from b = 17 | 192 | 32 | 28 | 30 | 28 | 63 | 11 |
+| dry | N1, E6's inset from b = 17 | 176 | 32 | 34 | 30 | 9 | 60 | 11 |
+| long-wet | E6 / N / N1 / C | 157 / 245 / 205 / 200 | 0 / 51 / 51 / 51 | 42 / 42 / 48 / 46 | 0 / 45 / 45 / 0 | 42 / 42 / 0 / 42 | 63 / 55 / 51 / 51 | 10 |
+| episodic-lma | E6 / N / N1 / C | 120 / 158 / 140 / 136 | 0 / 22 / 22 / 22 | 22 | 0 / 22 / 22 / 0 | 22 / 22 / 0 / 22 | 66 / 60 / 64 / 60 | 10 |
+| dry-flat | E6 / N / N1 / C | 191 / 328 / 280 / 248 | 0 / 93 / 93 / 93 | 54 / 53 / 66 / 55 | 0 / 80 / 80 / 0 | 54 / 53 / 0 / 53 | 81 / 47 / 39 / 45 | 2 |
+
+- **H5's extra nodes are the edge nodes, all of them.** E6's inset nodes are H5's c − 12 d
+  and o + 12 d nodes already; H5 adds one node per closing edge (dry +48) and one per
+  opening edge (+46), and its background is *sparser* than E6's (63 against 82 other
+  nodes before 25 on dry), because the strips are taken out of the graded stretch. The
+  fixed node at c − 12 d costs nothing over E6; it is E6's inset node.
+- After b = 25 H5 has no fixed nodes (late edges are left out, as in E6); the nearest
+  saving of that kind is to give the edges from b = 17 E6's inset (one node each), which
+  drops 32 nodes on dry (the era 17–25 carried 4% of the interiors' root_P50, p50 R2a).
+- Widest open interval (d) in rule N, s = 2 / 1.6 / 1 / 1/1.6: before b = 20: dry 198 / 160 /
+  103 / 65, long-wet 211 / 169 / 106 / 65, episodic-lma 224 / 168 / 112 / 69, dry-flat 217 /
+  174 / 109 / 70; in 20–25 up to 227 / 227 / 179 / 126 (dry), 462 / 308 / 231 / 168
+  (episodic-lma). After 25 the late intervals are E6's (a09_late), scaled.
+
+### Pre-registration W and V (before any of their runs)
+
+Runs: N20 (s = 2.0) on dry, long-wet, episodic-lma; on dry the ladders N1 (s = 1.6 / 1 /
+1/1.6), N1 from b = 17 with E6's inset after (kind T, same s), and C (opening inset fixed
+12 d; s = 1 is oin12, so s = 1.6 and 1/1.6 added). "Matched error" is read by
+interpolating log worst error (and log rms) against log rows along each layout's rungs, at
+E6 committed's worst (dry 0.35) and rms (0.159).
+- **W1.** The pooled order from s = 2.0 / 1.6 / 1 lies in [1.6, 2.4] on all three cases —
+  35%; on at least two — 55%. The 2.0/1 pair's median read in [0.7, 1.4] on all three — 45%.
+  A run refuses (throws) — 10%.
+- **V1.** N1's ladder is clean (pooled p in [1.6, 2.4], cos ≥ 0.85) — 55%; its committed
+  worst error is within ±20% of N's (0.60) — 50%; at matched worst error it needs ≤ 0.9× N's
+  rows — 55%.
+- **V2.** T (N1 from b = 17) is clean by the same test — 45%; the part no pair sees,
+  rms(err_c − est_fine), is ≤ 0.06 — 50%; at matched worst error ≤ 0.85× N's rows — 50%.
+- **V3.** C's moves are clean (p in band, cos ≥ 0.85) — 55%, but its unseen part is larger
+  than N's by ≥ 0.02 rms (the fixed opening strip, O2) — 55%.
+- **V4.** At matched worst error (E6's 0.35), every H5 variant needs more rows than E6's
+  committed run — 80%.
+
+### Pre-registration L′ (dry-flat and episodic-lma, before their runs)
+
+- **L′1.** Pooled p in [1.6, 2.4] and cos ≥ 0.85 on both — 40% (dry-flat has 93 closing
+  edges and the shortest spells; episodic-lma's error is mostly the founders').
+- **L′2.** The coarse pair passes C1–C5 on both — 45%; the fine pair on both — 55%.
+- **L′3.** episodic-lma's committed rung worst error > 1 (E6's committed erred 1.28 there) —
+  55%.

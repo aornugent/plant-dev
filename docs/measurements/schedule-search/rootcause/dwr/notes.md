@@ -185,3 +185,98 @@ the two regions' root_P50 (−0.60) by ln J's split gives the founders +0.50.
 | E2 | cos(Cx-I field vector over the 50 quantities, measured interiors' vector) ≥ 0.8 | 55% |
 | E3 | cos(Cx-F field vector, measured founders' vector on c) ≥ 0.6 (the founders' own part, missing here, is a large share) | 40% |
 | E4 | the two drop1 vectors are far apart: cos(Cx-I, Cx-F) < 0.5 (a per-quantity map separates the regions where ln J's cannot) | 65% |
+
+## Results, in run order
+
+### Build and drop sets [m]
+- `dwr/build/lib` = libS source + `node_drop.patch`, built 02:23–02:4x UTC (`-O2`, R's
+  default flags), odelia and phylloptim linked from `summing/build/lib0` (= libS).
+- `mk_drop2.R`: x (110 nodes, median interval 85 d): 75 nodes kept at edges and ends, 26
+  dropped: F 5, Ia 6, Ib 7, Ic 7, L 1. c (149 nodes, 69 d): 78 kept, 39 dropped: F 8, Ia 9,
+  Ib 9, Ic 7, L 6. No closing-zone or gap node is droppable on either (the inset node is
+  the only node within 36 d of a closing edge).
+
+### Ax and Ac: the map on the coarse and the committed run (`score_map.R`; `score_x_dry.log`, `score_c_dry.log`) [m]
+
+Guard: both replays reproduce the saved J and all 50 trait columns `identical()`, and the
+plain sweep in the same process too. **L0 holds.**
+
+| region | x: own | x: light | x: soil | x: D | x: e = D/3 | x → c: e/2.56 | c: own | c: field | c: e = D/3 | measured (res; F on c) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| interiors I | +0.267 | +0.544 | −2.412 | −1.601 | −0.534 | **−0.208** | +0.121 | −0.785 | **−0.221** | **−0.22** |
+| Ia (b1–10) | +0.178 | +0.355 | −1.267 | −0.733 | −0.245 | −0.096 | +0.094 | −0.468 | −0.125 | −0.14 |
+| Ib (10–17) | +0.065 | +0.170 | −0.999 | −0.764 | −0.255 | −0.099 | +0.023 | −0.259 | −0.079 | −0.07 |
+| Ic (17–25) | +0.024 | +0.018 | −0.146 | −0.103 | −0.034 | −0.013 | +0.004 | −0.058 | −0.018 | −0.01 |
+| founders F | +1.233 | +0.204 | −0.667 | +0.769 | +0.256 | **+0.100** | +0.526 | −0.203 | **+0.108** | **+0.10** (c, fbis) |
+| late L | +0.653 | +0.001 | −0.006 | +0.647 | +0.216 (1 drop) | +0.084 | +0.005 | −0.034 | −0.009 | −0.01 |
+
+(ε of ln J. x → c assumes h² and every x interval 1.6× c's.)
+
+- **ln J's region errors are read from one run, on either spacing.** c's own map gives
+  interiors −0.221 against −0.22 measured, founders +0.108 against +0.10, the three eras
+  −0.125 / −0.079 / −0.018 against −0.14 / −0.07 / −0.01, late −0.009 against −0.01.
+- **They transfer from the coarse run.** x's estimates /2.56: interiors −0.208 (0.94× c's),
+  founders +0.100 (0.93×). Late does not transfer: x has one late drop over 400+ d
+  intervals, whose own part (+0.65 at x) is not h² there.
+- **The field part is soil, and late in the run**: the interiors' field is soil −2.41,
+  light +0.54 on x (c: −1.02, +0.23); 100% of it acts after t = 10 y (10–20 y 78%). The
+  founders' field is soil too (−0.67 against light +0.20), 26–31% of it after 10 y. So the
+  over-counted understory's extra uptake is what lowers everyone's fate, to first order,
+  even though the layers themselves agree to 1e-5 between res and I4 (p50 R3): the soil's
+  adjoint weights water at the moments it is short [i].
+- **Cost.** x: 287 292 rows against c's 389 409 (0.74); forward 33 s against 43 s, sweep
+  110 s against 145 s, same session. The map adds 5% to a sweep on both (115 / 110, 152 /
+  145 s). **K1, K2 hold.**
+- First order: the drop1 forward (coarse field applied in full) moves ln J by −1.855ε
+  (interiors) and −0.466ε (founders) against the map's −1.868 and −0.463 (0.99×, 1.01×).
+
+### S: ln J's split against the elasticities' (`s_split.R`, `s_split_dry.log`) [m]
+
+| quantity | F | I | Os | O1 | L | B | cos with ln J |
+|---|---|---|---|---|---|---|---|
+| ln J | +0.10 | −0.22 | +0.06 | −0.02 | −0.01 | +0.01 | 1 |
+| root_P50 | −0.09 | −0.51 | −0.14 | −0.05 | +0.03 | +0.03 | +0.70 |
+| omega | +0.01 | +0.31 | +0.09 | +0.01 | −0.02 | +0.01 | −0.76 |
+| a_l1 | −0.04 | +0.42 | −0.11 | 0.00 | 0.00 | −0.03 | −0.94 |
+| stem_c | −0.18 | −0.11 | −0.05 | +0.02 | +0.03 | −0.01 | +0.06 |
+| a | −0.21 | −0.15 | +0.03 | −0.03 | +0.02 | +0.03 | +0.23 |
+
+- Median |cos| over the 8 key quantities 0.58, over all 46 elasticities 0.45; 37% reach
+  |cos| ≥ 0.7. **S1 holds.** Allocating a quantity's total by ln J's signed split is far
+  off, because ln J's regions cancel (their sum −0.08 is a third of the interiors' −0.22):
+  root_P50 would get founders +0.80, interiors −1.80 against −0.09, −0.51.
+- But **where** the elasticities err is where ln J errs in size: the rms-over-elasticities
+  profile (F 0.132, I 0.138, Os 0.036, O1 0.018, L 0.024, B 0.019) has cos 0.94 with |ln J|'s
+  profile (−0.32 with signed ln J). **S2 holds as registered (signed), but the unsigned
+  reading is the useful one**: |ln J's map| ranks the regions for the elasticities; it
+  does not give their signs or directions.
+
+### Cx-I, Cx-F: drop1 with the sweep on the coarse run (`score_drop1.R`, `score_drop1_x_dry.log`) [m]
+
+| | ln J | root_P50 | omega | cost | stem_c | a_l1 | sro | root_c | a | cos with measured |
+|---|---|---|---|---|---|---|---|---|---|---|
+| interiors, drop1 field /3/2.56 | −0.24 | −0.04 | +0.01 | −0.37 | +0.09 | +0.03 | +0.08 | +0.04 | +0.11 | **−0.11** |
+| interiors, measured | −0.22 | −0.51 | +0.31 | +0.22 | −0.11 | +0.42 | +0.04 | +0.22 | −0.15 | |
+| founders, drop1 field /3/2.56 | −0.06 | −0.05 | −0.02 | −0.06 | −0.05 | +0.04 | +0.07 | +0.02 | −0.04 | 0.46 |
+| founders on c, measured | +0.10 | −0.04 | +0.01 | +0.09 | −0.26 | −0.04 | +0.12 | +0.01 | −0.21 | |
+
+- **E1, E2, E3 refuted; E4 holds** (cos(Cx-I, Cx-F) 0.15, but neither is right).
+- Why [code]: the drop's field change is passive (`drop_crowns`, `drop_uptake` return
+  doubles: "only a coefficient scaling the gain is differentiated"). So the swept drop1
+  run differentiates λ in a field change frozen at the run's θ, and misses
+  ∫ λ · dδenv/dθ: how the field error itself moves with the traits. That is the
+  mechanism p50 found (the convexity of the understory's leaf area in birth date, set by
+  survival and growth traits). The own part's θ-derivative is missing too.
+
+### Pre-registration E′ (before the pinned real coarsenings)
+
+The per-quantity map that keeps every θ-dependence: run the region's coarsening for real on
+the coarse run, pinned to x's steps (`run.sh plain`, TIMES = x \ D_g, PIN = x): own, field
+and establishment at all orders, every quantity, no step jitter; one coarse gradient run
+per region.
+
+| # | prediction | P |
+|---|---|---|
+| E5 | the pinned x \ D_I run moves ln J within 10% of the map's D_I (−1.601ε) | 70% |
+| E6 | its move /3/2.56 has cos ≥ 0.8 with the measured interiors' vector, and root_P50 within ×[0.5, 2] of −0.51 | 50% |
+| E7 | the founders' (x \ D_F) move /3/2.56 has cos ≥ 0.7 with the measured founders on c | 50% |
