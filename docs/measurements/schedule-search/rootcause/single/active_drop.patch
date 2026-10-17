@@ -1,12 +1,20 @@
-diff -ruN plant/R/RcppExports.R plant/R/RcppExports.R
+diff -ruN -x '*.o' -x '*.so' plant/R/RcppExports.R plant/R/RcppExports.R
 --- plant/R/RcppExports.R	2026-10-17 02:23:10.514050633 +0000
-+++ plant/R/RcppExports.R	2026-10-17 22:35:51.488668915 +0000
-@@ -4749,6 +4749,14 @@
++++ plant/R/RcppExports.R	2026-10-17 23:09:59.183934989 +0000
+@@ -4749,6 +4749,22 @@
      invisible(.Call('_plant_node_drop_set_tf24', PACKAGE = 'plant', obj_, nodes, bands, light, soil))
  }
  
 +node_drop_census_set_tf24 <- function(obj_, census) {
 +    invisible(.Call('_plant_node_drop_census_set_tf24', PACKAGE = 'plant', obj_, census))
++}
++
++rate_cost_tf24 <- function(obj_, reps) {
++    .Call('_plant_rate_cost_tf24', PACKAGE = 'plant', obj_, reps)
++}
++
++leaf_resolve_on_replay_set <- function(resolve) {
++    invisible(.Call('_plant_leaf_resolve_on_replay_set', PACKAGE = 'plant', resolve))
 +}
 +
 +node_drop_census_tf24 <- function(obj_) {
@@ -16,7 +24,31 @@ diff -ruN plant/R/RcppExports.R plant/R/RcppExports.R
  #' Generate a suitable set of default node introduction times,
  #' biased so that introductions are more closely packed at the
  #' beginning of time, become increasingly spread out.
-diff -ruN plant/inst/include/plant/patch.h plant/inst/include/plant/patch.h
+diff -ruN -x '*.o' -x '*.so' plant/inst/include/plant/models/tf24_strategy.h plant/inst/include/plant/models/tf24_strategy.h
+--- plant/inst/include/plant/models/tf24_strategy.h	2026-10-14 05:58:11.000000000 +0000
++++ plant/inst/include/plant/models/tf24_strategy.h	2026-10-17 23:01:47.128541547 +0000
+@@ -485,6 +485,10 @@
+ // the collar MOVES and is re-derived from, the arm SELECTS and is replayed. What
+ // else a pass might record is rederivable from the collar alone, which is what
+ // phylloptim's evaluate_root_collar_psi does.
++// When set, a replay solves every leaf again instead of placing the recorded
++// collar, so the leaf answers the field the replay builds.
++inline bool leaf_resolve_on_replay = false;
++
+ struct leaf_solved_point {
+   double collar = 0.0;
+   Leaf::OperatingPointKind kind = Leaf::OperatingPointKind::Unsolved;
+@@ -2432,7 +2436,8 @@
+ template <typename S>
+ void TF24_Strategy<S>::solve_leaf() {
+   const leaf_solved_point recorded = leaf_points->load();
+-  if (recorded.kind == Leaf::OperatingPointKind::Unsolved) {
++  if (recorded.kind == Leaf::OperatingPointKind::Unsolved ||
++      leaf_resolve_on_replay) {
+     // ⚠️ THE CURVE-TYPED FORM. find_root_collar_psi() is the TF24 SHORTHAND and
+     // solves TF24 whatever set_model seated, so calling it here would optimise
+     // one curve, differentiate another, and report a shadow price the solve
+diff -ruN -x '*.o' -x '*.so' plant/inst/include/plant/patch.h plant/inst/include/plant/patch.h
 --- plant/inst/include/plant/patch.h	2026-10-17 02:23:10.514535813 +0000
 +++ plant/inst/include/plant/patch.h	2026-10-17 22:35:32.737281218 +0000
 @@ -252,11 +252,16 @@
@@ -122,10 +154,18 @@ diff -ruN plant/inst/include/plant/patch.h plant/inst/include/plant/patch.h
        species[0].drop_uptake(j, depletion.size());
      const value_type& c = node_drop.soil[d * n_bands + band];
      for (size_t i = 0; i < depletion.size(); ++i) {
-diff -ruN plant/inst/include/plant/scm.h plant/inst/include/plant/scm.h
+diff -ruN -x '*.o' -x '*.so' plant/inst/include/plant/scm.h plant/inst/include/plant/scm.h
 --- plant/inst/include/plant/scm.h	2026-10-17 02:23:10.514843857 +0000
-+++ plant/inst/include/plant/scm.h	2026-10-17 22:35:32.738099297 +0000
-@@ -176,6 +176,9 @@
++++ plant/inst/include/plant/scm.h	2026-10-17 23:09:59.178174336 +0000
+@@ -9,6 +9,7 @@
+ #include <plant/scm_utils.h>
+ 
+ #include <algorithm>
++#include <chrono>
+ #include <cmath>
+ #include <limits>
+ #include <span>
+@@ -176,6 +177,9 @@
      for (size_t i = 0; i < p.size(); ++i) {
        tot += p.at_species(i).offspring_production();
      }
@@ -135,7 +175,7 @@ diff -ruN plant/inst/include/plant/scm.h plant/inst/include/plant/scm.h
      return tot;
    }
  
-@@ -265,6 +268,13 @@
+@@ -265,6 +269,71 @@
      patch.set_node_drop(nodes, bands, light, soil);
      solver.get_system_ref().set_node_drop(nodes, bands, light, soil);
    }
@@ -146,10 +186,68 @@ diff -ruN plant/inst/include/plant/scm.h plant/inst/include/plant/scm.h
 +  double node_drop_census() const {
 +    return odelia::util::to_passive(patch.node_drop_census());
 +  }
++
++  // Seconds per rate evaluation at the last recorded state, every leaf solved:
++  // at double, at a tangent of width 1 and of width 5, and recorded at the
++  // adjoint scalar with one transpose row swept.
++  std::vector<double> rate_cost(int reps) {
++    using clock = std::chrono::steady_clock;
++    const trajectory rec = store_trajectory();
++    const size_t at = rec.size() - 1;
++    const std::vector<double>& state = rec[at].state;
++    const double when = odelia::ode::at_state_time(rec, at);
++    const auto& solved = rec[at].solved.at_state;
++    const bool was = leaf_resolve_on_replay;
++    leaf_resolve_on_replay = true;
++    auto seconds = [&](auto&& f) {
++      const auto t0 = clock::now();
++      for (int r = 0; r < reps; ++r) {
++        f();
++      }
++      return std::chrono::duration<double>(clock::now() - t0).count() / reps;
++    };
++    std::vector<double> ret;
++    {
++      patch_type p = patch;
++      std::vector<double> rates(state.size());
++      ret.push_back(seconds([&] {
++        odelia::ode::derivs(p, state, rates, when, std::as_const(solved));
++      }));
++    }
++    auto at_scalar_type = [&](auto tag) {
++      using U = decltype(tag);
++      auto p = patch.template rebind_from<U>();
++      std::vector<U> x(state.begin(), state.end()), rates(state.size());
++      return seconds([&] {
++        odelia::ode::derivs(p, x, rates, when, std::as_const(solved));
++      });
++    };
++    ret.push_back(at_scalar_type(tangent{}));
++    ret.push_back(at_scalar_type(typename xad::fwd<double, 5>::active_type{}));
++    {
++      using scalar = odelia::ode::active_scalar<double>;
++      const auto seed = odelia::ode::adjoint_rows::one_row(
++        std::vector<double>(state.size(), 1.0));
++      odelia::ode::adjoint_rows st, tr(1, patch.trait_adjoint_size());
++      auto reduce = [&](auto& active,
++                        typename std::vector<scalar>::const_iterator x,
++                        std::vector<scalar>& y) -> void {
++        const std::vector<scalar> in(
++          x, x + static_cast<std::ptrdiff_t>(state.size()));
++        odelia::ode::derivs(active, in, y, when, std::as_const(solved));
++      };
++      ret.push_back(seconds([&] {
++        odelia::ode::state_and_parameter_adjoints(patch, state, seed, reduce,
++                                                  st, tr);
++      }));
++    }
++    leaf_resolve_on_replay = was;
++    return ret;
++  }
  
    // The four references the ladder checks census_trait_gradient against.
  
-diff -ruN plant/inst/include/plant/species.h plant/inst/include/plant/species.h
+diff -ruN -x '*.o' -x '*.so' plant/inst/include/plant/species.h plant/inst/include/plant/species.h
 --- plant/inst/include/plant/species.h	2026-10-17 02:23:10.515053084 +0000
 +++ plant/inst/include/plant/species.h	2026-10-17 22:35:07.014463694 +0000
 @@ -117,11 +117,13 @@
@@ -274,10 +372,10 @@ diff -ruN plant/inst/include/plant/species.h plant/inst/include/plant/species.h
  template <typename T, typename E>
  std::vector<double> Species<T,E>::log_birth_date_densities() const {
    using odelia::util::to_passive;
-diff -ruN plant/src/RcppExports.cpp plant/src/RcppExports.cpp
+diff -ruN -x '*.o' -x '*.so' plant/src/RcppExports.cpp plant/src/RcppExports.cpp
 --- plant/src/RcppExports.cpp	2026-10-17 02:23:10.518237557 +0000
-+++ plant/src/RcppExports.cpp	2026-10-17 22:35:51.487417889 +0000
-@@ -13368,6 +13368,28 @@
++++ plant/src/RcppExports.cpp	2026-10-17 23:09:59.182706655 +0000
+@@ -13368,6 +13368,50 @@
      return R_NilValue;
  END_RCPP
  }
@@ -303,22 +401,46 @@ diff -ruN plant/src/RcppExports.cpp plant/src/RcppExports.cpp
 +    return rcpp_result_gen;
 +END_RCPP
 +}
++// leaf_resolve_on_replay_set
++void leaf_resolve_on_replay_set(bool resolve);
++RcppExport SEXP _plant_leaf_resolve_on_replay_set(SEXP resolveSEXP) {
++BEGIN_RCPP
++    Rcpp::RNGScope rcpp_rngScope_gen;
++    Rcpp::traits::input_parameter< bool >::type resolve(resolveSEXP);
++    leaf_resolve_on_replay_set(resolve);
++    return R_NilValue;
++END_RCPP
++}
++// rate_cost_tf24
++std::vector<double> rate_cost_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_, int reps);
++RcppExport SEXP _plant_rate_cost_tf24(SEXP obj_SEXP, SEXP repsSEXP) {
++BEGIN_RCPP
++    Rcpp::RObject rcpp_result_gen;
++    Rcpp::RNGScope rcpp_rngScope_gen;
++    Rcpp::traits::input_parameter< plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > >::type obj_(obj_SEXP);
++    Rcpp::traits::input_parameter< int >::type reps(repsSEXP);
++    rcpp_result_gen = Rcpp::wrap(rate_cost_tf24(obj_, reps));
++    return rcpp_result_gen;
++END_RCPP
++}
  // node_schedule_times_default
  std::vector<double> node_schedule_times_default(double max_time);
  RcppExport SEXP _plant_node_schedule_times_default(SEXP max_timeSEXP) {
-@@ -14739,6 +14761,8 @@
+@@ -14739,6 +14783,10 @@
      {"_plant_node_schedule_default__Parameters___K93__K93_Env", (DL_FUNC) &_plant_node_schedule_default__Parameters___K93__K93_Env, 1},
      {"_plant_make_node_schedule__Parameters___K93__K93_Env", (DL_FUNC) &_plant_make_node_schedule__Parameters___K93__K93_Env, 1},
      {"_plant_node_drop_set_tf24", (DL_FUNC) &_plant_node_drop_set_tf24, 5},
 +    {"_plant_node_drop_census_set_tf24", (DL_FUNC) &_plant_node_drop_census_set_tf24, 2},
 +    {"_plant_node_drop_census_tf24", (DL_FUNC) &_plant_node_drop_census_tf24, 1},
++    {"_plant_leaf_resolve_on_replay_set", (DL_FUNC) &_plant_leaf_resolve_on_replay_set, 1},
++    {"_plant_rate_cost_tf24", (DL_FUNC) &_plant_rate_cost_tf24, 2},
      {"_plant_node_schedule_times_default", (DL_FUNC) &_plant_node_schedule_times_default, 1},
      {"_plant_test_stem_effective_path_length", (DL_FUNC) &_plant_test_stem_effective_path_length, 3},
      {"_plant_FF16_strategy_expand_allometry", (DL_FUNC) &_plant_FF16_strategy_expand_allometry, 4},
-diff -ruN plant/src/node_drop.cpp plant/src/node_drop.cpp
+diff -ruN -x '*.o' -x '*.so' plant/src/node_drop.cpp plant/src/node_drop.cpp
 --- plant/src/node_drop.cpp	2026-10-17 02:23:10.519221632 +0000
-+++ plant/src/node_drop.cpp	2026-10-17 22:35:51.481752851 +0000
-@@ -15,3 +15,16 @@
++++ plant/src/node_drop.cpp	2026-10-17 23:09:59.178656713 +0000
+@@ -15,3 +15,28 @@
    }
    obj_->set_node_drop(from_zero, bands, light, soil);
  }
@@ -334,4 +456,16 @@ diff -ruN plant/src/node_drop.cpp plant/src/node_drop.cpp
 +// [[Rcpp::export]]
 +double node_drop_census_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_) {
 +  return obj_->node_drop_census();
++}
++
++// Whether a replay solves every leaf again (plant::leaf_resolve_on_replay).
++// [[Rcpp::export]]
++void leaf_resolve_on_replay_set(bool resolve) {
++  plant::leaf_resolve_on_replay = resolve;
++}
++
++// SCM::rate_cost: seconds per rate evaluation at four scalars.
++// [[Rcpp::export]]
++std::vector<double> rate_cost_tf24(plant::RcppR6::RcppR6<plant::SCM<plant::TF24_Strategy<double>, plant::TF24_Environment<double> > > obj_, int reps) {
++  return obj_->rate_cost(reps);
 +}

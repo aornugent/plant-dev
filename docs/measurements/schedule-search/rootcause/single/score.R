@@ -27,13 +27,17 @@ for (g in regs) {
   if (!is.null(b)) { field <- sum(col[as.character(dg)]); Jc <- J + b$census_gain + field
     out$map <- c(lnJ = log(Jc / J) / u / 3, own = log1p(b$census_gain / J) / u / 3, field = field / J / u / 3)
     out$B <- mv_run(pseudo(Jc, b$gradient, S$theta), S) / 3; out$B["lnJ"] <- out$map["lnJ"] }
+  br <- rr(sprintf("Sr_%s", cs))$B[[g]]
+  if (!is.null(br) && !is.null(b)) out$Br <- { o <- mv_run(pseudo(Jc, br$gradient, S$theta), S) / 3; o["lnJ"] <- out$map["lnJ"]; o }
+  ah <- rr(sprintf("Ah_%s_%s", g, cs))
+  if (!is.null(ah$stand$gradient)) out$Ah2 <- 2 * mv_run(pseudo(ah$stand$J + 0.5 * ah$stand$census_gain, ah$stand$gradient, ah$theta), S) / 3
   a <- rr(sprintf("A_%s_%s", g, cs))
   if (!is.null(a$stand$gradient)) out$A <- mv_run(pseudo(a$stand$J + a$stand$census_gain, a$stand$gradient, a$theta), S) / 3
   r0 <- rr(sprintf("R0_%s_%s", g, cs))
   if (!is.null(r0$stand$elasticity)) out$R0 <- mv_run(r0, S) / 3
   est[[g]] <- out
   tru <- list(R0 = out$R0, meas = if (!is.null(meas) && g %in% names(meas)) meas[[g]] else NULL)
-  for (m in intersect(c("B", "A", "R0"), names(out))) for (t in names(tru)) if (!is.null(tru[[t]]) && !(m == "R0" && t == "R0"))
+  for (m in intersect(c("B", "Br", "A", "Ah2", "R0"), names(out))) for (t in names(tru)) if (!is.null(tru[[t]]) && !(m == "R0" && t == "R0"))
     tab[[length(tab) + 1]] <- data.frame(region = g, est = m, truth = t, t(round(cmp(out[[m]], tru[[t]]), 3)))
   if (!is.null(out$map)) cat(sprintf("%-3s map: ln J e = %+.3f (own %+.3f, field %+.3f)%s\n", g, out$map["lnJ"], out$map["own"], out$map["field"],
     if (!is.null(b)) sprintf("; B sweep %.0f s", b$cpu) else ""))
@@ -41,6 +45,13 @@ for (g in regs) {
   if (!is.null(tru$meas)) line(paste(g, "measured"), tru$meas)
 }
 tab <- do.call(rbind, tab); print(tab, row.names = FALSE)
+if (all(c("Ia", "Ib", "Ic", "I") %in% names(est)) && all(sapply(est[c("Ia", "Ib", "Ic", "I")], function(o) !is.null(o$A)))) {
+  s3 <- est$Ia$A + est$Ib$A + est$Ic$A; cat(sprintf("A additivity: rms(Ia+Ib+Ic - I) / rms(I) = %.3f\n", r2((s3 - est$I$A)[-1]) / r2(est$I$A[-1]))) }
+for (g in names(est)) if (!is.null(est[[g]]$Ah2) && !is.null(est[[g]]$A)) cat(sprintf("A linearity %s: rms(2 move(0.5) - move(1)) / rms(move(1)) = %.3f\n", g, r2((est[[g]]$Ah2 - est[[g]]$A)[-1]) / r2(est[[g]]$A[-1])))
+sr <- rr(sprintf("Sr_%s", cs)); if (!is.null(sr$resolve_guard)) { gg <- sr$resolve_guard$gradient[names(S$stand$gradient)]
+  cat(sprintf("resolve guard: max rel diff of the re-solved run's own sweep from its gradient %.2e (sweep %.0f s against %.0f)\n", max(abs(gg / S$stand$gradient - 1), na.rm = TRUE), sr$resolve_guard$cpu, S$sweep0_cpu %||% NA)) }
+rx <- rr(sprintf("R0_x_%s", cs)); if (!is.null(rx$stand$elasticity)) { ex <- mv_run(rx, S) / 3; sm <- Reduce(`+`, lapply(est[intersect(c("F", "I", "L"), names(est))], `[[`, "R0"))
+  cat(sprintf("R0 every region at once vs the sum of R0 by region: cos %.3f, rms diff %.3f, rms sum %.3f, ln J %+.3f vs %+.3f\n", cosv(ex, sm), r2((ex - sm)[-1]), r2(sm[-1]), ex["lnJ"], sm["lnJ"])) }
 if (!is.null(S$B$I) && all(c("Ia", "Ib", "Ic") %in% names(S$B))) { s3 <- est$Ia$B + est$Ib$B + est$Ic$B
   cat(sprintf("additivity: |Ia+Ib+Ic - I| rms / rms(I) = %.3f\n", r2((s3 - est$I$B)[-1]) / r2(est$I$B[-1]))) }
 h <- rr(sprintf("Sh_%s", cs)); if (!is.null(h$B$I) && !is.null(S$B$I)) {

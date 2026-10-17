@@ -1,0 +1,22 @@
+single dry Sr_dry RESOLVE=1 REGIONS=F,I
+drop1a dry Ah_I_dry REGION=I SCALE=0.5
+drop1a dry Ah_F_dry REGION=F SCALE=0.5
+drop1a dry A_Ia_dry REGION=Ia
+drop1a dry A_Ib_dry REGION=Ib
+drop1a dry A_Ic_dry REGION=Ic
+drop1a dry A_L_dry REGION=L
+single dry-flat S_dry-flat SWEEP0=1 REGIONS=F,I,L
+single episodic-lma S_episodic-lma SWEEP0=1 REGIONS=F,I,L
+drop1a dry-flat A_F_dry-flat REGION=F
+drop1a dry-flat A_I_dry-flat REGION=I
+drop1a dry-flat A_L_dry-flat REGION=L
+plain dry-flat R0_F_dry-flat TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_F_dry-flat.rds
+plain dry-flat R0_I_dry-flat TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_I_dry-flat.rds
+plain dry-flat R0_L_dry-flat TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_L_dry-flat.rds
+drop1a episodic-lma A_F_episodic-lma REGION=F
+drop1a episodic-lma A_I_episodic-lma REGION=I
+drop1a episodic-lma A_L_episodic-lma REGION=L
+plain episodic-lma R0_F_episodic-lma TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_F_episodic-lma.rds
+plain episodic-lma R0_I_episodic-lma TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_I_episodic-lma.rds
+plain episodic-lma R0_L_episodic-lma TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_L_episodic-lma.rds
+plain dry R0_x_dry TIMES=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/single/sched/coarse_all_dry.rds

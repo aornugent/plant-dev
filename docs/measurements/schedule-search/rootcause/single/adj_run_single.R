@@ -4,8 +4,10 @@
 #   single: the run at c = 0, the map sweep (every drop's light and soil column), then per
 #           region one sweep over the run's own rows with that region's drop at c = SCALE
 #           (default 1) in every band and the merged-weight census on (B).
-#   drop1a: per run, one region (REGION) at c = 1 with the census on, through the forward and
-#           its sweep (A).
+#   drop1a: per run, one region (REGION) at c = SCALE (default 1) with the census on, through
+#           the forward and its sweep (A).
+#   bench:  the run, then SCM::rate_cost at its last state (REPS repetitions).
+#   RESOLVE=1 (single): every leaf solved again in the B sweeps (B'), after a guard sweep at c = 0.
 # adj_run_nk.R with SWEEP=1 also sweeping in drop1 mode (the trait gradient of the
 # coarser field to first order), and NODEREC=1 keeping every node's state at ~150 recorded
 # times (for the field integrands' curvature). Otherwise unchanged.
@@ -115,8 +117,9 @@ if (mode == "single") {
 }
 if (mode == "drop1a") {
   k <- length(dropped) * nb
-  plant:::node_drop_set_tf24(scm, dropped, BANDS, rep(1, k), rep(1, k))
-  plant:::node_drop_census_set_tf24(scm, 1)
+  sc <- as.numeric(Sys.getenv("SCALE", "1"))
+  plant:::node_drop_set_tf24(scm, dropped, BANDS, rep(sc, k), rep(sc, k))
+  plant:::node_drop_census_set_tf24(scm, sc)
 }
 if (mode %in% c("map", "drop1")) {
   stopifnot(length(dropped) > 0)
@@ -157,6 +160,12 @@ if (Sys.getenv("SOILREC") == "1") {
 cat(sprintf("%s %s: J %.12g, %d steps, %.0f rows, %.0f s\n", scen, mode, out$stand$J,
             length(out$stand$times), out$stand$rows, out$stand$cpu))
 
+# MODE bench: seconds per rate evaluation at the last state, at four scalars (SCM::rate_cost).
+if (mode == "bench") {
+  out$rate_cost <- setNames(plant:::rate_cost_tf24(scm, as.integer(Sys.getenv("REPS", "20"))),
+                            c("double", "tangent1", "tangent5", "adjoint_record_sweep"))
+  print(out$rate_cost); print(out$rate_cost / out$rate_cost[1]); save(); quit(save = "no")
+}
 # SWEEP0=1: first the sweep without the drop's columns, timed, in the same process.
 if (mode %in% c("map", "single") && Sys.getenv("SWEEP0") == "1") {
   plant:::node_drop_set_tf24(scm, integer(0), BANDS, numeric(0), numeric(0))
@@ -189,6 +198,15 @@ if ((mode == "plain" && Sys.getenv("FORWARD") != "1") || mode %in% c("map", "sin
                 100 * sum(out$light) / out$stand$J, 100 * sum(out$soil) / out$stand$J, out$sweep_cpu))
   }
   save()
+}
+if (mode == "single" && Sys.getenv("RESOLVE") == "1") {
+  # B': every leaf solved again in the sweeps below; first the run's own sweep so, as a guard.
+  plant:::leaf_resolve_on_replay_set(TRUE)
+  plant:::node_drop_set_tf24(scm, integer(0), BANDS, numeric(0), numeric(0))
+  c0 <- cpu()
+  g0 <- plant:::census_trait_gradient_tf24(scm, "offspring_production")
+  out$resolve_guard <- list(gradient = setNames(g0$gradient[[1]], plant:::census_trait_names_tf24(scm)), cpu = cpu() - c0)
+  cat(sprintf("resolve guard sweep %.0f s\n", out$resolve_guard$cpu)); save()
 }
 if (mode == "single") {
   sc <- as.numeric(Sys.getenv("SCALE", "1"))
