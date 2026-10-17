@@ -2,7 +2,7 @@
 # run.sh NAME/CASE [NAME/CASE...]: one gradient run per item at the E6 committed setting (libS's
 # exact source + node_drop.patch, no knot stops, 1e-4), MODE=map so the sweep also returns the
 # node-drop map for COARSE = sched/NAME_coarse.rds; TIMES = sched/NAME.rds; output runs/NAME.rds.
-# At most P (default 3) at a time, none started while the machine shows MAXR (default 3) or more R processes.
+# At most P (default 3) at a time, none started while the machine shows MAXR (default 4) or more R processes; with P = 3 that is 3 runs plus a driver.
 L=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/loop
 DEV=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev
 H=/home/user/plant-dev/docs/measurements/schedule-search/rootcause
@@ -27,7 +27,7 @@ one() { name=${1%%/*}; cs=${1#*/}; seed=""; trait=""
   grep -q "^done 0 $name " $L/queue.out 2>/dev/null && [ -s $L/runs/$name.rds ] && return 0
   exec 9>$L/.gate.lock; flock 9
   nr() { local n=0; for p in $(pgrep -f "R --|Rscript|exec/R"); do c=$(ps -o comm= -p $p 2>/dev/null); case "$c" in R|Rscript) n=$((n + 1)) ;; esac; done; echo $n; }
-  while [ $(nr) -ge ${MAXR:-3} ]; do sleep $((10 + RANDOM % 10)); done
+  while [ $(nr) -ge ${MAXR:-4} ]; do sleep $((10 + RANDOM % 10)); done
   echo "start $name $(date +%T) (R procs $(nr); $(df -h / | awk 'NR==2{print $4}') free)" >> $L/queue.out
   env REGIME=$rec ${seed:+SEED=$seed} ${trait:+TRAIT_REL=$trait} TOL=1e-4 ATOL=1e-4 WEIGHT_SOIL=10 WEIGHT_MAX=100 HMAX=15 SHARE=0.1 SPLIT=1 KNOTS=0 \
     WEIGHT=$DEV/window/rule_A/weight_$w.rds LIB=$L/build/lib TIMES=$L/sched/$name.rds COARSE=$L/sched/${name}_coarse.rds MODE=map \

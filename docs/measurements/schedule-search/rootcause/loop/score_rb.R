@@ -26,8 +26,8 @@ for (cs in names(L)) { z <- L[[cs]]; ref <- ref_of(cs); e6 <- e6_of(cs); ec6 <- 
 TB <- do.call(rbind, rows); rownames(TB) <- NULL; options(width = 260); print(TB, digits = 3)
 cat("\niterates:\n"); print(do.call(rbind, it), digits = 3, row.names = FALSE)
 for (st in c("bank", "held")) { X <- TB[TB$set == st, ]; if (!nrow(X)) next
-  cat(sprintf("%s (%d): T %.0f against E6 %.0f (x%.3f)%s | pass %d | runs mean %.2f max %d | final rows / E6 c median %.2f (<= 1 on %d) | reaches E6's W on %d (median iterate %.1f, rows x%.2f) | s_F < s_I1 on %d | F and I1 nodes within 30%% of E6 on %d | map hits on %d\n",
-    st, sum(X$T), sum(X$T6), sum(X$T) / sum(X$T6), if (all(!is.na(X$TA))) sprintf(", route A %.0f (x%.3f)", sum(X$TA), sum(X$T) / sum(X$TA)) else "",
+  cat(sprintf("%s (%.0f): T %.0f against E6 %.0f (x%.3f)%s | pass %.0f | runs mean %.2f max %.0f | final rows / E6 c median %.2f (<= 1 on %.0f) | reaches E6's W on %.0f (median iterate %.1f, rows x%.2f) | s_F < s_I1 on %.0f | F and I1 nodes within 30%% of E6 on %.0f | map hits on %.0f\n",
+    st, nrow(X), sum(X$T), sum(X$T6), sum(X$T) / sum(X$T6), if (all(!is.na(X$TA))) sprintf(", route A %.0f (x%.3f)", sum(X$TA), sum(X$T) / sum(X$TA)) else "",
     sum(X$pass), mean(X$k), max(X$k), median(X$rows_e6), sum(X$rows_e6 <= 1), sum(!is.na(X$reach_iter)), median(X$reach_iter, na.rm = TRUE), median(X$reach_rows, na.rm = TRUE),
     sum(as.numeric(sub("/.*", "", X$sv)) < as.numeric(sapply(strsplit(X$sv, "/"), `[`, 2))),
     sum(abs(X$nF / X$nF6 - 1) <= 0.3 & abs(X$nI1 / pmax(X$nI16, 1) - 1) <= 0.3), sum(X$map_hits > 0))) }

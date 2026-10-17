@@ -1,4 +1,4 @@
-# score_loop.R RESERVE...: the real loop's results (loop_RESERVE.rds) against the truth: C1-C5,
+# score_loop.R RESERVE...: route A's real results (loopA_RESERVE.rds) against the truth: C1-C5,
 # T = sum of runs + 2 x final (rows model), runs, the final spacing against the ladder's s*,
 # the map flag's hits; the loop re-decided under stress draws (both noise models) and E6 as
 # built under the same noise models.
@@ -19,7 +19,7 @@ e6_stress <- function(ec, ef, s6, d, nz, cid) { set.seed(cid * 1e5 + d * 7 + (nz
   g <- (vc - vf) / (1 - s6); if (all(abs(g) < 1)) all(crit(ec, g)) else all(crit(ef, (vc - vf) * s6 / (1 - s6))) }
 ALLR <- list()
 for (reserve in RES) {
-  L <- readRDS(file.path(LO, sprintf("loop_%.2f.rds", reserve))); rows <- list()
+  L <- readRDS(file.path(LO, sprintf("loopA_%.2f.rds", reserve))); rows <- list()
   for (cs in names(L)) { z <- L[[cs]]; ref <- ref_of(cs); e6 <- e6_of(cs); cid <- match(cs, c(BANK, HELD))
     err <- (z$q - ref) / EPS; cr <- crit(err, z$est); st <- store_of(cs); lk <- LADS$keep[[cs]]
     Tl <- sum(cost(z$runs$rows)) + 2 * cost(z$runs$rows[abs(z$runs$s - z$s) < 1e-9][1])

@@ -9,7 +9,59 @@ directory; outputs in `scratchpad/deep/rootcause/loop/` (`runs/`, `sched/`, `log
 
 ## Summary (written last)
 
-(pending)
+**E6+** (E6's committed layout plus U's edge nodes before b = 10, background scaled by s, every
+inset and edge node fixed; guard: with edges off it is E6's committed schedule exactly) [m]:
+- **Dearer and no more accurate.** s = 1 costs 1.32× (bank) / 1.29× (held-out) E6 committed's
+  rows; its worst error is at or under E6's on 3 of 18; at E6's worst error it needs 1.19–1.48×
+  E6's rows (median 1.37 / 1.30; U needed 1.15). Its s = 1.6 rung costs 1.06× E6 committed.
+- **Pairs.** Fine pair 10/10 bank, 7/8 held-out, stress 0.91; coarse pair 7/10 and 7/8, stress 0.74
+  / 0.88. The coarse pair still misreads on the dry records (dry 0.18, dry-p50 0.21, dry-flat C3,
+  dry-lma125 1.74): the fixed 12-d inset after b = 10 holds an error the background does not move
+  (order 0.8–1.0, cos 0.5 there). Order median 1.79 [0.79, 2.90]; outside span(d1, d2) ≤ 0.054.
+
+**Route A, the E6+ loop, run for real** (`harness/schedule/loop.R` `schedule_loop`: start s = 1;
+P5 picks the second run at 1.6 (slack) or 1/1.6; order-2 pair; the coarsest member under
+0.85 with jitter and the map check; otherwise a run where the pair's constant meets 0.9·target):
+bank T 11178 against E6's 9287 (×1.20), held-out 8009 against 7191 (×1.11); passes 8/10 + 8/8
+(E6 10/10 + 7/8); coord stress 0.776 / 0.974 (E6 0.745 / 0.771); 2.06 runs per case, max 3;
+coarsens on 3, refines on 2, stops at the start on 13; final within ×1.6 of the ladder's optimum
+on 16 of 18. Fails C3 on dry and dry-p50 (the coarse pair's misread). Reserve: 0 saves 1.0% of
+T, 0.3 costs 2.7%; pass counts do not change.
+
+**The U–E6 gap** (coordinator's addition; dry, dry-flat, long-wet, by region with pinned map
+replays) [m]: strip nodes carry 48–70% of every layout's rows. U spends +62k to +106k rows on
+edge nodes and is 15–24k rows sparser in background, because `h5_sched` cuts the 12-d strips out of
+each spell before rounding the count up (E6 counts the whole spell, then drops only strip nodes):
+one node fewer in about one spell in six, mostly long spells; the range cap and merging are the
+same. Accuracy goes two ways: the edge nodes remove E6's closing-inset cancellation (E6+, which has
+E6's background, loses along M on dry: −0.54 against −0.30), and U's sparser background raises the
+interiors' map error on all three (dry-flat I2 −0.22 against −0.13).
+
+**Route B** (coordinator's addition: U's strips, one background scale per region F / I1 / I2 / I3 /
+late, start U16, each run's node-drop map sets the next allocation by equal marginal error per row,
+magnitude from successive runs; `allocation_loop`) [m]: T 9475 bank (×1.02 E6), 6598 held-out
+(×0.92), 16072 over the 18 (×0.975 E6, ×0.84 route A); 2.1 runs; but it passes only 13 of 18 (C2/C3 on
+dry, dry-p50, ld-102, dry-lma125; C3 wet-hmat125), its finals reach E6's committed worst error on 5
+of 18 at a median 1.10× E6's rows, and its allocation is not E6's (it saves on I1 and I3 and spends
+on I2 and late). Cause: the map ranks regions by ln J, and the elasticities' error on the dry records
+(a leaf-hydraulic block along M, −0.99 on both of dry's runs) sits where ln J's does not, so the
+allocation coarsens it and the pair sees only what moved. The map also misreads its own run at
+U16 spacing (rms 0.19ε, dry −0.01 against −0.51), so the start's split is unreliable.
+
+**The non-asymptotic flag** (map's ln J error against the pair's ln J estimate, 3 sd): on s = 1
+runs the map reads the true ln J error to 0.03ε, but at 1.6 spacing it misses by up to 0.5ε, so the
+flag fires mostly on coarse members where the map, not the pair, is wrong (pair nearer in 7 of 8
+route A hits, 9 of 12 Route B hits). It blocked 2 route A answers, both unnecessarily (one extra
+fine run on dry-flat), and 3 Route B answers, two rightly (dry run 1, true worst 1.04; episodic-lma
+run 2, 1.10).
+
+**Verdict** [i]. Neither loop reaches E6's accuracy per row on these layouts. Route A is honest
+except on the dry records but pays 1.31× rows for its edge nodes; Route B is cheap but its ln J
+map misplaces the elasticity error and it stops early with an under-read. A map-guided route would
+need a per-region elasticity indicator (the dwr round's pinned coarse runs per region) rather than
+ln J's, and a start fine enough for the map to read its own run.
+
+**Predictions:** 41 registered, 22 held, 19 refuted (table at the end).
 
 ## Setup
 
@@ -106,8 +158,9 @@ inset misreads (H1); E6 committed W 0.30–0.58 bank (1.28 episodic-lma), 0.21�
 ## The loop as built (`harness/schedule/loop.R`, registered before any loop run)
 
 `schedule_loop(run, eps, sel_scale, reserve)`; `run(s)` returns the gradient run of E6+ at
-scale s (`loop_run.R` here: builds `ep_sched(cs, s)` and its drop set, runs it through
-`run.sh` unless a run of that exact schedule is on disk, and reads q, rows and the map).
+scale s (`loop_run.R` here: builds `ep_sched(cs, s)` and its drop set, reads the run of that exact
+schedule from disk, and otherwise requests it; `drive.sh` alternates driver passes with `run.sh`
+for the requested runs, so cases run in parallel lanes and each loop replays deterministically).
 1. Run s = 1. Predicted worst error = sel_scale · S_el (S_el = rms(elasticity/ε)); sel_scale is
    P5's constant (W_c / S_el on E6's bank ladder, geometric mean, leave-one-case-out on the
    bank, all ten for held-out cases: 0.0039–0.0043). Under the target (1 − reserve), the
@@ -291,3 +344,219 @@ steps alive; map in ε of ln J; "strips" = measured ln J error − map total.
   six. Route B keeps U's strips (honest, small own error) and lets each case's map place the
   background, which addresses (b) and part of (a)'s rows, not the cancellation.
 
+### Run order changed (coordinator, 11:15 UTC)
+
+The user found the round slow. From 11:15: three runs at once plus at most one driver (run.sh's
+gate at 4 R processes), Route B's remaining passes ahead of E6+'s remaining s = 1/1.6 rungs. The
+ladder queue was stopped with 46 of 54 rungs done or running; the eight held-out fine rungs
+(dry-lma125, flat-al1125, wet-lma08, wet-hmat125, epi-hmat08, epi-adG208, ld104-p50125,
+ld107-adG2125) wait until Route B finishes, and route A (which needs them for its fine-side runs
+and the ladder scores) is scored and written after. Nothing was lost in the container restart
+reported at 09:08: every queue was still alive and every finished run has its `done 0` line.
+
+### Route B results (`drive.sh B 0.15`, `score_rb.R`, `score_rb.log`, `loopB_0.15.rds`) [m]
+
+38 runs (18 + 18 + 2), all exit 0; three passes of the driver. Run 1 reproduces the saved U16 J
+and gradients `identical()` where checked (dry-flat, dry-p50; **B0 holds**). The allocation after
+run 1 cut P by 1/1.6² on every case (P5's prediction at 1.6 was over 0.85 everywhere but
+ld107-adG2125); it coarsened I1 and I3 (1.07–1.60), refined I2 (0.79–1.29) and L (0.30–1.0), and
+set F at 0.92–1.6.
+
+| case | runs | final scales F/I1/I2/I3/L | W final (E6 c) | est max | read | C1–C5 | rows / E6 c | T (E6) | W per iterate |
+|---|---|---|---|---|---|---|---|---|---|
+| episodic | 2 | 1.60/1.12/0.85/1.08/1.00 | 0.59 (0.30) | 0.58 | 0.66 | pass | 0.96 | 498 (614) | 1.56, 0.59 |
+| dry | 2 | 1.27/1.28/0.87/1.39/0.30 | 0.73 (0.35) | 0.31 | −0.18 | **C2 C3** | 1.07 | 772 (832) | 1.04, 0.73 |
+| long-wet | 2 | 0.92/1.60/0.98/1.49/0.52 | 0.36 (0.37) | 0.31 | 0.84 | pass | 1.11 | 942 (990) | 0.91, 0.36 |
+| long-drought | 2 | 0.94/1.25/0.93/1.39/0.44 | 0.44 (0.37) | 0.36 | 0.90 | pass | 1.15 | 964 (964) | 1.04, 0.44 |
+| episodic-lma | 3 | 0.77/1.05/0.54/0.30/0.36 | 0.41 (1.28) | 0.46 | 1.15 | pass | 1.57 | 741 (634) | 2.99, 1.10, 0.41 |
+| dry-flat | 3 (answer 2) | 1.04/0.92/0.91/1.60/0.65 | 0.65 (0.58) | 0.59 | 0.88 | pass | 1.11 | 2155 (1683) | 1.74, 0.65, 0.28 |
+| ld-102 | 2 | 0.92/1.60/1.11/1.52/0.77 | 0.54 (0.41) | 0.36 | 0.34 | **C2 C3** | 1.11 | 827 (857) | 0.97, 0.54 |
+| ld-105 | 2 | 0.93/1.29/0.90/1.31/0.96 | 0.43 (0.32) | 0.39 | 0.70 | pass | 1.08 | 762 (821) | 0.98, 0.43 |
+| dry-p50 | 2 | 1.31/1.30/0.86/1.44/0.30 | 0.74 (0.35) | 0.50 | −0.11 | **C2 C3** | 1.07 | 791 (854) | 1.22, 0.74 |
+| wet-adG2 | 2 | 0.94/1.60/1.11/1.60/0.51 | 0.52 (0.44) | 0.43 | 0.87 | pass | 1.13 | 1023 (1038) | 1.25, 0.52 |
+| dry-lma125 | 2 | 1.16/1.47/0.79/0.77/0.30 | 0.67 (0.71) | 0.38 | −0.16 | **C2 C3** | 1.20 | 685 (682) | 2.24, 0.67 |
+| flat-al1125 | 2 | 0.99/1.07/0.97/1.52/0.60 | 0.77 (0.71) | 0.72 | 0.95 | pass | 1.05 | 1338 (1434) | 1.98, 0.77 |
+| wet-lma08 | 2 | 0.93/1.60/1.29/1.54/0.46 | 0.49 (0.53) | 0.47 | 0.62 | pass | 1.15 | 1197 (1185) | 1.14, 0.49 |
+| wet-hmat125 | 2 | 0.97/1.60/0.93/1.15/0.68 | 0.81 (0.71) | 0.60 | 0.57 | **C3** | 1.11 | 936 (976) | 1.77, 0.81 |
+| epi-hmat08 | 2 | 1.60/1.07/0.86/1.60/0.94 | 0.39 (0.21) | 0.36 | 0.93 | pass | 0.93 | 507 (643) | 0.98, 0.39 |
+| epi-adG208 | 2 | 1.60/1.11/0.85/1.06/0.99 | 0.61 (0.39) | 0.60 | 0.41 | pass | 0.95 | 485 (612) | 1.62, 0.61 |
+| ld104-p50125 | 2 | 0.97/1.24/0.91/1.02/0.30 | 0.35 (0.26) | 0.32 | 0.80 | pass | 1.11 | 790 (848) | 0.90, 0.35 |
+| ld107-adG2125 | 2 (answer 1) | 1.60 everywhere (U16) | 0.61 (0.24) | 0.38 | 0.69 | pass | 0.85 | 660 (811) | 0.61, 0.36 |
+
+- **Bank**: T 9475 against E6's 9287 (×1.020); 7 of 10 pass; 2.2 runs (max 3). **Held-out**: T 6598
+  against 7191 (×0.917); 6 of 8 pass; 2.0 runs. Over the 18: 13 pass (E6 as built 17).
+- **It does not reach E6's accuracy per row.** The final run's rows are 1.08–1.11× E6 committed's
+  (median), and its worst error is at or under E6 committed's on 5 of 18 (long-wet, episodic-lma,
+  dry-flat at run 3, dry-lma125, wet-lma08), typically 1.1–2× E6's. It stops as soon as its own
+  estimate is under 0.85, and that estimate under-reads where it fails.
+- **Why it fails on dry, dry-p50, dry-lma125, ld-102.** The worst error is a leaf-and-hydraulic
+  block (a_l1 +0.73, a −0.71, curv −0.70, k_I −0.67 on dry) that barely moves from run 1 to run 2:
+  along M −0.99 on both runs on dry, −1.31 / −1.25 on dry-p50, −0.90 / −0.81 on dry-lma125. The
+  allocation, driven by ln J's map, coarsened I1 (1.28–1.47) and I3, the eras where U's interior
+  hydraulic error lives, and refined I2 and L, where ln J's error is; the pair then sees only the
+  moved part and reads 0.1–0.4 of the error with the wrong sign on the worst quantity. This is the
+  dwr round's warning made real: ln J's signed split by region does not carry the elasticities'
+  (median |cos| 0.58 there), and the map ranks regions for ln J only.
+- **The map at the coarse start does not read its own ln J error.** On U16 the map's total is off
+  the true ln J error by rms 0.19ε over the Route B runs (dry: map −0.01, true −0.51; dry-p50 −0.03
+  against −0.52; ld104 +0.01 against −0.31), against 0.03ε on E6+'s s = 1 runs. So the region
+  split Route B starts from is itself unreliable at U16 spacing (the dwr round's 7% figure was for
+  E6's inset coarse run, whose strips scale). The non-asymptotic flag fired 12 times (10 on run 1);
+  the pair's ln J estimate was nearer the true ln J error than the map in 9 of the 12. It blocked
+  an answer the other checks accepted 3 times: dry run 1 (true worst 1.04: a right block),
+  episodic-lma run 2 (true 1.10: right), dry-flat run 2 (true 0.65: an unneeded third run, after
+  which run 2 answered on the new pair).
+- **Allocation against E6's.** Final background nodes per region against E6 committed's: founders
+  13–24 against 16–24, I1 5–16 against 9–19, I2 8–40 against 14–20, I3 1–40 against 3–15. F and I1
+  are both within 30% of E6's on 3 of 18. s_F < s_I1 on 12 of 18. Route B does not land on an
+  E6-like allocation: it spends on I2 and late and saves on I1, which is the opposite of where the
+  elasticities' error sits on the dry records.
+
+| # | prediction | P | result |
+|---|---|---|---|
+| B0 | run 1 reproduces h5_U16 identically | 90% | holds (dry-flat, dry-p50 checked) |
+| B1 | final rows ≤ E6 c on ≥ 9 of 18 | 40% | refuted (4) |
+| B2 | bank T ≤ 9287 | 45% | refuted (9475) |
+| B2′ | T ≤ route A's on each set | 55% | scored with route A below |
+| B3 | ≥ 15 of 18 pass | 55% | refuted (13) |
+| B4 | runs mean ≤ 2.6, max ≤ 4 | 55% | holds (2.11, 3) |
+| B5 | an iterate ≤ E6's worst within 3 runs on ≥ 9 of 18 | 45% | refuted (5) |
+| B6 | s_F < s_I1 on ≥ 12 of 18 | 55% | holds (12) |
+| B7 | F and I1 nodes within 30% of E6's on ≥ 12 | 40% | refuted (3) |
+
+### A results: E6+ ladders (`score_lad.R`, `score_lad.log`, `score_lad.rds`) [m]
+
+54 rungs, all exit 0 (A12 holds). Coarse pair = (s 1.6, 1), fine pair = (1, 1/1.6), each estimating
+the s = 1 rung's error in the spacing-ratio form; stress = share of 1000 draws passing (coord).
+
+| case | order (cos) | coarse: read, C1–C5, stress | fine: read, C1–C5, stress | E6 pair stress | W at 1.6 / 1 / 1/1.6 (E6 c) | rows s=1 / E6 c | rows at E6's worst (× E6 c) | unseen coarse / fine / outside span | s* (0.85) |
+|---|---|---|---|---|---|---|---|---|---|
+| episodic | 1.93 (0.77) | 0.81, pass, 1.00 | 1.12, pass, 0.92 | 0.96 | 1.41 / 0.34 / 0.11 (0.30) | 1.16 | 1.21 | 0.105 / 0.033 / 0.022 | 1.35 |
+| dry | 0.79 (0.53) | 0.18, **C3**, 0.00 | 0.91, pass, 0.90 | 0.35 | 1.02 / 0.44 / 0.28 (0.35) | 1.31 | 1.48 | 0.189 / 0.067 / 0.053 | 1.45 |
+| long-wet | 1.88 (0.99) | 0.94, pass, 1.00 | 1.00, pass, 0.99 | 0.98 | 0.90 / 0.37 / 0.14 (0.37) | 1.31 | 1.31 | 0.011 / 0.018 / 0.010 | 1.56 |
+| long-drought | 1.13 (0.97) | 0.65, pass, 1.00 | 0.94, pass, 0.99 | 0.96 | 0.80 / 0.40 / 0.16 (0.37) | 1.34 | 1.37 | 0.053 / 0.017 / 0.015 | 1.67 |
+| episodic-lma | 1.64 (1.00) | 0.85, flags (W 1.32), 1.00 | 1.00, flags, 1.00 | 0.97 | 3.07 / 1.32 / 0.58 (1.28) | 1.17 | 1.19 | 0.114 / 0.102 / 0.051 | 0.78 |
+| dry-flat | 2.35 (0.82) | 1.11, **C3**, 0.42 | 0.89, pass, 0.56 | 0.18 | 1.66 / 0.60 / 0.29 (0.58) | 1.39 | 1.41 | 0.097 / 0.066 / 0.054 | 1.17 |
+| ld-102 | 1.58 (0.98) | 0.87, pass, 1.00 | 0.97, pass, 0.88 | 0.91 | 0.98 / 0.42 / 0.18 (0.41) | 1.36 | 1.37 | 0.031 / 0.032 / 0.024 | 1.48 |
+| ld-105 | 1.97 (0.96) | 0.96, pass, 1.00 | 0.91, pass, 0.96 | 0.87 | 0.93 / 0.36 / 0.14 (0.32) | 1.29 | 1.33 | 0.032 / 0.031 / 0.019 | 1.53 |
+| dry-p50 | 0.98 (0.50) | 0.21, **C3**, 0.00 | 0.98, pass, 0.97 | 0.29 | 1.03 / 0.44 / 0.18 (0.35) | 1.30 | 1.39 | 0.186 / 0.041 / 0.025 | 1.44 |
+| wet-adG2 | 2.55 (0.95) | 1.07, pass, 1.00 | 0.91, pass, 0.99 | 0.95 | 1.21 / 0.46 / 0.20 (0.44) | 1.36 | 1.37 | 0.035 / 0.020 / 0.010 | 1.35 |
+| dry-lma125 | 2.46 (0.87) | 1.74, **C3**, 0.01 | 1.46, **C5**, 0.91 | 0.00 | 2.19 / 0.76 / 0.20 (0.71) | 1.29 | 1.31 | 0.298 / 0.128 / 0.047 | 1.05 |
+| flat-al1125 | 2.07 (0.98) | 0.92, pass, 1.00 | 0.92, pass, 1.00 | 0.77 | 1.92 / 0.73 / 0.32 (0.71) | 1.34 | 1.35 | 0.050 / 0.030 / 0.015 | 1.08 |
+| wet-lma08 | 1.76 (0.99) | 0.92, pass, 1.00 | 0.98, pass, 0.93 | 0.97 | 1.20 / 0.49 / 0.19 (0.53) | 1.41 | 1.39 | 0.021 / 0.020 / 0.015 | 1.34 |
+| wet-hmat125 | 1.59 (0.97) | 0.95, pass, 1.00 | 1.00, pass, 0.66 | 0.76 | 1.76 / 0.73 / 0.27 (0.71) | 1.32 | 1.33 | 0.024 / 0.053 / 0.011 | 1.09 |
+| epi-hmat08 | 2.90 (0.97) | 1.28, pass, 1.00 | 0.77, pass, 1.00 | 0.88 | 0.74 / 0.25 / 0.13 (0.21) | 1.15 | 1.29 | 0.017 / 0.021 / 0.010 | 1.70 |
+| epi-adG208 | 1.47 (0.82) | 0.83, pass, 1.00 | 1.17, pass, 0.84 | 0.96 | 1.37 / 0.44 / 0.16 (0.39) | 1.14 | 1.20 | 0.067 / 0.062 / 0.042 | 1.31 |
+| ld104-p50125 | 0.83 (0.93) | 0.68, pass, 1.00 | 1.06, pass, 0.96 | 0.91 | 0.58 / 0.26 / 0.09 (0.26) | 1.24 | 1.25 | 0.044 / 0.016 / 0.012 | 2.02 |
+| ld107-adG2125 | 1.82 (0.94) | 0.95, pass, 1.00 | 0.91, pass, 0.99 | 0.94 | 0.60 / 0.24 / 0.11 (0.24) | 1.24 | 1.23 | 0.026 / 0.015 / 0.006 | 1.91 |
+
+- **E6+ costs more than E6 and is no more accurate.** s = 1 has 1.32× (bank) / 1.29× (held-out) E6
+  committed's rows, and its worst error is at or under E6's on 3 of 18. At E6's worst error it
+  needs 1.19–1.48× E6's rows (median 1.37 bank, 1.30 held-out); U needed 1.10–1.23× (median 1.15)
+  on the bank. The edge nodes are early, so each costs nearly a full run's steps, and on dry they
+  also remove the closing-inset cancellation (X above).
+- **Its coarse pair still misreads on the dry records** (dry 0.18, dry-p50 0.21, dry-flat C3,
+  dry-lma125 1.74): before 10 the edges are nodes, but after 10 E6's fixed inset stays, and the
+  error there does not move with the background (order 0.79 / 0.98 on dry / dry-p50, cos 0.5).
+  Coarse pair: 7/10 bank, 7/8 held-out; stress 0.742 bank (U 0.914), 0.876 held-out. Fine pair:
+  10/10 and 7/8 (dry-lma125 over-reads to C5), stress 0.915 / 0.911, above E6's pair (0.742 /
+  0.774).
+- Order: median 1.79 [0.79, 2.90]; cos ≥ 0.85 on 13 of 18. What neither pair sees, outside
+  span(d1, d2), is ≤ 0.054 everywhere (rms).
+- The coarse rung is not cheap: 1.06× E6 committed's rows (median) — the fixed nodes hold its cost.
+- The map on s = 1 runs reads the true ln J error to rms 0.029ε (max 0.060); on the 1.6 rungs it
+  misses by up to 0.45ε (rms over all rungs 0.11ε).
+- The ladder's optimum s* (worst = 0.85): median 1.44 bank, 1.32 held-out; only episodic-lma
+  (0.78) needs finer than s = 1.
+
+### L results: route A, the E6+ loop, for real (`drive.sh A`, `score_loop.R`, `score_loop_0.15.log`, `loopA_*.rds`) [m]
+
+Every run the loop asked for was already on disk (its second runs are ladder rungs, and every
+third run it took was s/1.6 after a map disagreement, which is again a rung), so the real loop
+added no runs; the drivers replayed from the stored runs.
+
+| | bank: route A | E6 as built | held-out: route A | E6 as built |
+|---|---|---|---|---|
+| T (rows model) | 11178 (×1.204) | 9287 | 8009 (×1.114) | 7191 |
+| C1–C5 on the real runs | 8/10 (dry, dry-p50: C3) | 10/10 | 8/8 | 7/8 |
+| stress, coord / jit | 0.776 / 0.797 | 0.745 / 0.868 | 0.974 / 0.997 | 0.771 / 0.837 |
+| runs mean (max) | 2.10 (3) | 2 | 2.00 (2) | 2 |
+| final coarser / at start / finer | 1 / 8 / 1 | — | 2 / 5 / 1 | — |
+| final within ×1.6 of s* | 10/10 | — | 6/8 | — |
+| worst final error, median (max) | 0.45 (0.80) over the 18 | | | |
+
+- The start predicted slack on 16 of 18 (P5), so the second run was the coarse rung; it was the
+  answer on 3 (long-drought, ld104-p50125, ld107-adG2125). The fine rung answered on episodic-lma
+  and dry-lma125 (predicted over). Everywhere else s = 1 answered on the coarse pair's estimate.
+- It fails C3 on dry and dry-p50 for the reason above (the coarse pair's read 0.17 / 0.21), and
+  under stress there (0.20, 0.12) and on dry-flat (0.61). On the held-out set it is more robust
+  than E6 (0.974 against 0.771 under coord stress), largely because E6 fails dry-lma125 in every
+  draw.
+- **The non-asymptotic flag** fired on 8 members over 7 cases, 6 of them coarse members at 1.6 where
+  the map, not the pair, was wrong (the map reads the 1.6 rungs badly). The pair's ln J estimate
+  was nearer the true ln J error in 7 of the 8. It blocked an answer twice, both unnecessarily:
+  dry-flat s = 1 (true worst 0.60; one extra fine run, T 2712 against 1683) and epi-hmat08 s = 1.6
+  (true 0.74; it answered at s = 1 instead).
+- **Reserve** (route A, all 18; stress T in brackets): 0 → T 19004 (−1.0%; bank −1.6%, held 0),
+  coarser on 6 of 18, pass 16/18, stress 0.771 / 0.969; 0.15 → 19187, pass 16/18; 0.3 → 19702
+  (+2.7%; bank 0, held +6.4%), pass 16/18, stress 0.781 / 0.974. The reserve moves few decisions
+  because the E6+ rungs sit far from 0.85 on either side.
+
+### Route A against Route B against E6 (all 18, T in the rows model)
+
+| | E6 as built | route A (E6+ loop) | Route B (map-guided from U16) |
+|---|---|---|---|
+| T, bank / held-out | 9287 / 7191 | 11178 / 8009 | 9475 / 6598 |
+| T, all 18 | 16478 | 19186 (×1.16) | 16072 (×0.975) |
+| pass C1–C5 | 17/18 | 16/18 | 13/18 |
+| worst final error, median (max) | 0.38 (0.71) | 0.45 (0.80) | 0.56 (0.81) |
+| runs mean | 2 | 2.06 | 2.11 |
+| final rows / E6 committed, median | 1 | 1.31 | 1.10 |
+
+Route B is 15–18% cheaper than route A (**B2′ holds**) and 2.5% cheaper than E6, but it is the least
+honest of the three (C2/C3 fails on four dry-type cases), and its finals are on average less
+accurate than E6's committed runs at more rows. Neither loop reaches E6's accuracy per row.
+
+## All predictions scored
+
+| # | P | result |
+|---|---|---|
+| G1 build reproduces libS identically | 85% | holds |
+| G2 map within 0.05ε of the dwr figure | 80% | holds (−0.1234 both) |
+| A1 median order in [1.5, 2.5] | 55% | holds (1.79) |
+| A2 coarse pair ≥ 8/10 bank and ≥ 6/8 held-out | 50% | refuted (7/10, 7/8) |
+| A3 fine pair ≥ 9/10 and ≥ 7/8 | 55% | holds (10/10, 7/8) |
+| A4 E6+ worst ≤ E6's on ≥ 11 of 18 | 50% | refuted (3) |
+| A5 rows ratio in [1.10, 1.25] | 65% | refuted (1.32 / 1.29) |
+| A6 ≤ 1.10× E6's rows at matched worst on half | 40% | refuted (min 1.19) |
+| A7 coarse stress ≥ 0.90 over the 18 | 50% | refuted (0.80) |
+| A8 dry-lma125 coarse pair misreads | 60% | holds (1.74, C3) |
+| A9 cos ≥ 0.85 on ≥ 14 of 18 | 60% | refuted (13) |
+| A10 outside span ≤ 0.06 on ≥ 14 | 50% | holds (18) |
+| A11 s = 1.6 rows / E6 c median in [0.85, 1.05] | 60% | refuted (1.06) |
+| A12 no run throws | 90% | holds (all 104 runs exit 0) |
+| L1 bank T in [0.85, 1.00] × E6 | 50% | refuted (1.20) |
+| L1′ held-out T ≤ E6's | 50% | refuted (1.11) |
+| L2 ≥ 9/10 and ≥ 7/8 pass | 55% | refuted (8/10, 8/8) |
+| L3 more stress passes than E6 on both sets | 70% | holds (0.776 vs 0.745; 0.974 vs 0.771) |
+| L4 runs mean ≤ 2.3, max ≤ 3 | 60% | holds |
+| L5 coarser on ≥ 3 of 18 | 45% | holds (3) |
+| L6 finer on ≤ 3 of 18 | 70% | holds (2) |
+| L7 within ×1.6 of s* on ≥ 14 | 60% | holds (16) |
+| F1 flag alone on ≤ 3 cases | 55% | holds (2) |
+| F2 map − true ln J rms ≤ 0.1ε at s = 1 | 50% | holds (0.029) |
+| F3 where it fires, the pair is further off than the map | 55% | refuted (1 of 8) |
+| R1 reserve 0: bank T −3% or more | 40% | refuted (−1.6%) |
+| R2 reserve 0.3: bank T +5% or more | 45% | refuted (0%) |
+| X1 U's strips carry more than its extra rows | 75% | holds |
+| X2 U's background deficit mostly in spells < 150 d | 65% | refuted |
+| X3 U's interior map larger on ≥ 2 of 3 | 60% | holds (3/3) |
+| X4 dry-flat E6+ worse than E6 | 60% | holds (0.60 vs 0.58) |
+| X5 strips' remainder < 0.1ε | 50% | holds |
+| B0–B7 | | B0, B2′, B4, B6 hold; B1, B2, B3, B5, B7 refuted (table above) |
+
+**41 registered: 22 held, 19 refuted** (G 2/2, A 5/12, L/F/R 7/13, X 4/5, B 4/9).
+
+Outputs kept: `runs/` (104 gradient runs, 62 MB: ladders `ep*`, Route B `rb_*`, map replays `g*`),
+`score_lad.rds`, `score_loop_*.rds`, `score_rb_0.15.rds`, `loopA_*.rds`, `loopB_0.15.rds`, logs.
+The scratch build (`loop/build`) is deleted.

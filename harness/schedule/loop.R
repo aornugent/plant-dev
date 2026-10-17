@@ -40,12 +40,14 @@ schedule_loop <- function(run, eps, sel_scale, reserve = 0.15, r = 1.6, kmax = 4
     est_b <- (a$q - b$q) / eps / (R^2 - 1)
     members <- list(list(run = a, est = R^2 * est_b, amp = R^2 / (R^2 - 1)),
                     list(run = b, est = est_b, amp = 1 / (R^2 - 1)))
-    for (m in members) {
+    members <- lapply(members, function(m) {
       m$noise_ok <- jitter * m$amp < 1 / 3
       m$under <- max(abs(m$est)) < target
       m$map_gap <- if (is.null(m$run$map)) NA else m$run$map - m$est[["lnJ"]]
       m$map_lim <- map_k * sqrt(map_sd^2 + 2 * (run_sd * m$amp)^2)
       m$map_ok <- is.na(m$map_gap) || abs(m$map_gap) <= m$map_lim
+      m })
+    for (m in members) {
       history[[length(history) + 1]] <<- data.frame(s = m$run$s, pair = sprintf("%.3f/%.3f", a$s, b$s),
         est_max = max(abs(m$est)), est_lnJ = m$est[["lnJ"]], map = if (is.null(m$run$map)) NA else m$run$map,
         map_gap = m$map_gap, map_lim = m$map_lim, under = m$under, noise_ok = m$noise_ok, map_ok = m$map_ok)
