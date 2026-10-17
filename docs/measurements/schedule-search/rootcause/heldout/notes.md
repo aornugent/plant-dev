@@ -141,3 +141,64 @@ quantities whose u215 → u429 move exceeds 0.3ε).
 | R1 | On every such case, the u429 → u857 reference agrees with the u215 → u429 one within 0.15ε on every quantity | 55% |
 | R2 | The pooled order of the reference ladder on those cases is in 1.6–2.4 | 70% |
 | R3 | No case's E6 verdict (C1–C5 pass or fail, real runs) changes when it is scored against the u429 → u857 reference | 80% |
+
+Added before their runs (compute freed by the coordinator): u857 also for dry-lma125 and
+epi-adG208, whose own moves (0.13ε, 0.14ε) sit just under the line. R1–R3 are scored on the
+three cases over the line (flat-al1125, wet-lma08, wet-hmat125, the last over it at 0.30ε);
+the two extra cases are reported beside them.
+
+## Results 1: pilots, schedules, E6 and the two-rung references (`run.sh`, `mk_sched.R`, `score.R`; `score.log`, `score_tab.csv`) [m]
+
+**Guards.** `mk_sched.R` reproduces the bank's saved committed and check schedules on dry and
+episodic-lma exactly (max difference 0). `score.R` puts the bank's stored E6 pairs through the
+same code and gets T 9287 and 10/10, as `proxies/notes.md`; its stress draws give the bank
+73.8% (coord) and 86.8% (jit) of case-draws, against 72.5% and 87% there (other seeds).
+
+**Pilots and schedules.** All eight pilots finished (15–32 s). J from the pilots: dry-lma125
+0.011 (near extinction, ln J −4.5), flat-al1125 6.7, wet-lma08 80, wet-hmat125 1.07,
+epi-hmat08 13.2, epi-adG208 1.40, ld104-p50125 6.96, ld107-adG2125 15.9. Committed / check
+nodes 134–173 / 200–245 (ratio 1.36–1.53, as the bank's), a09 shrink s 0.26–0.51 (bank
+0.38–0.45 typical).
+
+**Every run finished** (8 pilots, 16 E6 runs, 16 reference runs): no refusal, every gradient
+finite. E6 runs 3–7 min each, references 5–16 min.
+
+| case | ln J | nodes c/f | s | ref own move max (q) | W_c (q) | rms_c | W_f | commit | C1–C5 | C3 | read | corr | T | stress coord / jit |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| dry-lma125 | −4.48 | 139/204 | 0.41 | 0.13 (storage_relaxation_offset) | 0.71 (a_l1) | 0.26 | 0.48 | c | **FAIL C3** | 14/23 | 1.45 | 0.81 | 682 | 0.00 / 0.005 |
+| flat-al1125 | 1.85 | 173/235 | 0.42 | 0.18 (a) | 0.68 (a) | 0.31 | 0.32 | c | pass | 18/18 | 0.94 | 0.98 | 1434 | 0.97 / 0.99 |
+| wet-lma08 | 4.25 | 169/245 | 0.26 | 0.28 (a_l1) | 0.53 (a_l1) | 0.16 | 0.20 | c | pass | 3/3 | 0.79 | 0.98 | 1185 | 0.97 / 0.99 |
+| wet-hmat125 | −0.05 | 155/231 | 0.43 | 0.30 (a) | 0.71 (a) | 0.21 | 0.31 | c | pass | 6/6 | 1.02 | 0.99 | 976 | 0.74 / 0.975 |
+| epi-hmat08 | 2.59 | 143/215 | 0.51 | 0.08 (a_l1) | 0.21 (a_l1) | 0.06 | 0.14 | c | pass | 0/0 | 0.62 | 0.95 | 643 | 0.865 / 0.97 |
+| epi-adG208 | 0.37 | 134/205 | 0.33 | 0.14 (a_l1) | 0.39 (root_P50) | 0.14 | 0.19 | c | pass | 2/2 | 0.96 | 0.95 | 612 | 0.96 / 1.00 |
+| ld104-p50125 | 1.92 | 142/209 | 0.43 | 0.07 (vcmax_25) | 0.26 (a_l1) | 0.09 | 0.09 | c | pass | 0/0 | 1.12 | 0.98 | 848 | 0.885 / 0.995 |
+| ld107-adG2125 | 2.74 | 135/200 | 0.41 | 0.08 (a_l1) | 0.24 (a) | 0.10 | 0.13 | c | pass | 0/0 | 0.84 | 0.96 | 811 | 0.95 / 0.99 |
+| **held-out** | | | | 0.07–0.30 | median **0.46** [0.21–0.71] | | | 8 c | **7/8** | | 0.95 | | 7191 (median 829) | **0.79 / 0.86** |
+| bank (same code) | | | | ≤ ~0.11 | median 0.37 [0.30–1.28] | | | 9 c, 1 f | 10/10 | | 0.99 | | 9287 (median 856) | 0.74 / 0.87 |
+
+(read = median of d/(1 − s) over e_c on quantities with |e_c| > 0.2; T in the rows model.)
+
+- **Distance from ε.** Every committed run is inside ε (W_c 0.21–0.71) and E6 commits c on all
+  eight. On the square law [i] the spacing that would just meet ε is s* = W_c^(−1/2) =
+  1.19–2.21 times E6's committed spacing: three cases (epi-hmat08, ld104, ld107; W_c ≤ 0.26)
+  could take the s = 1.6 rung or coarser, epi-adG208 sits on the line (0.390 > 0.39), and four
+  (dry-lma125, flat, wet-lma08, wet-hmat125; W_c 0.53–0.71) are within one 1.6 step of ε at
+  s* 1.19–1.38. None needs refinement. The held-out cases sit closer to ε than the bank's
+  nine ordinary cases (median 0.46 against 0.37): the general start carries, with less slack.
+- **The one failure** is the near-extinction case: E6's estimate over-reads (read 1.45) and
+  misses ×2 or the sign on 9 of 23 quantities over ε/3. It is conservative (C1, C2, C5 hold;
+  every estimate ≤ 0.79), but C3 fails on the real runs and in 99.5–100% of stress draws.
+  Its check run is far more accurate than the a09 shrink says: the per-quantity structure
+  (e.g. k_s e_c −0.48, e_f −0.05, estimate −0.72) says the check's error is about a tenth of
+  the committed run's where s predicts 0.41, so d/(1 − s) overstates. Analysed below.
+- **Under stress** E6 passes 79% (coord) / 86% (jit) of case-draws, about the bank's 74% / 87%;
+  every failure is C3, never C1. Apart from dry-lma125, wet-hmat125 (74% coord), epi-hmat08
+  (87%) and ld104 (89%) lose draws: quantities near ε/3 whose estimate the 2.3× amplified
+  noise pushes out of ×2, the bank's dry-family failure mode.
+- **References.** Three two-rung references move more than the 0.15ε line on their own
+  (flat-al1125 0.18, wet-lma08 0.28, wet-hmat125 0.30), all on leaf quantities (a, a_l1),
+  where the reference also carries the committed run's largest error (wet-hmat125: e_c of
+  `a` −0.71 of which 0.30 is the extrapolation). Third rungs are in Results 2.
+- **Cost.** T 612–1434 (rows model). The four cases that raise J cost a median 998 against
+  765 for the four that lower it; flat-al1125 (dry-flat's dense season-free stand, as the
+  bank's dry-flat 1683) is the only one outside ×0.6–1.6 of the bank's median.
