@@ -1,0 +1,4 @@
+LnoKq L episodic-lma @noK lib2 PLANT_SIMPSON_LIGHT=quad
+LnoKq L dry @noK lib2 PLANT_SIMPSON_LIGHT=quad
+LnoKq L long-wet @noK lib2 PLANT_SIMPSON_LIGHT=quad
+LnoKq L dry-flat @noK lib2 PLANT_SIMPSON_LIGHT=quad

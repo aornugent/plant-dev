@@ -33,9 +33,12 @@ for (cs in CS) { ref <- SC[[cs]]$ref; L0 <- rd("Loff", cs); La <- rd(paste0("Lal
   cat(" region | off error                                              | rule's change d(R)                                     | all error = off + d\n")
   for (R in c("F", "K", "P", "I", "Z")) { if (is.null(E0[[R]]) || is.null(D[[R]])) next; EA[[R]] <- E0[[R]] + D[[R]]
     cat(sprintf(" %s%s | %s | %s | %s\n", R, if (R == "Z") "*" else " ", fm(E0[[R]]), fm(D[[R]]), fm(EA[[R]]))) }
+  if (length(E0) == 5) cat(sprintf(" off: share of L's squared error by projection: %s\n", paste(sprintf("%s %.0f%%", names(E0), 100 * sapply(E0, function(x) sum(x * e0)) / sum(e0^2)), collapse = ", ")))
+  if (length(EA) == 5) cat(sprintf(" %s: share by projection: %s\n", SUF, paste(sprintf("%s %.0f%%", names(EA), 100 * sapply(EA, function(x) sum(x * ea)) / sum(ea^2)), collapse = ", ")))
+  if (!is.null(D$K) && !is.null(D$P)) cat(sprintf(" edge pairs K + P: off %s | change %s | %s %s\n", fm(E0$K + E0$P), fm(D$K + D$P), SUF, fm(EA$K + EA$P)))
   for (R in names(MA)) { if (is.null(EA[[R]])) next; e <- EA[[R]]; m <- MA[[R]]; s <- -sum(m * e) / sum(e^2)
     m0 <- if (!is.null(E0[[R]])) -3 / 4 * E0[[R]] else NULL
-    cat(sprintf("   %s halved under all: move rms %.3f (off: %.3f) | shrink of e_all(%s) %.2f -> order %.2f | cos(move, -e_all) %+.2f\n", R, r2(m), if (is.null(m0)) NA else r2(m0), R, s,
+    cat(sprintf("   %s halved under the rule: move rms %.3f (off: %.3f) | shrink of e_all(%s) %.2f -> order %.2f | cos(move, -e_all) %+.2f\n", R, r2(m), if (is.null(m0)) NA else r2(m0), R, s,
       if (s < 1 && s > 0) -log2(1 - s) else NA, -sum(m * e) / sqrt(sum(m^2) * sum(e^2)))) }
   # Ladder: C2 / L / H2.
   for (rule in c("off", "all", "allm", "allq")) { C <- rd(paste0("C2", rule), cs); Lr <- rd(paste0("L", rule), cs); H <- rd(paste0("H2", rule), cs); if (is.null(C) || is.null(Lr) || is.null(H)) next

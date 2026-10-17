@@ -412,3 +412,14 @@ Scored:
   long-wet (0.397/0.399) but 0.13 better on episodic-lma (0.300/0.430).
 - E10 **refuted**: the light setting matters: rms(light on hats − point corrections) 0.063
   (dry), 0.109 (episodic-lma), 0.260 (long-wet), 0.316 (dry-flat).
+
+### Pre-registration N (before the `noKq` runs; after seeing `nogapq` and long-wet's region split)
+
+Seen so far [m]: `nogapq` (F, I, Z pairs, quad light) errs 0.044 (dry), 0.158 (long-wet),
+0.086 (dry-flat) but 0.346 on episodic-lma, where `allq` errs 0.116. On long-wet under `allq`
+the K pairs carry 0.27 rms (root_P50 −1.09, along M +0.66) and the P pairs 0.04.
+`noKq`: every pair except K (F, P, I, Z), quad light.
+
+| # | prediction | probability |
+|---|---|---|
+| N1 | `noKq` errs ≤ `nogapq` + 0.02 on dry, long-wet and dry-flat, and ≥ 0.1 less than `nogapq` on episodic-lma | 45% |
