@@ -67,7 +67,9 @@ opening side −0.06 (jitter-sized). The founders' window does not hold the root
 **Order [m].** The interiors are clean second order on dry: halving them twice (≈70 → 35
 → 18 d) moves root_P50 +0.39 then +0.08 (ratio 4.77; omega 4.15, a_l1 4.39, ln J 4.29,
 rms 4.65; projected 4.46; cos(move1, move2) 0.96), and Richardson from either pair gives
-the same region error to 0.01–0.03. DRYFLAT_LADDER
+the same region error to 0.01–0.03. dry-flat the same (ratio 4.35 root_P50, rms 3.89,
+projected 3.70, cos 0.95; Richardson from either pair −0.27). Both second moves are at
+or under the jitter floor in rms (0.023, 0.013) but keep the first move's direction.
 
 **What it implies [i].** The interiors are the founders' case one level down: an h²
 hat error in birth date of a smooth, edge-free profile, carried by the field into the
@@ -494,6 +496,13 @@ root uptake, runoff).
 - The two parts add to O (root_P50 −0.19 against −0.18). **R1g refuted**: the opening
   strip, not the first interval, carries the opening side's root_P50 (−0.14 of −0.18).
   Its ln J error is field too (+0.072), of the opposite sign to the interiors'.
+
+### R2 results, dry-flat ladder (`r2_ladder_dryflat.log`; not separately registered) [m]
+
+res → I2 moves root_P50 +0.21, I2 → I4 +0.05: ratio 4.35 (ln J 3.27, a_l1 2.87, omega 6.75 on
+small numbers), rms 3.89, projected 3.70, cos 0.95. Richardson from res→I2 and res→I4 gives
+the same region error (root_P50 −0.27 both). The second move's rms (0.013) is under the
+jitter floor; the ratio is read from its direction (cos 0.95) [i].
 
 ## Predictions scored
 
