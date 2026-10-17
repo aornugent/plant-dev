@@ -5,6 +5,7 @@
 # spell after are both at least 2 d (U's rule). edges = FALSE, s = 1 is E6's committed schedule.
 Sys.setenv(BG = 90, R = 1.6)
 suppressMessages(source("/home/user/plant-dev/docs/measurements/schedule-search/round4/P/lib.R"))
+source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/h5/lib.R")   # h5_sched, for Route B
 source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/heldout/cases.R")
 SP <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad"
 LO <- file.path(SP, "deep/rootcause/loop")
@@ -78,3 +79,27 @@ map_lnJ <- function(x, reg) { if (is.null(x$light)) return(NULL); n <- x$stand$n
 # A run's schedule and its map's coarser schedule, as the runner reads them.
 prep <- function(cs, S, name) { d <- drop_set(cs, S); saveRDS(S, file.path(LO, "sched", paste0(name, ".rds")))
   saveRDS(d$coarse, file.path(LO, "sched", paste0(name, "_coarse.rds"))); invisible(d) }
+# Route B's layout: U (h5_sched, "node1", tcut 10: before b = 10 every edge a node and a fixed
+# node at c - 12 d; E6's 12-d inset after) with one background scale per region: founders F
+# (b < b1), interiors I1 (b1-10), I2 (10-17), I3 (17-25), late L (>= 25).
+RB_REG <- c("F", "I1", "I2", "I3", "L")
+region_of <- function(b, b1) ifelse(b < b1, "F", ifelse(b < 10, "I1", ifelse(b < 17, "I2", ifelse(b < 25, "I3", "L"))))
+rb_sched <- function(cs, sv) { b1 <- pilot_of(cs)$b1; Dp <- D; D <<- 1 / 365; on.exit(D <<- Dp)
+  as.numeric(h5_sched(cs, function(b) sv[[region_of(b, b1)]], "node1", tcut = 10)) }
+# Each node's class: closing strip (c and the nodes up to 12 d before it), opening strip (o and
+# up to 12 d after), short-spell centre, founders F, interiors I1-I3, late (b >= 25).
+node_class <- function(cs, S) { p <- pilot_of(cs); et <- edge_table(cs); cl <- et$b[!et$opening]; op <- et$b[et$opening]; d <- 12 / 365 + 1e-6
+  vapply(S, function(b) {
+    if (b >= 25) return("late")
+    if (any(abs(cl - b) < 1e-9) || any(cl - b > 0 & cl - b <= d)) return("cstrip")
+    if (any(abs(op - b) < 1e-9) || any(b - op > 0 & b - op <= d)) return("ostrip")
+    j <- which(et$b < b); k <- which(et$b > b)
+    if (length(j) && length(k) && et$opening[max(j)] && !et$opening[min(k)] && et$spell[max(j)] < 25) return("short")
+    if (b < p$b1 - 1e-9) return("F"); if (b < 10) "I1" else if (b < 17) "I2" else "I3" }, "") }
+# Background rows by Route B region: each non-strip node's accepted steps alive.
+region_rows <- function(cs, x) { S <- x$node_times; t0 <- head(x$stand$times, -1); cl <- node_class(cs, S)
+  alive <- vapply(S, function(b) sum(t0 >= b - 1e-12), 0); g <- c(F = "F", I1 = "I1", I2 = "I2", I3 = "I3", late = "L")[cl]
+  r <- tapply(alive, factor(g, RB_REG), sum); r[is.na(r)] <- 0; setNames(as.vector(r), RB_REG) }
+# The map's ln J error by Route B region (I split by era) and in total.
+map_by_era <- function(cs, x) { if (is.null(x$light)) return(NULL); d <- drop_set(cs, x$node_times); stopifnot(identical(as.integer(x$dropped), as.integer(d$drop)))
+  b <- x$node_times[d$drop]; reg <- ifelse(d$region == "I", ifelse(b < 10, "I1", ifelse(b < 17, "I2", "I3")), d$region); map_lnJ(x, reg) }

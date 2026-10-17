@@ -167,3 +167,77 @@ L 6, as the dwr round's c):
 - First E6+ rows seen while the ladders ran (before any scoring): dry s = 1 has 508643 rows,
   1.31× E6 committed's 389409 (the added nodes are early, so they live through most steps).
 
+## Added by the coordinator mid-round: where U falls behind E6, and Route B
+
+The coordinator's point: U fell short of E6 on accuracy per row because of placement, not
+because iterating is bad; a loop with good diagnostics should reach an E6-like layout from a
+cheap start. Two parts: (X) find the U–E6 gap by region from saved runs, before building
+anything; (B) Route B, a map-guided refinement from a coarse start, run on the same 18 cases.
+
+### Pre-registration X (before `gap.R` is run; the map replays are pinned to the saved runs)
+
+Method (`gap.R`): on dry, dry-flat and long-wet, E6 committed (`val_insk_c`), U10 (`u/runs/h5_U10`)
+and E6+ at s = 1 by region: founders F (b < b1), interiors I1 (b1–10), I2 (10–17), I3 (17–25),
+opening strips (o and o + 12 d nodes), closing strips (c − 12 d and c nodes), short-spell centres,
+late (≥ 25). Per region: nodes; rows (each node's accepted steps alive); the a09 proxy's share
+(w·h³ of the intervals whose midpoint lies there); the node-drop map's ln J error (pinned map
+replays on the scratch build: U10 on all three, E6 committed on dry-flat and long-wet; dry's is the
+guard run), with the strips' share taken as the measured ln J error less the map's total (strips
+plus jitter). Then spell by spell before 25: background nodes (outside both 12-d strips).
+Already seen before writing (the E6+ s = 1 rows and error on dry and long-wet, above): E6+ is 1.31×
+E6's rows on both, worst 0.44 against 0.35 on dry and 0.36 against 0.36 on long-wet.
+
+| # | prediction | P |
+|---|---|---|
+| X1 | On all three, U10's strip nodes (both kinds) carry more extra rows over E6 than U10's total extra: its background rows are fewer than E6's | 75% |
+| X2 | U10's background before 25 has fewer nodes than E6's on all three, most of the deficit in spells under 150 d | 65% |
+| X3 | The map's interior ln J error (I1 + I2 + I3) is larger in magnitude on U10 than on E6 on ≥ 2 of 3 | 60% |
+| X4 | dry-flat: E6+ s = 1 worst error above E6 committed's | 60% |
+| X5 | The strips' remainder (measured ln J error − map total) is under 0.1ε in magnitude on every layout × case with a map | 50% |
+
+### Route B as built (`harness/schedule/loop.R` `allocation_loop`; registered before any Route B run)
+
+Seen before registering (the schedule half of `gap.R`, no map columns yet): strip nodes
+(edges and the 12-d insets) carry most of every layout's rows (E6 dry 187k of 389k; dry-flat 560k
+of 797k); U10's background is sparser than E6's by one node in 8 of 48 spells on dry, 6 of 93 on
+dry-flat and 10 of 51 on long-wet, mostly in spells over 150 d; on dry E6+ (E6's background plus
+edge nodes) has E6's map by region to the third place but a worse hydraulic error (along M −0.54
+against −0.30). Route B is therefore built on U's strips (the cheaper honest set: edge nodes and
+c − 12 d before 10, E6's inset after), with its background placed per case:
+
+- **Layout** (`lib.R` `rb_sched(cs, sv)`): `h5_sched(cs, s(b), "node1", tcut = 10)` with s(b) one
+  scale per region, F (b < b1), I1 (b1–10), I2 (10–17), I3 (17–25), L (≥ 25), applied to a09's
+  spacing and range cap; strips fixed. `h5/lib.R` now accepts s as a function of b (numeric s
+  unchanged). Guard [m]: with one scale it reproduces U16 / U10 / U06 `identical()` on all ten
+  bank cases.
+- **Run 1**: every region at 1.6 (U16).
+- **Each run's map** gives region constants k_g = |map_g| / s_g² (floor 0.005ε), so a layout's
+  error proxy is P = Σ k_g s_g².
+- **Next layout**: minimise Σ R_g s_g / s_g′ (R_g the region's background rows on the run) subject
+  to P = P_next: equal marginal error per row, s_g ∝ (R_g s_g / k_g)^(1/3), clipped to [0.3, 1.6],
+  rounded to 0.001. P_next after run 1 = P_1 × clip(0.9·target / (P5's predicted worst error at
+  1.6), 1/4, 1/1.6²); after a pair, the P where the pair's constant (d / (P_a − P_b) per quantity)
+  meets 0.9·target, clipped to [P_b/4, P_b/1.5]; P_b/1.6² when a map disagreed.
+- **Estimate** (k from the finer member's map): finer member d·P_b/(P_a − P_b), coarser
+  d·P_a/(P_a − P_b). Answer, noise check and map flag as in the main loop (route A). At most 5
+  runs. Reserve 0.15.
+- Scored as route A: C1–C5 on the final, T = Σ runs + 2·final (rows model), runs, and per
+  iteration the true worst error against E6 committed's, so the iteration and rows at which
+  Route B first matches E6's committed accuracy are read off; the final per-region node counts
+  against E6's (`node_class`). No stress replay for Route B (its layouts are not one-parameter,
+  so unrun layouts cannot be interpolated).
+
+### Pre-registration B
+
+| # | prediction | P |
+|---|---|---|
+| B0 | The bank's run 1 on the scratch build (unpinned) reproduces the saved `h5_U16` J `identical()` | 90% |
+| B1 | Route B's final rows ≤ E6 committed's on ≥ 9 of 18 | 40% |
+| B2 | Bank: Route B's T ≤ E6's 9287 | 45% |
+| B2′ | Route B's T ≤ route A's T on each set | 55% |
+| B3 | Route B passes C1–C5 on ≥ 15 of 18 | 55% |
+| B4 | Runs per case: mean ≤ 2.6, max ≤ 4 | 55% |
+| B5 | Some iterate is at or under E6 committed's worst error within 3 runs on ≥ 9 of 18 | 45% |
+| B6 | The final founders' scale is finer than the I1 scale (s_F < s_I1) on ≥ 12 of 18 | 55% |
+| B7 | Final background nodes within ±30% of E6's in both F and I1 on ≥ 12 of 18 | 40% |
+

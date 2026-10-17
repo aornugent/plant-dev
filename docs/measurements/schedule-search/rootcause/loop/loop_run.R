@@ -34,3 +34,19 @@ stress_run <- function(store, ref, d, noise, cid) {
       mp <- w * store[[a]]$map + (1 - w) * store[[b]]$map
       rows <- exp(log(store[[a]]$rows) + (log(s) - log(ss[i])) * (log(store[[b]]$rows) - log(store[[a]]$rows)) / (log(ss[i + 1]) - log(ss[i]))) }
     list(q = ref + (e + miss + pert) * EPS, rows = rows, map = mp + rnorm(1, 0, 0.02), e = e) } }
+# Runs requested, not launched: a missing run is prepared, its job written to REQ, and the
+# case's loop stops with class "need_run"; the shell runs the jobs in parallel lanes and the
+# drivers start again. The loops are deterministic given their runs, so replaying them from
+# the stored runs takes the same path a sequential driver would.
+REQ <- Sys.getenv("REQ", file.path(LO, "requests.txt"))
+need_run <- function(name, cs) { cat(paste0(name, "/", cs, "\n"), file = REQ, append = TRUE)
+  stop(structure(class = c("need_run", "error", "condition"), list(message = paste("need", name), call = NULL))) }
+read_run <- function(name, S) { f <- file.path(LO, "runs", paste0(name, ".rds")); if (!file.exists(f)) return(NULL)
+  x <- readRDS(f); if (is.null(x$finished) || is.null(x$stand$elasticity) || !identical(x$node_times, S)) return(NULL); x }
+ep_request <- function(cs) function(s) { S <- ep_sched(cs, s); nm <- ep_name(cs, s); x <- read_run(nm, S)
+  if (is.null(x)) { prep(cs, S, nm); need_run(nm, cs) }; ep_summary(cs, x) }
+rb_name <- function(cs, sv) paste0("rb_", cs, "_", paste(sprintf("%.3f", sv[RB_REG]), collapse = "_"))
+rb_request <- function(cs) function(sv) { S <- rb_sched(cs, sv); nm <- rb_name(cs, sv); x <- read_run(nm, S)
+  if (is.null(x)) { prep(cs, S, nm); need_run(nm, cs) }
+  m <- map_by_era(cs, x); mp <- setNames(rep(0, length(RB_REG)), RB_REG); for (g in intersect(names(m), RB_REG)) mp[g] <- m[[g]]
+  list(q = qv(x), rows = x$stand$rows, map = c(mp, all = m[["all"]]), region_rows = region_rows(cs, x)) }
