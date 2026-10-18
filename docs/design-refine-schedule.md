@@ -52,7 +52,8 @@ date. Its error is local, and adds over birth date:
 
 ## The commitment
 
-**A schedule is a set of breakpoints (the first run's opening and shutting edges) plus a node
+**A schedule is a set of breakpoints (each run's own spell openings and ends, and a stall boundary
+where one exists) plus a node
 count per spell, the spell's nodes placed to share a density equally. Every node that is not a
 breakpoint can be removed, and a replay of the run on its own steps with every other interior
 node removed is that run's error estimate.**
@@ -78,9 +79,15 @@ Kept true by structure:
    is never in the estimate.
 4. **Replay** with every other interior node removed: error ≈ (Q_removed − Q)/3. This costs
    about 0.6–0.8 of a run.
-5. **Stop** when every quantity is under its ε. The run is the answer.
-6. **Otherwise** scale each spell's count by √(worst ratio) × 1.1, make sure the binding
+5. **Stop** when every quantity's estimate is under 0.88ε (at 1e-4: the replay cannot see the
+   tolerance's bias, ≤ 0.11ε, and estimates 0.75–0.97 of the error). The run is the answer.
+6. **Otherwise** take spell ends from this run (ends move with the schedule: median 0.48 d, the
+   first spell's by 12 d), scale each spell's count by √(worst ratio) × 1.1, make sure the binding
    spells' counts change, and go to 3.
+
+**A stall boundary** (constant rain: cohorts born after day 23.5 stall under the canopy) is a
+breakpoint where neighbours' counts of P sign changes differ. It is placed by bisection on forward
+runs (five rounds of about 100 nodes, to 0.0003 day); today's runs do not record that count.
 
 **Spells too short for two intervals** keep one interval and are not replayed.
 - They hold 23–71% of establishment but 0.5–6.6% of J and 1–19% of the interpolation error.
