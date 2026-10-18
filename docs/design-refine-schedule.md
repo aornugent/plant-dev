@@ -146,7 +146,8 @@ stall to 0.0003 d in five rounds.
 | Parity replay as a second estimate? | No: with even counts the even removal never merges a spell's end intervals; on dry it estimated 0.37 of the error |
 | Probe nodes between nodes? | Not today: the run refuses invaders born at dates it did not introduce |
 | The graded layout on five cases at 1e-4? | dry, long-wet, episodic-lma, dry-flat and a held-out episodic with a_dG2 ×0.8 (t_r 17.8 d): worst error 0.30–0.56ε, at or under E6 committed's (0.35–1.29) on every case; the spell-end component within 0.23ε (0.4–0.6 uniform). The bound on the worst quantity, from its error and the case's read, is 0.67–0.89ε, so each case stops at the first pass. Real rows 1.47–1.66× E6 committed; run plus replay 0.92–1.10× E6 committed plus check |
-| Does the stop ever accept a run over ε? | Untested: no run of the graded layout has been over ε, so no false accept could occur |
+| Does the stop ever accept a run over ε? | No, on five cases started at half scale (`rootcause/refine2/`): every pass 1 was over ε (1.0–1.8) and rejected; every pass 2 accepted, worst 0.26–0.66ε. The pass-2 bound covered every quantity but epi-adG208's a_l1 (0.66 against 0.55): level 0 at half scale was short of the square law there (1.625 → 0.661 → 0.152 over three levels), so its estimates read low. Not spell ends, short spells or steps (R21) |
+| What does a reject cost? | Starting at half scale and doubling: 1.56–1.74× round 5's scale-1 run plus replay, which accepted every case at pass 1. Doubling beats rescaling by √, which is not nested and needs its own replay |
 
 ## Guarantees, by construction
 
@@ -202,7 +203,8 @@ than the 4.1% measured, candidate A (allocation by the node-drop map) takes over
 
 ## Still open
 
-- Whether the stop ever accepts a run over ε: needs a case where the first pass is over ε.
+- Below scale 1 the estimate can read low (epi-adG208 a_l1 at half scale, 0.45); scale 1 is the
+  default for that reason, and the spells that carry the slow part are not located.
 - r_min and u_q from five cases; the bank has ten.
 - The invaders' spell ends against the resident's.
 - dry-flat's interiors, where region replays estimated 1.9× the error.

@@ -62,3 +62,25 @@ doubled); the pass-2 estimate comes from the rejected run, with no replay.
 Scored: P1 fails as worded (3 cases over 1.5ε) but every case rejected; P2 holds; P3 fails
 (epi-adG208 a_l1 at pass 2; dry-flat at pass 1); P4 fails on epi-adG208 (0.66 > 0.5); P5 holds
 on 4 of 5 (epi-adG208 0.45); P6 fails (1.56–1.74); P7 holds.
+
+## R21. Why epi-adG208's pass-2 pair under-read a_l1 (systematic debugging) [m]
+
+Three hypotheses, each tested with pinned replays or one forward run, each refuted:
+
+1. **Spell ends misplaced by the first run.** Forward runs of level 1 with the establishment
+   record: its ends sit within 2.5 d of the breakpoints (median 0.01 d; dry: 2.2 d, median
+   0.07 d). Not the cause.
+2. **Short spells off the square law** (one interval to two). Pinned replays of levels 1 and 2
+   with only the short spells reverted: their part of a_l1's difference falls 0.420 → 0.132
+   (×3.2 per doubling, near the law). The rest falls 0.545 → 0.376 (×1.45). Not the cause.
+3. **Step dependence in the unpinned pair.** Level 0's nodes on level 1's steps: a_l1 moves
+   0.088ε; the schedule part of the difference is 1.05 of 0.97. Not the cause. Step changes
+   alone move other quantities by up to 0.19ε (rms 0.034 on dry), which enters the pair's
+   estimate divided by 3.
+
+What holds: a_l1's error is 1.625 → 0.661 → 0.152 over levels 0, 1, 2, so from level 1 on it is
+on the square law (×4.3, and the level-1/level-2 pair estimates 0.17 against 0.15), and level 0
+at scale 0.5 is not. The replay (level −1) under-reads at pass 1 in the same proportion, so
+every estimate built from level 0 is consistently low and no internal comparison flags it.
+Which spells carry the slow part is not located (six region-mixed replays per level would).
+Round 5's scale-1 layout read 0.82–1.17 on all five cases, this one included.
