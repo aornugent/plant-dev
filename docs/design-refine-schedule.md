@@ -1,192 +1,128 @@
 # Refining a TF24 node schedule until it converges
 
 A design under `.claude/skills/system-design/SKILL.md`, written after the root-cause rounds
-(`docs/measurements/schedule-search/rootcause/`). It replaces the habit of tuning one
-schedule (E6) with an algorithm that refines any schedule until it converges, and reports each
-run's own error.
+(`docs/measurements/schedule-search/rootcause/`) and revised after the evidence round
+(`rootcause/evidence/notes.md`). It replaces tuning one schedule (E6) with an algorithm that
+refines a schedule until it converges, and reports each run's own error. The user-facing
+account is `docs/vignettes/node-schedules.Rmd`.
 
 ## Triage: 3
 
-The result becomes plant's user tool for converged runs (the role `refine_schedule` had), so
-its call and its returned diagnostics are a public API.
+The result becomes plant's tool for converged runs (the role `refine_schedule` had), so its
+call and its returned diagnostics are a public API.
 
 ## Requirements ledger
 
-- **R1 Converged by default.** Every quantity's error is within its ε_q, the table in
-  `docs/measurements/eps-spread.md`, with no knob to tune.
-- **R1′ Any simulation length.** No rule names an absolute birth date or patch age. a09's
-  b = 10, 17, 20 and 25 constants, and E6's "late edges after 25", are out. Ages come from
-  the pilot: its opening edges, and its J window (J still to be earned).
-- **R2 Honest.** Every run reports its own per-quantity error estimate, passing C2/C3.
-  A run's estimate must not depend on another schedule being on the asymptotic law.
+- **R1 Converged by default.** Every quantity's error is within its ε_q
+  (`docs/measurements/eps-spread.md`), with no knob to tune.
+- **R1′ Any simulation length.** No rule names an absolute birth date or patch age.
+- **R2 Honest.** Every run reports its own per-quantity error estimate (C2/C3). A run's
+  estimate does not depend on another schedule being on the asymptotic law.
 - **R3 Never fails** (C4), including near extinction.
-- **R4 Cheap.** The least rows at ε. There, E6 costs its committed run plus a 1.55×
-  check (2.55 runs to find, T 9287 on the bank).
+- **R4 Cheap.** The least rows at ε. E6 costs its committed run plus a 1.55× check.
 - **R5 Diagnosed.** Each run reports where its remaining error is.
 
-**Scarce resource:** whole SCM runs, 1–7 minutes each. Every run must either be the answer
-or estimate the answer; a check run that is then thrown away pays for neither.
+**Scarce resource:** whole SCM runs, 1–7 minutes each.
 
-## The domain, from first principles
+## The domain
 
-Every stand total is an integral over birth date b of an exact establishment density times a
-per-recruit integrand (fate, leaf area, uptake). A schedule is a quadrature rule over b. Its
-error is local, order 2 in spacing wherever the integrand is smooth, and it adds over any
-partition of b: five region runs sum to the whole within rms 0.039ε on dry, and a pinned
-replay with every region dropped equals the sum of the per-region drops (cos 1.000).
+Every stand total is an integral over birth date of an exact establishment count times a
+per-recruit integrand (fate, leaf area, uptake). A schedule is a quadrature rule over birth
+date. Its error is local, and adds over birth date:
+- where the integrand is smooth, an interval's error is about count × width² × the integrand's
+  curvature;
+- regions add to the whole within 0.04ε;
+- a replay with every region removed equals the sum of the single removals (correlation 1.000).
 
-What the rounds found about the integrand:
-- **It has a corner at each opening edge o, and only there.** This held at all 22 opening
-  edges on dry (`h5/notes.md` O1). Through a closing edge it is smooth and convex, and the
-  gate's ramp is 1–2 d (`closing/notes.md`).
-- **Elsewhere it is smooth but curved.** The founders' fate falls on a time scale L of
-  0.4–1.2 y. The interiors' leaf area is convex in b. The closing cohorts' hydraulic
-  sensitivity turns 9–12 d before each closing edge c.
-- **An early node costs more.** It lives for the rest of the run, so the rows a node adds at
-  b are w(b), the steps remaining after b.
+**What the integrand does** (dense references and fate maps, `evidence/notes.md` E1):
+- **At an opening edge its slope jumps.** This held at all 22 openings on dry. The part that
+  is not smooth is 12–67× the spell interior's.
+- **At a shutting it stays continuous, but its curvature rises tenfold within 2–3 weeks**,
+  most of all in the hydraulic sensitivities. An interval across the shutting reads the gap's
+  different curve, so its error is set by where the last node sits, not by the spacing.
+- **The first cohorts, including their first days, and the late cohorts are smooth.**
 
-The edge strips were never a separate kind of error. They are what happens when a
-quadrature node is not placed on the integrand's corner. Put a node on every opening edge
-and the corner is resolved. Everything between two opening edges is then one smooth panel:
-a spell, the closing turn, and the following gap.
+**So both edges are breakpoints.**
+- A spell [o, c] is one smooth panel.
+- The gap after it holds no establishment, so it needs no interior node.
+- The breakpoints cost one node per edge, the same count as E6's 12-day insets.
+
+**A node's cost depends on its birth date:** an early node lives for the rest of the run.
 
 ## The commitment
 
-**A schedule is a set of breakpoints (the pilot's opening edges) plus a node density ρ(b)
-on the panels between them. Every node that is not a breakpoint can be dropped, and a
-pinned replay of the run with every other such node dropped is that run's error estimate.**
+**A schedule is a set of breakpoints (the first run's opening and shutting edges) plus a node
+count per spell, the spell's nodes placed to share a density equally. Every node that is not a
+breakpoint can be removed, and a replay of the run on its own steps with every other interior
+node removed is that run's error estimate.**
 
 Kept true by structure:
-- The schedule is the pair (breaks, ρ). Nodes are derived from it: in each panel, ⌈∫ρ⌉
-  nodes placed to share ρ equally.
-- No other node class exists: no insets, no strips, no edge layers.
-- The drop function takes the derived interior nodes of each panel, alternately. It cannot
-  touch a breakpoint because breakpoints are not in its input.
+- The schedule is (breaks, density); nodes are derived from it.
+- Each spell gets an even number of intervals. The removal then merges every interval in a
+  pair, each pair with an equal share of the density. No interval goes unmerged, and no removed
+  node sits off centre.
+- No other node class exists: no insets, strips or edge layers.
 
-## The floor, and why it may be the whole design
+## The algorithm
 
-**Floor:**
-1. Start ρ₀ from the pilot: a09's graded density with its fixed ages replaced by the
-   pilot's J window. a09 already follows the founders and the offspring curve.
-2. Run S.
-3. Replay S pinned to its own steps with every other interior node dropped. The estimate is
-   e_q = (Q_drop − Q_S)/3, about 0.8 of a run, with no step jitter between the two.
-4. If every |e_q| ≤ ε_q, stop. S is the answer.
-5. Otherwise scale ρ by √(max_q |e_q|/ε_q) and go to 2.
+1. **First run** (forward, about 100 even introductions). It gives the openings and shuttings,
+   and T(t): the share of J still to be produced after each calendar time.
+2. **First density:** graded by the offspring curve. Ages come from T(t):
+   - the onset of offspring production replaces b = 10;
+   - the time half of J has been produced replaces 17 and 20;
+   - the time 90% has been produced replaces 25 (the late cut).
+3. **Run** at a tolerance whose own error is under ε/10 (3e-5 has a floor of 0.004–0.012 rms).
+   The replay shares the run's steps, so the run's tolerance error is never in the estimate.
+4. **Replay** with every other interior node removed: error ≈ (Q_removed − Q)/3. This costs
+   about 0.6–0.8 of a run.
+5. **Stop** when every quantity is under its ε. The run is the answer.
+6. **Otherwise** scale each spell's count by √(worst ratio) × 1.1, make sure the binding
+   spells' counts change, and go to 3.
 
-Each iteration costs 1.8 runs. The last run is the answer. Its estimate is its own, so R2
-holds without the pair assumption that broke E6's check at ε/2.
+**Spells too short for two intervals** keep one interval and are not replayed.
+- They hold 23–71% of establishment but 0.5–6.6% of J and 1–19% of the interpolation error.
+- Leave out spells below a share of the J window, and report a bound on their error.
 
-**Where the floor may fail:** R4. Uniform scaling also refines regions whose error is
-already small. Whether that costs enough to matter is unknown; it is Q5 below.
+**When doubling is enough:** if a step doubles every spell's count, each run is the previous
+run's removal case. The previous run then estimates the new one without a replay, at the cost
+of 0.024 rms of step noise.
 
 ## Candidates
 
-| | Move | Commitment | Pays for | Costs | Wins when |
-|---|---|---|---|---|---|
-| A [first thought] | Allocate by measured error density | ρ ∝ (K̂/w)^(1/3), with K̂(b) from the node-drop map's ln J split (about +7.5% of a run) and w(b) from the run's own rows | R4: equal error per row | The map ranks regions for the elasticities' rms (profile cos 0.94) but does not size them per quantity. One more step that can be wrong | Error density varies a lot across b within a case |
-| B (the floor) | Scale only | ρ = s·ρ₀ | R1, R2, R3 with the fewest parts | Over-refines low-error regions | The pilot's ρ₀ already has the right shape. On the bank, per-region allocation saved 4.1% of the uses' rows (`proxies/notes.md`) |
-| C | Keep E6, swap the check for the drop | E6's layout, insets held fixed as if they were breakpoints, the pinned drop instead of the check | R2 at ε at once, small diff | The drop cannot see the inset strips' error (the gap `single/notes.md` names), which was large on dry (closing +0.34, opening −0.14) | The strips' error is under ε/10 on every case |
+| | Move | Commitment | Wins when |
+|---|---|---|---|
+| A [first thought] | Allocate by measured error density | count per spell from the map's ln J split and each node's cost | error density varies a lot across birth date within a case |
+| **B (chosen)** | Scale only | counts scale together | the first density already has the right shape. Per-region allocation saved 4.1% of use rows on the bank |
+| C | Keep E6, replay instead of the check | E6's layout, insets held fixed | the insets' strip error is under ε/10 everywhere. It is not: closing +0.34 on dry |
 
-**Winner: B, with A's map kept as a diagnostic (R5), not as an allocator.**
-- A is eliminated until Q5 shows allocation pays more than one extra step can lose.
-- C is eliminated on R2: it keeps the one error the estimate cannot see.
+## What the evidence settled
 
-## Kill question
-
-*Assumption whose falsity makes this design unnecessary:* that the integrand is smooth
-everywhere except at opening edges, so a density alone can resolve the closing turn at a
-cost near E6's.
-- **Against it:** E6 resolves the turn for free by cancellation. Its 12-d inset node sits on
-  the turn. A density needs spacing under about 10 d near every closing edge.
-- **For it:** the drop estimate is honest either way. So if the turn costs too much, the
-  design survives: it simply reports the cost truthfully.
-- **The retrofit is local:** add each closing edge's c − 12 d point as a second kind of
-  breakpoint. It stays a breakpoint, never an inset, so it is never dropped.
-
-Verdict: survives as a hypothesis with a stated retrofit. Q1–Q3 decide it.
-
-## What survives deletion
-
-| Name | Held by |
+| Question | Answer [m] |
 |---|---|
-| breakpoints (opening edges from the pilot) | R2: the corner must sit on a node or the drop misreads |
-| ρ, the node density | R4: where nodes go is the only cost lever |
-| the pinned drop replay | R2: the only honest single-run estimate per quantity |
-| the node-drop map | R5: location (ln J by region, 0.03ε) |
+| Slope jumps only at openings? | Yes, but shuttings need breakpoints too. With openings only, worst errors were 3.36ε (dry), 1.13ε (long-wet) and 3.24ε (episodic-lma), and the replay read 0.2–0.44 of them |
+| Order 2 inside a spell at twice the spacing? | The interpolation part falls at order 1.6–2.0. With shutting breakpoints and even counts, the replay reads it at 0.92–1.02 |
+| Replay honest by region? | ×0.8–1.25 on the saved region replays; dry-flat's interiors ×1.9 |
+| Map–replay agreement as a check? | Tests nothing useful: the gap is ≤ 0.004ε at the committed spacing. Replaced by a parity replay: removing odd vs even nodes spreads 0–0.08ε |
+| Probe nodes between nodes? | Not today: the run refuses invaders born at dates it did not introduce |
+| Map's light/water split? | Says soil carries 58–89% of the field part. Not yet checked against a run that separates the channels |
 
-## What this settles
+## Guarantees, by construction
 
-The following are deleted from the algorithm. Their records stay as measurements.
-- the check run, and E6's pair estimate with its bookkeeping;
-- insets, edge strips, the H5/U/E6+ layout variants and their strip handling;
-- a-priori proxies, the reserve, the validity flag's interval threshold;
-- greedy region bisection, and region ranking by ln J.
+- **G1 The last run is the answer.** Earlier runs and replays are spent, unless each step
+  doubles every count; then each run estimates the next.
+- **G2 Coverage.** Every interval in a spell with at least two intervals is merged once (even
+  counts). Short spells are bounded, not estimated.
+- **G3 No step noise in the estimate:** the replay uses the run's steps.
+- **G4 Any length:** no rule holds an absolute age.
+- **G5 It stops.** Scaling with a margin and a forced count change cuts the worst ratio each
+  pass; a cap reports a failure.
 
-No estimate depends on two different schedules sharing an asymptotic law. Step jitter
-never enters an estimate, because the drop replays the run's own steps.
+## Still open
 
-## What this makes hard
-
-- **Panels with no interior node** (short spells on dry-flat) have nothing to drop. Their
-  error goes unestimated. The cope is a rule that every panel holding more than a set share
-  of establishment gets one interior node. Q4 sizes this.
-- **The order-2 assumption inside a panel at twice the spacing.** It holds up to about
-  160-d intervals (`h5/notes.md`). ρ₀ must keep panels under that.
-- **The drop needs every other node,** so ρ must give each panel at least two interior nodes
-  for the parity to be clean.
-
-## Kill condition
-
-The closing turn costs more than E6's whole committed run at ε. Then switch to the
-retrofit (c − 12 d as a breakpoint). If that still loses to E6 on R4, candidate C, with a
-strip probe, is next.
-
-## Questions the first runs answer (pre-register before running)
-
-- **Q1** Breakpoints at opening edges only: does the drop estimate pass C2/C3 at ε and ε/2
-  on all 18 cases (bank plus held-out, the references already built)?
-- **Q2** The floor's rows at ε against E6's committed run plus check.
-- **Q3** Does the closing turn need the c − 12 d breakpoint, or does ρ₀'s density resolve it?
-- **Q4** How much error sits in panels with no interior node?
-- **Q5** Does allocation by the map (A) beat scaling (B) at matched error, by more than the
-  map's 7.5%?
-
-## What is guaranteed by construction, and what still needs evidence
-
-**By construction:**
-- **G1 No wasted runs.** Every full run is a candidate answer; the last one is the answer.
-  The only other work is its drop replay.
-- **G2 No unseen node class.** Every node except a breakpoint is dropped, so the estimate
-  covers every interval. The exception is panels with fewer than two interior nodes
-  (see Q4).
-- **G3 No step jitter in the estimate.** The drop replays the run's own steps, so the
-  difference between run and drop contains no step-control noise.
-- **G4 Two estimates of ln J.** The drop gives ln J's error exactly; the map gives it to
-  first order. If they disagree beyond 0.03ε, the run is off the asymptotic law, and the
-  loop takes one more refinement before trusting the estimate. This costs nothing extra.
-- **G5 Any length.** Breakpoints and ρ₀ come from the pilot, and no rule holds an absolute
-  age.
-- **G6 It stops.** If order 2 holds, each scaling divides the worst ratio by the square of
-  the scale. An iteration cap turns non-convergence into a reported failure, not a hang.
-
-**Needs evidence:**
-- **E1** The integrand has corners only at opening edges.
-- **E2** Order 2 holds inside a panel at twice the spacing.
-- **E3** A density resolves the closing turn at a cost near E6's.
-- **E4** A drop at alternate nodes reads the run's error honestly.
-
-## Diagnostics that ride along
-
-- **The map's channel split.** The node-drop map already keeps light (crowns) and water
-  (uptake) apart. Where they interact (the interiors' understory feeding the founders
-  through the soil), the split says which integrand carries the error.
-- **Probe nodes.** An invader-style node, walked on the stored run with no feedback, samples
-  fate, leaf area and uptake at any b. Its walk costs little. It measures the integrand's
-  curvature between nodes, where the density should go up.
-- **Parity.** Dropping the even nodes instead of the odd ones estimates the same error from
-  a different sample. The spread between the two is the estimate's own uncertainty. It
-  costs one more replay, so use it only when G4 disagrees.
+- **The shutting breakpoints at real cost.** The next test is this layout on dry, long-wet and
+  episodic-lma: one run and one replay each.
+- **dry-flat's interiors,** which region replays read at ×1.9.
+- **The bound for short spells.**
 
 ## The tool
 
@@ -195,6 +131,3 @@ refine_schedule(p)   # returns list(schedule, answer, estimate, where, history)
 ```
 
 Converges to ε by default.
-
-- One loop over (run, drop). `where` is the node-drop map of the answer run.
-- Backends: the harness runner on libS; the node-drop patch only for `where`.
