@@ -1,6 +1,7 @@
 # fr_run.R: one case's frontier runs in one process, one SCM at a time. The first run is shared;
 # each configuration scale:tol is a level-0 run plus its pinned half replay, saved as it ends.
-#   PLANT_LIB=<libNS> Rscript fr_run.R CASE OUTDIR 1:1e-4,0.7:1e-4[,1:3e-4]
+#   PLANT_LIB=<libNS> Rscript fr_run.R CASE OUTDIR 1:1e-4,0.7:1e-4[,1:3e-4][,1:3e-5:0]
+# A third field of 0 skips the replay.
 source("/home/user/plant-dev/harness/long_drought.R")
 source("/home/user/plant-dev/harness/schedule/refine.R")
 WEIGHTS <- "/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev/window/rule_A"
@@ -47,7 +48,8 @@ for (cf in cfgs) {
   x <- tryCatch(stand_run(p, env, ctrl, S), error = function(e) conditionMessage(e))
   if (is.character(x)) { res$failed <- x; saveRDS(res, f); next }
   res$run <- summ(x); res$times <- x$stand$times
-  r <- tryCatch(stand_run(p, env, ctrl, half, base = x), error = function(e) conditionMessage(e))
+  r <- if (length(cf) > 2 && cf[3] == 0) "skipped" else
+    tryCatch(stand_run(p, env, ctrl, half, base = x), error = function(e) conditionMessage(e))
   if (is.character(r)) res$replay_failed <- r else res$replay <- summ(r)
   res$finished <- format(Sys.time()); saveRDS(res, f)
   cat(sprintf("%s scale %g tol %g: %d nodes, run %.0f s, replay %.0f s\n", cs, scale, tol, length(S),

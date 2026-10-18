@@ -134,3 +134,27 @@ constants (0.82, 0.33ε, 0.19ε) on the build that will ship. Same five cases, s
 | P16 | the bound (with 0.82) covers every quantity's true error on every case | 60% |
 | P17 | the replay's read (median over quantities with error > 0.2ε) is ≥ 0.82 on every case | 35% |
 | P18 | each case's CPU is at most libS's canonical CPU (the spread cost 2–6% of a sweep) | 70% |
+
+## R23. The canonical loops without the spread (libNS; `score_ns.R`) [m]
+
+| case | nodes | worst error | worst bound | covered | read (median / lowest) | with the spread: worst error / read |
+|---|---|---|---|---|---|---|
+| dry | 230 | 0.36 (a_l1) | 0.74 | 47/47 | 0.62 / 0.30 | 0.33 / 1.09 |
+| long-wet | 220 | 0.20 (a_l1) | 0.57 | 47/47 | no quantity over 0.2ε | 0.31 / 0.87 |
+| episodic-lma | 205 | 0.53 (lma) | 0.96 | 47/47 | 0.95 / 0.83 | 0.57 / 0.96 |
+| dry-flat | 263 | 0.31 (TF24_cost_scale) | 0.54 | 47/47 | 0.65 / 0.47 | 0.55 / 0.87 |
+| epi-adG208 | 194 | 0.52 (a_l1) | 0.71 | 47/47 | 0.61 / 0.61 | 0.54 / 0.61 |
+
+- **Accuracy:** every case accepts at pass 1, within ε in all 47 quantities. The worst errors are
+  equal or smaller without the spread: 0.20–0.53ε, against 0.31–0.57ε.
+- **Coverage:** the bound with the old constants (0.82, 0.33ε) still covers every quantity on every
+  case, with at least 0.18ε to spare.
+- **The read:** the replay now reads less of the error on three cases (medians 0.61–0.65), so 0.82
+  is no longer the lowest per-case median. The bound holds through its fixed term, as R20 found per
+  quantity on libS. Re-deriving the ratio as the lowest median (0.61) would push episodic-lma's
+  bound to about 1.19 and force a second pass there.
+- **CPU:** not comparable. These runs shared the cores with up to six other jobs: three
+  investigations, plus three agents building and testing plant.
+
+Scored: P14, P15, P16 hold; P17 fails (dry 0.62, dry-flat 0.65, epi-adG208 0.61); P18 untestable
+under the load.

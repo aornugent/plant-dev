@@ -101,3 +101,18 @@ What would change the recommendation:
 - If F8 also holds with F5, scale 0.7 + K1 becomes a frontier point 10–20% cheaper.
 - If F11 holds, 3e-4 is dominated: its bias must be carried in the fixed term, and that term
   then exceeds what the 23% saving buys back.
+
+## Pre-registration F′ (after dry-lma125's two configurations were scored, before the follow-up)
+
+On libNS, dry-lma125 at s1 has a worst error of 0.61 (TF24_cost_scale), but its replay reads 0.03,
+so that one quantity is uncovered by 0.24. At s0.7 the same quantity's error is 0.02. An error
+that falls by 0.59 when the schedule is *coarsened* is not a schedule error on the square law.
+Two follow-up runs on the s1 schedule, without replays (`fr_run2.sh`; 18 SCM runs in all): one at
+a 5% tolerance nudge (1.05e-4) and one at 3e-5. They decide whether the miss is step noise
+(OBJECTIVES' Reproducible), tolerance bias, or something else (near extinction, or the libS
+reference).
+
+| # | prediction | P |
+|---|---|---|
+| F14 | the 5% nudge moves TF24_cost_scale by ≥ 0.2ε (step noise of the size of the miss) | 55% |
+| F15 | at 3e-5 TF24_cost_scale's error is under 0.33 | 50% |

@@ -4,6 +4,7 @@
 #      nofirst: level 0 then replay in one process
 #      S:       level 0 alone
 #      half:    the replay alone, pinned to BASE's steps (an S output)
+#      fwd:     level 0's forward alone (its steps give the replay's rows too)
 # GC=1 calls gc() before each run.
 a <- commandArgs(TRUE); CASE <- a[1]; MODE <- a[2]; OUT <- a[3]
 source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/refine2/perf/common.R")
@@ -19,6 +20,10 @@ if (MODE %in% c("loop", "nofirst", "S")) {
 }
 if (MODE %in% c("loop", "nofirst")) {
   g(); res$replay <- strip(timed_run(cs, nd$half, base = x, label = "replay"))
+}
+if (MODE == "fwd") {
+  x <- timed_run(cs, nd$S, gradient = FALSE, label = "level0fwd"); res$level0 <- strip(x)
+  res$replay_rows <- rows_of(nd$half, x$stand$times)
 }
 if (MODE == "S") saveRDS(x$stand, paste0(OUT, ".base"))
 if (MODE == "half") {

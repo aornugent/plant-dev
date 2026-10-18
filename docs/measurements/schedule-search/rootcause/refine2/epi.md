@@ -44,3 +44,80 @@ level below (`mixed.R`); D_R is the replay minus the run.
 | E1a | on level 1's steps, the six D_R(1→0) sum to D(1→0) within 0.05ε in every quantity | 85% |
 | E1b | one region carries the slow part: its D_R(1→0)/D_R(2→1) for a_l1 is under 2.5 while every region with \|D_R(2→1)\| > 0.1ε elsewhere is 3–5 | 50% |
 | E1c | that region is B | 35% |
+
+## Step 1. The low read survives on libNS (`score_ns.R`, the coordinator's canonical fit) [m]
+
+On libNS the case reads 0.607 (worst error a_l1 0.518ε, bound 0.713, 47/47 covered); libS read
+0.61. The spread moves this case's answers by at most 0.029ε (rms 0.008) and its estimates by at
+most 0.016ε, so the libS half-scale runs serve to locate the cause. (Dry's read on libNS falls to
+0.62 from 1.09: the spread moves dry's light group by up to 0.12ε. Not this investigation's case.)
+
+## E1. Region-mixed replays on level 1's steps (libS, half scale; `mixed.R`, `e1_score.R`) [m]
+
+D_R(1→0) per region, ε; "full" is level 0 on level 1's steps minus level 1.
+
+| quantity | A | B | C | D | E | F | sum | full |
+|---|---|---|---|---|---|---|---|---|
+| a_l1 | −0.09 | 0.10 | **0.55** | 0.20 | 0.25 | 0.06 | 1.06 | 1.05 |
+| lnJ | −0.03 | −0.01 | −0.20 | −0.09 | −0.09 | −0.02 | −0.44 | −0.44 |
+| a | 0.02 | 0.04 | **−0.20** | −0.08 | −0.06 | −0.01 | −0.28 | −0.28 |
+| k_I | 0.03 | 0.05 | **−0.20** | −0.07 | −0.05 | 0.00 | −0.23 | −0.23 |
+| jmax_25 | 0.04 | 0.06 | **−0.20** | −0.06 | −0.04 | 0.00 | −0.20 | −0.19 |
+| lma | −0.07 | −0.07 | **0.20** | 0.06 | 0.02 | −0.01 | 0.12 | 0.12 |
+| storage_relaxation_offset | −0.02 | −0.05 | −0.24 | −0.06 | −0.03 | 0.00 | −0.39 | −0.38 |
+| k_s | −0.02 | −0.03 | 0.00 | −0.07 | −0.08 | −0.03 | −0.24 | −0.24 |
+| TF24_cost_scale | −0.09 | −0.01 | 0.26 | 0.00 | −0.02 | −0.02 | 0.11 | 0.10 |
+
+- E1a holds: the six sum to the full difference within 0.018ε in every quantity.
+- C, 6.6–12.6 y, carries half of a_l1's difference and all of the light group's; the hydraulic
+  group sits in D–F. A and B (the first spell, and the spell closed by the 2.3-d gap) carry
+  little, of the opposite sign. E1c fails.
+- Six replays, 290–300 s CPU each with the coordinator's two loops and the libNS build running.
+
+## Pre-registration E2 (region-mixed replays on level 2's steps, C, D and E)
+
+If C carries the part that falls slowly, D_C(2→1) is large against D_C(1→0) = 0.55.
+
+| | prediction | confidence |
+|---|---|---|
+| E2a | a_l1's D_C(1→0)/D_C(2→1) is under 2.5 (D_C(2→1) > 0.22ε) | 55% |
+| E2b | D and E are on the square law: D_R(1→0)/D_R(2→1) in 3–5 for a_l1 | 55% |
+| E2c | A + B + F by difference (level 1 − level 2, not pinned, less C, D, E) is under 0.1ε for a_l1 | 60% |
+
+## E2. Region-mixed replays on level 2's steps (C, D, E) [m]
+
+a_l1, ε (pinned except the A + B + F row, which is level 1 − level 2 less C, D and E):
+
+| region | D_R(1→0) | D_R(2→1) | ratio | light group (a) ratio | storage_relaxation_offset ratio |
+|---|---|---|---|---|---|
+| C 6.6–12.6 | 0.549 | 0.212 | **2.6** | 4.0 | 2.7 |
+| D 12.6–17.7 | 0.197 | 0.102 | **1.9** | 11 | 2.8 |
+| E 17.7–24.5 | 0.254 | 0.073 | 3.5 | 2.9 | 3.0 |
+| A + B + F | 0.061 | 0.12 ± 0.09 (steps) | — | — | — |
+| all | 1.052 | 0.508 | 2.1 | 2.7 | 2.4 |
+
+- E2a holds (C 2.6, D_C(2→1) 0.21 against the 0.22 threshold: on the line); E2b half holds (E
+  3.5; D 1.9); E2c fails narrowly (0.12, within the unpinned pair's step noise).
+- The slow part of a_l1 sits in C and D, 6.6–17.7 y: if both fell ×4, D(2→1) would be 0.19ε
+  lower. Within C the light group is on the square law (×4.0); a_l1 and the storage group are
+  not. So the slow part is not the light field.
+- Uniform ladders on the same record (episodic-lma, u215/u429/u857) put a_l1 on the square law
+  (×4.7), so a_l1 is not slow by nature (`ladders.R`).
+- The spell-end intervals are wider against t_r than on the cases that read well, but not
+  far: the last interval of a spell is a median 1.63 t_r here, against 1.54 (dry), 1.31
+  (long-wet), 1.19 (episodic-lma) and 0.99 (dry-flat) (`endgeom.R`, scale 1).
+
+## Pre-registration E3 (which part of each spell in C and D)
+
+H4: the slow part is each spell's last weeks, the rise over t_r before its end, which the
+level-0 and level-1 intervals (27–60 d near an end, 1.5–3.4 t_r) do not resolve, so its error
+falls slower than h² until the spacing is under t_r. Test: pinned replays of levels 1 and 2 with
+only the last added node of each panel in C ∪ D removed (panels of four or more intervals at
+the level below), and with only the first added node removed. The rest of C ∪ D (interiors and
+the short spells) is C + D less the two.
+
+| | prediction | confidence |
+|---|---|---|
+| E3a | the end replays' a_l1 ratio D(1→0)/D(2→1) is under 2.5, and they carry at least half of C ∪ D's excess over the square law (0.19ε) | 45% |
+| E3b | the rest of C ∪ D falls by 3.2 or more | 45% |
+| E3c | the opening replays are on the law (ratio 3–5) or under 0.05ε | 65% |
