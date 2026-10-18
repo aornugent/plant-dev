@@ -78,3 +78,44 @@ snapshots.
   local edit to 0.9.3. The pin belongs in the branch that needs 0.9.3.
 - **The model-version snapshot:** stale on PLANT-100 to 104 and fixed in 105. The fix belongs in
   100 and 102.
+
+## A bigger reorganisation: by concern, not by history
+
+The chain is in the order the work happened. Each branch sits on the one before because it was
+built there, not because it needs it, and the history carries churn a reviewer must read past:
+- names introduced and then renamed (ODELIA-55, PLANT-105, 108);
+- references blessed and then blessed again (PLANT-97, 108);
+- the spread, now reverted;
+- a 1067-line test-only file in the shipped library;
+- 23k lines in PLANT-95 alone.
+
+`rebase --update-refs` keeps all of that, and every amend cascades up 16 branches.
+
+Rebuilding by concern instead gives fresh branches cut from `develop`, one per concern, each
+squashed to the commits a reviewer needs, and arranged as a graph rather than a chain:
+
+| PR | concern | from | needs |
+|---|---|---|---|
+| phylloptim 1 | root-finds stop at roundoff; the root curve and a determined collar differentiated | PHYLLOPTIM-17 (without the unmerged 0.9.0 base), 18, 19 | phylloptim's 0.9.0 base |
+| odelia 1 | runs at the caller's scalar, recording, walks, per-component tolerance factors | ODELIA-53, without the dead header and probes | — |
+| odelia 2 | splits at sign changes, forward and sweep | ODELIA-53's split commits, 54 | odelia 1 |
+| odelia 3 | a subsystem stepped alone, with substeps at its forcing's knots | ODELIA-55, renames folded | odelia 1 |
+| plant 1 | exact establishment counts | PLANT-93 (plant#94) | — |
+| plant 2 | the storage pool (a declared model change: the relaxation offset, no stage guard) | PLANT-97, 98 | plant 1 |
+| plant 3 | differentiate a stand and replay it: scalar templating, census gradient, pinned replays, invaders in the recorded field, walks | PLANT-95 (without the demo and the test-only file), 99 | plant 1, odelia 1, phylloptim 1 |
+| plant 4 | TF24's step control: tolerance factors and their bound, `control_tf24()` | PLANT-100, 104 | plant 3 |
+| plant 5 | the field: no newborn rates in its build, crossed crowns summed tallest first | PLANT-101, 107 | plant 3 |
+| plant 6 | splits at net-production sign changes, forward and sweep | PLANT-102, 103 | plant 4, odelia 2 |
+| plant 7 | TF24's soil stepped alone, substeps at the rain's knots | PLANT-105, renames folded | plant 4, odelia 3 |
+| plant 8 | the scheduling algorithm: `refine_schedule`, replacing the C++ refine | the harness loop, PLANT-110's distance diagnostic | plants 4–7 |
+
+- **Size:** 8 plant PRs instead of 16, and 3 odelia PRs instead of 3 chronological ones.
+- **Independence:** each PR is one concern a reviewer can hold in mind. Plants 4, 5 and 7 can
+  merge independently once plant 3 lands, and plant 2 is independent of the gradient work.
+- **References:** blessed once per PR that moves numbers (plants 1, 2, 5, 6 and 7), not every time
+  a later branch touched them.
+- **Cost:** each concern is rebuilt against `develop` by hand rather than rebased. That is a day of
+  careful work, and its check is cheap: the final tree must be bit-identical to the libNS source,
+  `no-spread` minus the agreed cuts, on the full suite and on the five canonical loops.
+- **Open:** whether plant 2's model change should go upstream on its own first. It moves J
+  2.0–2.7% and sets the loop's t_r, so everything after it is measured with it.
