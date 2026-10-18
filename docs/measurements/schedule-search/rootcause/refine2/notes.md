@@ -120,3 +120,17 @@ reviewed (pair allowance 0.19, level cap 4, `rooting_depth_max` left out).
 
 Scored: P8, P9, P10, P13 hold; P11 fails on epi-adG208 (read 0.61, against 0.75–1.2); P12 fails
 on four of five (1.23–1.31, against within 15%).
+
+## Pre-registration 19 (before the canonical loops without the spread)
+
+libNS: origin PLANT-110 with PLANT-108 reverted (clean revert of its five commits), phylloptim
+pinned to 0.9.3; otherwise libS. The user dropped the spread; these runs re-measure the bound's
+constants (0.82, 0.33ε, 0.19ε) on the build that will ship. Same five cases, scale 1, in memory.
+
+| | prediction | confidence |
+|---|---|---|
+| P14 | every case accepts at pass 1 | 50% |
+| P15 | every accepted run is within ε in all 47 quantities | 85% |
+| P16 | the bound (with 0.82) covers every quantity's true error on every case | 60% |
+| P17 | the replay's read (median over quantities with error > 0.2ε) is ≥ 0.82 on every case | 35% |
+| P18 | each case's CPU is at most libS's canonical CPU (the spread cost 2–6% of a sweep) | 70% |
