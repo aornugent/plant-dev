@@ -8,9 +8,11 @@ output:
 
 <!-- Sketch for plant, on the birth-date coordinate with exact counts. The code
 runs on the stack tip through plant-dev's harness. The design is
-plant-dev/docs/design-refine-schedule.md; the measurements behind each number are
-under plant-dev/docs/measurements/schedule-search/rootcause/ (h5, closing,
-founders, p50, dwr, single, evidence). -->
+plant-dev/docs/design-refine-schedule.md. Sources for each number:
+plant-dev/docs/measurements/schedule-search/rootcause/ (evidence, closing, h5,
+founders, p50, dwr, single, refine, heldout, coldread), and
+plant-dev/docs/measurements/{breakpoints,refinement,estimate-shortfall}.md and
+plant-dev/docs/dynamics.md. -->
 
 ```{r setup, eval = FALSE}
 library(plant)
@@ -21,53 +23,57 @@ p <- add_strategies(p, trait_matrix(0.32, "lma"))
 
 # The whole thing
 
-A node schedule is a quadrature rule over birth date. It has two parts:
+The quantities a run reports are J, a strategy's fitness (its offspring per seed over a
+patch's life), and J's gradient with respect to each trait. Each has a tolerance ε, set
+once per quantity (`docs/measurements/eps-spread.md`).
 
-- **Breakpoints:** the births at which a recruit's fate changes slope abruptly. A
-  first run finds them.
-- **A node density** on the stretches between breakpoints, saying how closely nodes
-  are spaced there.
+Every one of them is a sum over birth date, so a node schedule is a rule for that sum.
+The schedule has two parts:
 
-A run estimates its own error. Replay it on its own steps with every other node
-between breakpoints removed. A third of the change is the run's error in every
-quantity. If any quantity is over its tolerance, raise the density and run again.
-The last run is the answer.
+- **Breakpoints:** births where a recruit's fate is not smooth in birth date. These are
+  the ends of each establishment spell, and on some records the birth date after which
+  cohorts stall under the canopy. Each run's own establishment record gives the spell
+  ends.
+- **A count of intervals per spell.** Each spell's nodes are placed at equal shares of a
+  density that says where fate curves most.
+
+A run estimates its own error. Replay it on its own steps with every other node inside
+each spell removed. A third of the change estimates the run's error, in every quantity at
+once. If any quantity is over its limit, raise the counts and run again. The last run is
+the answer.
 
 ```{r whole, eval = FALSE}
 fit <- refine_schedule(p, mkenv("episodic"))
-fit$answer     # ln J and its gradient, from the last run
-fit$estimate   # each quantity's error, from that run's own replay
-fit$where      # how the remaining error is spread over birth date
+fit$answer     # J and its gradient, from the last run
+fit$estimate   # each quantity's estimated error, from that run's replay
+fit$schedule   # breakpoints, counts per spell, node times
+fit$history    # each pass: its schedule, answer, estimate; and why the loop stopped
 ```
-
-The sections below explain each part: what a node does, where fate changes slope,
-where it curves, how a run measures its own error, and how the loop uses that.
 
 # What a node is
 
-On the birth-date coordinate a node is the cohort born at one instant. The
-individuals born between two neighbouring nodes form an interval, and the interval
-carries two things:
+On the birth-date coordinate a node is the cohort born at one instant. The individuals
+born between two neighbouring nodes form an interval, and the interval carries two
+things:
 
 - **Its count.** The run integrates the establishment rate exactly over the interval,
   together with its first moment.
-- **Its members' fate.** Their survival, size and output are taken to vary linearly
+- **Its members' fate.** Their survival, size and seed output are taken to vary linearly
   in birth date between the two nodes.
 
 Every stand total has the same form: J, the leaf area above a height, the water drawn
 from a soil layer. Each is a sum over intervals of count × interpolated fate.
 
-The schedule's error is the error of that quadrature. It has three properties that
-everything else rests on:
+The schedule's error is the error of that sum:
 
-- **Where fate is smooth, an interval's error is about count × width² × fate's
-  curvature.** It falls four-fold when the spacing halves.
-- **The error adds over birth date.** Regions refined one at a time add to the whole
-  run's error within 0.04ε.
-- **A local error travels.** An interval that over-counts leaf area or uptake shades or
-  dries every other cohort, so its error shows up in all of them.
+- **Where fate is smooth across an interval,** the error is about
+  count × width² × fate's curvature, so it falls four-fold when the spacing halves.
+- **The error adds over birth date.** Errors measured region by region add to the whole
+  run's within 0.04ε.
+- **A local error reaches every cohort.** An interval that over-counts leaf area or
+  uptake changes the light and water every other cohort meets.
 
-# Where fate changes slope: breakpoints
+# Breakpoints
 
 **Net production decides everything.** An individual's net production is
 
@@ -82,207 +88,190 @@ its roots reach. P drives each process:
 - **Establishment:** a newborn establishes only if its P at seed height is positive.
 
 A seedling's roots lie in the top 0.3 m of soil, so establishment follows the top
-layer's water: a rain opens it within a day, and the stand's uptake dries the layer
-until it shuts.
+layer's water. A rain starts an establishment spell within a day, and the stand's uptake
+dries the layer until the spell ends. Between spells nothing establishes.
 
-**At each opening, fate's slope jumps.**
+**At a spell's opening, fate's slope jumps.**
 - A cohort born just before an opening waits for rain, so a later birth waits less and
   does better.
 - After the opening, each later cohort meets more shade, so it does worse.
 - On dry, fate's slope was +0.5e-3 per day before every one of 22 openings and
   −2.2e-3 per day after.
 
-**At a shutting, fate stays continuous, but it curves sharply.**
-- Within 2–3 weeks of the gate shutting, fate's curvature rises tenfold. The cohorts'
-  sensitivity to the hydraulic traits changes fastest 9–12 days before the gate shuts,
-  set by the seedling's starting reserves.
-- An interval that reaches across the shutting into the closed gap reads the gap's
-  different curve. Its error is set by how far its last node sits from the shutting, not
-  by the spacing.
+**At a spell's end, the count stops.**
+- Fate itself is continuous there. Within the spell its curvature rises 1.3–5× toward
+  the end, and the cohorts' sensitivity to the hydraulic traits curves up to 17× harder.
+- An interval that reaches past the end into the gap reads the gap's different curve.
+  Its error is then set by how far its last node sits from the end, not by the spacing.
 
-So a shutting is a breakpoint too.
+So both ends of every spell are breakpoints. With them, the worst errors on dry,
+long-wet and episodic with lma ×1.25 fell from 1.1–3.4ε to 0.47–0.79ε.
 
-**On constant rain there is one more slope jump.**
+**A spell's end moves with the schedule.** The end is where the stand's uptake dries the
+top layer, and that uptake depends on the nodes. Ends moved by a median of 0.48 days
+between passes, and the first spell's end by 12 days; openings did not move. So each run
+takes its spell ends from its own establishment record, and the next pass's breakpoints
+come from the last run, not from the first.
+
+**On constant rain there is one more breakpoint.**
 - Cohorts born in the first 23.5 days reach the canopy.
 - Every later cohort stalls under them: its P falls below zero and comes back.
-- Survival to the end of the run falls from 0.63 to 0.02 across 0.03 days of birth
-  date.
+- Survival to the end of the run falls from 0.63 to 0.02 across 0.03 days of birth date.
 
-Both kinds are found the same way. Fate changes slope only where a cohort's sequence of
-P sign changes differs from its neighbour's. A first run records each node's count of
-sign changes, and the establishment rate at every step:
-- the counts change across every pair of neighbours that straddles an edge;
-- on constant rain they go from 0 to 2 exactly at the stall.
+In the model's equations, fate stops being smooth only where a cohort's sequence of P
+sign changes differs from its neighbour's (`docs/dynamics.md`).
+- With a diagnostic build that counts each node's sign changes, the count goes from 0 to
+  2 exactly at the stall.
+- Five rounds of forward runs with about 100 nodes, each bisecting the pair whose counts
+  differ, place the stall to 0.0003 day.
+- Today's runs do not record that count.
 
-A first run on about 100 even introductions places 98–100% of openings within a day of
-the finest run's, and 75–89% of shuttings.
-On constant rain, five rounds of forward runs with about 100 nodes place the stall to
-0.0003 day.
+**Finding spell ends.** A forward run on about 100 even introductions places 98–100% of
+openings within a day of the finest run's, and 75–89% of ends. The ends then move to
+their own run's values each pass.
 
-A breakpoint is a node that is never moved or removed. With a node on every opening and
-every shutting, each spell between them is smooth. The closed gap after a spell holds no
-establishment, so it needs no node of its own.
+# The count per spell and the density
 
-# Where fate curves: the node density
+A breakpoint is never removed. Between breakpoints, each spell gets an even number of
+intervals, and its nodes sit at equal shares of a density. Four shapes in fate set the
+density:
 
-Between breakpoints fate is smooth, but it curves, and the density must follow the
-curvature. Four shapes recur:
-
-- **The first cohorts.** Births before the first shutting earn 70–97% of J. Their fate
-  falls nearly exponentially in birth date, with a decay length of 0.4–1.2 years, because
-  a later birth reproduces later in calendar time, against the patch's disturbance and the
-  stand's drought mortality.
+- **The first cohorts.** Births before the first spell ends produce 70–97% of J. Their
+  fate falls nearly exponentially in birth date, with a decay length of 0.4–1.2 years,
+  because a later birth reproduces later, against the patch's disturbance and the stand's
+  drought mortality.
 - **The understory.**
   - Within a spell, a later birth is a smaller copy that has had less time to die, so its
     leaf area is convex in birth date.
   - Straight lines between nodes over-count that leaf area by 0.5–1.1% (3–4% in the
-    first years). The soil then runs drier for everyone, and the first cohorts carry most
-    of that error as extra drought mortality.
-- **The last three weeks before each shutting.** The cohorts' sensitivity to the hydraulic
-  and storage traits curves 3–12× harder than a month earlier: a seedling born there starts
-  the coming drought with fuller reserves, and every one of them empties them. The density
-  rises about 2× over the last 18 days, tapering to 1 by 27, and each spell gets two more
-  intervals for it.
-- **Late births.** They earn little J but still draw down the water. Late intervals
-  wider than about 110–160 days leave the square law on the traits that act through the
-  soil.
+    first years). Through the light or the water the stand creates (the measurements
+    disagree on which), the first cohorts carry most of that error as extra drought
+    mortality.
+- **The last three weeks of a spell.** A seedling born there starts the coming drought
+  with fuller reserves, and every one of them empties its reserves. The cohorts'
+  sensitivity to the hydraulic and storage traits curves 3–17× harder than a month
+  earlier. The density rises to about 2× over the last 18 days, back to 1 by 27 days
+  before the end, and each spell gets two more intervals for it.
+- **Late births.** They produce little J but still draw down the water. Late intervals
+  wider than about 160 days leave the square law on the traits that act through the soil.
 
-**A node's cost also depends on its birth date.** An early node lives for the rest of the
-run, so the rows it adds fall with birth date.
+The first density is graded by the offspring curve, and its ages come from T(t), the
+share of J still to be produced after calendar time t:
+- the onset of seed output ends the first cohorts' fine spacing;
+- the time half of J has been produced is where the spacing cap changes;
+- the time 90% has been produced is where late spacing may widen.
 
-The first density comes from the first run: graded by the offspring curve. Its ages come
-from the share of J still to be produced after each calendar time:
-- the onset of offspring production marks the end of the first cohorts' fine spacing;
-- the time 90% of J has been produced marks where late spacing may widen.
+On the ten-case bank these land at about 10, 16–24 and 23–29 years, where fixed ages had
+put them. In a shorter run they move earlier with it.
 
-On the ten-case bank these land at about 10 and 23–29 years, where fixed rules had put
-them. In a shorter run they move earlier with the run, which a fixed age cannot do.
+**A spell too short to hold two intervals** keeps one, and the replay does not see it.
+Such spells hold much of the establishment but 0.5–6.6% of J; on three cases their error
+was 0.05–0.10ε. No bound for it works yet.
 
-# How a run measures its own error
+# How a run estimates its own error
 
-Remove every other node between breakpoints, and replay the run on its own steps. A
-third of the change is the run's error, in every quantity at once:
+Remove every other node inside each spell, and replay the run on its own steps:
 
-    error ≈ (Q with every other node removed − Q) / 3
+    estimated error ≈ (Q with every other node removed − Q) / 3
 
 Why it can be trusted:
 
 - **Every interval is merged once.** Each spell holds an even number of intervals, so
-  removing every other node merges them all in pairs. With an odd number, one interval
-  per spell goes unmerged and its error is never seen; that hid most of the error before
-  each shutting in the first tests.
-- **Each removal merges two intervals of equal share.** Nodes are placed to share the
-  density equally, so every removed node sits at the centre of what it merges, which is
-  where the factor of 1/3 holds.
-  - Off centre the factor is (l³ + (1 − l)³)/(3 l (1 − l)) for a node at fraction l.
-  - Schedules built by adding nodes next to existing ones are full of off-centre pairs,
-    which is why their removal estimates read a third to a half of the error.
+  the removal merges them all in pairs. With an odd count, one interval per spell is
+  never merged; in the first tests that hid 17 of 70 spell ends, and 39 more sat in
+  spells with no node inside to remove.
+- **Each removed node sits at the middle of what it merges, by share of the density.**
+  The factor 1/3 is exact for a node at the middle in width. Off the middle it is
+  (l³ + (1 − l)³)/(3 l (1 − l)) for a node at fraction l. With the graded density the
+  replay estimated the error at 0.97 of its size in one run on dry.
 - **The replay shares the run's steps,** so step-size choices add nothing to the
   difference.
-- **The replay carries the field.** A removed node changes the light and water every
-  cohort meets, and the replay includes that.
-- **It is measured, not assumed.** On the layout with both edges as breakpoints it read
-  the error at 0.75–0.87, correlation 0.88–0.97, on dry, long-wet and episodic with lma
-  ×1.25, and never passed a run that was over ε. Removing every region at once gives the
-  sum of removing each alone (correlation 1.000).
-- **What it still misses:** on dry and episodic with lma ×1.25, a component in root_P50
-  and the storage offset (errors ±0.4–0.6ε, read near zero). It halves, not quarters, when
-  the counts double, so it sits at a fixed birth date that intervals reach across.
-  - It is not a slope jump. Both halves come from the last three weeks before each
-    shutting, where the hydraulic and storage sensitivities curve 3–12× harder than a
-    month earlier, and most of it travels through the field.
-  - A density that follows that curvature (about 2× over the last 18 days, tapering to 1 by
-    27 days) and adds two intervals to each spell removes it: on dry root_P50 went from
-    +0.41 to −0.05ε and the storage offset from −0.49 to −0.11ε, and the replay then read
-    the error at 0.97.
-- **Cost:** 0.6–0.8 of a run.
+- **The replay includes the stand's response.** A removed node changes the light and
+  water every cohort meets, and the replay recomputes that.
+- **Measured:** with both spell ends as breakpoints, the estimate was 0.75–0.87 of the
+  error (cosine 0.88–0.97) on dry, long-wet and episodic with lma ×1.25, and never
+  passed a run that was over ε. With the grading before spell ends it was 0.97 on dry.
+- **Cost:** 0.55–0.64 of a run.
 
-Two things the replay cannot see:
-- **The run's own tolerance error,** because the replay shares the run's steps. Run at a
-  tolerance whose error is under ε/10 (3e-5).
-- **Spells too short to hold two intervals.** They hold much of the establishment but
-  0.5–6.6% of J; on dry, long-wet and episodic with lma ×1.25 their error was 0.05–0.10ε.
-  No bound for it works yet.
+What the replay cannot see:
+- **The run's own ODE tolerance error,** because the replay shares the run's steps. At
+  1e-4 that error was at most 0.11ε on five cases (3e-5 cuts it but costs 1.4× the steps).
+- **Spells too short to hold two intervals.**
+- **Errors in its own estimate:** it estimated the error at 0.75–0.97 of its size.
 
-**Where the error is.** Each run also reports a map from its own reverse sweep:
-- J's error by stretch of birth date, to 0.03ε, for 7.5% more than the run;
-- split between light and water, so it says which way a region's error travels.
+So the loop holds every quantity to 0.88ε, not ε, at 1e-4.
 
-**How sure the estimate is.** Removing the even nodes instead of the odd ones does not
-give a second estimate: it never merges a spell's two end intervals, and on dry it read a
-third of the error. A second estimate needs a second schedule, such as the previous run
-when each step doubles every count.
+**Where the error is.** The run's own reverse sweep, with a small addition, also gives
+J's error by stretch of birth date, to 0.03ε, for 7.5% more than the run.
 
 # The loop
 
 ```
   first run (about 100 even introductions, forward only)
-        │ openings, shuttings, sign-change counts, offspring curve,
-        │ share of J still to be produced
+        │ establishment spells, offspring curve, T(t)
         ▼
-  breakpoints + first density (an even number of intervals per spell)
+  breakpoints (spell ends; the stall boundary, if any, by bisection passes)
+  + first density and an even count per spell
         │
         ▼
-  run ──► replay with every other node removed ──► error of each quantity
-        │                                           and the map of J's error
-        ▼
-  every quantity under its ε?
+  run ──► replay with every other node in each spell removed ──► estimated error
+   │  │                                                          of each quantity
+   │  └► reverse sweep ──► where J's error is
+   ▼
+  every quantity's estimated error under 0.88ε?
         │ yes: this run is the answer
-        │ no:  scale every spell's count by 1.1 × √(worst error / ε),
-        │      keeping counts even, and run again
+        │ no:  take spell ends from this run, scale every spell's count by
+        │      1.1 × √(worst estimate / 0.88ε), keep counts even, make sure the
+        │      spells holding the worst error change, and run again
 ```
 
 - **Every full run is a candidate answer;** no run is made only to be compared with.
 - **Doubling every count makes each run the previous one's removal case.** The previous
-  run then estimates the new one without a replay, at the cost of step noise (0.024 rms).
-- **It needs no tolerance from the user.** It stops at each quantity's ε.
+  run then estimates the new one without a replay. On dry it estimated the error at 1.04
+  of its size, with step noise of 0.004–0.012 rms at 3e-5.
 - **It stops.** On the square law each scaling cuts the worst ratio by the square of the
-  scale. The margin of 1.1 keeps it from landing on the boundary, and a cap on passes
-  reports a failure instead of running on.
-- **The density can follow the map** instead of rising everywhere. Whether that pays
-  more than it risks is still being measured.
+  scale. The margin of 1.1 and the forced change keep it from stalling at the boundary,
+  and a cap on passes reports a failure instead of running on.
 
 # What it adapts to
 
 | what varies | why | what responds |
 |---|---|---|
-| when establishment opens and shuts | the rainfall record and the stand's uptake | breakpoints, from the first run |
-| where fate curves | first cohorts, understory, the weeks before each shutting, late births | the density |
-| how large the error is | about 100× across trait × climate | the replay measures it on each run |
-| which quantities bind | carbon traits in the first cohorts, hydraulic traits in the understory | every quantity has its own ε |
-| how mechanisms interact | light and water carry a local error to every cohort | the replay includes the field; the map's split names the channel |
-| what a node costs | early nodes live longest | the first density |
-| simulation length | when J is produced | the first density's ages, from the share of J still to be produced |
-| how sure an estimate is | near extinction, close to ε | a second replay on the other nodes |
+| when spells start and end | the rainfall record and the stand's uptake | breakpoints, taken from each run's own establishment record |
+| where cohorts stall | the canopy on constant rain | a breakpoint, placed by bisection passes |
+| where fate curves | first cohorts, understory, a spell's last weeks, late births | the density and the count per spell |
+| how large the error is | about 100× across trait × climate | the replay estimates it on each run |
+| which quantities bind | different traits on different cases | every quantity has its own ε |
+| how a local error spreads | light and water reach every cohort | the replay recomputes the stand's response |
+| simulation length | when J is produced | the first density's ages, from T(t) |
 
 # Traits
 
 The traits move the breakpoints by moving where P = 0:
 - Carbon gain, carbon cost and water access set the light and water at which P
-  vanishes, and so when establishment opens.
+  vanishes, and so when spells start and end.
 - Height growth sets who ends up shaded.
-- The storage pool sets how costly a spell below zero is.
+- The storage pool sets how costly a time below zero is.
 
 On constant rain:
 - lma ×0.8 and ×1.25 move the stall from day 23.6 to 27.1 and 18.9;
-- hmat ×0.8 and ×1.25 move it to days 45–50 and 10–12.
+- hmat ×0.8 and ×1.25 move it to days 45–50 and 9.9–10.9.
 
-A schedule refined at one θ serves nearby θ, but the error grows as θ moves. A moved
-trait's error on the shared schedule costs one replay to measure, so each use can check
-its own error.
+A schedule refined at one set of traits serves nearby ones, but the error grows as the
+traits move. Checking a moved trait on the shared schedule costs a run at those traits
+plus its replay.
 
 # Still being tested
 
-- the width of the grading before each shutting, taken from the first run instead of
-  from fate maps, and the layout on more cases;
-- dry-flat's understory, where region replays read 1.9× the error;
+- the width of the grading before spell ends, taken from the first run instead of from
+  fate maps on dry, and the full layout on more cases;
+- dry-flat's understory, where region replays estimated 1.9× the error;
 - a bound for spells too short to hold two intervals;
-- the tolerance: 3e-5 costs 1.4× the steps of 1e-4; running at 1e-4 and holding every
-  quantity to 0.88ε covers the tolerance's measured bias (at most 0.11ε) for 0.7 of the
-  cost.
+- which of light or water carries the understory's error.
 
 Settled so far:
-- fate's slope jumps only at openings, but shuttings need breakpoints as well. With
-  openings alone the worst errors reached 3.4ε and the replay read a fifth to two fifths
-  of them; with both edges they fell to 0.47–0.79ε;
-- with even counts every interval is merged, and the replay costs 0.55–0.64 of a run.
+- fate's slope jumps only at openings, but spell ends need breakpoints as well;
+- with even counts every interval is merged, and the replay costs 0.55–0.64 of a run;
+- the last weeks of a spell need a graded density with more intervals, not a breakpoint
+  of their own: on dry that took the worst error from 0.79 to 0.36ε (E6, today's tuned
+  schedule: 0.35) and the estimate to 0.97 of the error.
