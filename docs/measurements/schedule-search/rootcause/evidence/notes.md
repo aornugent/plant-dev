@@ -1030,3 +1030,134 @@ follows the measured curvature profile rather than a09's spacing in the last thr
 | R4g | 55% | holds (−0.05) |
 | R4h | 45% | holds (read 0.97) |
 | R4i | 60% | holds (+49) |
+
+## Round 5: the grading from the first run, and the real test (coordinator's request after R16)
+
+Code read before the predictions (libS `tf24_strategy.h`, storage rate): once net production P
+is negative the charge is ≈ 0 and the drain is −P, so dS/dt = −drain·r / (1 + (drain/S_max)·o),
+o = storage_relaxation_offset. In a seedling drain/S_max is hours⁻¹, so dr/dt ≈ −r/o: **after
+P turns negative every seedling's relative reserve decays with the same e-fold time o (7 d),
+whatever its size or drain**. While P > 0 the growth gate is ≈ 1 above r ≈ 0.4, so the charge is
+small and growth dilutes r from the newborn's a_st3 = 0.8 toward ≈ 0.4–0.5 [i, from the rate
+form]. Hazard a_dG1·exp(−a_dG2·r) reaches a_dG1/e at r = 1/a_dG2. So the candidates:
+
+- **t_r (parameters):** how long a newborn's reserves last once P < 0, from a_st3 to the hazard's
+  e-fold point: t_r = o · ln(a_st3 · a_dG2) = 7 · ln 16 = **19.4 d** [i] (epi-adG208: 17.8 d;
+  lma, hmat, root_P50, a_l1 do not enter).
+- **t_e (first run / storage trajectories):** days from the shutting until the cohort born at
+  the shutting reaches r = 1/a_dG2; t_r plus the delay before its P turns negative.
+- **L (first run):** the drought's length, days from the shutting to the next opening.
+
+**Measured width.** Per profile (curvature of G·s or G in 3-d bins of days before c, relative to
+its 30–60 d median, running median of 3), g = max(κ, 1)^(1/3); W½ = the largest d where g is
+still ≥ (1 + g_max)/2, g_max the largest g within 21 d; W_on = the largest d ≤ 45 where g ≥ 1.08.
+Height = g_max. On the median profiles already published (R13, R15) these are W½ ≈ 16–21 d,
+W_on ≈ 25–29 d, g_max 1.9–2.5; those are not predictions. Per zone the same, on each zone's own
+profile. References' integrands (u429/u857, 34/17-d uniform spacing) cannot resolve a 25-d rise
+[m: spacing]; the res runs (`cl_res_*`, nodes at c − {36, 28, 21, 15.5, 11, 7.5, 4.5, 2, 0} d on
+dry, dry-p50, dry-flat, long-wet) give G's profile on two more cases, coarsely.
+
+## Pre-registration 14 (before `r5_width.R` and before any per-zone profile is read)
+
+| # | prediction | P |
+|---|---|---|
+| R5a | per-zone W½ does not track the drought length: \|Spearman ρ(W½, L)\| < 0.3, pooled over dry and long-wet root_P50 zones | 60% |
+| R5b | per-zone height does track it: ρ(g_max, L) > 0.3 (pooled) | 45% |
+| R5c | t_e on dry (traj map, cohorts born at c on its 4 edges) is 15–30 d on every edge with a gap > 30 d | 50% |
+| R5d | G's own median profile (ln J's integrand, maps) has W½ within 30% of root_P50's on both dry and long-wet | 40% |
+| R5e | on the res runs G's W½ on dry-p50 and dry-flat is within 30% of dry's (same res grid) | 50% |
+| R5f | t_r predicts W½ within 30% on every per-case profile, the res-run ones included | 60% |
+
+### R17. The rise's width and height against the candidates (`r5_width.R`) [m]
+
+| profile (median over zones) | zones | W½ (d) | W_on (d) | g_max | W½ / t_r |
+|---|---|---|---|---|---|
+| dry, root_P50 | 20 | 17.5 | 29.7 | 1.92 | 0.90 |
+| dry, storage offset | 20 | 21.4 | 26.3 | 2.09 | 1.10 |
+| dry, G (ln J) | 20 | 14.6 | 20.8 | 1.87 | 0.75 |
+| long-wet, root_P50 | 18 | 15.9 | 32.4 | 2.43 | 0.82 |
+| long-wet, G | 18 | 16.7 | 25.3 | 1.92 | 0.86 |
+| res grid, G: dry / dry-p50 / dry-flat / long-wet | 24 / 24 / 35 / 28 | 14.4 / 15.6 / 15.3 / 16.8 | (grid ends at 36 d) | 1.77 / 1.66 / 1.76 / 1.98 | 0.74 / 0.80 / 0.79 / 0.87 |
+
+- **The width is the same on every case and does not follow the drought.** Per zone, root_P50's
+  W½ has median 16.9 d (IQR 15.5–19.5, 38 zones); its rank correlation with the drought length L
+  is −0.14 pooled (dry −0.29, long-wet −0.04), and dry's short-gap zones (< 20 d) are as wide as
+  its long-gap ones (19.3 against 16.8 d). The storage offset's zones correlate +0.39 with L, but
+  span only 18–22 d. G's own rise has the same width as root_P50's (14.6 against 17.5 dry, 16.7
+  against 15.9 long-wet), so the res runs' G profiles extend the check to dry-p50 and dry-flat:
+  15.3–15.6 d, against dry's 14.4 on the same grid.
+- **t_r = o·ln(a_st3·a_dG2) = 19.4 d predicts every W½ within 26%** (ratios 0.74–1.10, median
+  0.85). L does not predict it (zones of 14–75 d droughts have one width); t_e is t_r plus a day
+  (below), so it adds nothing a first run is needed for.
+- **t_e on the traj map** (dry, 4 edges): a cohort born at c reaches r = 0.05 at 20 d after c
+  on both long-gap edges (gaps 65, 75 d) and 25 d on the 29-d gap; cohorts born 12–36 d
+  before c enter the drought at r 0.24–0.28 and reach 0.05 at 15–22 d. Before a 14-d gap the
+  cohort born at c never empties (rain returns first). Reserves are spent within days of birth
+  in the last weeks of a spell (r < 0.3 four days after birth at c − 12 d), so the advantage a
+  late birth carries into the drought is its unspent seed reserve [m for r, i for the reading].
+- **The height has no first-run predictor here.** Per zone g_max (median 2.26 for root_P50)
+  correlates +0.14 with L pooled (G: +0.55; dry's short-gap zones 1.56 against 2.18, long-wet's
+  2.69 against 2.67). Per case it is 1.9–2.4 for the sensitivities, 1.7–2.0 for G. A fixed
+  height, the dry profile's (max of root_P50 and storage offset, g ≈ 2.2 at c), is what the run
+  below uses.
+- References' integrands (34/17-d uniform spacing) cannot resolve the rise [m: spacing].
+
+Scored: R5a holds (ρ −0.14); R5b refuted (ρ +0.14); R5c holds (20, 20 d); R5d holds (0.83, 1.05);
+R5e holds (1.08, 1.06 × dry's); R5f holds (0.74–1.10).
+
+**How t_r behaves across cases and traits [i].** It holds no record quantity, so it is the
+same on every rainfall record; it moves only with storage_relaxation_offset (linearly),
+a_st3 and a_dG2 (logarithmically). lma, hmat, root_P50, a_l1 leave it unchanged (dry-p50's
+res width 15.6 against dry's 14.4 agrees); a_dG2 ×0.8 shortens it 8% (17.8 d), which no run
+here can resolve. A test that would separate t_r from "a constant that happens to fit": a
+fate map with the storage offset doubled, where t_r predicts a width of about 2×.
+
+## Pre-registration 15 (before the doubled-offset map run is launched)
+
+One forward run (`twin.R`, dry, the closing fate map's schedule, 1e-4, the map's setting) with
+storage_relaxation_offset × 2 (t_r 38.8 d). G's profile on it (ln J's integrand) against the
+base map's, both with the far window moved to 60–100 d (so a doubled rise is not in it), W½ by
+the same rule with g_max taken within 42 d and W read out to 80 d.
+
+| # | prediction | P |
+|---|---|---|
+| R5g | G's W½ at the doubled offset is 1.5–2.5× the base map's | 45% |
+| R5h | it is at least 1.25× the base's (the width moves with the offset at all) | 65% |
+
+## Pre-registration 16 (before any run of the real test; layouts built by `layout5.R`)
+
+Layout **G5** per case: B's breakpoints and ρ₀ (ages from T(t); epi-adG208 takes episodic's
+t₅₀/t₉₀, 17.9/25.3 y [i], having no node-record run), graded toward each shutting by dry's
+measured grade (max of root_P50's and the storage offset's κ^(1/3)) stretched by
+t_r(case)/t_r(dry), two more intervals per replayed spell, even counts, one-interval short
+spells. The reconstruction of Bga's grade gives Bga's panel counts exactly on dry (232 nodes)
+with node positions within 1.5 d of Bga's [m]. Held-out case: **epi-adG208** (episodic,
+a_dG2 ×0.8: the drydown trait, the only held-out move that changes t_r; E6 committed's worst
+error is root_P50 0.39; reference u215 → u429, own move 0.14ε).
+
+| case | t_r (d) | nodes G5 (B, E6 c) | replayed / short spells | rows model × E6 c |
+|---|---|---|---|---|
+| dry | 19.4 | 232 (183, 149) | 23 / 26 | 1.53 |
+| long-wet | 19.4 | 217 (170, 157) | 22 / 26 | 1.41 |
+| episodic-lma | 19.4 | 201 (146, 120) | 23 / 3 | 1.53 |
+| dry-flat | 19.4 | 271 (227, 191) | 20 / 65 | 1.40 |
+| epi-adG208 | 17.8 | 195 (149, 134) | 18 / 12 | 1.38 |
+
+Runs (`run5.sh`), libS, E6 committed's setting at TOL **1e-4**: G5, its pinned odd replay G5o,
+and G5b (every short spell bisected, unpinned) for the short spells' true error
+e_short = (4/3)(Q_G5 − Q_G5b), which carries 1e-4's step noise (≈ 0.024ε rms). Scored against
+the references (`refine/lib.R` ref_ladder) with every criterion at **0.88ε**: C1 |err| ≤ 0.88;
+C2 est > 0.22 where |err| > 0.44; C3 sign and ×½–×2 on quantities where max(|err|, |est|) >
+0.29, at most max(1, 20%) missed; C4 no throw; C5 every |est| ≤ 0.88.
+
+| # | prediction | P |
+|---|---|---|
+| R5i | every case's worst error ≤ 0.88ε | 50% |
+| R5j | the replay passes C1–C5 at 0.88ε on at least 4 of 5 | 55% |
+| R5k | no false accept (C5 passing while C1 fails) on any case | 75% |
+| R5l | read (median est/err over \|err\| > 0.2) in [0.8, 1.25] and cos ≥ 0.9 on at least 4 of 5 | 40% |
+| R5m | dry: G5 at 1e-4 against Bga at 3e-5 differs by ≤ 0.15ε in every quantity | 55% |
+| R5n | root_P50 and the storage offset are each within 0.3ε on every case | 50% |
+| R5o | real rows of G5 ≤ 1.6× E6 committed on every case, and G5 + replay ≤ E6 committed + check on at least 3 of 5 | 45% |
+| R5p | the short spells' true error ≤ ε/3 in every quantity on every case | 55% |
+| R5q | nothing throws | 90% |
