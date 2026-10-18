@@ -1,7 +1,6 @@
-# One TF24 stand run for refine_schedule: the forward run, then the gradient unless
-# FORWARD=1. Env: REGIME SEED TRAIT_REL TOL ATOL WEIGHT_SOIL WEIGHT WEIGHT_MAX HMAX SHARE
-# SPLIT LIB TIMES OUT, plus PIN (an earlier run whose steps this one replays) and FIRST=1
-# (also record the establishment rate and T(t), the share of J still to be produced).
+# One TF24 stand run for refine_schedule, then its gradient unless FORWARD=1. PIN names an
+# earlier run whose steps this one reuses; FIRST=1 also records the establishment rate and
+# T(t), the share of J still to be produced. ATOL is relative to TOL.
 Sys.setenv(PLANT_LIB = Sys.getenv("LIB"))
 source("/home/user/plant-dev/harness/long_drought.R")
 regime <- Sys.getenv("REGIME")
@@ -41,8 +40,8 @@ ct$ode_split_sign_changes <- Sys.getenv("SPLIT") == "1"
 ct$ode_soil_substep_max_uptake <- env_num("SHARE")
 
 cpu <- function() sum(proc.time()[c("user.self", "sys.self")])
-out <- list(node_times = times, started = format(Sys.time()))
-save <- function() saveRDS(out, out_file)
+out <- list(node_times = times, pars = p$strategies[[1]]$pars, started = format(Sys.time()))
+write_out <- function() saveRDS(out, out_file)
 types <- plant:::extract_RcppR6_template_types(p, "Parameters")
 scm <- do.call(plant:::SCM, types)(p, mkenv(scen), events(events_default(p)), ct)
 scm$record_trajectory <- TRUE
@@ -76,7 +75,7 @@ if (Sys.getenv("FIRST") == "1") {
   out$stand$establishment <- list(start = tt[i], end = tt[i + 1], rate = (E[i + 1] - E[i]) / (tt[i + 1] - tt[i]))
   out$stand$remaining <- list(time = tt, share = 1 - O / tail(O, 1))
 }
-save()
+write_out()
 if (Sys.getenv("FORWARD") != "1") {
   c0 <- cpu()
   g <- plant:::census_trait_gradient_tf24(scm, "offspring_production")
@@ -85,8 +84,9 @@ if (Sys.getenv("FORWARD") != "1") {
   pars <- p$strategies[[1]]$pars
   theta <- vapply(names(grad), function(n) pars[[sub("^1\\.", "", n)]], 0)
   out$stand$elasticity <- ifelse(theta == 0, 1, theta) * grad / out$stand$J
+  out$stand$refusal <- g$refusal[["offspring_production"]]
 }
 out$finished <- format(Sys.time())
-save()
+write_out()
 cat(sprintf("%s: J %.10g, %d steps, %.0f rows, forward %.0f s, sweep %.0f s\n", scen, out$stand$J,
             length(t), out$stand$rows, out$stand$cpu, if (is.null(out$sweep_cpu)) 0 else out$sweep_cpu))

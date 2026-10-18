@@ -16,5 +16,6 @@ a <- commandArgs(TRUE); case <- a[1]; scale <- as.numeric(a[2]); dir <- a[3]
 spec <- c(SPECS[[case]], seed = "31", lib = LIB)
 fit <- refine_schedule(spec, file.path(dir, case), scale)
 saveRDS(fit, file.path(dir, case, "fit.rds"))
-cat(sprintf("%s: %s after %d passes, worst bound %.2f (%s), %d nodes\n", case, fit$status, length(fit$history),
-            max(fit$bound), names(fit$bound)[which.max(fit$bound)], length(fit$schedule$nodes)))
+if (fit$status == "failed") cat(case, ": failed: ", fit$error, "\n", sep = "") else
+  cat(sprintf("%s: %s after %d passes, worst bound %.2f (%s), %d nodes\n", case, fit$status, length(fit$history),
+              max(fit$bound), names(fit$bound)[which.max(fit$bound)], length(nodes_of(fit$schedule, fit$level))))

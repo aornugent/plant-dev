@@ -85,7 +85,7 @@ Kept true by structure:
 Built as `harness/schedule/refine.R` (`refine_schedule`). Every full run is a candidate answer;
 no run exists only to be compared with.
 
-1. **First run** (forward, 100 even introductions, 0.09 of a full run). It gives the spell
+1. **First run** (forward, 100 even introductions, 0.09–0.13 of a full run). It gives the spell
    openings and ends, the offspring curve, and T(t).
 2. **Schedule.** Breakpoints at 0, every spell edge up to t90, and the horizon. Between them,
    each spell's interval count: one where the density holds at most one, otherwise even plus
@@ -100,12 +100,13 @@ no run exists only to be compared with.
      bound held on these cases through u_q, not through r_min (`review/profile.md`).
    - u_q covers what the estimate cannot contain: the tolerance's bias at 1e-4 (≤ 0.11ε), and
      after a replay the spells too short to hold two intervals (≤ 0.22ε): 0.33ε. After a
-     doubled pass the short spells are estimated, and the pair's step noise (0.024ε rms at
-     1e-4) takes their place: 0.16ε.
+     doubled pass the short spells are estimated, and the step changes between the pair's runs
+     take their place (up to 0.19ε, a third of it in e): 0.19ε.
 5. **Otherwise refine by doubling:** run level k + j, with j the fewest doublings whose
-   predicted bound |e_q|/4^j/r_min + 0.16 is under 0.9. The rejected run is the new run's
+   predicted bound |e_q|/4^j/r_min + 0.19 is under 0.9, and no level above 4. The rejected run is the new run's
    removal case, so its estimate is e_q = (Q_coarse − Q_fine)/(4^j − 1), with no replay. Go to
-   4; after four passes return the finest run, flagged as unconverged.
+   4; after four passes, or at level 4, return the finest run flagged as unconverged. A failed
+   run or a non-finite quantity ends the loop with the last complete pass, flagged as failed.
 
 Spell ends are taken once, from the first run, so that the levels nest. Ends move a median
 0.48 d between schedules (the first spell's by 12 d); round 5 used a pilot's ends throughout
@@ -232,5 +233,8 @@ argument in plant; and logpile's `refine_schedule` key in `resolve_control`, `ma
 `solver.R` (this changes request fingerprints).
 
 Built so far in the harness, not yet in plant: `answer`, `estimate`, `bound`, `extrapolated`
-(Q − e, reported, not the answer), `schedule`, `history`, `costs`, `status`. Not yet built:
-curvatures, invaders' spell ends, `where`, and the distance from θ₀.
+(Q − e, reported, not the answer), `schedule` and `level` (node times are
+`nodes_of(schedule, level)`), `history`, `costs`, `status` and `error`. The quantities are ln J
+and the elasticities the bound's constants were measured on: `S_D`, `a_f3`,
+`recruitment_decay` and `rooting_depth_max` are left out. Not yet built: curvatures, invaders'
+spell ends, the stall boundary, `where`, and the distance from θ₀.
