@@ -100,3 +100,23 @@ reviewed (pair allowance 0.19, level cap 4, `rooting_depth_max` left out).
 | P11 | the replay's read (median over quantities with error > 0.2ε) is 0.75–1.2 on every case | 70% |
 | P12 | total CPU (first run + run + replay) is within 15% of round 5's run + replay, case by case | 70% |
 | P13 | nothing fails | 95% |
+
+## R22. The canonical configuration on five cases (scale 1, in memory; `score_s1.R`) [m]
+
+| case | nodes | worst error | worst bound | covered | read (median / lowest) | CPU: first + run + replay | / round 5's run + replay |
+|---|---|---|---|---|---|---|---|
+| dry | 230 | 0.33 (a_l1) | 0.75 | 47/47 | 1.09 / 0.41 | 35 + 343 + 211 = 589 s | 1.23 |
+| long-wet | 220 | 0.31 (a) | 0.66 | 47/47 | 0.87 / 0.87 | 40 + 389 + 227 = 655 s | 1.25 |
+| episodic-lma | 205 | 0.57 (TF24_cost_scale) | 0.998 | 47/47 | 0.96 / 0.85 | 26 + 220 + 118 = 364 s | 1.31 |
+| dry-flat | 267 | 0.55 (a) | 0.87 | 47/47 | 0.87 / 0.77 | 65 + 671 + 409 = 1146 s | 1.12 |
+| epi-adG208 | 194 | 0.54 (a_l1) | 0.73 | 47/47 | 0.61 / 0.61 | 28 + 222 + 127 = 377 s | 1.30 |
+
+- Every case accepts at pass 1, within ε in all 47 quantities (worst 0.31–0.57ε), and every
+  quantity's bound covers its true error with at least 0.19ε to spare.
+- episodic-lma accepts at a worst bound of 0.998: one more pass would have doubled its cost.
+- CPU is 1.12–1.31× round 5's run plus replay. The first run is 4–6% of it; the run and replay
+  themselves cost 1.07–1.29× round 5's, with three processes sharing the cores in both rounds; not
+  separated further.
+
+Scored: P8, P9, P10, P13 hold; P11 fails on epi-adG208 (read 0.61, against 0.75–1.2); P12 fails
+on four of five (1.23–1.31, against within 15%).
