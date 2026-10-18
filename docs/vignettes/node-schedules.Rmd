@@ -101,7 +101,7 @@ dries the layer until the spell ends. Between spells nothing establishes.
 **At a spell's end, the count stops.**
 - Fate itself is continuous there. Within the spell its curvature rises 1.3–5× toward
   the end, and the cohorts' sensitivity to the hydraulic traits curves up to 17× harder.
-- An interval that reaches past the end into the gap reads the gap's different curve.
+- An interval that reaches past the end into the gap takes its members' fate from the gap's different curve.
   Its error is then set by how far its last node sits from the end, not by the spacing.
 
 So both ends of every spell are breakpoints. With them, the worst errors on dry,
