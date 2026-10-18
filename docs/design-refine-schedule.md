@@ -67,13 +67,13 @@ between spells holds no establishment and needs no node inside it.
 
 ## The commitment
 
-**A schedule is breakpoints, a density between them, and one scale N; each spell holds an even
-number of intervals at equal shares of the density. Removing every other node inside each spell
+**A schedule is breakpoints, a density between them, and a level k that doubles every count;
+each spell holds an even number of intervals at equal shares of the density. Removing every other node inside each spell
 leaves a coarser schedule of the same kind, and a replay of the run on that schedule, on the
 run's own steps, is the run's error estimate.**
 
 Kept true by structure:
-- The schedule object stores (breakpoints, density, N). Node times are derived from it, and the
+- The schedule object stores (breakpoints, density, k). Node times are derived from it, and the
   derivation rounds each spell's interval count up to even, so an odd count cannot be
   expressed.
 - The estimate has two terms: the replay's, and a fixed term for what the replay cannot see.
@@ -82,26 +82,34 @@ Kept true by structure:
 
 ## The algorithm
 
-1. **First run** (forward, about 100 even introductions). It gives the spell openings and ends,
-   and T(t).
-2. **First schedule.** The breakpoints are the openings and ends. The density is graded by the
-   offspring curve, with ages from T(t), and rises to about 2 over t_r before each spell end
-   (at a doubled storage offset the rise becomes a hump near 0.6 t_r, not yet tested in a real
-   run; R18). No interval is wider than 80 d, so
-   a merged pair stays within the 160 d where the square law was measured.
-3. **Run** at 1e-4.
-4. **Replay** with every other interior node removed: the estimate is e_q = (Q_removed − Q)/3.
-   The replay costs 0.51–0.66 of a run.
-5. **Stop** when every quantity's bound, |e_q| / r_min + u_q, is under ε_q.
+Built as `harness/schedule/refine.R` (`refine_schedule`). Every full run is a candidate answer;
+no run exists only to be compared with.
+
+1. **First run** (forward, 100 even introductions, 0.09 of a full run). It gives the spell
+   openings and ends, the offspring curve, and T(t).
+2. **Schedule.** Breakpoints at 0, every spell edge up to t90, and the horizon. Between them,
+   each spell's interval count: one where the density holds at most one, otherwise even plus
+   two. Nodes sit at equal shares of a density graded by the offspring curve (ages from T(t))
+   and raised to 2 over t_r before each spell end. Level k multiplies every count by 2^k, so
+   each level's nodes contain every node of the level below.
+3. **Pass 1:** run level 0 at 1e-4, then replay it on its own steps with every other interior
+   node removed: e_q = (Q_removed − Q)/3, at 0.51–0.66 of a run.
+4. **Stop** when every quantity's bound, |e_q| / r_min + u_q, is under ε_q.
    - r_min = 0.82, the lowest per-case median ratio of estimate to true error on the graded
      layout (medians 0.82–1.17 on five cases). Per quantity the ratio runs 0.49–1.17, so the
      bound held on these cases through u_q, not through r_min (`review/profile.md`).
-   - u_q = 0.33ε covers what the replay cannot see: the tolerance's bias at 1e-4 (≤ 0.11ε) and
-     spells too short to hold two intervals (≤ 0.22ε, dry-flat).
-6. **Otherwise** take spell ends from this run (they move a median 0.48 d between passes, the
-   first spell's by 12 d), scale N by 1.1 × √(worst bound / ε), raise N further
-   until the spell holding the worst error changes its count, and go to 3. After four passes,
-   return the finest run, flagged as unconverged.
+   - u_q covers what the estimate cannot contain: the tolerance's bias at 1e-4 (≤ 0.11ε), and
+     after a replay the spells too short to hold two intervals (≤ 0.22ε): 0.33ε. After a
+     doubled pass the short spells are estimated, and the pair's step noise (0.024ε rms at
+     1e-4) takes their place: 0.16ε.
+5. **Otherwise refine by doubling:** run level k + j, with j the fewest doublings whose
+   predicted bound |e_q|/4^j/r_min + 0.16 is under 0.9. The rejected run is the new run's
+   removal case, so its estimate is e_q = (Q_coarse − Q_fine)/(4^j − 1), with no replay. Go to
+   4; after four passes return the finest run, flagged as unconverged.
+
+Spell ends are taken once, from the first run, so that the levels nest. Ends move a median
+0.48 d between schedules (the first spell's by 12 d); round 5 used a pilot's ends throughout
+and passed on all five cases.
 
 **Then fix the schedule.** The refined schedule is returned and held. Later runs in the local
 analysis (invaders, the resident moved within ±10%, the two runs of each curvature) run on it
@@ -142,30 +150,32 @@ stall to 0.0003 d in five rounds.
 
 ## Guarantees, by construction
 
-- **G1 The last run is the answer;** earlier runs and replays are spent.
+- **G1 The last run is the answer;** the run before it is its estimate.
 - **G2 Coverage.** Every interval in a spell with two or more is merged once. Shorter spells
   are covered by u_q, a measured maximum (0.22ε over five cases), not an estimate.
 - **G3 No step noise in the estimate:** the replay uses the run's steps.
 - **G4 Any length:** the ages come from T(t) and the grading's width from t_r. Not yet: the
   run's tolerance weights sit on a fixed 0–40 y grid, and T(t) has not been measured on another
   length.
-- **G5 It stops:** each pass scales by the square root of the worst ratio with a margin and a
-  forced change, and a cap of four passes reports a failure.
+- **G5 It stops:** each rejected pass at least doubles every count, cutting the error at least
+  fourfold on the square law, and a cap of four passes reports a failure.
+- **G6 No run is only a check:** a rejected run becomes the next run's estimate.
 
 ## What survives deletion
 
 - breakpoints → R1 (an interval across a spell end is out of order 2)
 - density → R5 (on dry the grading took the worst error from 0.79 to 0.36ε for 49 more nodes;
   doubling every count, 135 more, left ±0.2ε)
-- N → R1 (the only knob the loop turns)
+- the level k → R1 (the only knob the loop turns; doubling keeps levels nested, so the rejected
+  run is the next estimate, R5)
 - even counts → R2 (an odd count leaves an interval unmerged; it hid 17 of 70 spell ends)
 - u_q → R1 (what the replay cannot see)
 - fixing the schedule after refining → R4
 - invaders' spell ends among the breakpoints → R1 for invaders (unmeasured)
 
-Deleted: the doubling mode (with ends re-read, a doubled run is not the earlier run's removal
-case, and its estimate missed the order-1 component), the short-spell bound (5–50× short), and
-the five-run bisection for the stall.
+Deleted: re-reading spell ends each pass (it breaks nesting, so every pass would need its own
+replay), the √ rescaling (not nested, same reason), the short-spell bound (5–50× short), and the
+five-run bisection for the stall.
 
 ## What a strategy supplies
 
@@ -206,13 +216,19 @@ than the 4.1% measured, candidate A (allocation by the node-drop map) takes over
 fit <- refine_schedule(p)
 fit$answer     # ln J, elasticities and curvatures, from the last run
 fit$estimate   # each quantity's estimate e_q, and its bound |e_q|/r_min + u_q
-fit$schedule   # breakpoints, density, N (node times derived)
+fit$schedule   # breakpoints, counts at the final level, node times, t_r, ages
 fit$where      # ln J's error by spell, from the node-drop map (+5-8% of a sweep)
-fit$history    # each pass: N, answer, estimate; why the loop stopped; failures
+fit$history    # each pass: level, nodes, answer, estimate, worst bound
+fit$costs      # CPU per run: forward and sweep
+fit$status     # converged | unconverged
 ```
 
 Later runs on the fixed schedule report `estimate`, `where` and their distance from θ₀.
 
 It replaces, in one change: the C++ `SCM::refine_schedule` and the `run_scm(refine_schedule =)`
-argument in plant; logpile's `refine_schedule` key in `resolve_control`, `manifest.R` and
-`solver.R` (this changes request fingerprints); and `harness/schedule/refine.R` and `loop.R`.
+argument in plant; and logpile's `refine_schedule` key in `resolve_control`, `manifest.R` and
+`solver.R` (this changes request fingerprints).
+
+Built so far in the harness, not yet in plant: `answer`, `estimate`, `bound`, `extrapolated`
+(Q − e, reported, not the answer), `schedule`, `history`, `costs`, `status`. Not yet built:
+curvatures, invaders' spell ends, `where`, and the distance from θ₀.
