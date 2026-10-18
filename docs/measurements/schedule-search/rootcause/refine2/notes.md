@@ -84,3 +84,19 @@ at scale 0.5 is not. The replay (level −1) under-reads at pass 1 in the same p
 every estimate built from level 0 is consistently low and no internal comparison flags it.
 Which spells carry the slow part is not located (six region-mixed replays per level would).
 Round 5's scale-1 layout read 0.82–1.17 on all five cases, this one included.
+
+## Pre-registration 18 (before the canonical runs)
+
+The loop now runs in memory (`stand_run`; no runner script, no files): a first run on dry
+reproduces the old runner's J, steps, establishment record and T(t) bit for bit, also when the
+environment object is reused. Canonical configuration: scale 1, first-run inputs, the loop as
+reviewed (pair allowance 0.19, level cap 4, `rooting_depth_max` left out).
+
+| | prediction | confidence |
+|---|---|---|
+| P8 | every case accepts at pass 1 (level 0, run + replay) | 80% |
+| P9 | every accepted run's true error is within ε in all 47 quantities, worst ≤ 0.6ε | 85% |
+| P10 | the bound covers every quantity's true error on every case | 70% |
+| P11 | the replay's read (median over quantities with error > 0.2ε) is 0.75–1.2 on every case | 70% |
+| P12 | total CPU (first run + run + replay) is within 15% of round 5's run + replay, case by case | 70% |
+| P13 | nothing fails | 95% |

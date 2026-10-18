@@ -7,17 +7,7 @@ K_USE <- 2
 SEC_PER_ROW <- 113e-6     # forward CPU per row; a sweep costs 3.27 forwards
 SWEEP <- 3.27
 
-eps_tab <- read.csv("/home/user/plant-dev/docs/measurements/eps.csv")
-eps_of <- function(trait) {
-  e <- eps_tab$eps[eps_tab$role == "resident" & eps_tab$trait == trait & eps_tab$unit != "curvature in lma"]
-  max(if (length(e)) e[1] else NA, 0.01, na.rm = TRUE)
-}
-EXCLUDED <- c("S_D", "a_f3", "recruitment_decay")
-quantities <- function(x) {
-  e <- unname(x$stand$elasticity); names(e) <- sub("^1\\.", "", names(x$stand$elasticity))
-  c(lnJ = log(x$stand$J), e[!names(e) %in% EXCLUDED])
-}
-eps_vec <- function(q) vapply(q, function(n) if (n == "lnJ") 0.025 else eps_of(n), 0)
+source("/home/user/plant-dev/harness/schedule/quantities.R")
 rd <- function(f) if (file.exists(f)) readRDS(f)
 extrap <- function(m, f) f + (f - m) / 3
 
