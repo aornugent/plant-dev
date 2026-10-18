@@ -93,8 +93,9 @@ Kept true by structure:
 4. **Replay** with every other interior node removed: the estimate is e_q = (Q_removed − Q)/3.
    The replay costs 0.51–0.66 of a run.
 5. **Stop** when every quantity's bound, |e_q| / r_min + u_q, is under ε_q.
-   - r_min = 0.82, the lowest ratio of estimate to true error on the graded layout (0.82–1.17
-     on five cases, cosine 0.95–1.00 once short spells are set aside).
+   - r_min = 0.82, the lowest per-case median ratio of estimate to true error on the graded
+     layout (medians 0.82–1.17 on five cases). Per quantity the ratio runs 0.49–1.17, so the
+     bound held on these cases through u_q, not through r_min (`review/profile.md`).
    - u_q = 0.33ε covers what the replay cannot see: the tolerance's bias at 1e-4 (≤ 0.11ε) and
      spells too short to hold two intervals (≤ 0.22ε, dry-flat).
 6. **Otherwise** take spell ends from this run (they move a median 0.48 d between passes, the
