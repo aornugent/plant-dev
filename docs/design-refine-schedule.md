@@ -92,7 +92,7 @@ no run exists only to be compared with.
    two. Nodes sit at equal shares of a density graded by the offspring curve (ages from T(t))
    and raised to 2 over t_r before each spell end. Level k multiplies every count by 2^k, so
    each level's nodes contain every node of the level below.
-3. **Pass 1:** run level 0 at 1e-4, then replay it on its own steps with every other interior
+3. **Pass 1:** run level 0 at 1e-4 (scale 1 is canonical: below it the estimate can read low), then replay it on its own steps with every other interior
    node removed: e_q = (Q_removed − Q)/3, at 0.51–0.66 of a run.
 4. **Stop** when every quantity's bound, |e_q| / r_min + u_q, is under ε_q.
    - r_min = 0.82, the lowest per-case median ratio of estimate to true error on the graded
@@ -203,8 +203,8 @@ than the 4.1% measured, candidate A (allocation by the node-drop map) takes over
 
 ## Still open
 
-- Below scale 1 the estimate can read low (epi-adG208 a_l1 at half scale, 0.45); scale 1 is the
-  default for that reason, and the spells that carry the slow part are not located.
+- Below scale 1 the estimate can read low (epi-adG208 a_l1 at half scale, 0.45); the spells that
+  carry the slow part are not located.
 - r_min and u_q from five cases; the bank has ten.
 - The invaders' spell ends against the resident's.
 - dry-flat's interiors, where region replays estimated 1.9× the error.
