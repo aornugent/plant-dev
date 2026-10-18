@@ -1,6 +1,6 @@
 # PLANT-97: a week on the storage pool's relaxation time, and its stage guard out
 
-Branch `PLANT-97` on aornugent/plant, one commit on `develop` (bd09645d). It closes #97
+Branch `PLANT-97` on aornugent/plant, one commit (b23b2d67) on `develop` (bd09645d). It closes #97
 and #98. **It changes TF24's model** (v11 -> v12, TF24f v11.1 -> v12.1). Review notes:
 `docs/prs/PLANT-97-review.md`.
 
@@ -126,9 +126,11 @@ Why develop's numbers differ:
 - The relaxation-timescale and height-linear tests are posed at a zero offset, so they
   still test what they did.
 - Full serial suite on this branch, built at `-O2` against odelia 0.7.3 and phylloptim
-  0.10.2: see the commit. Results: 5455 passed, 0 failed (4 skips). The 1 error is
-  `test-ff16-ad-kernel.R`, which errors the same way at develop: its `sourceCpp` build
-  fails in this sandbox. FF16's bit-identity guards are green.
+  0.10.2: 5461 passed, 0 failed, 0 errors, 4 skipped (all 92 files, 19 min on shared
+  cores). FF16's bit-identity guards are green.
+  - An earlier sweep hit one error in `test-ff16-ad-kernel.R`. Its `sourceCpp` build had
+    run out of disk in the sandbox, and it passes on the rerun.
+  - The build predates a comment-only edit to `tf24_strategy.h`.
 
 ### What a reviewer should check
 1. That 7 days is acceptable as the science default. It is a declared parameter, and

@@ -46,10 +46,11 @@ No other misses — checked 4 (`storage_relaxation_offset`, its gradient column,
   pinned: subdivide; walk: fail), and the error estimate rejects an overshooting
   stage because its rates stay finite.
 - D4: chose one PR for #97 and #98 over two — settled by R4: the reference is
-  recaptured once instead of twice (the archived pair churned it 1819 + 771 lines).
+  recaptured once instead of twice (the archived pair churned it by 3622 and 1438 diff lines).
 - D5: chose to re-bless the whole-run reference over leaving the rung red — settled
-  by R4; the moves are the model's (new column, every TF24 row), not the
-  instrument's.
+  by R4. The moves are the model's (30 new rows; 91 of 1380 rows move by more than
+  1e-3 of scale, mostly theta and omega on the drought and seasonal stands, with
+  converged step ladders), not the instrument's.
 
 ## Change simulation
 - A different default offset: edit the default in `TF24_Pars`, the two Defaults
