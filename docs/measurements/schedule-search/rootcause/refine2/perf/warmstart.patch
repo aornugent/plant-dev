@@ -1,0 +1,90 @@
+--- phylloptim/inst/include/phylloptim/leaf_model.hpp
++++ phylloptim/inst/include/phylloptim/leaf_model.hpp
+@@ -705,6 +705,10 @@
+   double umol_per_mol_to_Pa_;
+   double ca_;
+   double opt_root_psi_;
++  // A collar near this solve's, from the same plant's previous solve; the solve
++  // tries a narrow bracket around it first. NaN when there is none.
++  double collar_hint_ = std::numeric_limits<double>::quiet_NaN();
++  double collar_hint_width_ = 1e-3;
+   double assim_max_;
+ 
+   // --- Sperry (2017) ProfitMax outputs, all unitless -------------------------
+@@ -3588,6 +3592,22 @@
+     return dprofit_at_collar_psi<K>(psi, feasible);
+   };
+ 
++  if (std::isfinite(collar_hint_) && collar_hint_ > bound_a && collar_hint_ < bound_b) {
++    const double d = collar_hint_width_ * width;
++    const double a = std::max(bound_a + 1e-6 * width, collar_hint_ - d);
++    const double b = std::min(bound_b, collar_hint_ + d);
++    bool ok_a = false, ok_b = false;
++    const double fa = dprofit(a, &ok_a);
++    if (ok_a && std::isfinite(fa) && fa > 0.0) {
++      const double fb = dprofit(b, &ok_b);
++      if (ok_b && std::isfinite(fb) && fb < 0.0) {
++        operating_point_kind_ = OperatingPointKind::Interior;
++        return util::uniroot_smooth(dprofit, a, b, fa, fb,
++                                    static_cast<size_t>(ci_niter));
++      }
++    }
++  }
++
+   // The WET endpoint is infeasible by construction: bound_a is root_zero_E, where
+   // uptake is exactly zero, so psi_stem == bound_a and dprofit takes its
+   // reversed-gradient exit. Its 0.0 is a sentinel, and a bracketing solver handed
+--- plant/inst/include/plant/models/tf24_strategy.h
++++ plant/inst/include/plant/models/tf24_strategy.h
+@@ -508,11 +508,24 @@
+   // One evaluation is one list, so this ends where the evaluation does. A solve
+   // outside a rate evaluation then stores nothing and loads nothing.
+   void end() {
++    if (storing != nullptr && !storing->empty()) {
++      hints = *storing;
++    }
+     solved = 0;
+     storing = nullptr;
+     loading = nullptr;
+   }
+ 
++  // The collar the previous evaluation stored at this solve's place, where that
++  // point was interior; NaN otherwise.
++  double hint() const {
++    if (storing == nullptr || storing->size() >= hints.size() ||
++        hints[storing->size()].kind != Leaf::OperatingPointKind::Interior) {
++      return std::numeric_limits<double>::quiet_NaN();
++    }
++    return hints[storing->size()].collar;
++  }
++
+   // The operating point the run found for the next solve of this evaluation, or one
+   // holding nothing -- which is what a pass filling the record gets, and is the
+   // caller's signal to solve for it.
+@@ -550,6 +563,7 @@
+   // ever open.
+   points* storing = nullptr;
+   const points* loading = nullptr;
++  points hints;
+   size_t solved = 0;
+   size_t placed = 0;
+ };
+@@ -2433,6 +2447,18 @@
+ void TF24_Strategy<S>::solve_leaf() {
+   const leaf_solved_point recorded = leaf_points->load();
+   if (recorded.kind == Leaf::OperatingPointKind::Unsolved) {
++    static const double width = [] {
++      const char* w = std::getenv("PLANT_HINT_WIDTH");
++      return w == nullptr ? 0.0 : std::atof(w);
++    }();
++    struct clear_hint {
++      decltype(TF24_Strategy::leaf)& leaf;
++      ~clear_hint() { leaf.collar_hint_ = std::numeric_limits<double>::quiet_NaN(); }
++    } clear{leaf};
++    if (width > 0.0) {
++      leaf.collar_hint_ = leaf_points->hint();
++      leaf.collar_hint_width_ = width;
++    }
+     // ⚠️ THE CURVE-TYPED FORM. find_root_collar_psi() is the TF24 SHORTHAND and
+     // solves TF24 whatever set_model seated, so calling it here would optimise
+     // one curve, differentiate another, and report a shadow price the solve

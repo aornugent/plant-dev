@@ -158,3 +158,58 @@ tolerance (R only).
 | W2 | the forward's CPU falls 25–40%, the loop's total 9–14% | 50% |
 | W3 | ln J and every elasticity move by under 0.01ε (the roots agree to round-off either way) | 70% |
 | F1 | the first run at 1e-3 costs 40–60% less, builds the same node counts, and moves no node by more than 5% of its spacing | 50% |
+
+### F. The first run at a looser tolerance (`first_tol.R`, libNS) [m]
+
+| case | tol | steps | CPU | nodes / replay nodes | spell edges | t50, t90 moved |
+|---|---|---|---|---|---|---|
+| episodic-lma | 1e-4 | 3338 | 34.1 s | 205 / 117 | 72 | |
+| | 3e-4 | 2529 | 25.9 s | 204 / 116 | 70 | +0.6 d, +5.5 d |
+| | 1e-3 | 1936 | 20.6 s | 204 / 116 | 68 | +1.3 d, +2.1 d |
+| dry | 1e-4 | 4412 | 44.5 s | 230 / 152 | 140 | |
+| | 3e-4 | 3226 | 34.0 s | 230 / 152 | 142 | +0.5 d, +6.1 d; nodes move up to 10 d (median spacing 46 d) |
+| | 1e-3 | 2339 | 23.5 s | 228 / 150 | 136 | +5.7 d, −1.2 d |
+
+The first run is 4–8% of a refinement; at 1e-3 it costs 40–47% less, about 2–3% of the whole,
+and the schedule changes in structure (spell edges appear and vanish, node counts change). F1
+fails on the node counts. Not worth it: the saving is small and the schedule it builds would
+need re-scoring.
+
+### W. A warm-started collar search (`ws/`, `ws_check.R`, callgrind on the cut) [m]
+
+- **W0 holds.** Hint off, the prototype gives libNS's J, steps and every elasticity
+  bit for bit (six-year cut, `identical()`).
+- **The roots agree to round-off.** With the steps held (the hinted run replays the unhinted
+  run's steps), J agrees to 8e-15 and the elasticities to 4e-11 relative, and the operating
+  point kinds are counted the same (25 281 interior, 3 320 at the soil bound). Unpinned, the
+  controller turns those last-bit differences into different steps (641 → 635–647 on the cut),
+  so J moves by 1e-4 relative there: a hinted run is a different-steps run, with R21's
+  step-change noise (up to 0.19ε, rms 0.034ε on dry) and not round-off.
+- **Counts (callgrind, six-year cut, forward and sweep):**
+
+| hint width w | collar searches | marginal evaluations each | toms748 iterations each | forward instructions a row | whole cut |
+|---|---|---|---|---|---|
+| off | 44 473 | 12.9 | 9.8 | 1.670 M | 26.79 G |
+| 1e-5 | 43 020 | 14.2 | 9.6 | 1.747 M (+4.6%) | 26.88 G |
+| 1e-3 | 43 704 | 10.4 | 6.7 | 1.458 M (−12.7%) | 25.57 G |
+| 1e-2 | 44 005 | 9.8 | 6.4 | 1.419 M (−15.0%) | 25.42 G (−5.1%) |
+
+  W1 fails: from a bracket around the last root, toms748 still takes 6.4 iterations, because it
+  stops at 4 ulp; the hint saves three iterations and pays two end evaluations. Too narrow a
+  bracket (1e-5) misses and falls back, costing more than nothing.
+- **Full runs (`chain_ws.sh`, `ws_score.R`):** episodic-lma, R22's level 0 and replay in one
+  process, w = 1e-2, arms off, on, on, off (23:13–23:50, load 3–6):
+
+| arm | level 0 fwd / sweep (s) | replay fwd / sweep (s) | total | steps |
+|---|---|---|---|---|
+| off | 83.4 / 171.1 | 37.7 / 100.6 | 392.9 | 3645 |
+| on | 72.3 / 165.4 | 31.3 / 104.7 | 373.7 | 3676 |
+| on | 68.7 / 164.2 | 30.6 / 90.7 | 354.3 | 3676 |
+| off | 82.3 / 174.9 | 35.0 / 94.6 | 386.8 | 3645 |
+
+  The forward costs 0.851 of the unhinted (pairs 0.856, 0.847), the sweep is unchanged (0.97,
+  pairs 0.99 and 0.95), and run + replay costs **0.934** (pairs 0.951, 0.916). The hinted runs'
+  quantities move from the unhinted by 0.037ε at worst at level 0 (a_l1; rms 0.009) and 0.052ε
+  in the replay, and the replay's estimate e by 0.007ε at worst: the step-change noise, a fifth
+  of R21's. W2 fails (forward −15%, not −25 to −40%; total −6.6%, not −9 to −14%); W3 fails as
+  worded (0.05ε, not 0.01ε), for the reason above.

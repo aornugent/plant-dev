@@ -121,3 +121,170 @@ the short spells) is C + D less the two.
 | E3a | the end replays' a_l1 ratio D(1→0)/D(2→1) is under 2.5, and they carry at least half of C ∪ D's excess over the square law (0.19ε) | 45% |
 | E3b | the rest of C ∪ D falls by 3.2 or more | 45% |
 | E3c | the opening replays are on the law (ratio 3–5) or under 0.05ε | 65% |
+
+## E3. Spell ends and openings in C ∪ D (`zones.R`, `e3_score.R`) [m]
+
+ε; "rest" is C + D less the end and opening replays (interiors and short spells).
+
+| quantity | end 1→0 | end 2→1 | ratio | opening 1→0 / 2→1 | rest 1→0 | rest 2→1 | ratio |
+|---|---|---|---|---|---|---|---|
+| a_l1 | 0.220 | 0.047 | 4.7 | 0.022 / 0.008 | 0.504 | 0.260 | **1.9** |
+| storage_relaxation_offset | −0.168 | −0.031 | 5.4 | 0.006 / 0.000 | −0.135 | −0.079 | **1.7** |
+| a_dG1 | 0.055 | 0.010 | 5.3 | 0.001 / 0.002 | 0.034 | 0.051 | **0.66** |
+| hmat | −0.035 | −0.004 | 8.3 | −0.011 / −0.003 | −0.065 | −0.028 | 2.3 |
+| lnJ | −0.048 | −0.006 | 8.6 | −0.013 / 0.000 | −0.228 | −0.082 | 2.8 |
+| a | −0.070 | −0.012 | 5.6 | −0.029 / 0.001 | −0.178 | −0.045 | 4.0 |
+
+- H4 is refuted: the spell ends in C ∪ D fall ×4.7–5.4 (E3a fails). The openings carry almost
+  nothing (E3c holds). The slow part is in the rest (E3b fails): a_l1 ×1.9, the storage offset
+  ×1.7, and a_dG1 grows from one doubling to the next (×0.66).
+- So the part off the law lies in the spells' interiors or in the short spells of 6.6–17.7 y.
+
+## Pre-registration E4 (the short spells of C ∪ D)
+
+Eight panels in C ∪ D hold one interval at half-scale level 0: 6.63–6.81, 6.87, 6.92–7.01,
+7.30–7.65, 14.65–14.99, 16.23–16.56, 16.57–16.75 and 17.66 y (three of them, 120 d long, hold
+four at scale 1). Pinned replays of levels 1 and 2 with only their added nodes removed. R21
+found the short spells together on the law (×3.2), which would leave the interiors.
+
+| | prediction | confidence |
+|---|---|---|
+| E4a | the short spells of C ∪ D fall ×3 or more in a_l1, so the interiors carry the slow part (ratio under 1.8) | 55% |
+| E4b | a_dG1's growth (D(2→1) > D(1→0)) sits in the short spells | 40% |
+
+## E4. The short spells of C ∪ D, and the interiors by difference [m]
+
+a_l1 and the groups, ε. "Interior" is C + D less ends, openings and short spells: the added
+nodes inside the long spells, which sit at equal shares of an ungraded density.
+
+| quantity | short 1→0 | short 2→1 | ratio | interior 1→0 | interior 2→1 | ratio |
+|---|---|---|---|---|---|---|
+| a_l1 | 0.223 | 0.067 | 3.3 | 0.281 | 0.193 | **1.46** |
+| lnJ | −0.111 | −0.032 | 3.4 | −0.117 | −0.049 | 2.4 |
+| hmat | −0.038 | −0.011 | 3.4 | −0.028 | −0.017 | 1.65 |
+| k_s | −0.020 | −0.001 | — | −0.022 | −0.012 | 1.9 |
+| a (light group alike) | −0.120 | −0.033 | 3.6 | −0.059 | −0.012 | 5.0 |
+| storage_relaxation_offset | −0.186 | −0.077 | 2.4 | 0.052 | −0.001 | — |
+| a_dG1 | 0.072 | 0.048 | 1.5 | −0.038 | 0.003 | — |
+
+- E4a holds: the short spells of C ∪ D are near the law in a_l1 (×3.3), and the interiors of
+  the long spells carry its slow part: 0.281 → 0.193, ×1.46. If they fell ×4 a_l1's D(2→1)
+  would be 0.12ε lower, two thirds of C ∪ D's excess. E4b holds only in part: a_dG1 and the
+  storage offset are slow in the short spells (×1.5, ×2.4); their interior parts are near zero
+  at level 2 and change sign.
+- Height-linked quantities (a_l1, hmat) and lnJ are slow in the interiors; the light group is
+  not (×5). Fifteen replays so far, beyond the ~10 budgeted: each split was needed to tell the
+  remaining candidates apart.
+
+## Pre-registration E5 (the a_l1 integrand along birth date)
+
+Two forward runs on level 2's steps and nodes, one at a_l1 × 1.01: per node, Δ ln nrr / 0.01 is
+the fate part of a_l1's integrand at 13–27 d spacing.
+
+| | prediction | confidence |
+|---|---|---|
+| E5a | inside the long spells of C ∪ D the integrand has a feature narrower than level 1's spacing (a jump or kink: a second difference at least 5× its panel's median) | 50% |
+| E5b | the integrand is smooth in A, E and the end zones (no such feature) | 60% |
+
+## E5. a_l1's integrand along birth date (`epi_fd.R`, `epi_fd2.R`) [m]
+
+The base forward run on level 2's steps reproduces level 2's J to ten digits. Per node, the
+relative change of nrr with ln a_l1 (1% forward difference, pinned steps):
+
+- Inside the long spells of C ∪ D it has single-node features against a smooth trend: a spike
+  of +0.31 at 17.03 y (the panel's other second differences are ≤ 0.03), a −0.10 dip at
+  13.21 y, a step of +0.05 at 10.62 y, and a wiggle over 13.91–14.06 y.
+- nrr itself carries the 13.9–14.1 y feature (second differences of ln nrr +0.032, −0.019,
+  −0.018, +0.020 on 27-d spacing, against a trend of ±0.005), and at the nodes level 1 and level
+  2 share, ln nrr's second differences agree to 0.0004: the feature is in the cohorts' fate, not
+  run-to-run noise. Level 2 moves ln nrr against level 1 by a smooth 0.013–0.022.
+- Such features are not confined to C ∪ D: A's last weeks (2.95 y), B's interior (5.44 y) and
+  21.8–23.7 y show them too. E5a holds; E5b fails. A one-node spike in a forward difference on
+  pinned steps can also be a step artifact (a cohort's event moving off the pinned steps), so
+  the spikes are weaker evidence than the nrr feature.
+- Node-to-node roughness of ln nrr (|third difference| / |second difference|, level 1, long
+  spells 6.6–17.7 y) is 0.87 here against 0.36–0.72 on the other four cases (`epi_rough.R`):
+  the highest, but not by much.
+
+## E6. The spell-end stretch fixed in place [m]
+
+At level 2 the second-last added node of each panel also lies in level 1's last two intervals,
+and E3 had left it in the interiors. Removing it alone on level 2's steps moves a_l1 by 0.014ε.
+So the end stretch falls 0.220 → 0.061 (×3.6, on the law) and the interiors 0.281 → 0.179
+(×1.57). E3's conclusion stands.
+
+## Result
+
+**Where the replay misses error.** a_l1's level differences (reference-free, pinned) split by
+region and part of spell:
+
+| stretch | D(1→0) | D(2→1) | ratio | excess over ×4 in D(2→1) |
+|---|---|---|---|---|
+| interiors of the long spells, 6.6–17.7 y | 0.281 | 0.179 | **1.6** | **0.11** |
+| short spells, 6.6–17.7 y | 0.223 | 0.067 | 3.3 | 0.01 |
+| spell ends and openings, 6.6–17.7 y | 0.242 | 0.069 | 3.5 | 0.01 |
+| 17.7–24.5 y | 0.254 | 0.073 | 3.5 | 0.01 |
+| A + B + F (unpinned difference) | 0.061 | 0.12 ± 0.09 | — | 0.10 ± 0.09 |
+| all | 1.052 | 0.508 | 2.1 | 0.245 |
+
+The replay divides each region's difference by 3, as if it fell ×4 per halving. In the
+interiors of the long spells of 6.6–17.7 y, a_l1's part falls ×1.6, so the replay reads about a
+third of it; lnJ and hmat are slow there too (×2.4, ×1.65), the light group is not (×5). The
+spell ends, openings and short spells are on the law, and so are the case's own features: the
+first spell (A) and the spell closed by the 2.3-d gap (B) carry 0.1ε of the difference between
+them, and t_r sets only the end zones, which fall ×3.6.
+
+**Why.** Those interiors sit at equal shares of an ungraded density (54–108 d at half-scale
+level 0, 27–54 d at level 1). The cohorts' fate there has features 30–60 d wide (13.9–14.1 y in
+nrr, and in a_l1's integrand), real and at fixed birth dates. While the spacing is comparable to
+a feature, the error from it is set by where nodes fall around it and does not fall ×4 per
+halving; the three half-scale levels and scale 1 (194 nodes, less error than level 1's 232) all
+sit in that range. Partly established: the location and the rate are measured; that these
+features cause the rate is supported but not isolated, and what makes them (where in the cohorts'
+lives the fate turns) is not traced.
+
+**The read on libNS is not this case's alone.** On libNS the reads are dry 0.62, dry-flat 0.65,
+epi-adG208 0.61, episodic-lma 0.95 (long-wet has no quantity over 0.2ε): r_min = 0.82 no longer
+holds on three of four. Every quantity is still covered (47/47, margin ≥ 0.18ε): the miss is
+absorbed by u_q = 0.33, which was budgeted for the tolerance and the short spells, not for this.
+
+## The fix
+
+Smallest, on the estimate: **r_min from the libNS cases, 0.61** (`MIN_ESTIMATE_RATIO`; no other
+change). The estimate then reads honest on all five libNS cases. Worst bounds on libNS at
+u_q = 0.33 (`scratchpad/epi/rmin.R`): dry 0.74 → 0.88, long-wet 0.57 → 0.66, dry-flat 0.54 →
+0.61, epi-adG208 0.71 → 0.85, episodic-lma 0.96 → **1.18**. Cost: episodic-lma rejects at pass 1
+and runs level 1 (about +540 s on 453 s, 2.2× its CPU); the other three accept as before. On
+libS the same change would also reject dry-flat (0.87 → 1.06).
+
+Does it generalise? No. r_min is the lowest read of five cases, and the part it absorbs grows
+with how much fate structure the long spells hold at the interior spacing, which the next record
+or trait can raise. The general form takes the interiors' part at first order: split the replay
+into two that partition the removed nodes (interior added nodes; ends, openings and short
+spells), additive within 0.018ε here, and divide the interiors' difference by 1 instead of 3.
+Here that reads a_l1 at 0.82 at half-scale level 1 (0.54 against 0.66). It assumes nothing about
+the record, but costs a second replay on every pass 1 (about 0.6 run, +35% of run plus replay)
+and raises the bound by two thirds of the interiors' difference where interiors are on the law;
+neither the interiors' share nor the resulting rejections are measured on the other cases.
+
+Not recommended: grading the interiors finer. Their part falls ×1.6 per doubling, so refining
+there buys little error per node and does not make the estimate honest.
+
+## Next test (if the cause is to be closed)
+
+One region-mixed replay pair on dry or dry-flat (libNS reads 0.62, 0.65): interiors of the long
+spells only, on levels 1 and 2 of a half-scale fit. If their interiors fall ×1.5–2 as here, the
+under-read is general and the split estimate is the fix; if ×4, the low reads have another seat
+and r_min is only absorbing it.
+
+## Scored
+
+E1a holds; E1b fails as worded (two regions, C ×2.6 and D ×1.9); E1c fails (B carries 0.10).
+E2a holds on the line; E2b holds for E, fails for D; E2c fails narrowly (within step noise).
+E3a fails (ends ×4.7, ×3.6 once fixed in place); E3b fails (the rest is slow); E3c holds. E4a
+holds; E4b holds in part. E5a holds; E5b fails.
+
+Cost: 16 pinned replays (six on level 1 at 290–310 s, ten on level 1 or 2 at 300–610 s CPU) and two
+forward runs (146–149 s), one SCM process at a time, with the coordinator's two loops sharing
+the four cores. Over the ~10 budgeted: E3, E4 and E6 each split the remaining candidates, and
+E6 corrected E3's zone accounting.

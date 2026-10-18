@@ -1,0 +1,23 @@
+--- phylloptim/inst/include/phylloptim/uniroot.hpp
++++ phylloptim/inst/include/phylloptim/uniroot.hpp
+@@ -9,6 +9,7 @@
+ #include <algorithm>
+ #include <cfloat>
+ #include <cmath>
++#include <cstdlib>
+ #include <phylloptim/util.hpp>
+ 
+ namespace phylloptim {
+@@ -18,7 +19,11 @@
+ // True once the bracket's ends agree to 4 DBL_EPSILON relative, or are adjacent
+ // doubles where it closes on zero, so a root moves with its inputs to roundoff.
+ inline bool within_roundoff(double a, double b) {
+-  return std::abs(a - b) <= 4 * DBL_EPSILON * std::max(std::abs(a), std::abs(b)) ||
++  static const double rel = [] {
++    const char* r = std::getenv("PLANT_ROOT_RELTOL");
++    return r == nullptr ? 4 * DBL_EPSILON : std::atof(r);
++  }();
++  return std::abs(a - b) <= rel * std::max(std::abs(a), std::abs(b)) ||
+          std::nextafter(a, b) == b;
+ }
+ }
