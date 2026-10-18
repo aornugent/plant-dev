@@ -1,142 +1,139 @@
-# Refine a TF24 node schedule from E6 until every quantity's estimated error is under a
-# target, each run nested in the one before and measuring the region it refined.
+# Refine a TF24 node schedule until every quantity's error bound is under its eps
+# (docs/design-refine-schedule.md). Every full run is a candidate answer: the first pass is
+# estimated by a replay of itself with every other interior node removed, and each later
+# pass doubles every count, so the run before it is its estimate.
 #
-# refine_schedule(case, start = "E6", target = 1, ...) where case is a list with
-#   S0, S1   E6's committed and check schedules (birth dates, years)
-#   edges    the pilot's edges before 25: data.frame(b, opening)
-#   b1       the first closing edge
-#   eps      each quantity's eps, named as the run's quantities
-#   run      run(S, map) -> list(q, rows, times, map): q the quantities, times the accepted
-#            step times, map (when map = TRUE) ln J's error by region F, I1, I2, I3, L from
-#            the run's node-drop map, in eps of ln J
-# or the name of a case that case_of_refine(name) turns into that list.
-# Returns the final schedule, its answer and per-quantity estimate (in eps), the region
-# table and the run history.
-#
-# Known weak spots, each a silent misread (refine/notes.md):
-# - The estimate is E1 minus everything moved since S1, so E1's own misread stays in it in
-#   absolute terms and grows relative to a shrinking error (read x2.1-2.3 at the end).
-# - Regions are ranked by ln J's map alone; the elasticity error can sit in a region it
-#   ranks low (the founders on episodic-lma, refined last).
-# - E6's pair is off the square law at S1's level on the dry records (reads 0.58-0.63,
-#   cos down to -0.17), so a target of eps/2 or finer can stop at S1 on a wrong estimate.
+# refine_schedule(spec, dir, scale = 1) where spec is list(regime, seed, trait, weight)
+# returns list(answer, estimate, bound, extrapolated, schedule, history, status).
+# Quantities are ln J and the elasticities, in their own units; estimate and bound in eps.
 
-REGIONS <- c("F", "I1", "I2", "I3", "O", "C", "L")
-MAP_REGIONS <- c("F", "I1", "I2", "I3", "L")
+RUN <- "/home/user/plant-dev/harness/schedule/refine_run.R"
+SETTING <- c(TOL = "1e-4", ATOL = "1e-4", WEIGHT_SOIL = "10", WEIGHT_MAX = "100", HMAX = "15",
+             SHARE = "0.1", SPLIT = "1")
+HORIZON <- 107 * 40 / 108
 
-# Each interval's region. Strip zones are the `zone` days inside each edge before 25; an
-# interval spanning an edge reads the strips across the gap and is refined only through them.
-interval_regions <- function(S, edges, b1, zone = 7.5 / 365, late = 25, tol = 1e-9) {
-  lo <- head(S, -1); hi <- S[-1]; mid <- (lo + hi) / 2
-  e <- edges[order(edges$b), ]
-  vapply(seq_along(lo), function(i) {
-    if (mid[i] >= late) return("L")
-    if (any(e$b > lo[i] + tol & e$b < hi[i] - tol)) return("gap")
-    k <- which(e$b < mid[i]); if (length(k)) k <- max(k)
-    if (length(k) && !e$opening[k]) return("gap")
-    nxt <- e$b[e$b > mid[i]]
-    if (length(k) && hi[i] <= e$b[k] + zone + tol) return("O")
-    if (length(nxt) && lo[i] >= min(nxt) - zone - tol) return("C")
-    if (mid[i] < b1) "F" else if (mid[i] < 10) "I1" else if (mid[i] < 17) "I2" else "I3"
-  }, "")
+# The bound |e| / READ + UNSEEN. READ is the lowest measured ratio of the replay's estimate
+# to the true error; UNSEEN is what the estimate cannot contain: the tolerance's bias, and
+# spells too short to hold two intervals on the replay (a doubled pair estimates those, but
+# carries step noise instead).
+READ <- 0.82
+UNSEEN_REPLAY <- 0.11 + 0.22
+UNSEEN_PAIR <- 0.11 + 0.05
+MARGIN <- 0.9
+PASSES <- 4
+
+eps_tab <- read.csv("/home/user/plant-dev/docs/measurements/eps.csv")
+eps_of <- function(q) vapply(q, function(n) {
+  if (n == "lnJ") return(0.025)
+  e <- eps_tab$eps[eps_tab$role == "resident" & eps_tab$trait == n & eps_tab$unit != "curvature in lma"]
+  max(if (length(e)) e[1] else NA, 0.01, na.rm = TRUE) }, 0)
+quantities <- function(x) {
+  e <- unname(x$stand$elasticity); names(e) <- sub("^1\\.", "", names(x$stand$elasticity))
+  c(lnJ = log(x$stand$J), e[!names(e) %in% c("S_D", "a_f3", "recruitment_decay")])
 }
 
-# The nodes one refinement of region g adds: midpoints of g's intervals, or for a strip
-# region a node halfway between each edge and its nearest node on the spell side.
-refine_nodes <- function(S, g, edges, b1, min_half = 0.5 / 365) {
-  if (!g %in% c("O", "C")) {
-    i <- which(interval_regions(S, edges, b1) == g)
-    return((S[i] + S[i + 1]) / 2)
-  }
-  e <- edges[edges$opening == (g == "O"), ]
-  add <- vapply(e$b, function(b) {
-    side <- if (g == "O") S[S > b + 1e-9] else S[S < b - 1e-9]
-    if (!length(side)) return(NA_real_)
-    n <- if (g == "O") min(side) else max(side)
-    half <- (n - b) / 2
-    if (abs(half) < min_half) NA_real_ else b + half
-  }, 0)
-  add[!is.na(add)]
+# One run, kept on disk under its name so an interrupted refinement resumes.
+scm_run <- function(spec, dir, name, times, pin = NULL, forward = FALSE, first = FALSE) {
+  out <- file.path(dir, paste0(name, ".rds"))
+  if (file.exists(out)) { x <- readRDS(out); if (!is.null(x$finished)) return(x) }
+  tf <- file.path(dir, paste0(name, "_times.rds")); saveRDS(times, tf)
+  env <- c(SETTING, REGIME = spec$regime, SEED = spec$seed, TRAIT_REL = spec$trait, WEIGHT = spec$weight,
+           LIB = spec$lib, TIMES = tf, OUT = out, PIN = if (is.null(pin)) "" else pin,
+           FORWARD = if (forward) "1" else "", FIRST = if (first) "1" else "")
+  status <- system2("Rscript", RUN, env = paste0(names(env), "=", env),
+                    stdout = file.path(dir, paste0(name, ".log")), stderr = file.path(dir, paste0(name, ".log")))
+  if (status != 0 || !file.exists(out) || is.null(readRDS(out)$finished)) stop("run ", name, " failed")
+  readRDS(out)
 }
 
-# Rows a set of new nodes adds, read off the current run's accepted steps.
-rows_added <- function(add, times) {
-  t0 <- head(times, -1)
-  sum(vapply(add, function(b) sum(t0 >= b - 1e-12), 0))
+# Spell openings and ends from the first run's establishment rate, and T(t)'s ages: t50 and
+# t90, when half and 90% of J have been produced.
+spells_of <- function(first) {
+  er <- first$stand$establishment; open <- er$rate > 0.01
+  r <- rle(open); e <- cumsum(r$lengths); b <- er$end[e][-length(e)]; ending <- open[e][-length(e)]
+  k <- b > 0 & b < HORIZON
+  rm <- first$stand$remaining; when <- function(s) rm$time[which(rm$share <= s)[1]]
+  list(edges = b[k], ending = ending[k], b1 = b[k][ending[k]][1], t50 = when(0.5), t90 = when(0.1),
+       shut = approxfun(c(er$start, tail(er$end, 1)), c(!open, !tail(open, 1)), method = "constant", rule = 2))
 }
 
-rms <- function(x) sqrt(mean(x^2))
+# Node spacing from the offspring curve: fine over the first cohorts' steep fall, a cap of
+# 100 d until t50 and 280 d after, wider where offspring are far below the spells' median.
+spacing_of <- function(first, sp) {
+  n <- first$stand$nodes; lf <- approxfun(n$birth, log(pmax(n$nrr, 1e-300)), rule = 2)
+  early <- n$birth < sp$b1; y <- log(pmax(n$nrr[early], 1e-30)); fall <- log(n$nrr[1] / 10)
+  i <- which(y < fall)[1]
+  l1 <- if (is.na(i)) sp$b1 else if (i == 1) 0 else
+    n$birth[i - 1] + (y[i - 1] - fall) / (y[i - 1] - y[i]) * (n$birth[i] - n$birth[i - 1])
+  ref <- median(log(pmax(n$nrr[n$birth > sp$b1 & n$birth < sp$t50], 1e-300)))
+  function(b) {
+    cap <- if (b < sp$b1) sp$b1 / 12 else if (b < sp$t50) 100 / 365 else 280 / 365
+    min(cap, if (b < sp$b1) { if (b < l1) sp$b1 / 24 else sp$b1 / 12 } else 90 / 365 * max(1, exp(0.2 * (ref - lf(b))))) }
+}
 
-refine_schedule <- function(case, start = "E6", target = 1, max_runs = 10, r = 1.6,
-                            noise = 0.024, flag_ratio = 0.5, rho_max = 0.8) {
-  stopifnot(start == "E6")
-  if (is.character(case)) case <- case_of_refine(case)
-  eps <- case$eps
-  qe <- function(x) x$q[names(eps)] / eps
-  history <- list()
-  log_run <- function(x, S, region, est) {
-    history[[length(history) + 1]] <<- data.frame(run = length(history) + 1, region = region,
-      nodes = length(S), rows = x$rows, est_max = if (is.null(est)) NA else max(abs(est)),
-      est_q = if (is.null(est)) NA else names(eps)[which.max(abs(est))])
-  }
-  x0 <- case$run(case$S0, map = FALSE); log_run(x0, case$S0, "S0", NULL)
-  x1 <- case$run(case$S1, map = FALSE)
-  E1 <- (qe(x0) - qe(x1)) / (r^2 - 1)
-  log_run(x1, case$S1, "S1", E1)
-  regions <- data.frame(region = REGIONS, share = NA, refined = 0, flagged = FALSE,
-                        pending = FALSE, rows_added = 0)
-  e_S1 <- list(); moves <- list(); rem <- list()
-  done <- function(S, x, est) list(schedule = S, answer = x$q[names(eps)], estimate = est,
-    target = target, regions = regions, e_S1 = e_S1, moves = moves, remainder = rem,
-    history = do.call(rbind, history), E1 = E1)
-  if (all(abs(E1) < target)) return(done(case$S1, x1, E1))
+# Twice the density over the t_r before each spell end, falling to 1 by 1.4 t_r. t_r is the
+# time a newborn's reserves take to run down: o ln(a_st3 a_dG2).
+grade <- function(days, t_r) 1 + pmin(1, pmax(0, (1.4 - days / t_r) / 0.45))
+reserve_time <- function(pars) pars$storage_relaxation_offset * 365 * log(pars$a_st3 * pars$a_dG2)
 
-  # The S1 map's |ln J| per region; the strips share the pair's ln J remainder.
-  x1 <- case$run(case$S1, map = TRUE)
-  m1 <- x1$map[MAP_REGIONS]
-  strip <- abs(E1[["lnJ"]] - sum(m1))
-  a <- c(abs(m1), O = strip / 2, C = strip / 2)[REGIONS]
-  regions$share <- a / sum(a)
-  S <- case$S1; x <- x1; est <- E1
-  while (length(history) < max_runs) {
-    adds <- lapply(setNames(REGIONS, REGIONS), function(g) refine_nodes(S, g, case$edges, case$b1))
-    cost <- vapply(adds, rows_added, 0, times = x$times)
-    err <- vapply(REGIONS, function(g) if (is.null(rem[[g]])) rms(E1) * regions$share[regions$region == g]
-                                       else rms(rem[[g]]), 0)
-    score <- ifelse(cost > 0, 0.75 * err / pmax(cost, 1), -Inf)
-    pend <- regions$region[regions$pending & cost[regions$region] > 0]
-    g <- if (length(pend)) pend[1] else REGIONS[which.max(score)]
-    if (!is.finite(score[[g]]) && !length(pend)) break
-    S_new <- sort(unique(round(c(S, adds[[g]]), 10)))
-    x_new <- case$run(S_new, map = TRUE)
-    m <- qe(x) - qe(x_new)
-    k <- regions$region == g
-    moves[[g]] <- c(moves[[g]], list(m))
-    regions$refined[k] <- regions$refined[k] + 1
-    regions$rows_added[k] <- regions$rows_added[k] + x_new$rows - x$rows
-    rho <- 1 / 4
-    if (length(moves[[g]]) > 1) {
-      # A second move over half the first, on the quantities the first put over the
-      # noise, marks the region as not asymptotic: its own ratio sets the remainder.
-      mv <- moves[[g]]; m_a <- mv[[length(mv) - 1]]; m_b <- mv[[length(mv)]]
-      big <- abs(m_a) > 3 * noise
-      ratio <- if (any(big)) rms(m_b[big]) / rms(m_a[big]) else 0
-      was_pending <- regions$pending[k]
-      if (ratio > flag_ratio) {
-        rho <- min(max(sum(m_b[big] * m_a[big]) / sum(m_a[big]^2), 1 / 4), rho_max)
-        regions$flagged[k] <- TRUE
-      }
-      regions$pending[k] <- ratio > flag_ratio && !was_pending
-    }
-    rem[[g]] <- m * rho / (1 - rho)
-    # Order 2 at the first move: the region's S1 error is 4/3 of it. A region shown not
-    # to be asymptotic re-reads its S1 error as everything it moved plus its remainder.
-    if (length(moves[[g]]) == 1) e_S1[[g]] <- m * 4 / 3
-    if (regions$flagged[k]) e_S1[[g]] <- Reduce(`+`, moves[[g]]) + rem[[g]]
-    est <- E1 - Reduce(`+`, e_S1, 0 * E1) + Reduce(`+`, rem, 0 * E1)
-    S <- S_new; x <- x_new
-    log_run(x, S, g, est)
-    if (all(abs(est) < target) && !any(regions$pending)) break
+# The schedule: breakpoints at 0, every edge up to t90 and the horizon; between them an
+# interval count per spell (one where the density holds at most one, otherwise even plus
+# two) and nodes at equal shares of the density. Level k multiplies every count by 2^k, so
+# each level's nodes contain the level below's.
+schedule_of <- function(first, pars, scale = 1) {
+  sp <- spells_of(first); h <- spacing_of(first, sp); t_r <- reserve_time(pars)
+  br <- sort(unique(c(0, sp$edges[sp$edges <= sp$t90], HORIZON)))
+  g <- seq(0, HORIZON, length.out = 40001); dg <- g[2] - g[1]; gm <- g[-1] - dg / 2
+  open <- sp$shut(gm) < 0.5
+  ends <- sp$edges[sp$ending & sp$edges <= sp$t90]
+  nx <- ends[pmin(findInterval(gm, ends) + 1, length(ends) + 1)]
+  days <- ifelse(is.na(nx), Inf, (nx - gm) * 365)
+  rho <- ifelse(open, 1 / vapply(gm, h, 0), 0) * ifelse(is.finite(days), grade(days, t_r), 1)
+  panels <- lapply(seq_len(length(br) - 1), function(i) {
+    k <- gm >= br[i] & gm < br[i + 1]; m <- scale * sum(rho[k]) * dg
+    n <- if (!any(open[k])) 0 else if (m <= 1 + 1e-9) 1 else 2 * ceiling(m / 2 - 1e-9) + 2
+    list(lo = br[i], hi = br[i + 1], n = n, mass = c(0, cumsum(rho[k] * dg)), at = c(br[i], gm[k] + dg / 2)) })
+  list(breaks = br, panels = panels, spells = sp, t_r = t_r, scale = scale)
+}
+
+# Node times at level k; `half` keeps every other interior node of each spell that holds two
+# or more intervals, the replay's schedule.
+nodes_of <- function(sch, k, half = FALSE) {
+  S <- unlist(lapply(sch$panels, function(p) {
+    n <- p$n * 2^k; if (half && n >= 2) n <- n / 2
+    if (n < 2) return(p$lo)
+    c(p$lo, approx(p$mass / tail(p$mass, 1), p$at, seq(0, 1, length.out = n + 1)[2:n], ties = "ordered")$y) }))
+  sort(unique(round(S, 10)))
+}
+
+refine_schedule <- function(spec, dir, scale = 1) {
+  dir.create(dir, showWarnings = FALSE, recursive = TRUE)
+  pars <- scm_base_parameters("TF24")$strategy_default$pars
+  for (kv in strsplit(strsplit(spec$trait, ",")[[1]], "=")) pars[[kv[1]]] <- pars[[kv[1]]] * (1 + as.numeric(kv[2]))
+  first <- scm_run(spec, dir, "first", seq(0, HORIZON, length.out = 100), forward = TRUE, first = TRUE)
+  sch <- schedule_of(first, pars, scale)
+  history <- list(); cost <- function(x) c(forward = x$stand$cpu, sweep = if (is.null(x$sweep_cpu)) 0 else x$sweep_cpu)
+  level <- 0; x <- scm_run(spec, dir, "level0", nodes_of(sch, 0))
+  q <- quantities(x); eps <- eps_of(names(q))
+  r <- scm_run(spec, dir, "level0_replay", nodes_of(sch, 0, half = TRUE), pin = file.path(dir, "level0.rds"))
+  e <- (quantities(r)[names(q)] - q) / 3 / eps; unseen <- UNSEEN_REPLAY
+  costs <- list(first = cost(first), level0 = cost(x), level0_replay = cost(r))
+  status <- "converged"
+  repeat {
+    bound <- abs(e) / READ + unseen
+    history[[length(history) + 1]] <- list(level = level, nodes = length(x$node_times), worst = names(q)[which.max(bound)],
+                                           bound = max(bound), estimate = e, answer = q)
+    if (all(bound < 1)) break
+    if (length(history) == PASSES) { status <- "unconverged"; break }
+    k <- 1; while (max(abs(e) / 4^k / READ + UNSEEN_PAIR) > MARGIN && k < 3) k <- k + 1
+    level <- level + k; nm <- paste0("level", level)
+    y <- scm_run(spec, dir, nm, nodes_of(sch, level))
+    qy <- quantities(y)[names(q)]
+    e <- (q - qy) / (4^k - 1) / eps; unseen <- UNSEEN_PAIR
+    x <- y; q <- qy; costs[[nm]] <- cost(y)
   }
-  done(S, x, est)
+  list(answer = q, estimate = e, bound = abs(e) / READ + unseen, extrapolated = q - e * eps,
+       schedule = list(breaks = sch$breaks, counts = vapply(sch$panels, `[[`, 0, "n") * 2^level,
+                       nodes = x$node_times, t_r = sch$t_r, ages = unlist(sch$spells[c("b1", "t50", "t90")])),
+       history = history, costs = do.call(rbind, costs), status = status)
 }

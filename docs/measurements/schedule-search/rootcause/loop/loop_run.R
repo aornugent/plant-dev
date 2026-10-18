@@ -1,6 +1,6 @@
 # loop_run.R: the loop's run(s) for one case, real or under a stress draw, and P5's constant.
 source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/loop/lib.R")
-source("/home/user/plant-dev/harness/schedule/loop.R")
+source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/loop/loop.R")
 RUNSH <- "/home/user/plant-dev/docs/measurements/schedule-search/rootcause/loop/run.sh"
 ep_name <- function(cs, s) sprintf("ep%.3f_%s", s, cs)
 # A finished run of exactly this schedule, or NULL.

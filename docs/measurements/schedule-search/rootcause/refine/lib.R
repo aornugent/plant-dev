@@ -1,7 +1,7 @@
 # lib.R: the refine round's cases, run backend (request and replay), uniform ladder and
 # references. Sources the loop round's library (cases, E6 runs, map, drop sets).
 source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/loop/lib.R")
-source("/home/user/plant-dev/harness/schedule/refine.R")
+source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/refine/refine_e6.R")
 RO <- file.path(SP, "deep/rootcause/refine")
 RUNSH <- "/home/user/plant-dev/docs/measurements/schedule-search/rootcause/refine/run.sh"
 tag_of_tol <- function(tol) sprintf("%.0e", tol)
