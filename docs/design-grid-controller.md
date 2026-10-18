@@ -554,6 +554,10 @@ with the later task of building general scheduling heuristics.
 
 ### Phase 2: the node axis
 
+The node schedule's design is now `docs/design-refine-schedule.md`: breakpoints at each
+spell's ends, a graded density, one scale, and each run's error from a replay with every other
+node removed. The items below are the measurements that led to it.
+
 - **2a. B or D,** the user's decision. D changes plant's birth-date competition
   sum and every reference, and its cost objection is gone.
   - *Measured on long-wet and long drought under bounded Cash–Karp*
