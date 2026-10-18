@@ -126,7 +126,7 @@ establishment, so it needs no node of its own.
 # Where fate curves: the node density
 
 Between breakpoints fate is smooth, but it curves, and the density must follow the
-curvature. Three shapes recur:
+curvature. Four shapes recur:
 
 - **The first cohorts.** Births before the first shutting earn 70–97% of J. Their fate
   falls nearly exponentially in birth date, with a decay length of 0.4–1.2 years, because
@@ -138,6 +138,11 @@ curvature. Three shapes recur:
   - Straight lines between nodes over-count that leaf area by 0.5–1.1% (3–4% in the
     first years). The soil then runs drier for everyone, and the first cohorts carry most
     of that error as extra drought mortality.
+- **The last three weeks before each shutting.** The cohorts' sensitivity to the hydraulic
+  and storage traits curves 3–12× harder than a month earlier: a seedling born there starts
+  the coming drought with fuller reserves, and every one of them empties them. The density
+  rises about 2× over the last 18 days, tapering to 1 by 27, and each spell gets two more
+  intervals for it.
 - **Late births.** They earn little J but still draw down the water. Late intervals
   wider than about 110–160 days leave the square law on the traits that act through the
   soil.
@@ -183,10 +188,13 @@ Why it can be trusted:
 - **What it still misses:** on dry and episodic with lma ×1.25, a component in root_P50
   and the storage offset (errors ±0.4–0.6ε, read near zero). It halves, not quarters, when
   the counts double, so it sits at a fixed birth date that intervals reach across.
-  - Grading the density toward each shutting, as the measured curvature rises over the last
-    18–27 days, removes the root_P50 half (+0.41 to +0.15ε, now read by the replay) for 3
-    more nodes on dry.
-  - The storage offset's half is still unlocated.
+  - It is not a slope jump. Both halves come from the last three weeks before each
+    shutting, where the hydraulic and storage sensitivities curve 3–12× harder than a
+    month earlier, and most of it travels through the field.
+  - A density that follows that curvature (about 2× over the last 18 days, tapering to 1 by
+    27 days) and adds two intervals to each spell removes it: on dry root_P50 went from
+    +0.41 to −0.05ε and the storage offset from −0.49 to −0.11ε, and the replay then read
+    the error at 0.97.
 - **Cost:** 0.6–0.8 of a run.
 
 Two things the replay cannot see:
@@ -239,7 +247,7 @@ when each step doubles every count.
 | what varies | why | what responds |
 |---|---|---|
 | when establishment opens and shuts | the rainfall record and the stand's uptake | breakpoints, from the first run |
-| where fate curves | first cohorts, understory, late births | the density |
+| where fate curves | first cohorts, understory, the weeks before each shutting, late births | the density |
 | how large the error is | about 100× across trait × climate | the replay measures it on each run |
 | which quantities bind | carbon traits in the first cohorts, hydraulic traits in the understory | every quantity has its own ε |
 | how mechanisms interact | light and water carry a local error to every cohort | the replay includes the field; the map's split names the channel |
@@ -265,8 +273,8 @@ its own error.
 
 # Still being tested
 
-- where the storage offset's remaining error sits, and whether it is a slope jump of a
-  second kind;
+- the width of the grading before each shutting, taken from the first run instead of
+  from fate maps, and the layout on more cases;
 - dry-flat's understory, where region replays read 1.9× the error;
 - a bound for spells too short to hold two intervals;
 - the tolerance: 3e-5 costs 1.4× the steps of 1e-4; running at 1e-4 and holding every

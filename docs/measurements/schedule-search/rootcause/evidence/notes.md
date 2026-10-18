@@ -9,6 +9,16 @@ reading or estimate). Errors are in each quantity's ε (`docs/measurements/eps-s
 
 ## Summary (written last)
 
+**Round 4 (dry; R15, R16).** The storage offset's order-1 component is not a slope jump at a
+fixed birth date: no reserve threshold is crossed between neighbours (every cohort near a
+shutting empties its reserves) and no cohort reaches the parked hazard. Its sensitivity
+curves hardest over the last ~3 weeks before each shutting (wider than root_P50's), its
+interpolation part is small, so the error is field. Adding two intervals per replayed spell,
+graded into those three weeks by the measured curvature (+49 nodes), takes the storage offset
+−0.49 → −0.11 and root_P50 +0.41 → −0.05, worst 0.36 (E6 committed 0.35), with the replay
+reading 0.97 and passing C1–C5; at 1e-4 run + replay would cost about E6's committed + check
+[i]. `splits` is not a switch counter. Three more runs; 75 predictions in all, 41 held.
+
 **Round 3 (dry; R13, R14).** Offline, the removal under-reads the shutting zones'
 root_P50 interpolation error under B's near-uniform density (0.56–0.75 per zone); grading
 by the measured curvature, κ^(1/3) over the last 18–27 d, brings it to 0.90–1.14. In runs:
@@ -899,3 +909,124 @@ nudge per case, not one per run.
 | R3g | 45% | holds (read 0.83) |
 | R3h | 55% | refuted (+3 nodes) |
 | R3i | 50% | holds (0.23) |
+
+## Round 4: locating the storage offset's order-1 component (coordinator's request after R14)
+
+Code read before the predictions (libS `tf24_strategy.h`): the storage rate is
+(charge·(1 − r) − drain·r) / (1 + relaxation_rate · storage_relaxation_offset); mortality
+is d_I + a_dG1·exp(−a_dG2·r), smooth in r, with one hard switch: a cohort whose cumulative
+mortality reaches `establishment_failure_hazard` (750) is parked at rate 0. The only
+per-node switch record in saved runs is `splits` (steps split at a sign change of net
+production, per node).
+
+## Pre-registration 12 (before `twin.R` runs and before any per-node record is read)
+
+One forward run on the closing fate map's schedule (dry, 1172 nodes, libS, 1e-4) with
+storage_relaxation_offset × 1.02, keeping each node's peak drydown hazard (from its
+mortality's increments, less d_I) and so its lowest relative reserve
+r_min = −ln(h_max/a_dG1)/a_dG2. s_sro(b) = (ln nrr_twin − ln nrr_base)/ln 1.02 against
+`cl_map_dry`.
+
+| # | prediction | P |
+|---|---|---|
+| R4a | s_sro's non-smooth part (κ at h = 3 d) is largest within 15 d before shuttings, not in spell interiors | 55% |
+| R4b | s_sro has a slope jump (\|Δ²_2h\|/\|Δ²_h\| ≤ 2.8 at h = 3 d) where neighbouring cohorts' r_min crosses 0.15, on at least half of the covered spells | 25% |
+| R4c | s_sro's curvature rises toward c more steeply than root_P50's (κ at c over κ at 30–60 d at least 2× root_P50's ratio, 6.1) | 50% |
+| R4d | per-node `splits` changes between neighbours only next to pilot edges (≥ 90% of changes within one node of an edge) on the u857 references | 50% |
+| R4e | no saved per-node record marks a reserve threshold (the code has no such switch) | 80% |
+
+### R15. The storage offset's sensitivity on the fate map (`twin.R`, `twin_analyze.R`, `splits.R`) [m]
+
+One forward run (1172 nodes, 474 s): J 1.19165 against the base 1.20262, so
+d ln J / d ln storage_relaxation_offset = −0.46 on dry.
+
+- **No reserve threshold is crossed between neighbours.** In all 20 covered shutting zones
+  every cohort's peak drydown hazard is at the ceiling, r_min = 0.00004–0.001 from 36 d
+  before c to c: every cohort near a shutting empties its reserves, so all neighbours sit on
+  the same side of 0.15. No cohort reaches the parked hazard (max cumulative mortality 14–19
+  against 750). The hypothesis's switch does not occur here (R4b refuted).
+- **s_sro's curvature rises earlier and wider than root_P50's.** Curvature of G·s relative to
+  30–60 d before c: storage offset 2.5 at 24 d, 3.9 at 21 d, 6.7–12 over 3–18 d (a plateau,
+  11.6 at c), with a dip below 1 over 27–39 d; root_P50 1.3 at 24 d, rising to 6–8 over 3–12 d.
+  Slope-jump candidates (κ > 5× the zone median with ratio ≤ 2.8) are not concentrated near c
+  (storage offset: 7 within 15 d, 59 farther out, where the curvature is small and noisy). So
+  near shuttings the storage offset's integrand is smooth but curved over about three weeks,
+  not kinked (R4a holds as a curvature statement; R4c refuted narrowly, 11.6 against the 12.2
+  needed).
+- **Its interpolation part is small and read with the wrong sign.** Over the covered zones the
+  interpolation error of G·s_sro is +0.026ε under B, and B's removal reads −0.35 of it; graded
+  at the same count +0.013ε (read −0.12); graded with two more intervals +0.003ε. The missed
+  −0.49 on dry is therefore field, not the interpolation of fate's sensitivity, and the maps
+  (which hold fate, not leaf area or uptake) cannot place it.
+- **Per-node records.** `splits` is a cumulative count of split steps, not a count of sign
+  changes: it changes between neighbours next to an edge 47–75% of the time and away from edges
+  for the rest (flat-al1125 119 of 360 changes, dry-lma125 119 of 226, dry map 52 of 146), so
+  it does not mark switches cleanly (R4d refuted). Nothing records reserves or a mortality
+  regime per node (R4e holds). A counter that would: per node, the number of P sign changes
+  (not split steps), and the birth-ordered sequence of drydowns in which r fell below a set
+  level, both recorded in the forward run; for the field, per node the time-integrated
+  leaf area and uptake its interval contributes, whose curvature in birth date is what the
+  storage offset's field error is made of.
+
+**Located?** Not as a slope jump at a fixed birth date. What the data place: the storage
+offset's per-cohort sensitivity curves hardest over the last ~3 weeks before each shutting
+(wider than root_P50's), its interpolation part there is small, and B2 shows its total halves
+per doubling. Whether its field part lives in those same three weeks is the one thing a run can
+answer cheaply: B with two more intervals per replayed spell, graded toward each shutting by
+max(κ_root_P50, κ_sro)^(1/3). If the storage offset falls as in B2 (−0.49 → −0.23) at +2 nodes
+per spell instead of doubling everything, it lives there.
+
+## Pre-registration 13 (before building Bga and its two runs)
+
+Bga: B with each replayed spell's count raised by 2, placed at equal mass of ρ₀·g(d), g =
+max of the two grades above (root_P50 from R13, storage offset from R15); one-interval spells
+unchanged; dry, libS, 3e-5; then its odd replay.
+
+| # | prediction | P |
+|---|---|---|
+| R4f | Bga's storage_relaxation_offset error is ≤ 0.25ε (B −0.49, Bg −0.37, B2 −0.23) | 40% |
+| R4g | Bga's root_P50 error is ≤ 0.15ε | 55% |
+| R4h | Bga's replay passes C2, C3 and C5 at ε with a read in [0.8, 1.25] | 45% |
+| R4i | Bga has 35–55 more nodes than B (183) | 60% |
+
+### R16. Bga on dry: two more intervals per spell, graded into the last three weeks (`run3.sh Bga`, `score_r3.R`) [m]
+
+| dry | nodes | ln J | root_P50 | storage offset | a_l1 | TF24_cost_scale | a | worst | rms |
+|---|---|---|---|---|---|---|---|---|---|
+| E6 committed (1e-4) | 149 | −0.15 | −0.31 | | | | −0.35 | 0.35 | 0.16 |
+| B | 183 | −0.26 | +0.41 | −0.49 | +0.79 | +0.45 | −0.48 | 0.79 | 0.26 |
+| Bg (redistributed) | 186 | −0.25 | +0.15 | −0.37 | +0.78 | +0.44 | −0.45 | 0.78 | 0.23 |
+| B2 (every count doubled) | 318 | −0.05 | +0.21 | −0.23 | +0.10 | +0.04 | −0.09 | 0.23 | 0.075 |
+| **Bga** | **232** | −0.07 | −0.05 | **−0.11** | +0.36 | +0.28 | −0.25 | **0.36** | 0.13 |
+| Bga, odd replay | | −0.06 | +0.00 | −0.04 | +0.31 | +0.21 | −0.24 | | |
+
+- **The order-1 component lives in the last ~3 weeks before each shutting, field part
+  included.** Two more intervals per replayed spell placed there (+49 nodes) take the storage
+  offset from −0.49 to −0.11 and root_P50 from +0.41 to −0.05, more than doubling every count
+  does (B2: −0.23, +0.21, at +135 nodes).
+- **The replay is honest on Bga**: read 0.97, cos 0.976, C1–C5 pass (C3 0 of 1); worst 0.36
+  (a_l1), next to E6 committed's 0.35.
+- Cost: Bga 232 nodes (E6 committed 149, +56%); real rows at 3e-5 2.21× E6 committed, 0.91×
+  E6 committed + check; at 1e-4 (rows model) 1.53× E6 committed, so run + replay ≈ 2.45 E6
+  committed runs, level with E6's committed + check (2.43), with the run's own honest
+  estimate in place of the pair [i].
+- Scored: R4f holds (−0.11); R4g holds (−0.05); R4h holds (read 0.97); R4i holds (+49).
+
+**Answer to step 3.** No fixed birth date to add as a breakpoint was found (no kink, no reserve
+crossing). One more grading does remove it: density toward each shutting by
+max(κ_root_P50, κ_storage-offset)^(1/3) over the last 24–27 d (g ≈ 2 over the last 18 d), with the
+spell's count raised so the grading adds nodes rather than only moving them (+2 intervals
+per replayed spell; dry +49 nodes, 22 replayed spells). Equivalently, a node density that
+follows the measured curvature profile rather than a09's spacing in the last three weeks.
+
+| # | P | result |
+|---|---|---|
+| R4a | 55% | holds as curvature (largest within 3–18 d), not as a kink |
+| R4b | 25% | refuted (every cohort near c empties its reserves) |
+| R4c | 50% | refuted narrowly (11.6 against 12.2) |
+| R4d | 50% | refuted (47–75% of changes next to edges) |
+| R4e | 80% | holds |
+| R4f | 40% | holds (−0.11) |
+| R4g | 55% | holds (−0.05) |
+| R4h | 45% | holds (read 0.97) |
+| R4i | 60% | holds (+49) |

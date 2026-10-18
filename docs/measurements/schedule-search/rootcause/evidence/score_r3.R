@@ -18,8 +18,9 @@ f2 <- file.path(E, "runs", "B2_dry.rds"); if (file.exists(f2)) { b2 <- rr("B2_dr
   cat(sprintf("B from B2: cos with B's error %.3f, read %.2f, rms(err - est) %.3f; B2 worst %.2f (%s), rms %.3f; cos(odd replay, B2 estimate) %.3f\n",
     cosv(err_B[k], est2[k]), read_of(err_B, est2, 0.2), sqrt(mean((err_B - est2)^2)), max(abs(err2)), names(err2)[which.max(abs(err2))], sqrt(mean(err2^2)), cosv(est_odd[k], est2[k])))
   cat(sprintf("B2: rows %.0f (x%.2f B), CPU %.0f s\n", b2$stand$rows, b2$stand$rows / b$stand$rows, b2$stand$cpu + b2$sweep_cpu)) }
-fg <- file.path(E, "runs", "Bgo_dry.rds"); if (file.exists(fg)) { g <- rr("Bg_dry"); go <- rr("Bgo_dry")
-  err_g <- (q(g) - R$ref) / EPS; est_g <- (q(go) - q(g)) / 3 / EPS; show("Bg: error (reference)", err_g); show("Bg: odd replay", est_g)
-  cr <- crit(err_g, est_g); cat(sprintf("Bg: worst %.2f (%s), rms %.3f, est max %.2f, cos %.3f, read %.2f, C1 %d C2 %d C3 %d (%d/%d) C5 %d; rows %.0f (x%.2f B), CPU run %.0f replay %.0f, pinned %s\n",
-    max(abs(err_g)), names(err_g)[which.max(abs(err_g))], sqrt(mean(err_g^2)), max(abs(est_g)), cosv(err_g[k], est_g[k]), read_of(err_g, est_g, 0.2),
+for (L in c("Bg", "Bga")) { fg <- file.path(E, "runs", paste0(L, "o_dry.rds")); if (!file.exists(fg)) next
+  g <- rr(paste0(L, "_dry")); go <- rr(paste0(L, "o_dry"))
+  err_g <- (q(g) - R$ref) / EPS; est_g <- (q(go) - q(g)) / 3 / EPS; show(paste0(L, ": error (reference)"), err_g); show(paste0(L, ": odd replay"), est_g)
+  cr <- crit(err_g, est_g); cat(sprintf("%s: %d nodes, worst %.2f (%s), rms %.3f, est max %.2f, cos %.3f, read %.2f, C1 %d C2 %d C3 %d (%d/%d) C5 %d; rows %.0f (x%.2f B), CPU run %.0f replay %.0f, pinned %s\n",
+    L, length(g$node_times), max(abs(err_g)), names(err_g)[which.max(abs(err_g))], sqrt(mean(err_g^2)), max(abs(est_g)), cosv(err_g[k], est_g[k]), read_of(err_g, est_g, 0.2),
     cr[["C1"]], cr[["C2"]], cr[["C3"]], cr[["miss3"]], cr[["n3"]], cr[["C5"]], g$stand$rows, g$stand$rows / b$stand$rows, g$stand$cpu + g$sweep_cpu, go$stand$cpu + go$sweep_cpu, identical(g$stand$times, go$stand$times))) }

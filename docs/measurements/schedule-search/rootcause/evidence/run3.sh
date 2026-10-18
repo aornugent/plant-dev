@@ -1,7 +1,7 @@
 #!/bin/bash
 # run3.sh: round 3 on dry at TOL 3e-5: B2 (B with doubled counts) or Bg (graded toward shuttings) and its odd replay.
 # waiting while four or more R processes run. libS, E6 committed setting at TOL 3e-5, gradient on.
-# Usage: bash run3.sh B2|Bg
+# Usage: bash run3.sh B2|Bg|Bga
 DEV=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/dev
 A=$DEV/schedtest/adjmap
 E=/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/deep/rootcause/evidence
@@ -17,5 +17,5 @@ one() { spec $1; name=$2_$1; gate; log start $name
     TOL=3e-5 LIB=$A/libS KNOTS=0 TIMES=$E/sched/$2_$1.rds PIN=$3 OUT=$E/runs/$name.rds \
     Rscript $A/adj_run_nk.R > $E/logs/$name.log 2>&1
   log "done $?" $name; }
-case "$1" in B2) one dry B2 "" ;; Bg) one dry Bg ""; one dry Bgo $E/runs/Bg_dry.rds ;; esac
+case "$1" in B2) one dry B2 "" ;; Bg) one dry Bg ""; one dry Bgo $E/runs/Bg_dry.rds ;; Bga) one dry Bga ""; one dry Bgao $E/runs/Bga_dry.rds ;; esac
 log "all done" "$1"

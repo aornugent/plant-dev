@@ -68,7 +68,8 @@ Kept true by structure:
 
 1. **First run** (forward, about 100 even introductions). It gives the openings and shuttings,
    and T(t): the share of J still to be produced after each calendar time.
-2. **First density:** graded by the offspring curve. Ages come from T(t):
+2. **First density:** graded by the offspring curve, and toward each shutting over its last
+   three weeks (with two more intervals per spell). Ages come from T(t):
    - the onset of offspring production replaces b = 10;
    - the time half of J has been produced replaces 17 and 20;
    - the time 90% has been produced replaces 25 (the late cut).
@@ -123,12 +124,14 @@ of 0.024 rms of step noise.
 
 ## Still open
 
-- **A component that falls at order 1.** On dry a root_P50 / storage-offset component halves per
-  doubling (the doubled run confirms the reference). Grading the density toward each shutting
-  by the measured curvature (rising over the last 18–27 days, factor 1.8–2.6 at c) removes the
-  root_P50 half for 3 nodes; the storage offset's half is unlocated. Order 1 means a slope jump
-  at a fixed birth date that no node sits on.
-- **dry-flat's interiors,** which region replays read at ×1.9.
+- **The grading before each shutting.** On dry a root_P50 / storage-offset component fell at order
+  about 1 under a uniform spell density. It is not a slope jump (every cohort in the last 36
+  days empties its reserves; mortality is smooth in reserves). It is curvature, 3–12× higher
+  over the last three weeks, carried mostly through the field. Density following the larger
+  curvature, about 2× over 18 days tapering to 1 by 27, with two more intervals per spell,
+  takes the worst error from 0.79 to 0.36ε (E6 0.35) and the replay's read to 0.97, at 232
+  nodes against E6's 149. At 1e-4, run plus replay ≈ E6's committed plus check. Open: take the
+  grading's width from the first run, and test on more cases.
 - **The bound for short spells.** The first proposal was 5–50× short; their true error was
   0.05–0.10ε on the three cases.
 - **The tolerance.** 3e-5 costs 1.4× the steps; 1e-4 with every quantity held to 0.88ε covers
