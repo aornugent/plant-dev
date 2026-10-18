@@ -2,7 +2,7 @@
 
 A design under `.claude/skills/system-design/SKILL.md`, written after the root-cause rounds
 (`docs/measurements/schedule-search/rootcause/`). It replaces the habit of tuning one
-schedule (E6) with an algorithm that refines any schedule to a target, and reports each
+schedule (E6) with an algorithm that refines any schedule until it converges, and reports each
 run's own error.
 
 ## Triage: 3
@@ -12,12 +12,15 @@ its call and its returned diagnostics are a public API.
 
 ## Requirements ledger
 
-- **R1 Converged on demand.** Every quantity's error is within target·ε_q, with the target set
-  by the user (1, ½, ¼). This is the only knob.
-- **R2 Honest.** Every run reports its own per-quantity error estimate, passing C2/C3 at the
-  target. A run's estimate must not depend on another schedule being on the asymptotic law.
+- **R1 Converged by default.** Every quantity's error is within its ε_q, the table in
+  `docs/measurements/eps-spread.md`, with no knob to tune.
+- **R1′ Any simulation length.** No rule names an absolute birth date or patch age. a09's
+  b = 10, 17, 20 and 25 constants, and E6's "late edges after 25", are out. Ages come from
+  the pilot: its opening edges, and its J window (J still to be earned).
+- **R2 Honest.** Every run reports its own per-quantity error estimate, passing C2/C3.
+  A run's estimate must not depend on another schedule being on the asymptotic law.
 - **R3 Never fails** (C4), including near extinction.
-- **R4 Cheap.** The least rows at the target. At ε, E6 costs its committed run plus a 1.55×
+- **R4 Cheap.** The least rows at ε. There, E6 costs its committed run plus a 1.55×
   check (2.55 runs to find, T 9287 on the bank).
 - **R5 Diagnosed.** Each run reports where its remaining error is.
 
@@ -63,13 +66,13 @@ Kept true by structure:
 ## The floor, and why it may be the whole design
 
 **Floor:**
-1. Start ρ₀ from the pilot: a09's graded density, which already follows the founders and
-   the offspring curve.
+1. Start ρ₀ from the pilot: a09's graded density with its fixed ages replaced by the
+   pilot's J window. a09 already follows the founders and the offspring curve.
 2. Run S.
 3. Replay S pinned to its own steps with every other interior node dropped. The estimate is
    e_q = (Q_drop − Q_S)/3, about 0.8 of a run, with no step jitter between the two.
-4. If every |e_q| ≤ target·ε_q, stop. S is the answer.
-5. Otherwise scale ρ by √(max_q |e_q|/(target·ε_q)) and go to 2.
+4. If every |e_q| ≤ ε_q, stop. S is the answer.
+5. Otherwise scale ρ by √(max_q |e_q|/ε_q) and go to 2.
 
 Each iteration costs 1.8 runs. The last run is the answer. Its estimate is its own, so R2
 holds without the pair assumption that broke E6's check at ε/2.
@@ -111,7 +114,6 @@ Verdict: survives as a hypothesis with a stated retrofit. Q1–Q3 decide it.
 | ρ, the node density | R4: where nodes go is the only cost lever |
 | the pinned drop replay | R2: the only honest single-run estimate per quantity |
 | the node-drop map | R5: location (ln J by region, 0.03ε) |
-| `target` | R1 |
 
 ## What this settles
 
@@ -150,11 +152,49 @@ strip probe, is next.
 - **Q5** Does allocation by the map (A) beat scaling (B) at matched error, by more than the
   map's 7.5%?
 
+## What is guaranteed by construction, and what still needs evidence
+
+**By construction:**
+- **G1 No wasted runs.** Every full run is a candidate answer; the last one is the answer.
+  The only other work is its drop replay.
+- **G2 No unseen node class.** Every node except a breakpoint is dropped, so the estimate
+  covers every interval. The exception is panels with fewer than two interior nodes
+  (see Q4).
+- **G3 No step jitter in the estimate.** The drop replays the run's own steps, so the
+  difference between run and drop contains no step-control noise.
+- **G4 Two estimates of ln J.** The drop gives ln J's error exactly; the map gives it to
+  first order. If they disagree beyond 0.03ε, the run is off the asymptotic law, and the
+  loop takes one more refinement before trusting the estimate. This costs nothing extra.
+- **G5 Any length.** Breakpoints and ρ₀ come from the pilot, and no rule holds an absolute
+  age.
+- **G6 It stops.** If order 2 holds, each scaling divides the worst ratio by the square of
+  the scale. An iteration cap turns non-convergence into a reported failure, not a hang.
+
+**Needs evidence:**
+- **E1** The integrand has corners only at opening edges.
+- **E2** Order 2 holds inside a panel at twice the spacing.
+- **E3** A density resolves the closing turn at a cost near E6's.
+- **E4** A drop at alternate nodes reads the run's error honestly.
+
+## Diagnostics that ride along
+
+- **The map's channel split.** The node-drop map already keeps light (crowns) and water
+  (uptake) apart. Where they interact (the interiors' understory feeding the founders
+  through the soil), the split says which integrand carries the error.
+- **Probe nodes.** An invader-style node, walked on the stored run with no feedback, samples
+  fate, leaf area and uptake at any b. Its walk costs little. It measures the integrand's
+  curvature between nodes, where the density should go up.
+- **Parity.** Dropping the even nodes instead of the odd ones estimates the same error from
+  a different sample. The spread between the two is the estimate's own uncertainty. It
+  costs one more replay, so use it only when G4 disagrees.
+
 ## The tool
 
 ```r
-refine_schedule(p, target = 1)   # returns list(schedule, answer, estimate, where, history)
+refine_schedule(p)   # returns list(schedule, answer, estimate, where, history)
 ```
+
+Converges to ε by default.
 
 - One loop over (run, drop). `where` is the node-drop map of the answer run.
 - Backends: the harness runner on libS; the node-drop patch only for `where`.
