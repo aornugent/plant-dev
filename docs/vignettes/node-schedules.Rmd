@@ -176,26 +176,31 @@ Why it can be trusted:
   difference.
 - **The replay carries the field.** A removed node changes the light and water every
   cohort meets, and the replay includes that.
-- **It is measured, not assumed.** On dry its estimate matched the errors measured by
-  refinement with correlation 0.93–0.99 across the elasticities; on episodic with lma
-  ×1.25, 0.996. Removing every region at once gives the sum of removing each alone
-  (correlation 1.000).
+- **It is measured, not assumed.** On the layout with both edges as breakpoints it read
+  the error at 0.75–0.87, correlation 0.88–0.97, on dry, long-wet and episodic with lma
+  ×1.25, and never passed a run that was over ε. Removing every region at once gives the
+  sum of removing each alone (correlation 1.000).
+- **What it still misses:** on dry and episodic with lma ×1.25, a component in root_P50
+  and the storage offset (errors ±0.4–0.6ε, read near zero). The likely cause is the
+  hydraulic change before each shutting, which a uniform density within the spell does not
+  resolve.
 - **Cost:** 0.6–0.8 of a run.
 
 Two things the replay cannot see:
 - **The run's own tolerance error,** because the replay shares the run's steps. Run at a
   tolerance whose error is under ε/10 (3e-5).
 - **Spells too short to hold two intervals.** They hold much of the establishment but
-  0.5–6.6% of J. Their error is bounded, not estimated.
+  0.5–6.6% of J; on dry, long-wet and episodic with lma ×1.25 their error was 0.05–0.10ε.
+  No bound for it works yet.
 
 **Where the error is.** Each run also reports a map from its own reverse sweep:
 - J's error by stretch of birth date, to 0.03ε, for 7.5% more than the run;
 - split between light and water, so it says which way a region's error travels.
 
-**How sure the estimate is.** Removing the even nodes instead of the odd ones gives a
-second estimate from different nodes. On the bank the two differ by 0–0.08ε, which is the
-estimate's own uncertainty. It costs one more replay, so take it when the estimate is
-close to ε.
+**How sure the estimate is.** Removing the even nodes instead of the odd ones does not
+give a second estimate: it never merges a spell's two end intervals, and on dry it read a
+third of the error. A second estimate needs a second schedule, such as the previous run
+when each step doubles every count.
 
 # The loop
 
@@ -257,11 +262,14 @@ its own error.
 
 # Still being tested
 
-- the layout with both edges as breakpoints and even counts, at real cost, on dry,
-  long-wet and episodic with lma ×1.25;
+- a density graded toward each shutting, over the 2–3 weeks where fate curves sharply,
+  in place of a uniform density within the spell;
 - dry-flat's understory, where region replays read 1.9× the error;
-- a bound for spells too short to hold two intervals.
+- a bound for spells too short to hold two intervals;
+- the cost of the tolerance: at 3e-5 a run takes 1.4× the steps of 1e-4.
 
-Settled so far: fate's slope jumps only at openings, but shuttings need breakpoints as
-well. With openings alone the worst errors reached 3.4ε, and the replay read a fifth to
-two fifths of them.
+Settled so far:
+- fate's slope jumps only at openings, but shuttings need breakpoints as well. With
+  openings alone the worst errors reached 3.4ε and the replay read a fifth to two fifths
+  of them; with both edges they fell to 0.47–0.79ε;
+- with even counts every interval is merged, and the replay costs 0.55–0.64 of a run.

@@ -9,6 +9,17 @@ reading or estimate). Errors are in each quantity's ε (`docs/measurements/eps-s
 
 ## Summary (written last)
 
+**Round 2 (layout B: both edges as breakpoints, even counts, short spells left at one
+interval, ages from T(t), 3e-5; R12).** All three runs are within ε (worst 0.79 dry, 0.47
+long-wet, 0.76 episodic-lma; E6 committed 0.35, 0.36, 1.29). The odd replay reads 0.75–0.87
+with cos 0.88–0.97 and no false accept; C2–C5 pass on long-wet and episodic-lma, and dry
+fails C3 on a root_P50 / storage_relaxation_offset component (0.4–0.6ε) that the replay
+does not see. The even replay is not a second estimate of the same error (cos 0.29 with it on
+dry, 0.50ε from the odd one), contradicting the design's and the vignette's parity claim; the
+proxy bound for short spells under-covers 5–50×, though their error is ≤ 0.10ε. Cost: real
+rows 1.57–1.73× E6 committed (1.40–1.45× from the tolerance), 0.62–0.71× E6 committed + check.
+Ten more runs (one stopped and relaunched after an ATOL slip); 57 predictions in all, 31 held.
+
 **Verdict.** The design's skeleton (a schedule as breakpoints plus a density, one pinned
 replay with alternate nodes dropped as the run's own estimate) is sound where it is
 applied: pinning shares every step, the drop of a smooth region reads its error at ×0.8–1.25,
@@ -609,3 +620,127 @@ resolve this at ρ₀; a node at c can (E6 does it with its inset node, at one n
 | D5 | 45% | refuted (cos 0.63) |
 | D6 | 70% | refuted narrowly (0.53) |
 | D7 | 90% | holds |
+
+## Round 2: the revised layout (coordinator's request after R11)
+
+## Pre-registration 9 (before building layout B or any of its runs)
+
+Layout B (`layoutB.R`), as the revised design reads: breakpoints at 0 and every edge,
+opening and shutting, up to t₉₀; edges after t₉₀ are not breakpoints and the late stretch is
+one panel to the horizon. ρ₀ = a09's graded density with the 20-y ages (100-d cap switch,
+fate reference window) moved to t₅₀; t₅₀ and t₉₀ from each case's committed run's T(t)
+(dry 17.5 / 25.3, long-wet 17.3 / 23.7, episodic-lma 24.1 / 28.8 y; R7). A panel with
+∫ρ₀ ≤ 1 keeps one interval (a short spell, not replayed); every other panel gets an even
+interval count at equal ρ₀-mass. Runs on libS, E6 committed setting but TOL 3e-5 (run and
+replay alike): run B, the odd replay (every panel's 1st, 3rd, … interior node removed, which
+merges every interval of every even panel), on dry also the even replay (2nd, 4th, …; it
+merges the middle pairs only and leaves each panel's two end intervals as they are).
+
+**The short spells' bound, fixed now.** B_q = 2·|e_q|·P_short/P_rep, e_q the odd replay's
+estimate and P the a09 proxy (Σ over intervals of ∫ pilot-offspring^0.6 × width²) of the
+short spells' single intervals and of the replayed spells' intervals; the factor 2 covers the
+proxy's measured misread (median ×1.37). **Their true error** needs one more run per case:
+run B with every short spell bisected (unpinned, since the new births are not steps of run
+B), e_short = (4/3)(Q_B − Q_bis), with 3e-5's step noise (0.004–0.012 rms) in it. Ten runs in
+all; at most two R processes of mine at once.
+
+| # | prediction | P |
+|---|---|---|
+| B1 | run B's worst error ≤ 1ε on at least 2 of 3 cases | 55% |
+| B2 | run B's worst error ≤ E6 committed's (0.35, 0.37, 1.29) on at least 2 of 3 | 35% |
+| B3 | the odd replay passes C2 and C3 at ε on at least 2 of 3 | 50% |
+| B4 | its read (median est/err over \|err\| > 0.2) lies in [0.7, 1.4] on at least 2 of 3 | 50% |
+| B5 | no case has C5 passing while C1 fails (no false accept) | 70% |
+| B6 | run B's rows are 1.0–1.5× E6 committed's on all three, and below E6 committed + check | 55% |
+| B7 | dry: the even replay's estimate has cos ≥ 0.8 with the odd one's over the 46 elasticities, and the even/odd ratio of rms lies in [0.4, 1.0] (it merges fewer intervals) | 45% |
+| B8 | the bound B_q covers \|e_short\| in every quantity where \|e_short\| > 0.1ε, on at least 2 of 3 | 45% |
+| B9 | the short spells' true error is ≤ ε/3 in every quantity on all three | 50% |
+| B10 | nothing throws | 90% |
+| B11 | the replay costs 0.55–0.8 of the run's CPU | 65% |
+
+Process slip: the first launch of `run2.sh` changed ATOL to 3e-5 along with TOL (ATOL is the
+absolute tolerance's factor on TOL; the setting keeps 1e-4). Both runs were stopped after
+20 s, their files deleted, and the lanes relaunched with ATOL 1e-4.
+
+### R12. Layout B at 3e-5: run, odd replay, even replay (dry), short-spell bisection (`run2.sh`, `score_b.R`) [m]
+
+Ten gradient runs on libS, all exit 0; each replay on its run's exact steps. err against
+refine's references (dry and long-wet the bank's, episodic-lma u429 → u857).
+
+| | dry | long-wet | episodic-lma |
+|---|---|---|---|
+| nodes B (E6 c) | 183 (149) | 170 (157) | 146 (120) |
+| short spells / replayed spells | 27 / 22 | 29 / 19 | 6 / 20 |
+| worst err (q) / rms | **0.79** (a_l1) / 0.26 | **0.47** (a) / 0.12 | **0.76** (vcmax_25) / 0.40 |
+| E6 committed worst / rms | 0.35 / 0.16 | 0.36 / 0.09 | 1.29 / 0.68 |
+| ln J err / odd estimate | −0.258 / −0.247 | +0.011 / +0.052 | −0.229 / −0.190 |
+| estimate max, cos(err, est), read | 0.79, 0.88, 0.87 | 0.35, 0.93, 0.75 | 0.64, 0.97, 0.82 |
+| C1 C2 C3 C5 (C3 misses) | ✓ ✓ ✗ ✓ (2/9) | ✓ ✓ ✓ ✓ (0/1) | ✓ ✓ ✓ ✓ (2/26) |
+| rms(err − est) | 0.12 | 0.05 | 0.12 |
+| rows B / E6 c / E6 c + f (real rows) | 1.73 / 0.71 | 1.63 / 0.65 | 1.57 / 0.62 |
+| steps B / E6 c (3e-5 against 1e-4) | 1.41 | 1.45 | 1.40 |
+| rows at one tolerance (rows model on the pilot's steps) | 1.21 | 1.11 | 1.12 |
+| CPU run / replay (s) | 308 / 191 (0.62) | 346 / 221 (0.64) | 159 / 87 (0.55) |
+| short spells' true error, max (q) | 0.091 (stem_c) | 0.052 (root_P50) | 0.102 (root_P50) |
+| their bound 2·\|e\|·P_short/P_rep, max | 0.013 | 0.010 | 0.002 |
+
+- **Every run is within ε, and episodic-lma's is better than E6's** (0.76 against 1.29),
+  but dry and long-wet are less accurate than E6 committed (0.79, 0.47 against 0.35, 0.37)
+  with more nodes: the edge nodes bring back the error along M (a_l1 +0.79) that E6's inset
+  cancels, as the h5 round found for its rule N.
+- **The odd replay is honest in size and direction but misses one component.** Reads
+  0.75–0.87, cos 0.88–0.97, no false accept. What it misses is root_P50 and
+  storage_relaxation_offset: dry +0.41 / −0.49 against estimates −0.03 / −0.04; episodic-lma
+  +0.47 / −0.63 against +0.05 / −0.29. Not the short spells (≤ 0.10ε there), not the
+  tolerance floor (0.004–0.012 rms) [m]; the candidates left are the reference (dry's own move
+  0.11ε) and the shutting side, where the hydraulic sensitivity's turn sits at a fixed 9–12 d
+  before c, so a merged interval ending at c reads it off the square law (the closing
+  round's δ(h − δ)) [i].
+- **The even replay is not a second estimate of the same thing.** With an even interval
+  count it removes the 2nd, 4th, … node, merges only each spell's middle pairs, and leaves
+  both end intervals as they were. On dry it reads 0.37 of the error with cos 0.29, points
+  along root_P50 −0.47 / omega +0.34, and differs from the odd replay by rms 0.17ε, max 0.50ε.
+- **The short spells' error is small but the proxy bound does not cover it**: true error
+  0.05–0.10ε (under ε/3 on all three), bound 0.002–0.013ε, 5–50× short.
+- **Cost.** Run + replay ≈ 1.6 runs of B ≈ 2.5–2.8 E6 committed runs in real rows, close to
+  E6's committed + check (2.4–2.6); most of B's excess is the tolerance (1.40–1.45× steps),
+  the rest the edge nodes (×1.11–1.21 at one tolerance).
+
+Scored: B1 holds (3/3 within ε); B2 refuted (1/3); B3 holds (long-wet, episodic-lma); B4
+holds (3/3); B5 holds; B6 refuted (real rows 1.57–1.73× E6 committed, under E6 c + f); B7
+refuted (cos 0.63); B8 refuted (the one quantity over 0.1ε uncovered; bound 5–50× short);
+B9 holds (max 0.10); B10 holds; B11 holds (0.55–0.64).
+
+**Against the revised design and vignette.**
+- *Contradicted:* the parity replay. Both documents say removing the even nodes gives a
+  second estimate that differs by 0–0.08ε. That number came from the omit-one maps on E6's
+  layout. With even counts the even removal covers different intervals (it never merges a
+  spell's end intervals), and on dry it differs by up to 0.50ε. A symmetric second estimate
+  needs another construction (e.g. a second run with nodes shifted by half a share).
+- *Contradicted:* "a bound for short spells" as proposed: the proxy-scaled bound
+  under-covers 5–50×. The short spells' error itself is small here (≤ 0.10ε).
+- *Contradicted in size:* "the breakpoints cost one node per edge, the same count as E6's
+  insets". B has 8–23% more nodes than E6 committed (×1.11–1.21 rows at one tolerance), and
+  3e-5 adds 1.40–1.45× steps.
+- *Not borne out at full strength:* the replay reading 0.92–1.02 (a model of the
+  interpolation part). Real reads are 0.75–0.87 and dry fails C3 on the root_P50 /
+  storage_relaxation_offset component.
+- *Borne out:* both edges as breakpoints (worst errors 0.47–0.79ε against D's 1.1–3.4ε, no
+  false accept), even counts (every interval merged), the replay's cost (0.55–0.64), 3e-5's
+  floor, and ages from T(t) (the layout ran with no absolute age).
+
+Added to the scored table below: B1–B11.
+
+| # | P | result |
+|---|---|---|
+| B1 | 55% | holds (3/3) |
+| B2 | 35% | refuted (1/3) |
+| B3 | 50% | holds (2/3) |
+| B4 | 50% | holds (3/3) |
+| B5 | 70% | holds |
+| B6 | 55% | refuted (1.57–1.73) |
+| B7 | 45% | refuted (cos 0.63) |
+| B8 | 45% | refuted |
+| B9 | 50% | holds (≤ 0.10) |
+| B10 | 90% | holds |
+| B11 | 65% | holds (0.55–0.64) |

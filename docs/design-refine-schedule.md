@@ -45,7 +45,8 @@ date. Its error is local, and adds over birth date:
 **So both edges are breakpoints.**
 - A spell [o, c] is one smooth panel.
 - The gap after it holds no establishment, so it needs no interior node.
-- The breakpoints cost one node per edge, the same count as E6's 12-day insets.
+- The breakpoints cost one node per edge. With a09's density the layout has 8–23% more
+  nodes than E6's committed run.
 
 **A node's cost depends on its birth date:** an early node lives for the rest of the run.
 
@@ -71,8 +72,9 @@ Kept true by structure:
    - the onset of offspring production replaces b = 10;
    - the time half of J has been produced replaces 17 and 20;
    - the time 90% has been produced replaces 25 (the late cut).
-3. **Run** at a tolerance whose own error is under ε/10 (3e-5 has a floor of 0.004–0.012 rms).
-   The replay shares the run's steps, so the run's tolerance error is never in the estimate.
+3. **Run** at a tolerance whose own error is under ε/10 (3e-5 has a floor of 0.004–0.012 rms,
+   at 1.4× the steps of 1e-4). The replay shares the run's steps, so the run's tolerance error
+   is never in the estimate.
 4. **Replay** with every other interior node removed: error ≈ (Q_removed − Q)/3. This costs
    about 0.6–0.8 of a run.
 5. **Stop** when every quantity is under its ε. The run is the answer.
@@ -100,9 +102,11 @@ of 0.024 rms of step noise.
 | Question | Answer [m] |
 |---|---|
 | Slope jumps only at openings? | Yes, but shuttings need breakpoints too. With openings only, worst errors were 3.36ε (dry), 1.13ε (long-wet) and 3.24ε (episodic-lma), and the replay read 0.2–0.44 of them |
-| Order 2 inside a spell at twice the spacing? | The interpolation part falls at order 1.6–2.0. With shutting breakpoints and even counts, the replay reads it at 0.92–1.02 |
+| Order 2 inside a spell at twice the spacing? | The interpolation part falls at order 1.6–2.0. On real runs with both edges as breakpoints and even counts, the replay reads the whole error at 0.75–0.87 (cos 0.88–0.97), and never accepts a run over ε |
+| Layout with both edges as breakpoints? | Worst error 0.79ε (dry), 0.47ε (long-wet), 0.76ε (episodic-lma; E6 1.29). The replay misses a root_P50 / storage-offset component (±0.4–0.6ε) on dry and episodic-lma, most likely the hydraulic change before each shutting under a uniform density. Run + replay ≈ E6's committed + check |
 | Replay honest by region? | ×0.8–1.25 on the saved region replays; dry-flat's interiors ×1.9 |
-| Map–replay agreement as a check? | Tests nothing useful: the gap is ≤ 0.004ε at the committed spacing. Replaced by a parity replay: removing odd vs even nodes spreads 0–0.08ε |
+| Map–replay agreement as a check? | Tests nothing useful: the gap is ≤ 0.004ε at the committed spacing |
+| Parity replay as a second estimate? | No: with even counts the even removal never merges a spell's end intervals; on dry it read 0.37 of the error. A second estimate needs a second schedule (the previous run, when counts double) |
 | Probe nodes between nodes? | Not today: the run refuses invaders born at dates it did not introduce |
 | Map's light/water split? | Says soil carries 58–89% of the field part. Not yet checked against a run that separates the channels |
 
@@ -119,10 +123,13 @@ of 0.024 rms of step noise.
 
 ## Still open
 
-- **The shutting breakpoints at real cost.** The next test is this layout on dry, long-wet and
-  episodic-lma: one run and one replay each.
+- **The density before each shutting.** The replay misses a hydraulic component; the next test
+  grades the density toward each shutting over 2–3 weeks, and separates that cause from dry's
+  reference with a run at doubled counts.
 - **dry-flat's interiors,** which region replays read at ×1.9.
-- **The bound for short spells.**
+- **The bound for short spells.** The first proposal was 5–50× short; their true error was
+  0.05–0.10ε on the three cases.
+- **The tolerance's cost,** or an estimate of the tolerance error instead of a tighter run.
 
 ## The tool
 
