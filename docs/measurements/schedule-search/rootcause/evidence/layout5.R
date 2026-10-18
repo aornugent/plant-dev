@@ -3,7 +3,7 @@
 # shutting (R13, R15), stretched by t_r(case) / t_r(dry), t_r = o ln(a_st3 a_dG2); each
 # replayed spell gets two more intervals. Ages from T(t): the bank's committed runs; for a
 # held-out case its record's bank case (episodic for epi-adG208). Writes the schedule, its
-# odd replay and its short-spell bisection for each case.
+# odd replay's kept nodes and its short-spell bisection for each case.
 source("/home/user/plant-dev/docs/measurements/schedule-search/rootcause/evidence/layoutB.R")
 EV <- file.path(SC, "evidence"); R5 <- file.path(EV, "r5")
 gp <- readRDS(file.path(EV, "grade.rds"))$profile; gp <- gp[gp$case == "dry", ]
@@ -23,7 +23,7 @@ if (sys.nframe() == 0) {
   for (cs in names(TR)) { s <- TR[[cs]] / TR[["dry"]]; L <- layout_B(cs, gfun = function(d) g_dry(d / s), add = 2); B <- layout_B(cs)
     e6 <- E6_c(cs); px <- pilot_run(cs); st <- px$times
     saveRDS(L, file.path(R5, sprintf("layout5_%s.rds", cs)))
-    saveRDS(L$S, file.path(R5, "sched", sprintf("G5_%s.rds", cs))); saveRDS(L$odd, file.path(R5, "sched", sprintf("G5o_%s.rds", cs))); saveRDS(L$bis, file.path(R5, "sched", sprintf("G5b_%s.rds", cs)))
+    saveRDS(L$S, file.path(R5, "sched", sprintf("G5_%s.rds", cs))); saveRDS(L$S[!(round(L$S, 10) %in% L$odd)], file.path(R5, "sched", sprintf("G5o_%s.rds", cs))); saveRDS(L$bis, file.path(R5, "sched", sprintf("G5b_%s.rds", cs)))
     P <- L$panels; rep <- P$n_int >= 2
     cat(sprintf("%-13s t_r %.1f d | nodes %d (B %d, E6 c %d) | replayed spells %d, short %d | odd removal %d | rows model x%.2f E6 c | ages %.1f/%.1f\n", cs, TR[[cs]],
       length(L$S), length(B$S), length(e6), sum(rep), sum(P$n_int == 1), length(L$odd), rows_model(L$S, st) / rows_model(e6, st), L$ages[1], L$ages[2])) } }
