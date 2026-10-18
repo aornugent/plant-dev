@@ -1,62 +1,80 @@
-# What we built since develop, split into two PR groups
+# What we built since develop: what to keep, and the two PR groups
 
-Surveyed on origin (aornugent forks), 2026-10-18. The plant stack is one chain of 64 commits over
-`develop` (95256cf3), PLANT-93 → PLANT-110, each branch on the one before; odelia's ODELIA-53 →
-55 is 31 commits over `master`; phylloptim's PHYLLOPTIM-17 → 19 is 9 commits over `master`. Open
-PRs today: only plant#94 (PLANT-93 → develop). The refine loop's evidence ran on libS: the chain
-through PLANT-110, PHYLLOPTIM-19 (0.9.3) and the rain substeps now in PLANT-105.
+An aggregate review, branch by branch, with DROP as the default verdict unless the final
+configuration needs the branch or it bought a measured gain worth its code. Sections:
+`docs/measurements/schedule-search/rootcause/review/stack/` (A: plant 93–101 and side
+branches; B: plant 102–105 and odelia; C: plant 106–110 and phylloptim).
 
-## Group 1: plant optimisations (and the odelia and phylloptim work they need)
+The plant stack is one chain over `develop`, PLANT-93 → 110 (64 commits), on ODELIA-53 → 55 and
+PHYLLOPTIM-17 → 19. Only plant#94 (PLANT-93) has an open PR.
 
-Each stays one PR per issue, stacked in the order below. Nothing here knows about node schedules
-beyond representing them.
+## Verdicts
 
-| branch | what it does |
-|---|---|
-| phylloptim PHYLLOPTIM-17, 18, 19 | root-finds stop at roundoff; a bisection that spends its budget is refused; the root curve and a determined collar are differentiated (0.9.0 → 0.9.3) |
-| odelia ODELIA-53, 54, 55 | runs at the caller's scalar and their recording; walks of recorded rows; per-component tolerance factors; splits at sign changes, forward and sweep; a subsystem stepped alone, with substeps at its forcing's knots (0.5.0) |
-| PLANT-93 | establishment integrated exactly on the birth-date coordinate (plant#94) |
-| PLANT-95 | the model at the caller's scalar; the stand's census gradient by trait; offspring-production sweeps; invaders in the recorded field; pinned replays of a run's rows |
-| PLANT-97, 98 | the storage pool: relaxation time and stage guard |
-| PLANT-99 | walk a recorded run without repeating it |
-| PLANT-100 | tolerance factors for soil, accumulators and a schedule, with a bound; the newborn's height to roundoff |
-| PLANT-101 | the field built without the newborn's rates |
-| PLANT-102, 103 | each node's step split where net production changes sign; its sweep |
-| PLANT-104 | `control_tf24()`, TF24's step control in one preset |
-| PLANT-105 | TF24's soil stepped alone where the plants draw little of its water; substeps at the rain's knots |
-| PLANT-106 | the window's tolerance factors from a pilot run and its invaders' walks (`control_window()`) |
-| PLANT-107 | crossed crowns summed tallest first |
-| PLANT-108 | each birth-date interval's leaf area spread between its nodes (re-blesses the references) |
-| PLANT-109 | invaders walked at a subset of the run's introductions |
+| branch | verdict | why (measured; section) |
+|---|---|---|
+| PHYLLOPTIM-17 | keep, split | Root-finds stop at roundoff: replay noise in ln J falls from 1.9e-8 to 8.5e-15. It carries 8 commits of the unmerged 0.9.0 base, so split those off. Cut two probe programs (563 lines). (C) |
+| PHYLLOPTIM-18, 19 | keep | They fix gradient refusals the loop hits (long drought at 1e-4) and one wrong gradient row (C) |
+| ODELIA-53 | keep, shrink | Recording, walks and tolerance factors carry PLANT-95, 99 and 100. Cut the dead `hermite_interpolator.hpp` (286 lines; it duplicates `interpolator.hpp` and breaks a build that includes both). Move the 2.0k lines of `notes/probes` to plant-dev (B) |
+| ODELIA-54 | keep | 12 lines that PLANT-103's sweep needs (B) |
+| ODELIA-55 | keep | Fold the rename commits into the commits that introduce the names (B) |
+| PLANT-93 | keep | Exact counts: a quarter-spacing shift moves J 0.22ε, against 1.45ε with point samples. The loop reads its weights (A) |
+| PLANT-95 | keep, shrink | Used: scalar templating, the census gradient, pinned runs, invaders in the recorded field. Cut the `overstorey_staging` demo (391 lines). Later, as its own cut, the 1067-line test-only `gradient_ladder.cpp` compiled into the shipped .so (A) |
+| PLANT-97 | keep, as a declared model change | The storage relaxation offset (7 d): explicit steps become stable, and invader throws fall from 759 to 149. J moves +2.0–2.7%. The loop's t_r and grade exist only because of it (A) |
+| PLANT-98 | keep (or merge into 97) | It deletes the stage guard: throws 149 → 0 (A) |
+| PLANT-99 | keep, shrink | Walking the recorded run cuts the first invasion from 300 s to 139 s. Cut `SCM$runs`, which exists for one test (A) |
+| PLANT-100 | keep, shrink | The tolerance factors and their bound save 30.6–33.7% of a gradient run, and the loop sets them. Cut the unused accumulator factor. The newborn's height to roundoff shares PHYLLOPTIM-17's verdict (A) |
+| PLANT-101 | keep | It drops a leaf solve nothing read, bit for bit (A) |
+| PLANT-102, 103 | keep (103 could merge into 102) | Plain fails the nudge test at 1e-4 (0.52ε); split, nothing moves past ε/6, at +5.4% forward and +7.3% sweep. Not yet measured with splits off on the final configuration (B) |
+| PLANT-104 | keep, fix | `control_tf24()` should be the one source of the controls: six of the nine the harness sets by hand equal it. Add the split and make 1e-4 the default (B) |
+| PLANT-105 | keep, shrink | Stepping the soil alone makes a gradient run cost 0.63 of the coupled one and cures the stiff-soil blow-up. The rain substeps cost 0.73–0.90 of the rows of stopping at every knot. Fold the renames; refuse a replay given times only (B) |
+| PLANT-106 | **drop** | The loop does not use `control_window()`: its weight files predate it, and the loop's first run already carries the record the window needs (C) |
+| PLANT-107 | keep | Without it, crowns that cross force a walk of every node (+23% of a forward); the sort costs nothing measurable (C) |
+| PLANT-108 | **keep unless a drop test passes** | See below (C) |
+| PLANT-109 | **drop** | Subset walks enable thinning rules measured off by 0.74ε and 0.43ε. You decided the full walk stays, and nothing else uses it (C) |
+| PLANT-110 | **drop from group 1** | The loop's estimates replace its node-error estimate. About 30 lines survive into group 2: the distance from the grid's run, the invaders' ln(θ′/θ) and failures (C) |
+| PLANT-96 | **drop** | Superseded by PLANT-105's substeps; nothing depends on it (A) |
+| averaged establishment gate | **drop** | The design says it will not land, and it sits off the chain. The plant-dev submodule pointer still points at it (A) |
 
-## Group 2: the scheduling algorithm
+Dropping 106, 109, 110, 96 and the gate changes no numbers. Every shrink is an amend in its own
+branch followed by `rebase --update-refs`; conflicts are limited to regenerated bindings and
+snapshots.
 
-One PR (or two, stacked) on top of PLANT-109:
+## The spread (PLANT-108)
 
-- **Port `refine_schedule` into plant**, from `harness/schedule/refine.R`:
-  - the first run's establishment rate and T(t) become records of the run itself, instead of being
-    decoded from stored states;
-  - `stand_run`, the schedule functions and the loop become plant R functions with tests;
-  - the C++ `SCM::refine_schedule` and the `run_scm(refine_schedule =)` argument are replaced;
-    logpile's `refine_schedule` key changes with it (its request fingerprints change).
-- **PLANT-110's diagnostics** (`diagnose_scm`):
-  - its node-error estimate from runs at every other and every fourth introduction is superseded
-    by the loop's replay and doubled-pair estimates;
-  - its distance from the run that built the grid is the design's R6 diagnostic.
-  - So PLANT-110 moves out of group 1 and is reworked into this PR.
+- **Against:**
+  - single runs are less accurate (2.72ε against 0.70ε at 108 uniform introductions);
+  - on placed grids that reach ε, lumped and spread agree within 0.084ε;
+  - it does not help graded nodes;
+  - it costs 2–6% of a sweep;
+  - it makes FF16 9–25× worse at FF16's default schedule.
+- **For:**
+  - it puts the error on the square law, so a coarser run estimates the error honestly: 0.95–0.98
+    of it on uniform ladders, against lumped's negative ratios. On placed grids the invader's
+    estimate reads 1.06 with the spread against 0.30 lumped;
+  - every reference in the bank is an extrapolation on uniform ladders, which is honest only on
+    the square law;
+  - the loop's 0.82 and 0.33ε were measured with it. The earlier evidence puts lumped's ratio at
+    0.30–0.80, at or below 0.82.
+- **Drop test (about twice round 5's CPU):** run the five canonical loops on a build without
+  PLANT-108. Drop it only if every case's ratio stays at 0.82 or above and the bound still covers
+  the true error.
 
-## Not in either group
+## Two PR groups, after the drops
 
-- **PLANT-96** ("land on a pulse of nothing"): a side branch off PLANT-95, not in the chain.
-- **The averaged establishment gate** (b3a33626, 6613dd24, the current plant-dev submodule
-  pointer): an experiment off the chain.
-- **The many `ad/*`, `feat/*` and `fix/*` branches and their open PRs** on the three forks: older
-  work, untouched.
+- **Group 1, plant optimisations:**
+  - PHYLLOPTIM-17 (split), 18, 19, then ODELIA-53, 54, 55;
+  - PLANT-93, 95, 97 (+98), 99, 100, 101, 102 (+103), 104, 105, 107, and 108 if it stays;
+  - one PR per issue, stacked.
+- **Group 2, the scheduling algorithm:** one PR on top of group 1.
+  - It ports `refine_schedule` from `harness/schedule/refine.R`. The first run's establishment
+    rate and T(t) become records of the run.
+  - It replaces the C++ `SCM::refine_schedule` and the `run_scm(refine_schedule =)` argument;
+    logpile's key changes with it.
+  - It carries PLANT-110's surviving 30 lines and calls `control_tf24()` for its controls.
 
-## Dependencies that fix the order
+## Also found
 
-- The loop's constants (r_min 0.82, u_q) were measured on libS. That library includes PLANT-108's
-  spread, PLANT-105's soil substeps and PHYLLOPTIM-19, so group 2 sits on group 1, not beside it.
-- The loop's run setting uses group 1's controls: tolerance factors and their bound (PLANT-100),
-  splits (102), the soil alone (105) and the window's factors (106). It also uses PLANT-95's
-  pinned replays and gradients, and PLANT-93's exact counts.
+- **The phylloptim pin:** plant at PLANT-110 pins phylloptim == 0.9.1, while libS was built with a
+  local edit to 0.9.3. The pin belongs in the branch that needs 0.9.3.
+- **The model-version snapshot:** stale on PLANT-100 to 104 and fixed in 105. The fix belongs in
+  100 and 102.
