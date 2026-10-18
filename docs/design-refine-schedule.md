@@ -86,17 +86,19 @@ Kept true by structure:
    and T(t).
 2. **First schedule.** The breakpoints are the openings and ends. The density is graded by the
    offspring curve, with ages from T(t), and rises to about 2 over t_r before each spell end
-   (the shape is a hump near 0.6 t_r when t_r is long; R18). No interval is wider than 80 d, so
+   (at a doubled storage offset the rise becomes a hump near 0.6 t_r, not yet tested in a real
+   run; R18). No interval is wider than 80 d, so
    a merged pair stays within the 160 d where the square law was measured.
 3. **Run** at 1e-4.
-4. **Replay** with every other interior node removed: estimate = (Q_removed − Q)/3 + u_q, where
-   u_q covers the tolerance's bias (≤ 0.11ε on five cases) and spells too short to hold two
-   intervals (≤ 0.10ε on three cases). The replay costs 0.53–0.64 of a run.
-5. **Stop** when every quantity's estimate is under r_min ε_q, where r_min is the lowest ratio
-   of estimate to true error measured on the chosen layout. That was 0.75 without the grading
-   before spell ends and 0.97 with it, on dry only; round 5 measures it on five cases.
+4. **Replay** with every other interior node removed: the estimate is e_q = (Q_removed − Q)/3.
+   The replay costs 0.51–0.66 of a run.
+5. **Stop** when every quantity's bound, |e_q| / r_min + u_q, is under ε_q.
+   - r_min = 0.82, the lowest ratio of estimate to true error on the graded layout (0.82–1.17
+     on five cases, cosine 0.95–1.00 once short spells are set aside).
+   - u_q = 0.33ε covers what the replay cannot see: the tolerance's bias at 1e-4 (≤ 0.11ε) and
+     spells too short to hold two intervals (≤ 0.22ε, dry-flat).
 6. **Otherwise** take spell ends from this run (they move a median 0.48 d between passes, the
-   first spell's by 12 d), scale N by 1.1 × √(worst estimate / (r_min ε)), raise N further
+   first spell's by 12 d), scale N by 1.1 × √(worst bound / ε), raise N further
    until the spell holding the worst error changes its count, and go to 3. After four passes,
    return the finest run, flagged as unconverged.
 
@@ -134,13 +136,14 @@ stall to 0.0003 d in five rounds.
 | Replay honest by region? | ×0.8–1.25 on the saved region replays; dry-flat's interiors ×1.9 |
 | Parity replay as a second estimate? | No: with even counts the even removal never merges a spell's end intervals; on dry it estimated 0.37 of the error |
 | Probe nodes between nodes? | Not today: the run refuses invaders born at dates it did not introduce |
-| Does the stop ever accept a run over ε? | Untested: no run of the graded layout was over ε. Round 5 tests it |
+| The graded layout on five cases at 1e-4? | dry, long-wet, episodic-lma, dry-flat and a held-out episodic with a_dG2 ×0.8 (t_r 17.8 d): worst error 0.30–0.56ε, at or under E6 committed's (0.35–1.29) on every case; the spell-end component within 0.23ε (0.4–0.6 uniform). The bound on the worst quantity, from its error and the case's read, is 0.67–0.89ε, so each case stops at the first pass. Real rows 1.47–1.66× E6 committed; run plus replay 0.92–1.10× E6 committed plus check |
+| Does the stop ever accept a run over ε? | Untested: no run of the graded layout has been over ε, so no false accept could occur |
 
 ## Guarantees, by construction
 
 - **G1 The last run is the answer;** earlier runs and replays are spent.
 - **G2 Coverage.** Every interval in a spell with two or more is merged once. Shorter spells
-  are covered by u_q, a measured maximum, not an estimate.
+  are covered by u_q, a measured maximum (0.22ε over five cases), not an estimate.
 - **G3 No step noise in the estimate:** the replay uses the run's steps.
 - **G4 Any length:** the ages come from T(t) and the grading's width from t_r. Not yet: the
   run's tolerance weights sit on a fixed 0–40 y grid, and T(t) has not been measured on another
@@ -171,8 +174,11 @@ without reserves), its ε table, and its u_q. TF24's are above.
 
 ## What this makes hard
 
-- **Cost:** the graded layout has 38–68% more nodes than E6's committed run; the gain is an
-  honest estimate in one run, not fewer nodes.
+- **Cost:** the graded layout has 38–68% more nodes than E6's committed run (1.47–1.66× its
+  rows); run plus replay is level with E6's run plus check (0.92–1.10×). The gain is an honest
+  estimate in one run, not fewer rows.
+- **The fixed term u_q:** 0.33ε of the budget goes to what the replay cannot see, two thirds of
+  it to short spells. A bound for them that is not a worst case would return most of it.
 - **Several passes:** each extra pass spends a run and its replay, about 1.6 runs.
 - **Continuity across a rebuild:** the answer jumps where a big step in θ rebuilds the
   schedule.
@@ -185,8 +191,8 @@ than the 4.1% measured, candidate A (allocation by the node-drop map) takes over
 
 ## Still open
 
-- r_min on the graded layout beyond dry, and whether the stop ever accepts a run over ε
-  (round 5).
+- Whether the stop ever accepts a run over ε: needs a case where the first pass is over ε.
+- r_min and u_q from five cases; the bank has ten.
 - The invaders' spell ends against the resident's.
 - dry-flat's interiors, where region replays estimated 1.9× the error.
 - Which of light or water carries the understory's error (the node-drop map says soil carries
@@ -198,7 +204,7 @@ than the 4.1% measured, candidate A (allocation by the node-drop map) takes over
 ```r
 fit <- refine_schedule(p)
 fit$answer     # ln J, elasticities and curvatures, from the last run
-fit$estimate   # each quantity's estimate: replay term + u_q
+fit$estimate   # each quantity's estimate e_q, and its bound |e_q|/r_min + u_q
 fit$schedule   # breakpoints, density, N (node times derived)
 fit$where      # ln J's error by spell, from the node-drop map (+5-8% of a sweep)
 fit$history    # each pass: N, answer, estimate; why the loop stopped; failures

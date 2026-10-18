@@ -9,6 +9,20 @@ reading or estimate). Errors are in each quantity's ε (`docs/measurements/eps-s
 
 ## Summary (written last)
 
+**Round 5 (R17–R19).** The grading's width is not a first-run quantity: it is how long a newborn's
+reserves last once its production turns negative, t_r = storage_relaxation_offset ·
+ln(a_st3 · a_dG2) = 19.4 d (the pool decays with e-fold time o after P < 0, whatever the
+seedling's size). t_r predicts every measured half-rise width within 26% (14.4–21.4 d on dry,
+long-wet, dry-p50 and dry-flat; sensitivities and ln J's integrand alike); per zone the width does
+not follow the drought's length (ρ −0.14 over 38 zones of 14–75 d droughts); a map with the offset
+doubled doubles it (×2.2–2.4 against ×2.0 predicted), though the profile becomes a hump about
+0.6 t_r before c. The height (g ≈ 2–2.4) has no first-run predictor and was held at dry's. The
+layout graded by t_r (G5), at 1e-4 with every quantity held to 0.88ε, passes C1–C5 on dry,
+long-wet, episodic-lma, dry-flat and held-out epi-adG208: worst 0.30–0.56ε (E6 committed
+0.35–1.29), read 0.82–1.17, root_P50 and the storage offset ≤ 0.23ε, short spells 0.05–0.22ε,
+1.38–1.68× E6 committed's nodes, run + replay 0.92–1.10× E6 committed + check. Sixteen runs;
+92 predictions in all, 56 held.
+
 **Round 4 (dry; R15, R16).** The storage offset's order-1 component is not a slope jump at a
 fixed birth date: no reserve threshold is crossed between neighbours (every cohort near a
 shutting empties its reserves) and no cohort reaches the parked hazard. Its sensitivity
@@ -1181,3 +1195,87 @@ covered shuttings, far window 60–100 d:
   So a template stretched by t_r overweights the last days when t_r grows; the hump sits near
   0.6 t_r before c [i]. The height (g_max) is unchanged.
 - Scored: R5g holds (2.42, at the top of 1.5–2.5); R5h holds.
+
+### R19. The real test: G5 at 1e-4 on five cases (`layout5.R`, `run5.sh`, `score_r5.R`) [m]
+
+Fifteen gradient runs on libS at 1e-4, all exit 0; every replay on its run's exact steps.
+Errors against the references (dry, long-wet, dry-flat the bank's; episodic-lma u429 → u857;
+epi-adG208 u215 → u429, own move 0.14ε); criteria at 0.88ε.
+
+| | dry | long-wet | episodic-lma | dry-flat | epi-adG208 (held out) |
+|---|---|---|---|---|---|
+| nodes G5 / E6 c / E6 f | 232 / 149 / 219 | 217 / 157 / 234 | 201 / 120 / 182 | 271 / 191 / 258 | 195 / 134 / 205 |
+| worst err (q) / rms | **0.33** (a_l1) / 0.11 | **0.33** (a) / 0.08 | **0.54** (lma) / 0.28 | **0.56** (a) / 0.16 | **0.30** (a_l1) / 0.09 |
+| E6 committed worst / rms | 0.35 / 0.16 | 0.36 / 0.09 | 1.29 / 0.68 | 0.58 / 0.18 | 0.39 / 0.14 |
+| root_P50 / storage offset err | +0.00 / −0.12 | −0.03 / +0.07 | −0.07 / −0.23 | −0.09 / −0.15 | −0.05 / −0.10 |
+| estimate max / cos / read | 0.33 / 0.95 / 1.01 | 0.27 / 0.99 / 0.84 | 0.47 / 1.00 / 0.83 | 0.43 / 0.96 / 0.82 | 0.35 / 0.71 / 1.17 |
+| rms(err − est) | 0.046 | 0.014 | 0.049 | 0.050 | 0.059 |
+| C1 C2 C3 C4 C5 at 0.88ε (C3 misses) | ✓✓✓✓✓ (0/1) | ✓✓✓✓✓ (0/1) | ✓✓✓✓✓ (0/15) | ✓✓✓✓✓ (0/4) | ✓✓✓✓✓ (0/1) |
+| short spells' true error, max (q) / rms | 0.10 (root_P50) / 0.03 | 0.05 (root_P50) / 0.02 | 0.09 (storage offset) / 0.02 | 0.22 (a_l1) / 0.07 | 0.16 (TF24_cost_scale) / 0.06 |
+| cos(est, err − short spells' error) | 0.96 | 0.98 | 1.00 | 0.94 | 0.96 |
+| real rows G5 / E6 c | 1.60 | 1.47 | 1.66 | 1.48 | 1.48 |
+| G5 + replay / E6 c | 2.66 | 2.47 | 2.61 | 2.62 | 2.38 |
+| G5 + replay / (E6 c + check) | 1.09 | 0.99 | 1.02 | 1.10 | 0.92 |
+| replay share of the run: CPU / rows | 0.58 / 0.66 | 0.60 / 0.68 | 0.51 / 0.57 | 0.66 / 0.77 | 0.54 / 0.60 |
+| steps / E6 c's | 1.06 | 1.05 | 1.10 | 1.06 | 1.08 |
+
+- **Every case is within 0.88ε, the replay reads it, and nothing is falsely accepted.** Worst
+  0.30–0.56ε, at or below E6 committed's on all five (episodic-lma 0.54 against 1.29). Read
+  0.82–1.17, cos 0.95–1.00 except epi-adG208 (0.71), whose errors are all small (≤ 0.30) and
+  whose unread part is its short spells: against the error less the short spells', cos is 0.96.
+- **The shutting component stays fixed on new records and on the held-out trait.** root_P50
+  and the storage offset are within 0.23ε everywhere (B at 3e-5 had them at 0.4–0.6 on dry and
+  episodic-lma).
+- **dry at 1e-4 against Bga at 3e-5:** max 0.10ε (TF24_cost_scale), rms 0.03: inside the
+  0.12ε reserve, with a reconstructed grade that moves nodes by up to 1.5 d.
+- **Short spells:** true error 0.05–0.22ε, under ε/3 on all five, but larger on dry-flat (65
+  short spells) and epi-adG208 than the 0.05–0.10 of round 2's three cases. Each estimate
+  carries 1e-4's step noise (≈ 0.024 rms).
+- **Cost.** G5 has 1.38–1.68× E6 committed's nodes and 1.47–1.66× its real rows (steps only
+  1.05–1.10×: the excess is nodes). Run + replay is 0.92–1.10× E6 committed + check, so level
+  with E6's pair, with the run's own estimate and E6 committed's accuracy or better.
+
+Scored: R5i holds (≤ 0.56); R5j holds (5/5); R5k holds; R5l holds (read 5/5 in band, cos ≥ 0.9
+on 4/5); R5m holds (0.10); R5n holds (≤ 0.23); R5o refuted (rows 1.60 and 1.66 on dry and
+episodic-lma; run + replay under E6's pair on 2 of 5); R5p holds (≤ 0.22); R5q holds.
+
+| # | P | result |
+|---|---|---|
+| R5a | 60% | holds (ρ −0.14) |
+| R5b | 45% | refuted (ρ +0.14) |
+| R5c | 50% | holds (20, 20 d) |
+| R5d | 40% | holds |
+| R5e | 50% | holds |
+| R5f | 60% | holds (0.74–1.10) |
+| R5g | 45% | holds (2.42) |
+| R5h | 65% | holds |
+| R5i | 50% | holds (≤ 0.56) |
+| R5j | 55% | holds (5/5) |
+| R5k | 75% | holds |
+| R5l | 40% | holds |
+| R5m | 55% | holds (0.10) |
+| R5n | 50% | holds (≤ 0.23) |
+| R5o | 45% | refuted |
+| R5p | 55% | holds (≤ 0.22) |
+| R5q | 90% | holds |
+
+**Against the design and the vignette (round 5).**
+- *Contradicted:* design, "The breakpoints cost one node per edge. With a09's density the
+  layout has 8–23% more nodes than E6's committed run." With the grading and its two intervals
+  per spell, which the design now commits to, the layout has 38–68% more nodes (1.47–1.66× real
+  rows); run + replay is still level with E6's pair (0.92–1.10).
+- *Contradicted across traits:* vignette, "The density rises about 2× over the last 18 days,
+  tapering to 1 by 27, and each spell gets two more intervals for it." (and the design's "about
+  2× over 18 days tapering to 1 by 27"). That holds for storage_relaxation_offset = 7 d; the
+  width is t_r = o·ln(a_st3·a_dG2) and doubles with o (R18), so the days must be t_r's.
+- *Contradicted in size:* design, "their true error was 0.05–0.10ε on the three cases", and the
+  vignette's "their error was 0.05–0.10ε": on dry-flat and epi-adG208 it is 0.22 and 0.16ε.
+- *To change, not contradicted:* "Open: take the grading's width from the first run": it comes
+  from the parameters, not the first run; nothing in the first run (drought length, record)
+  moves it. The vignette's "set by the seedling's starting reserves" is right in kind; the
+  quantity is how long they last once production turns negative. Algorithm step 3 ("run at a
+  tolerance whose own error is under ε/10 (3e-5)") is not needed: 1e-4 with 0.88ε passed
+  everywhere, as the design's "Still open" proposes.
+- *Borne out:* the replay's read with the grading (0.82–1.17), no false accept, "at 1e-4, run
+  plus replay ≈ E6's committed plus check" (0.92–1.10), the replay's cost (0.51–0.66 of a run in
+  CPU, 0.57–0.77 in rows).

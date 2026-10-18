@@ -48,7 +48,7 @@ reports its own estimate.
 ```{r whole, eval = FALSE}
 fit <- refine_schedule(p, mkenv("episodic"))
 fit$answer     # ln J, its gradient and curvatures, from the last run
-fit$estimate   # each quantity's estimated error, from that run's replay
+fit$estimate   # each quantity's estimated error from that run's replay, and its bound
 fit$schedule   # breakpoints, density and scale; node times follow from them
 fit$where      # J's error by spell
 fit$history    # each pass: its scale, answer, estimate; why the loop stopped
@@ -177,8 +177,8 @@ On the ten-case bank these land at about 10, 16–24 and 23–29 years, where fi
 put them. In a shorter run they move earlier with it.
 
 **A spell too short to hold two intervals** keeps one, and the replay does not see it.
-Such spells hold much of the establishment but 0.5–6.6% of J; on three cases their error
-was at most 0.10ε, and that maximum is added to every estimate.
+Such spells hold much of the establishment but 0.5–6.6% of J; on five cases their error
+was at most 0.22ε, and that maximum is added to every bound.
 
 # How a run estimates its own error
 
@@ -200,19 +200,22 @@ Why it can be trusted:
   difference.
 - **The replay includes the stand's response.** A removed node changes the light and
   water every cohort meets, and the replay recomputes that.
-- **Measured:** with both spell ends as breakpoints, the estimate was 0.75–0.87 of the
-  error (cosine 0.88–0.97) on dry, long-wet and episodic with lma ×1.25, and never
-  passed a run that was over ε. With the grading before spell ends it was 0.97 on dry.
+- **Measured:** with both spell ends as breakpoints and the grading before them, the
+  estimate was 0.82–1.17 of the error on dry, long-wet, episodic with lma ×1.25, dry-flat
+  and episodic with a_dG2 ×0.8 (cosine 0.95–1.00 once short spells are set aside). The
+  worst errors were 0.30–0.56ε, at or under today's tuned schedule's on every case.
 - **Cost:** 0.53–0.64 of a run.
 
-What the replay cannot see is added to its estimate as a fixed amount:
+What the replay cannot see is added as a fixed amount, 0.33ε, to make a bound:
 - **The run's own ODE tolerance error,** because the replay shares the run's steps. At
   1e-4 that error was at most 0.11ε on five cases (3e-5 cuts it but costs 1.4× the steps).
-- **Spells too short to hold two intervals,** at most 0.10ε.
+- **Spells too short to hold two intervals,** at most 0.22ε.
 
 The replay also estimates less than the whole error: 0.75–0.87 of it with a uniform
-density, 0.97 with the grading before spell ends (dry only). So the loop stops when every
-estimate is under that lowest ratio times ε.
+density, and 0.82–1.17 with the grading before spell ends, on five cases. So each
+quantity's bound is its estimate divided by 0.82, plus 0.33ε, and the loop stops when every
+bound is under ε. On the five cases the worst bound was 0.67–0.89ε, so the first pass
+would have stopped.
 
 **Where the error is.** The run's own reverse sweep, with a small addition, also gives
 J's error by stretch of birth date, to 0.03ε, for 7.5% more than the run.
@@ -231,10 +234,10 @@ J's error by stretch of birth date, to 0.03ε, for 7.5% more than the run.
    │  │                                                          of each quantity
    │  └► reverse sweep ──► where J's error is
    ▼
-  every quantity's estimate under the limit?
+  every quantity's bound under ε?
         │ yes: this run is the answer; keep its schedule for the analysis
         │ no:  take spell ends from this run, raise the scale by
-        │      1.1 × √(worst estimate / limit), far enough that the spell holding
+        │      1.1 × √(worst bound / ε), far enough that the spell holding
         │      the worst error changes, and run again; after four passes, report
         │      the finest run as unconverged
 ```
@@ -279,11 +282,12 @@ reports its own estimate.
 
 # Still being tested
 
-- the graded layout on more cases: how much of the error its replay estimates, and
-  whether the loop ever stops on a run over ε;
+- whether the loop ever stops on a run over ε, which needs a case whose first pass is
+  over ε; and the other five cases of the bank;
+- a bound for short spells that is not their worst case, which would return most of the
+  0.33ε set aside;
 - invaders' spell ends against the resident's;
 - dry-flat's understory, where region replays estimated 1.9× the error;
-- a bound for spells too short to hold two intervals;
 - which of light or water carries the understory's error.
 
 Settled so far:
@@ -292,4 +296,6 @@ Settled so far:
 - the last weeks of a spell need a graded density with more intervals, not a breakpoint
   of their own: on dry that took the worst error from 0.79 to 0.36ε (E6, today's tuned
   schedule: 0.35) and the estimate to 0.97 of the error;
-- the grading's width is t_r, from the traits, not from the drought's length.
+- the grading's width is t_r, from the traits, not from the drought's length;
+- at the tolerance 1e-4 a run plus its replay costs 0.92–1.10× today's tuned schedule's run
+  plus its check, with 38–68% more nodes.
