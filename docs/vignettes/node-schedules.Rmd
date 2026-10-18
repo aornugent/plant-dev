@@ -181,9 +181,12 @@ Why it can be trusted:
   ×1.25, and never passed a run that was over ε. Removing every region at once gives the
   sum of removing each alone (correlation 1.000).
 - **What it still misses:** on dry and episodic with lma ×1.25, a component in root_P50
-  and the storage offset (errors ±0.4–0.6ε, read near zero). The likely cause is the
-  hydraulic change before each shutting, which a uniform density within the spell does not
-  resolve.
+  and the storage offset (errors ±0.4–0.6ε, read near zero). It halves, not quarters, when
+  the counts double, so it sits at a fixed birth date that intervals reach across.
+  - Grading the density toward each shutting, as the measured curvature rises over the last
+    18–27 days, removes the root_P50 half (+0.41 to +0.15ε, now read by the replay) for 3
+    more nodes on dry.
+  - The storage offset's half is still unlocated.
 - **Cost:** 0.6–0.8 of a run.
 
 Two things the replay cannot see:
@@ -262,11 +265,13 @@ its own error.
 
 # Still being tested
 
-- a density graded toward each shutting, over the 2–3 weeks where fate curves sharply,
-  in place of a uniform density within the spell;
+- where the storage offset's remaining error sits, and whether it is a slope jump of a
+  second kind;
 - dry-flat's understory, where region replays read 1.9× the error;
 - a bound for spells too short to hold two intervals;
-- the cost of the tolerance: at 3e-5 a run takes 1.4× the steps of 1e-4.
+- the tolerance: 3e-5 costs 1.4× the steps of 1e-4; running at 1e-4 and holding every
+  quantity to 0.88ε covers the tolerance's measured bias (at most 0.11ε) for 0.7 of the
+  cost.
 
 Settled so far:
 - fate's slope jumps only at openings, but shuttings need breakpoints as well. With

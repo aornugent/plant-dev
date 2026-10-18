@@ -9,6 +9,16 @@ reading or estimate). Errors are in each quantity's ε (`docs/measurements/eps-s
 
 ## Summary (written last)
 
+**Round 3 (dry; R13, R14).** Offline, the removal under-reads the shutting zones'
+root_P50 interpolation error under B's near-uniform density (0.56–0.75 per zone); grading
+by the measured curvature, κ^(1/3) over the last 18–27 d, brings it to 0.90–1.14. In runs:
+the doubled run reads B's error at 1.04 (cos 0.97), so the reference is right, but the
+root_P50 / storage-offset component only halves per doubling (order ≈ 1). The graded layout
+(+3 nodes) cuts root_P50 0.41 → 0.15 and its replay reads it, passing C1–C5; the storage
+offset (−0.37) is still missed. At 1e-4 the graded layout would cost ≈ 1.23× E6 committed
+and run + replay ≈ 2.0 against E6's 2.4 [i]; 1e-4 with a fixed 0.12ε tolerance reserve
+serves, a per-run nudge does not pay. Three more runs; 66 predictions in all, 34 held.
+
 **Round 2 (layout B: both edges as breakpoints, even counts, short spells left at one
 interval, ages from T(t), 3e-5; R12).** All three runs are within ε (worst 0.79 dry, 0.47
 long-wet, 0.76 episodic-lma; E6 committed 0.35, 0.36, 1.29). The odd replay reads 0.75–0.87
@@ -744,3 +754,148 @@ Added to the scored table below: B1–B11.
 | B9 | 50% | holds (≤ 0.10) |
 | B10 | 90% | holds |
 | B11 | 65% | holds (0.55–0.64) |
+
+## Round 3: grading the density toward each shutting (coordinator's request after R12)
+
+## Pre-registration 10 (before `grade.R`)
+
+Offline, on the closing fate maps (dry 7 and long-wet 10 covered long-spell zones; 3-d nodes
+over each spell's last 120 d, root_P50 × 1.02 twins), integrands G (ln J) and G·s
+(root_P50's elasticity; storage_relaxation_offset has no map, so root_P50 stands for the
+missed component). For each zone: B's own nodes inside the covered window (from the first
+kept node, so the odd removal is the one B's replay made), the interpolation error of B and
+of its removal over [start, c], and the removal's read (Q_removed − Q_B)/3 against B's own
+error. Then a graded density: ρ = ρ₀ · g(d), d the distance to c, g = (κ(d)/κ_far)^(1/3)
+from the maps' median curvature profile of G·s (equal error per interval for a hat rule),
+capped at the profile's own maximum, κ_far its median over 30–60 d before c; the count at
+equal ρ-mass, even.
+
+| # | prediction | P |
+|---|---|---|
+| R3a | under B's uniform density the removal reads the root_P50 interpolation error of the shutting zones at < 0.7 or > 1.4 on at least one case | 55% |
+| R3b | the curvature profile rises over the last 12–21 d, and g reaches 2–3 at c | 50% |
+| R3c | under the graded density the read lies in [0.8, 1.25] on both cases, and the zones' root_P50 interpolation error falls at least 2× | 45% |
+| R3d | grading adds 1–3 nodes per long-spell shutting (dry: + 25–75 nodes over B) | 55% |
+
+### R13. The shutting zones offline, uniform against graded (`grade.R`) [m, model]
+
+Curvature profile of G·s (median over zones, relative to 30–60 d before c), and the grade
+g = κ^(1/3):
+
+| d before c (days) | 3–6 | 9 | 12 | 15 | 18 | 21 | 24 | 27 | ≥ 30 |
+|---|---|---|---|---|---|---|---|---|---|
+| dry κ (g) | 6.1 (1.83) | 5.6 (1.78) | 5.2 (1.73) | 4.4 (1.63) | 2.7 (1.39) | 1.6 (1.18) | 1.4 (1.11) | 1.3 (1.10) | 1 |
+| long-wet κ (g) | 17.0 (2.57) | 14.4 (2.43) | 11.3 (2.25) | 7.1 (1.93) | 4.1 (1.60) | 2.8 (1.41) | 2.1 (1.27) | 1.6 (1.18) | 1 |
+
+Interpolation part over [c − 117 d, c] of the fully covered zones (dry 20, long-wet 17):
+
+| | dry: B | dry: graded | long-wet: B | long-wet: graded |
+|---|---|---|---|---|
+| intervals in these spells | 72 | 112 | 58 | 90 |
+| root_P50 error (sum; sum of \|·\|) | −0.125 (0.125) | −0.044 (0.044) | −0.006 (0.011) | −0.0001 (0.004) |
+| removal read, root_P50: on the sum / zone median | 0.75 / 0.75 | 0.90 / 0.90 | 0.33 / 0.56 | (sum ≈ 0) / 1.14 |
+| ln J error; read on the sum / zone median | +0.024; 1.00 / 0.94 | +0.010; 0.74 / 0.72 | +0.011; 0.79 / 0.79 | +0.004; 1.04 / 1.00 |
+
+- Under B's near-uniform spell density the removal under-reads the root_P50 interpolation
+  error before shuttings (0.56–0.75 per zone): the merged interval ending at c spans the
+  curvature's rise. Grading by κ^(1/3) over the last ~3 weeks cuts that error 2.7–2.9× and
+  brings the read to 0.90 (dry) and 1.14 (long-wet), for +2 intervals per long-spell shutting.
+- This is the interpolation part only, and on dry it is −0.125 against the missed
+  component's +0.41 (opposite sign, the field carries the rest), so whether the grading fixes
+  the run needs the run.
+- Scored: R3a holds (long-wet 0.33 / 0.56); R3b refuted (the rise spans 18–27 d, but dry's g
+  is 1.83 at c); R3c holds on the zone medians (0.90, 1.14; errors 2.9× and 2.7× smaller;
+  long-wet's summed error cancels to ~0, so its summed read means nothing); R3d holds (+2.0
+  and +1.9 per shutting).
+
+## Pre-registration 11 (before building the dry layouts and the three runs)
+
+Runs on dry, libS, TOL 3e-5, as round 2: **B2** (B with every panel's count doubled at the
+same ρ₀ quantiles, so B is exactly B2's removal case; B's error ≈ (4/3)(Q_B − Q_B2), with
+3e-5's step noise); **Bg** (B with ρ₀ × g(d) toward every shutting breakpoint, dry's profile
+above; counts even, one-interval spells by the same rule); **Bg's odd replay**.
+
+| # | prediction | P |
+|---|---|---|
+| R3e | (4/3)(Q_B − Q_B2) matches B's reference error within 0.15ε in both root_P50 (+0.41) and storage_relaxation_offset (−0.49): the reference is right and B's replay read that component off the law | 45% |
+| R3f | Bg's root_P50 and storage_relaxation_offset errors are each ≤ 0.25ε and its worst ≤ B's 0.79 | 40% |
+| R3g | Bg's replay passes C2 and C3 at ε with a read in [0.8, 1.25] | 45% |
+| R3h | Bg has 20–60 more nodes than B (183) | 55% |
+| R3i | B2's own error (against the reference) has worst ≤ 0.35 | 50% |
+
+Schedules built (before any run): B2 318 nodes, nested over B (B is exactly its odd
+removal); Bg 186 nodes (B + 3), rows model ×1.23 E6 committed (B ×1.21, B2 ×2.10). Grading
+B's own ρ₀ rarely moves a spell's even count (the grade adds ~0.2 interval of mass per spell),
+so Bg mostly redistributes B's nodes toward each shutting. The offline model above had given
+each graded spell its own even ceiling of the graded mass, +2 intervals per spell. The same
+model with the count held (`grade_fixed.R` in the scratchpad): dry root_P50 interpolation
+error −0.125 → −0.096, read 0.75 → 0.97 (zone median 0.96); long-wet zone read 0.56 → 0.78.
+So Bg tests the read at almost no cost; the error itself falls little. R3h is refuted by the
+schedule (+3, not 20–60).
+
+### R14. Round 3 runs on dry: B2 (doubled), Bg (graded) and its replay (`run3.sh`, `score_r3.R`) [m]
+
+Three gradient runs, libS, 3e-5, all exit 0; Bg's replay on Bg's exact steps.
+
+| | ln J | root_P50 | storage_rel._offset | a_l1 | omega | TF24_cost_scale | a | worst | rms |
+|---|---|---|---|---|---|---|---|---|---|
+| B: error | −0.26 | +0.41 | −0.49 | +0.79 | −0.31 | +0.45 | −0.48 | 0.79 | 0.26 |
+| B: odd replay | −0.25 | −0.03 | −0.04 | +0.79 | −0.09 | +0.33 | −0.46 | | |
+| B: (4/3)(Q_B − Q_B2) | −0.27 | +0.26 | −0.34 | +0.92 | −0.32 | +0.55 | −0.52 | | |
+| B2: error | −0.05 | +0.21 | −0.23 | +0.10 | −0.07 | +0.04 | −0.09 | 0.23 | 0.075 |
+| Bg: error | −0.25 | +0.15 | −0.37 | +0.78 | −0.11 | +0.44 | −0.45 | 0.78 | 0.23 |
+| Bg: odd replay | −0.21 | +0.12 | −0.06 | +0.72 | −0.13 | +0.28 | −0.41 | | |
+
+- **The reference is right; the component is off the square law.** The doubled run reads
+  B's error with cos 0.97, read 1.04, rms(err − est) 0.06; root_P50 and
+  storage_relaxation_offset come within 0.15ε. But that component only halves per doubling
+  (+0.41 → +0.21, −0.49 → −0.23: order ≈ 1) while the rest falls 5–8× (a_l1 +0.79 → +0.10,
+  ln J −0.26 → −0.05). Between B and its removal it barely moves, between B2 and B it moves:
+  the signature of a fixed-position feature that intervals straddle (the shutting turn,
+  δ(h − δ)), not of a wrong reference. The doubling pair's estimate of B2 itself reads
+  0.02–0.08ε on those quantities against 0.15–0.23 (rms ratio 0.90 overall; all under ε/3).
+- **Grading moves root_P50, not the storage offset.** Bg (B's nodes redistributed toward
+  each shutting by κ^(1/3), +3 nodes) cuts root_P50 from +0.41 to +0.15 and its replay now
+  reads it (+0.12); storage_relaxation_offset stays −0.37 and its replay still reads −0.06.
+  Bg passes C1–C5 at ε (C3 1 of 8 missed, within the allowance), read 0.83, cos 0.945; worst
+  0.78 (a_l1, which the replay reads: +0.72).
+- Scored: R3e holds at the boundary (both 0.15ε); R3f refuted (storage offset 0.37); R3g holds
+  (C2, C3 pass, read 0.83); R3h refuted by the schedule (+3); R3i holds (0.23).
+
+**Cost [m at 3e-5; i at 1e-4].** Nodes: Bg 186, B 183, E6 committed 149 (+25%); grading adds
+3. Real rows at 3e-5: Bg 1.75× E6 committed at 1e-4, 0.72× E6 committed + check; run +
+replay ≈ 1.75 × 1.62 = 2.8 E6 committed runs against E6's 2.4. At 1e-4 the steps are E6's
+(B's 3e-5 runs took 1.40–1.45× E6's steps), so Bg would cost about 1.23× E6 committed (rows
+model) and run + replay about 2.0, under E6's 2.4.
+
+**Would 1e-4 plus a tolerance term serve?** [m from earlier rounds; i for the rule.] The 5%
+nudge at 1e-4 measures step noise: rms 0.023–0.024ε, max 0.08, along M 0.06–0.09 (h5, closing
+rounds). The tolerance's bias, 1e-4 against 3e-5 on one schedule (refine round, five cases),
+is rms 0.003–0.028, max 0.013–0.108. Measuring the nudge on each run costs a full unpinned run
+(0.7 of a 3e-5 run), so 1e-4 + a measured nudge costs more than 3e-5 alone. A fixed reserve
+does serve: 1e-4 with every quantity held to ε − 0.12ε (the largest measured shift, 0.108,
+plus margin) costs 0.70 of the 3e-5 runs and, on dry, still leaves Bg's worst error (0.78)
+under the reduced target. The reserve is measured on five cases only; refresh it with one
+nudge per case, not one per run.
+
+**Against the revised design and vignette (round 3).**
+- *Contradicted:* "order 2 inside a spell" once both edges are breakpoints. On dry the
+  root_P50 / storage-offset component falls at order ≈ 1, so a removal's /3 cannot read it
+  and doubling under-reads it too ("When doubling is enough" holds for B, read 1.04, but its
+  estimate of the doubled run misses the same component).
+- *Partly borne out:* grading toward each shutting by the measured curvature (κ^(1/3) over
+  the last 18–27 d) fixes root_P50 and the replay's read of it at +3 nodes, but not the
+  storage offset. Whatever carries the storage offset is still unlocated: the shutting turn
+  in a trait the maps did not difference is the first candidate.
+
+| # | P | result |
+|---|---|---|
+| R3a | 55% | holds |
+| R3b | 50% | refuted (g 1.83 at c on dry) |
+| R3c | 45% | holds on zone medians |
+| R3d | 55% | holds (+2 per shutting, model) |
+| R3e | 45% | holds at the boundary (0.15ε) |
+| R3f | 40% | refuted (storage offset 0.37) |
+| R3g | 45% | holds (read 0.83) |
+| R3h | 55% | refuted (+3 nodes) |
+| R3i | 50% | holds (0.23) |

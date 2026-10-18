@@ -123,13 +123,16 @@ of 0.024 rms of step noise.
 
 ## Still open
 
-- **The density before each shutting.** The replay misses a hydraulic component; the next test
-  grades the density toward each shutting over 2–3 weeks, and separates that cause from dry's
-  reference with a run at doubled counts.
+- **A component that falls at order 1.** On dry a root_P50 / storage-offset component halves per
+  doubling (the doubled run confirms the reference). Grading the density toward each shutting
+  by the measured curvature (rising over the last 18–27 days, factor 1.8–2.6 at c) removes the
+  root_P50 half for 3 nodes; the storage offset's half is unlocated. Order 1 means a slope jump
+  at a fixed birth date that no node sits on.
 - **dry-flat's interiors,** which region replays read at ×1.9.
 - **The bound for short spells.** The first proposal was 5–50× short; their true error was
   0.05–0.10ε on the three cases.
-- **The tolerance's cost,** or an estimate of the tolerance error instead of a tighter run.
+- **The tolerance.** 3e-5 costs 1.4× the steps; 1e-4 with every quantity held to 0.88ε covers
+  its measured bias (≤ 0.11ε on five cases) at 0.7 of the cost.
 
 ## The tool
 
