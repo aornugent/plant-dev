@@ -1161,3 +1161,23 @@ C2 est > 0.22 where |err| > 0.44; C3 sign and ×½–×2 on quantities where max
 | R5o | real rows of G5 ≤ 1.6× E6 committed on every case, and G5 + replay ≤ E6 committed + check on at least 3 of 5 | 45% |
 | R5p | the short spells' true error ≤ ε/3 in every quantity on every case | 55% |
 | R5q | nothing throws | 90% |
+
+### R18. The doubled storage offset doubles the width (`run5_map.sh`, `r5_sro2.R`) [m]
+
+One forward run, 1172 nodes, 515 s, exit 0 (J 0.747 against 1.203). G's rise before dry's 20
+covered shuttings, far window 60–100 d:
+
+| | W½ median profile (d) | W½ per zone, median (IQR) | W_on | g_max |
+|---|---|---|---|---|
+| storage offset 7 d (t_r 19.4) | 14.9 | 16.0 (14.2–22.3) | 18 | 1.70 |
+| storage offset 14 d (t_r 38.8) | **36.0** | **34.7** (31–46) | 42 | 1.69 |
+| ratio | **2.42** | 2.17 | 2.3 | 1.0 |
+
+- **The width follows the storage offset, as t_r says (×2.0 predicted, ×2.2–2.4 measured).**
+  Together with R17 (no dependence on the drought, on root_P50 ×1.2, or on the record) this
+  makes t_r the grading's width, not a constant that happens to fit dry.
+- **The shape stretches but does not simply rescale.** At 14 d the curvature is a hump: 1.9 over
+  the last 12 d, 4.8 at 21–24 d, back to 1.1 by 45 d; at 7 d it is highest at c (4.9 over 3–6 d).
+  So a template stretched by t_r overweights the last days when t_r grows; the hump sits near
+  0.6 t_r before c [i]. The height (g_max) is unchanged.
+- Scored: R5g holds (2.42, at the top of 1.5–2.5); R5h holds.
