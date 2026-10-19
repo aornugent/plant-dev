@@ -3,6 +3,11 @@
 # probe build counts thrown stages (PROBE_THROW) and refused step ends
 # (PROBE_STEPEND) on stderr. INVADERS: lma factors to replay on the run's steps.
 source("/home/user/plant-dev/harness/long_drought.R")
+# Run with PLANT_LIB set: without it the harness load_all()s the plant-dev
+# submodule, whatever it holds. Refuse a plant without the offset this sets.
+message("plant: ", getNamespaceInfo("plant", "path"))
+stopifnot("storage_relaxation_offset" %in%
+          names(scm_base_parameters("TF24")$strategy_default$pars))
 offset <- as.numeric(Sys.getenv("OFFSET", "7"))
 inv <- as.numeric(strsplit(Sys.getenv("INVADERS", ""), ",")[[1]])
 set_offset <- function(p) {

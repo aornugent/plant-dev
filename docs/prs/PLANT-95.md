@@ -76,9 +76,18 @@ All measured here, on the refreshed base (PLANT-97's build, odelia 0.7.3) agains
 | ×1 and ×0.9 together | refused: `expected 2, received 1` | 5.59643556916463, 26.3161466980631 | ×0.9 bit-identical to alone |
 
 - The resident's `R0` is bit-identical on both builds (5.59643556916463). So is the 40-year
-  long-drought resident (`J` 13.276378401, 10 577 steps). On that harness both builds' invasions
-  fail in the resident's recording pass, with the same refused step end below empty at
-  −1.15773e-07 kg. That failure predates this PR and is not measured further here.
+  long-drought resident (`J` 13.762607917, 9 262 steps, as PLANT-97 quotes). Its invaders run
+  on both builds, and x0.7 now runs too:
+
+  | long drought, invader on the resident's steps | PLANT-97 (resident's leaf) | this PR (own leaf) |
+  |---|---|---|
+  | lma ×0.9 | 61.0044 | 59.4899 |
+  | lma ×1.2 | 0.0763684 | 0.0876754 |
+  | lma ×0.7 | fails: leaf solve (`stem_curve_domain`) | 464.342 |
+
+  - An earlier draft quoted `J` 13.276378401 and an invasion refused below empty. That run had
+    `PLANT_LIB` unset, so the harness loaded the plant-dev submodule, not either build
+    (`docs/prs/ld-invasion-debug.md`). `ld.R` now refuses a plant without the offset.
 - **The fitness gradient, resident** (`test-tf24-fitness-gradient.R`). Both rows were checked
   against a pinned central difference over 14 columns, each row on its own scale.
   - Every column but lma and omega is within 1e-4 at a step of 1e-4. Measured: a_f1 2e-8, k_I
