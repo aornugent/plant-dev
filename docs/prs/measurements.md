@@ -124,3 +124,61 @@ run on the substepped soil, at no cost in accuracy against a 1e-5 reference. Cav
 PR: libNS is odelia 0.5.0, GSL's max-norm rule; upstream now defaults to Hairer's RMS norm, so
 B0 must be re-timed on one case under that rule (the factors scale `D0` in both). The soil
 factor and the time schedule were not separated here.
+
+## M3 results
+
+Two processes, 05:30 and 06:03, each alone beside a lightly loaded machine (load 1.0–2.0);
+`scratchpad/meas/m3/run_{1,2}.{rds,log}`.
+
+| run | forward | resident sweep (`leaf_area`) | first invasion | invader sweep | second invasion | first − second |
+|---|---|---|---|---|---|---|
+| 1 (`SWEEPS=1`) | 80.6 s | 266 s | 85.7 s | 228 s | 18.2 s | 67.5 s |
+| 2 | 81.0 s | — | 86.3 s | — | 18.3 s | 68.0 s |
+
+- The stand takes 15 376 steps (853 990 rows), as PLANT-105.md's develop row; the first
+  invasion's pinned re-run takes the same 15 376.
+- The invader's `J` (28.2661426030344) is bit-identical across the two invasions.
+- The re-run costs 0.84× the forward, as `scm.h` says (a pinned run rejects nothing).
+
+**Against the prediction.** The first invasion costs 4.7× the second, not 2.0–2.4×: on odelia
+0.7 the walk of a recording is cheap (18 s, 0.23× the forward, against 91 s and 0.79× in §3),
+so the re-run is 79% of the first invasion (predicted 40–55%). The difference is 0.84× the
+forward (predicted about 0.9×). As a share of a both-roles gradient run (forward + one sweep per
+role + first invasion, 661 s) it is 10.2%, inside the predicted 8–12%. `J` identical, as
+predicted.
+
+**Verdict: DROP.** The saving survives in seconds (68 s, as against 161 s on PLANT-98's coupled base)
+and is larger as a share of the first invasion, but it is paid once per resident:
+- 10.2% of a gradient run with exactly one invader, right at residual-A's 10% bar;
+- about 2.4% across a ten-invader landscape around one resident (OBJECTIVES' local analysis);
+- 41% of forward + first invasion, which is the number to quote if it is ever offered.
+Against that, PLANT-99 holds about 7.4 kB a step more after a recorded forward, about 114 MB
+on this stand's 15 376 steps, and upstream's comment already accepts one pass per resident.
+Offer it only if a single-invader workflow turns out to dominate.
+
+## Replay noise results
+
+`scratchpad/meas/noise/` (`noise.log`, `k±N.rds`, `base.rds`), 05:41–06:03, alone.
+
+- The adaptive run: `ln J` 2.593360009752596, 15 376 steps, 80.7 s. Each replay lands on those
+  steps exactly, takes 66–67 s and, at k = 0, lies 1.8e-13 from the adaptive run.
+- Slope −7.339e-12 per 1e-12 of lma (the partial elasticity −7.34).
+- **Noise: rms 4.0e-13 off the line (max 7.4e-13); neighbouring changes less their mean, rms
+  5.2e-13.** On 0.9.x it was 2.7e-8 (`tight.log`); with every root at roundoff 1.1e-14 and
+  8.5e-15.
+
+**Against the prediction.** Missed by five orders: predicted 3e-9 to 3e-8, measured 4e-13.
+Between 0.9.x and develop with 0.10, nearly all of it has gone. The most likely cause is 0.10's
+polished pinned bound, but this probe does not trace it, and the newborn's height still stops
+at its tolerance on develop. What remains is about 40 times roundoff's floor, 2e-11 ε in `ln J`.
+
+**Who can see it.** A second difference of `ln J` in ln lma has error √6 · 4e-13 / r². That
+stays under a third of lma's curvature ε (0.39) for any r above 1.6e-6, while the curvature work
+uses r ≥ 1e-2. A central difference against a sweep reads 4e-13/h in an elasticity, which is
+under 1e-6 for h ≥ 1e-6. No gate reads `ln J` below 1e-12. Only a finite-difference test with
+h under about 1e-9 would see it.
+
+**Verdict: DROP** 6b6f152 (and with it the newborn's height to roundoff, 631bbab3). The rms is
+under the 1e-12 bar residual-B set. Keep `polish_bracket_bound` as it is. PHYLLOPTIM-19's
+finite-difference check at the determined fixtures still has to pass on 0.10's bounds, as
+residual-B says.
