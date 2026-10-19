@@ -213,3 +213,30 @@ need re-scoring.
   in the replay, and the replay's estimate e by 0.007ε at worst: the step-change noise, a fifth
   of R21's. W2 fails (forward −15%, not −25 to −40%; total −6.6%, not −9 to −14%); W3 fails as
   worded (0.05ε, not 0.01ε), for the reason above.
+
+### R. The roots solved to a relative 1e-10 instead of 4 ulp (`ws2/`, `root_tolerance.patch`) [m]
+
+Every toms748 root in the leaf stops at `within_roundoff`, 4 ulp. A second prototype makes
+that tolerance settable (`PLANT_ROOT_RELTOL`, 6 lines in phylloptim's `uniroot.hpp`; unset =
+today), built with W into its own library. Not pre-registered as a prediction; measured on the
+cut by callgrind, and with the steps held for what it does to the numbers.
+
+| six-year cut | forward instructions a row | marginal evaluations a search | with the steps held: J, worst elasticity moved | kinds |
+|---|---|---|---|---|
+| today | 1.670 M | 12.9 | | |
+| W (w = 1e-2) | 1.419 M (−15.0%) | 9.8 | 8e-15, 4e-11 relative | same |
+| R 1e-10 | 1.554 M (−7.0%) | 11.7 | 2e-11, 4e-9 absolute | same |
+| W + R 1e-10 | 1.268 M (−24.0%) | 8.3 | 2e-11, 4e-9 absolute | same |
+| W + R 1e-8 | 1.220 M (−26.9%) | 8.1 | 9e-9, **2.3e-3 absolute** | **differ** |
+
+The sweep's instructions a row do not move (3.30–3.34 M in every arm). At 1e-8 the
+elasticities move by up to 0.2ε with the steps held and operating points change kind, so the
+leaf's bounds and the implicit derivatives need more than eight digits of the root; 1e-10
+moves nothing measurable and is the setting tested on full runs below.
+
+Pre-registration 3 (written while the full runs below were running, before reading any):
+
+| | prediction | confidence |
+|---|---|---|
+| R1 | W + R 1e-10 costs 0.75–0.82 of today's forward on full runs, 0.90–0.93 of run + replay | 55% |
+| R2 | its quantities move from today's by under 0.06ε (the step-change noise W showed) | 70% |
