@@ -176,3 +176,29 @@ were least trustworthy at coarse scale (dry-flat's replay had the wrong sign at 
 | P21 | the bound covers every quantity's true error on all four | 75% |
 | P22 | scale 0.7 costs 0.75–0.90 of scale 1, case by case | 70% |
 | P23 | splits off moves the uncorrected run by at most 0.1ε from R23's splits-on run at scale 1 | 60% |
+
+## R24. Corrected answer, no tolerance term, no splits; scale 1 against 0.7 (libNS; `score_k1.R`) [m]
+
+| loop | nodes | corrected answer: worst error | covered | min margin | worst bound | run's own worst error | CPU |
+|---|---|---|---|---|---|---|---|
+| dry-flat, scale 1 | 263 | 0.23 (stem_c) | 47/47 | 0.001 | 0.32 | 0.21 | 1002 s |
+| dry-flat, scale 0.7 | 235 | 0.35 (stem_c) | **46/47** | −0.117 | 0.38 | 0.41 | 909 s (0.91) |
+| episodic-lma, scale 1 | 205 | 0.15 (a_l1) | 47/47 | 0.169 | 0.49 | 0.44 | 335 s |
+| episodic-lma, scale 0.7 | 159 | 0.52 (TF24_cost_scale) | 47/47 | 0.046 | 0.63 | **1.23** | 266 s (0.79) |
+
+- **All four loops accept at pass 1.**
+- **Scale 0.7 is not safe:**
+  - on dry-flat the bound misses stem_c by 0.12ε;
+  - on episodic-lma the run itself is 1.23ε off, and only the correction brings the answer
+    within ε.
+- **At scale 1 the bound's margin is thin:** dry-flat covers by 0.001ε. Raising the coefficient
+  from 0.5 to 1 (the corrected answer's error is at most the correction itself) would still
+  accept both scale-1 loops (worst bounds about 0.42 and 0.76) and give the margin.
+- **The correction does not always help:** dry-flat at scale 1 gets slightly worse (0.23 against
+  the run's 0.21); episodic-lma improves 0.44 → 0.15.
+- **Splits off:** they move the uncorrected run by 0.24ε (dry-flat) and 0.10ε (episodic-lma)
+  from R23's splits-on runs. Against the references the splits-off runs are no worse (dry-flat
+  0.21 against 0.31; episodic-lma 0.44 against 0.53).
+
+Scored: P19 holds; P20 fails at scale 0.7 (0.35, 0.52); P21 fails on dry-flat at 0.7; P22 holds
+for episodic-lma (0.79) and is just outside for dry-flat (0.91); P23 fails on dry-flat (0.24).
