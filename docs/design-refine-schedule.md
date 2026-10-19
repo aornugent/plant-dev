@@ -94,16 +94,21 @@ no run exists only to be compared with.
    each level's nodes contain every node of the level below.
 3. **Pass 1:** run level 0 at 1e-4 (scale 1 is canonical: below it the estimate can read low), then replay it on its own steps with every other interior
    node removed: e_q = (Q_removed − Q)/3, at 0.51–0.66 of a run.
-4. **Stop** when every quantity's bound, |e_q| / r_min + u_q, is under ε_q.
-   - r_min = 0.82, the lowest per-case median ratio of estimate to true error on the graded
-     layout (medians 0.82–1.17 on five cases). Per quantity the ratio runs 0.49–1.17, so the
-     bound held on these cases through u_q, not through r_min (`review/profile.md`).
-   - u_q covers what the estimate cannot contain: the tolerance's bias at 1e-4 (≤ 0.11ε), and
-     after a replay the spells too short to hold two intervals (≤ 0.22ε): 0.33ε. After a
-     doubled pass the short spells are estimated, and the step changes between the pair's runs
-     take their place (up to 0.19ε, a third of it in e): 0.19ε.
+4. **Report the corrected answer Q − e_q, and stop** when every quantity's bound,
+   0.5|e_q| + u_q, is under ε_q.
+   - The correction costs nothing (the same runs). Worst true error fell from 0.20–0.61ε (Q)
+     to 0.03–0.20ε (Q − e), and the bound covered 375 of 376 quantity-cases
+     (`rootcause/refine2/frontier.md`, K1).
+   - The coefficient 0.5 is empirical. It holds while the estimate reads at least two thirds of
+     the error; the replay read 0.25–0.65 without the spread, and the bound held through u_q.
+   - u_q covers what the estimate cannot contain: after a replay, the spells too short to hold
+     two intervals (≤ 0.22ε); after a doubled pass, the step changes between the pair's runs
+     (up to 0.19ε, a third of it in e): 0.08ε.
+   - The ODE tolerance's own error is not in this bound; the step controller holds it
+     (`design-grid-controller.md`). On dry-lma125 at 1e-4 it reaches 0.61ε in one quantity
+     and moves 0.42ε under a 5% tolerance nudge, which no node schedule can cover.
 5. **Otherwise refine by doubling:** run level k + j, with j the fewest doublings whose
-   predicted bound |e_q|/4^j/r_min + 0.19 is under 0.9, and no level above 4. The rejected run is the new run's
+   predicted bound 0.5|e_q|/4^j + 0.08 is under 0.9, and no level above 4. The rejected run is the new run's
    removal case, so its estimate is e_q = (Q_coarse − Q_fine)/(4^j − 1), with no replay. Go to
    4; after four passes, or at level 4, return the finest run flagged as unconverged. A failed
    run or a non-finite quantity ends the loop with the last complete pass, flagged as failed.
@@ -190,8 +195,10 @@ without reserves), its ε table, and its u_q. TF24's are above.
 - **Cost:** the graded layout has 38–68% more nodes than E6's committed run (1.47–1.66× its
   rows); run plus replay is level with E6's run plus check (0.92–1.10×). The gain is an honest
   estimate in one run, not fewer rows.
-- **The fixed term u_q:** 0.33ε of the budget goes to what the replay cannot see, two thirds of
-  it to short spells. A bound for them that is not a worst case would return most of it.
+- **The fixed term u_q:** 0.22ε of the budget goes to short spells after a replay. A bound for
+  them that is not a worst case would return most of it.
+- **The coefficient 0.5 is empirical:** it is not derived, and it would fail where the estimate
+  reads under two thirds of the error at errors near ε.
 - **Several passes:** each extra pass spends a run and its replay, about 1.6 runs.
 - **Continuity across a rebuild:** the answer jumps where a big step in θ rebuilds the
   schedule.
@@ -206,7 +213,7 @@ than the 4.1% measured, candidate A (allocation by the node-drop map) takes over
 
 - Below scale 1 the estimate can read low (epi-adG208 a_l1 at half scale, 0.45); the spells that
   carry the slow part are not located.
-- r_min and u_q from five cases; the bank has ten.
+- The coefficient 0.5 and u_q from eight cases; the bank has ten plus the held-out cases.
 - The invaders' spell ends against the resident's.
 - dry-flat's interiors, where region replays estimated 1.9× the error.
 - Which of light or water carries the understory's error (the node-drop map says soil carries
@@ -217,8 +224,9 @@ than the 4.1% measured, candidate A (allocation by the node-drop map) takes over
 
 ```r
 fit <- refine_schedule(p)
-fit$answer     # ln J, elasticities and curvatures, from the last run
-fit$estimate   # each quantity's estimate e_q, and its bound |e_q|/r_min + u_q
+fit$answer     # ln J, elasticities and curvatures: the last run corrected by its estimate
+fit$estimate   # each quantity's estimate e_q, and its bound 0.5|e_q| + u_q
+fit$run        # the last run's own values
 fit$schedule   # breakpoints, counts at the final level, node times, t_r, ages
 fit$where      # ln J's error by spell, from the node-drop map (+5-8% of a sweep)
 fit$history    # each pass: level, nodes, answer, estimate, worst bound

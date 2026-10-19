@@ -1293,6 +1293,17 @@ gain, and each multiplies with the rows the arc saves.
 
 ## The user's decisions
 
+**2026-10-19, after the refine loop and the stack review:**
+- **The spread is dropped** (PLANT-108). Accuracy is unchanged without it; the replay reads
+  less of the error (0.25–0.65), and the loop's bound no longer relies on that ratio.
+- **The splits are dropped** (PLANT-102/103 and odelia's split commits). Less is more: they buy
+  ≤ 0.07ε in the loop's answer, and their reproducibility gain was measured before the soil
+  substeps.
+- **The ODE tolerance's error belongs to the step controller,** not to the node schedule's
+  bound. Open: a per-run estimate of it. On dry-lma125 at 1e-4 one quantity is 0.61ε off and
+  moves 0.42ε under a 5% nudge; 3e-5 brings it to 0.01ε at 1.32× the rows
+  (`rootcause/refine2/frontier.md`).
+
 - *The node rule:* D, the spread, is in the build. B stays an option to consider
   later, since there may be cases where grading helps (2a).
 - *The multirate soil step (1e)* is in the build. Tuning it, its threshold
