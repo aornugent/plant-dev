@@ -83,13 +83,34 @@ steps and rows; the replay's rows follow from level 0's steps. R22's CPU from th
 
 ### P1-C. What the price a row follows (`probe.c`, `probe_loop.sh`) [m]
 
-Per-row CPU of identical work is flat in the guest's load once all four cores are busy: level 0's
+Per-row CPU of identical work is flat in the guest's load once all four cores are busy (it
+falls below saturation, P1-D): level 0's
 forward on episodic-lma cost 217, 231, 230, 217 µs at load averages 3.4, 5.9, 7.1, 7.3. A fixed
 probe every two minutes (a dependent floating-point chain, and a pointer chase over 64 MiB) reads
 the chain within 3% (0.735–0.758 s) while the chase moves 1.01–1.25 s between consecutive
 minutes: the cores' speed holds, the memory system's latency does not. The sweep tapes about
 33 KB a member evaluation and the leaf solves walk per-plant tables, so a run is exposed to
 what shares the last-level cache and memory with it, inside the guest or outside it (3% stolen).
+
+### P1-D. The same A/B on a quiet machine (02:16–02:40, after the other investigations ended) [m]
+
+A fresh VM, libS, the same episodic-lma node times; A (level 0, then the replay, each in its own
+Rscript) and B (the loop's three runs in one), twice. The other process on the machine was the
+probe; all four cores busy for none of it.
+
+| | A q1 | B q1 | A q2 | B q2 | round 5 | under load (P1-A) |
+|---|---|---|---|---|---|---|
+| machine busy cores | 1.95–2.06 | 2.1 | 1.2–1.5 | 1.1–1.2 | 3–4 processes | 4.00 |
+| level 0 forward, µs a row | 163.5 | 171.6 | 164.6 | 157.8 | 155 | 217–231 |
+| level 0 sweep, µs a row | 391.3 | 390.6 | 357.3 | 359.1 | 323 | 475–493 |
+| replay forward / sweep | 121.0 / 400.6 | 122.4 / 377.2 | 111.6 / 359.7 | 111.9 / 374.0 | 102 / 321 | 163–171 / 477–514 |
+| run + replay CPU, s | 337.4 | 335.3 | 313.0 | 314.3 | 279 (G5 + G5o, own rows) | 422–437 |
+
+- B / A = 0.994 and 1.004: in memory costs nothing, again, with J and steps identical.
+- The same work costs 0.72–0.74 of what it cost under load, falling further as the machine
+  empties: at 1.2 busy cores the forward is 1.02–1.06× round 5's a row and the sweep
+  1.11–1.16×. The price a row follows the machine's load, by up to 1.4× over this session, and
+  approaches round 5's when the machine is near idle.
 
 ### Root cause of the slowdown
 
@@ -99,14 +120,17 @@ pairs ±2.5%), with identical numbers; the scm objects kept alive, R's heap and 
 resident growth change nothing; `record_trajectory` is on in both, `store_trajectory` runs only in
 the first run, the control and events are the same objects (identical J, steps and 50
 elasticities). The schedules differ by ±2.5% in rows. What remains is the machine's price a
-row, which moved 1.08–1.21× between round 5 (04:21) and R22 (11:38) and is 1.3–1.6× round 5's
-today, with nothing in the process changed. A CPU second is not a fixed unit of work on this
+row, which moved 1.08–1.21× between round 5 (04:21) and R22 (11:38), was 1.3–1.6× round 5's
+with all four cores contended (load 3–12), and came back to 1.02–1.16× on a near-idle machine
+(P1-D), with nothing in the process changed. The variable is the machine's load, through the
+memory system (P1-C), not the loop. A CPU second is not a fixed unit of work on this
 host: comparisons across sessions need A and B interleaved, or a count that ignores the
 machine (rows, member evaluations, or callgrind's instructions).
 
-Scored: Q1 holds; Q2 holds; Q3 fails (rows −2.4% to +2.6%); Q4 fails as worded (today's runs
-cost 1.3–1.6× round 5's a row, not within 10%), and what it was testing holds in a stronger
-form: the machine's state moves the price by more than the 1.07–1.29× it was asked to explain.
+Scored: Q1 holds; Q2 holds (twice under load, twice quiet); Q3 fails (rows −2.4% to +2.6%); Q4
+fails as worded (under the coordinator's load the runs cost 1.3–1.6× round 5's a row, not within
+10%), and what it tested holds in a stronger form: load moves the price by more than the
+1.07–1.29× it was asked to explain, and near idle the forward is back within 6% of round 5's.
 
 ## Part 2. Where a refinement's time goes on libNS
 
@@ -261,3 +285,40 @@ Full runs (`chain_ws2.sh`), episodic-lma, W (w = 1e-2) + R 1e-10, arms off, on, 
   step-change noise, within R21's 0.19ε, and not the roots.
 - W's own full-run sweep ratio (0.97) was noise: the sweep does not move under either prototype,
   so W alone is worth about 1 − 0.36 × 0.15 ≈ 0.95 of a run + replay and W + R about 0.92–0.93.
+
+### The rest, checked and not worth a change [m]
+
+- **R around the model** (building the SCM, `events`, reading `ode_*` fields, `store_trajectory`
+  and its decoding in `stand_run`): under 0.4% of the loop in the profile.
+- **Recorded but never read:** the first run keeps operating points and the light field
+  (`record_trajectory` sets both) and reads only states; the soil slopes and substep ends are
+  read back for every run and used only by the replay. A recording costs a forward about 4%
+  (`sign-changes/sweep_profile.txt`), so the first run's unused part is under 0.3% of the loop.
+- **Rebuilt per run:** the rebinds at introductions are 0.7% of the loop (no rainfall pulses
+  since the knots stopped being stops); the environment is built once and shared.
+- **The replay** needs its forward and its whole sweep: the elasticities bind, the replay's nodes
+  differ from level 0's, and its forward already skips the controller's trial steps (117–165 µs
+  a row against 165–217). What it shares with the run is the per-evaluation work below.
+- **The first run at a looser tolerance:** section F, rejected.
+
+## Ranked savings (episodic-lma, libNS, share of a refinement's CPU)
+
+| # | change | saving | lines | numbers | status |
+|---|---|---|---|---|---|
+| 1 | warm-started collar search (W) + roots to 1e-10 relative (R) | **6.8%** of run + replay (forward −22%, pairs ±3%); 7–8% of a refinement once the first run (all forward) is counted | +44, +6 (`warmstart.patch`, `root_tolerance.patch`) | roots agree to 4e-9 with the steps held; answers move ≤ 0.13ε by changed steps, e by ≤ 0.011ε | prototyped, measured |
+| 1a | W alone | ~5% (forward −15%) | +44 | ≤ 0.05ε by changed steps | prototyped, measured |
+| 2 | crown light quadrature off the tape (one statement with its partials) | ceiling 11.3% (17.7% of the sweep); perf-sweep put it at 20–24% of the sweep with its reverse | ~60–120 (est.) | round-off | not prototyped |
+| 3 | carry the forward's inner roots with the recorded collar, so the sweep stops re-deriving the operating point at double | ceiling 5.8% (9.1% of the sweep) | ~20–40 (est.) | bit-identical in principle (same calls, same inputs) | not prototyped |
+| 4 | collar slope by central difference | 5.6% of the loop, but no cheaper source: the forward evaluates 1.3× the points the sweep does, so moving it there costs more; it already gets cheaper under 1 (its two marginals solve inner roots) | — | — | not a separate lever |
+| 5 | first run at 1e-3 | 2–3% | 1 | schedule changes structure | rejected (F) |
+| 6 | harness, records, rebinds | < 1.5% together | — | — | nothing to take |
+
+1 and 3 compose with 2; together 1–3 bound about 25% of a refinement. The rest of the sweep
+is the six stages' leaf arithmetic on the tape and its reverse (16% of the sweep), which shrink
+only with the tape (perf-sweep §4).
+
+Recommended diffs, against libNS's stack (phylloptim 0.9.3 as installed, plant `no-spread`
+4c5acc46): `perf/warmstart.patch` (the hint read from `PLANT_HINT_WIDTH` is a prototype switch;
+landed, the width is a constant 1e-2 and the switch goes) and `perf/root_tolerance.patch` (same,
+1e-10). Both change results by step noise, so a landing needs the FF16/TF24 reference tests
+re-checked for TF24 and the bound's constants re-checked on the bank.
