@@ -1,0 +1,9 @@
+A System whose state holds a stiff part that the rest affects only weakly has every step set by that part. plant's TF24 is the case: its soil layers are stiff under heavy rain (∂rate/∂θ down to −3.6e4 /yr), the plants affect them only through their uptake from each layer, and on a daily rainfall record each cubic piece of the rain must not span a step's stages, so a run either stops at every knot or misses the rain between stages. Every other component pays for those steps.
+
+A System can now name a subsystem (`HasSubsystem`: a range of its state whose rates read the rest only through one input per component). A Cash–Karp step that spans a knot of the subsystem's forcing, or that starts with the System reporting the subsystem weakly coupled, integrates the subsystem in substeps of its own, which land on every stage time and every knot, while the rest takes the step's stages. The subsystem is integrated twice: under its inputs extrapolated along their slope since the last step, which the stages read, and under the line from the step's starting inputs to those at its t + h stage, which gives the step's end. Its error is the larger of the two results' difference and the stage inputs' distance from that line. A step that substepped records its input slope and substep ends on its row (`instruction::subsystem`), and every replay (of a program, of a recording, at another scalar) and the reverse sweep take them as recorded, so the gradient is that of the run taken. A grid of times alone is refused across a step that would substep, and a recorded row without substeps across a knot. Only `method = "rkck"` substeps. `drivers::Function::knots(from, to)` gives where a driver changes from one cubic to the next. A System without a subsystem steps as before, bit for bit.
+
+Closes #55
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+https://claude.ai/code/session_016CzJXviWCsP18qwJ8cuPwz
