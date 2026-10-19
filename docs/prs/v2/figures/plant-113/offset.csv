@@ -1,0 +1,145 @@
+"scenario","offset_days","metric","value"
+"clamped",0,"accepted steps / offset 0",1
+"clamped",7,"accepted steps / offset 0",0.746192893401015
+"clamped",1,"accepted steps / offset 0",0.762267343485618
+"clamped",14,"accepted steps / offset 0",0.747884940778342
+"clamped",28,"accepted steps / offset 0",0.744500846023689
+"clamped",3,"accepted steps / offset 0",0.746192893401015
+"drought",0,"accepted steps / offset 0",1
+"drought",28,"accepted steps / offset 0",0.805309734513274
+"drought",1,"accepted steps / offset 0",0.986725663716814
+"drought",3,"accepted steps / offset 0",0.960176991150443
+"drought",7,"accepted steps / offset 0",0.920353982300885
+"drought",14,"accepted steps / offset 0",0.836283185840708
+"seasonal",0,"accepted steps / offset 0",1
+"seasonal",1,"accepted steps / offset 0",0.992481203007519
+"seasonal",3,"accepted steps / offset 0",0.974436090225564
+"seasonal",7,"accepted steps / offset 0",0.95187969924812
+"seasonal",14,"accepted steps / offset 0",0.923308270676692
+"seasonal",28,"accepted steps / offset 0",0.899248120300752
+"shaded",0,"accepted steps / offset 0",1
+"shaded",1,"accepted steps / offset 0",0.914583333333333
+"shaded",3,"accepted steps / offset 0",0.901041666666667
+"shaded",7,"accepted steps / offset 0",0.897916666666667
+"shaded",14,"accepted steps / offset 0",0.9
+"shaded",28,"accepted steps / offset 0",0.891666666666667
+"synthetic",1,"accepted steps / offset 0",0.941915992593314
+"synthetic",3,"accepted steps / offset 0",0.918526459409414
+"synthetic",7,"accepted steps / offset 0",0.90303089367508
+"synthetic",14,"accepted steps / offset 0",0.888704804599942
+"synthetic",0,"accepted steps / offset 0",1
+"synthetic",28,"accepted steps / offset 0",0.873501608030406
+"wet",7,"accepted steps / offset 0",1.00168634064081
+"wet",0,"accepted steps / offset 0",1
+"wet",1,"accepted steps / offset 0",0.996627318718381
+"wet",14,"accepted steps / offset 0",0.998313659359191
+"wet",3,"accepted steps / offset 0",0.996627318718381
+"wet",28,"accepted steps / offset 0",0.993254637436762
+"clamped",0,"rejected steps / offset 0",1
+"clamped",7,"rejected steps / offset 0",0.588516746411483
+"clamped",1,"rejected steps / offset 0",0.866028708133971
+"clamped",14,"rejected steps / offset 0",0.574162679425837
+"clamped",28,"rejected steps / offset 0",0.626794258373206
+"clamped",3,"rejected steps / offset 0",0.535885167464115
+"drought",0,"rejected steps / offset 0",1
+"drought",28,"rejected steps / offset 0",0.418604651162791
+"drought",1,"rejected steps / offset 0",0.953488372093023
+"drought",3,"rejected steps / offset 0",0.86046511627907
+"drought",7,"rejected steps / offset 0",0.697674418604651
+"drought",14,"rejected steps / offset 0",0.488372093023256
+"seasonal",0,"rejected steps / offset 0",1
+"seasonal",1,"rejected steps / offset 0",1.03012048192771
+"seasonal",3,"rejected steps / offset 0",0.867469879518072
+"seasonal",7,"rejected steps / offset 0",0.903614457831325
+"seasonal",14,"rejected steps / offset 0",0.86144578313253
+"seasonal",28,"rejected steps / offset 0",0.867469879518072
+"shaded",0,"rejected steps / offset 0",1
+"shaded",1,"rejected steps / offset 0",0.982658959537572
+"shaded",3,"rejected steps / offset 0",0.664739884393064
+"shaded",7,"rejected steps / offset 0",0.630057803468208
+"shaded",14,"rejected steps / offset 0",0.630057803468208
+"shaded",28,"rejected steps / offset 0",0.867052023121387
+"synthetic",1,"rejected steps / offset 0",0.88258164852255
+"synthetic",3,"rejected steps / offset 0",0.82348367029549
+"synthetic",7,"rejected steps / offset 0",0.790435458786936
+"synthetic",14,"rejected steps / offset 0",0.77099533437014
+"synthetic",0,"rejected steps / offset 0",1
+"synthetic",28,"rejected steps / offset 0",0.771772939346812
+"wet",7,"rejected steps / offset 0",0.811764705882353
+"wet",0,"rejected steps / offset 0",1
+"wet",1,"rejected steps / offset 0",0.976470588235294
+"wet",14,"rejected steps / offset 0",0.882352941176471
+"wet",3,"rejected steps / offset 0",0.823529411764706
+"wet",28,"rejected steps / offset 0",0.705882352941177
+"clamped",0,"CPU / offset 0",1
+"clamped",7,"CPU / offset 0",0.782191327375041
+"clamped",1,"CPU / offset 0",0.824726911618669
+"clamped",14,"CPU / offset 0",0.735021516054287
+"clamped",28,"CPU / offset 0",0.728732207878186
+"clamped",3,"CPU / offset 0",0.738993710691824
+"drought",0,"CPU / offset 0",1
+"drought",28,"CPU / offset 0",0.821845174973489
+"drought",1,"CPU / offset 0",1.03499469777306
+"drought",3,"CPU / offset 0",0.976670201484624
+"drought",7,"CPU / offset 0",0.870625662778367
+"drought",14,"CPU / offset 0",0.804878048780488
+"seasonal",0,"CPU / offset 0",1
+"seasonal",1,"CPU / offset 0",0.911418975650714
+"seasonal",3,"CPU / offset 0",0.894416456759026
+"seasonal",7,"CPU / offset 0",0.931989924433249
+"seasonal",14,"CPU / offset 0",0.852225020990764
+"seasonal",28,"CPU / offset 0",0.816540722082284
+"shaded",0,"CPU / offset 0",1
+"shaded",1,"CPU / offset 0",0.899097499630123
+"shaded",3,"CPU / offset 0",0.817428613700252
+"shaded",7,"CPU / offset 0",0.884154460719041
+"shaded",14,"CPU / offset 0",0.787394584997781
+"shaded",28,"CPU / offset 0",0.71356709572422
+"synthetic",1,"CPU / offset 0",0.94017111680582
+"synthetic",3,"CPU / offset 0",0.918988178887328
+"synthetic",7,"CPU / offset 0",0.914565594775564
+"synthetic",14,"CPU / offset 0",0.916425560056212
+"synthetic",0,"CPU / offset 0",1
+"synthetic",28,"CPU / offset 0",0.981379680912623
+"wet",7,"CPU / offset 0",0.979902087090956
+"wet",0,"CPU / offset 0",1
+"wet",1,"CPU / offset 0",0.980159752641072
+"wet",14,"CPU / offset 0",0.96882246843597
+"wet",3,"CPU / offset 0",0.960061839732028
+"wet",28,"CPU / offset 0",0.932491625869621
+"clamped",0,"ln J - ln J at offset 0",0
+"clamped",7,"ln J - ln J at offset 0",-0.00292396824822028
+"clamped",1,"ln J - ln J at offset 0",-0.000391897004535124
+"clamped",14,"ln J - ln J at offset 0",-0.00632465140187222
+"clamped",28,"ln J - ln J at offset 0",-0.0149238547051924
+"clamped",3,"ln J - ln J at offset 0",-0.00120051069112215
+"drought",0,"ln J - ln J at offset 0",0
+"drought",28,"ln J - ln J at offset 0",-0.0312201308480162
+"drought",1,"ln J - ln J at offset 0",-0.00109113697277774
+"drought",3,"ln J - ln J at offset 0",-0.00316695665561761
+"drought",7,"ln J - ln J at offset 0",-0.00720224697366101
+"drought",14,"ln J - ln J at offset 0",-0.0147388329904077
+"seasonal",0,"ln J - ln J at offset 0",0
+"seasonal",1,"ln J - ln J at offset 0",0.0124535603490505
+"seasonal",3,"ln J - ln J at offset 0",0.0345932858819404
+"seasonal",7,"ln J - ln J at offset 0",0.0694766127361586
+"seasonal",14,"ln J - ln J at offset 0",0.108284807157994
+"seasonal",28,"ln J - ln J at offset 0",0.13637424724887
+"shaded",0,"ln J - ln J at offset 0",0
+"shaded",1,"ln J - ln J at offset 0",-0.000394682227226717
+"shaded",3,"ln J - ln J at offset 0",-0.00120898656080382
+"shaded",7,"ln J - ln J at offset 0",-0.00294420900617975
+"shaded",14,"ln J - ln J at offset 0",-0.0063661857021664
+"shaded",28,"ln J - ln J at offset 0",0.0689727560327666
+"synthetic",1,"ln J - ln J at offset 0",0.00426729550835514
+"synthetic",3,"ln J - ln J at offset 0",0.0130973738623084
+"synthetic",7,"ln J - ln J at offset 0",0.0134025685757977
+"synthetic",14,"ln J - ln J at offset 0",-0.0111357276089166
+"synthetic",0,"ln J - ln J at offset 0",0
+"synthetic",28,"ln J - ln J at offset 0",0.0493568111824607
+"wet",7,"ln J - ln J at offset 0",-0.00320459350067992
+"wet",0,"ln J - ln J at offset 0",0
+"wet",1,"ln J - ln J at offset 0",-0.000434165538204745
+"wet",14,"ln J - ln J at offset 0",-0.00683649718336987
+"wet",3,"ln J - ln J at offset 0",-0.00132537198971239
+"wet",28,"ln J - ln J at offset 0",-0.0156516864821956

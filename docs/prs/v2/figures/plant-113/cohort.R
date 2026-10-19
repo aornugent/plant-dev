@@ -53,23 +53,23 @@ for (o in c("0 d", "7 d")) {
   cat(sprintf("offset %s: largest relaxation rate %.0f /yr (time %.1f h) at day %.1f\n", o,
               max(x$relax), 8760 / max(x$relax), x$day[which.max(x$relax)]))
 }
-lab <- data.frame(day = c(reach[["0 d"]] + 0.6, reach[["7 d"]] + 0.8),
-                  r = c(0.07, 0.07), offset = c("0 d", "7 d"),
+lab <- data.frame(day = c(reach[["0 d"]] - 1.8, reach[["7 d"]] + 0.8),
+                  r = c(0.03, 0.13), offset = c("0 d", "7 d"), hj = c(1, 0),
                   label = c(sprintf("offset 0: %.1f d", reach[["0 d"]]),
                             sprintf("offset 7 d: %.1f d", reach[["7 d"]])))
 pal <- c("0 d" = "#D55E00", "7 d" = "#0072B2")
 p <- ggplot(curves, aes(day, r, colour = offset)) +
   geom_hline(yintercept = 0.05, linetype = 2, colour = "grey50") +
   annotate("text", x = 40, y = 0.05, label = "r = 1/a_dG2: low-reserve mortality at 1/e of its maximum",
-           hjust = 1, vjust = -0.3, size = 3.3, colour = "grey30") +
+           hjust = 1, vjust = 1.4, size = 3.3, colour = "grey30") +
   geom_vline(xintercept = 0, colour = "grey70") +
   geom_line(linewidth = 0.9) +
   geom_point(data = run, aes(day, r), inherit.aes = FALSE, colour = "#0072B2", size = 0.9, alpha = 0.6) +
-  geom_text(data = lab, aes(label = label), hjust = 0, size = 3.6, show.legend = FALSE) +
+  geom_text(data = lab, aes(label = label, hjust = hj), size = 3.6, show.legend = FALSE) +
   scale_colour_manual(values = pal, guide = "none") +
   scale_y_continuous(limits = c(0, 0.5)) +
   labs(x = "days since the cohort's net production turned negative",
-       y = "relative reserve r = storage / storage_max",
+       y = "r = storage / storage_max",
        title = "A 7-day offset slows this seedling's run-down from 8.6 to 21.4 days",
        subtitle = paste0("TF24 cohort born at t = 2.96 yr, synthetic record, B97; dots: the run (offset 7 d);\n",
                          "lines: its pool integrated from the recorded production at each offset")) +
