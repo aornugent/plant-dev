@@ -158,3 +158,21 @@ constants (0.82, 0.33ε, 0.19ε) on the build that will ship. Same five cases, s
 
 Scored: P14, P15, P16 hold; P17 fails (dry 0.62, dry-flat 0.65, epi-adG208 0.61); P18 untestable
 under the load.
+
+## Pre-registration 20 (the loop as decided: corrected answer, no tolerance term, no splits; scale 0.7)
+
+The user's decisions:
+- the loop reports the corrected answer run − e and stops on 0.5|e| + u, with u = 0.22ε after a
+  replay and 0.08ε after a doubled pair; the tolerance's own error moves to the step controller;
+- the splits are dropped (`ode_split_sign_changes` off).
+
+dry-flat and episodic-lma run on libNS at scale 1 and at scale 0.7: the two cases whose estimates
+were least trustworthy at coarse scale (dry-flat's replay had the wrong sign at half scale).
+
+| | prediction | confidence |
+|---|---|---|
+| P19 | all four loops accept at pass 1 | 70% |
+| P20 | the corrected answer's worst true error is ≤ 0.3ε on all four | 65% |
+| P21 | the bound covers every quantity's true error on all four | 75% |
+| P22 | scale 0.7 costs 0.75–0.90 of scale 1, case by case | 70% |
+| P23 | splits off moves the uncorrected run by at most 0.1ε from R23's splits-on run at scale 1 | 60% |

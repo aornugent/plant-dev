@@ -25,7 +25,6 @@ ctrl$ode_tol_factor_times <- w$t
 ctrl$ode_tol_factor_values <- w$weight
 ctrl$ode_tol_factor_max <- 100
 ctrl$ode_step_size_max <- 15 / 365
-ctrl$ode_split_sign_changes <- TRUE
 ctrl$ode_soil_substep_max_uptake <- 0.1
 
 fit <- refine_schedule(p, mkenv(case$regime), ctrl, scale)

@@ -2,16 +2,18 @@
 # (docs/design-refine-schedule.md). Source harness/long_drought.R first.
 #
 # fit <- refine_schedule(p, env, ctrl, scale = 1): p carries one strategy, env its rainfall,
-# ctrl the run's control. Returns list(answer, estimate, bound, extrapolated, schedule, level,
-# history, costs, status, error); node times are nodes_of(fit$schedule, fit$level).
+# ctrl the run's control. Returns list(answer, estimate, bound, run, schedule, level, history,
+# costs, status, error): the answer is the last run corrected by its estimate (run - estimate),
+# and node times are nodes_of(fit$schedule, fit$level).
 source("/home/user/plant-dev/harness/schedule/quantities.R")
 HORIZON <- 107 * LIFETIME / 108
 
-# A bound is |e| / MIN_ESTIMATE_RATIO + UNESTIMATED: the tolerance's bias, plus the short spells
-# after a replay or the step changes between the runs of a doubled pair.
-MIN_ESTIMATE_RATIO <- 0.82
-UNESTIMATED_REPLAY <- 0.11 + 0.22
-UNESTIMATED_PAIR <- 0.11 + 0.08
+# The bound on the corrected answer's node-schedule error: CORRECTED_SHARE |e| + UNESTIMATED, the
+# short spells after a replay or the step changes between the runs of a doubled pair. The ODE
+# tolerance's own error is the step controller's to hold, not this bound's.
+CORRECTED_SHARE <- 0.5
+UNESTIMATED_REPLAY <- 0.22
+UNESTIMATED_PAIR <- 0.08
 PREDICTED_BOUND_MAX <- 0.9
 PASSES <- 4
 MAX_LEVEL <- 4
@@ -133,9 +135,10 @@ nested <- function(coarse, fine) all(round(coarse, 10) %in% round(fine, 10))
 refine_schedule <- function(p, env, ctrl, scale = 1) {
   history <- list(); costs <- list(); level <- 0; q <- e <- unestimated <- sch <- NULL
   fit <- function(status, error = NULL) list(
-    answer = q, estimate = e, bound = if (is.null(e)) NULL else abs(e) / MIN_ESTIMATE_RATIO + unestimated,
-    extrapolated = if (is.null(e)) NULL else q - e * eps_vec(names(q)), schedule = sch, level = level,
-    history = history, costs = do.call(rbind, costs), status = status, error = error)
+    answer = if (is.null(e)) q else q - e * eps_vec(names(q)), estimate = e,
+    bound = if (is.null(e)) NULL else CORRECTED_SHARE * abs(e) + unestimated, run = q,
+    schedule = sch, level = level, history = history, costs = do.call(rbind, costs),
+    status = status, error = error)
   tryCatch({
     first <- stand_run(p, env, ctrl, seq(0, HORIZON, length.out = 100), gradient = FALSE, records = TRUE)
     costs$first <- first$cpu
@@ -145,13 +148,13 @@ refine_schedule <- function(p, env, ctrl, scale = 1) {
     r <- stand_run(p, env, ctrl, half, base = x); costs$level0_replay <- r$cpu
     e <- (judged(r)[names(q)] - q) / 3 / eps_vec(names(q)); unestimated <- UNESTIMATED_REPLAY
     repeat {
-      bound <- abs(e) / MIN_ESTIMATE_RATIO + unestimated
+      bound <- CORRECTED_SHARE * abs(e) + unestimated
       history[[length(history) + 1]] <- list(level = level, nodes = length(S), answer = q, estimate = e,
                                              worst = names(q)[which.max(bound)], worst_bound = max(bound))
       if (all(bound < 1)) return(fit("converged"))
       if (length(history) == PASSES || level == MAX_LEVEL) return(fit("unconverged"))
       k <- 1
-      while (max(abs(e) / 4^k / MIN_ESTIMATE_RATIO + UNESTIMATED_PAIR) > PREDICTED_BOUND_MAX && level + k < MAX_LEVEL) k <- k + 1
+      while (max(CORRECTED_SHARE * abs(e) / 4^k + UNESTIMATED_PAIR) > PREDICTED_BOUND_MAX && level + k < MAX_LEVEL) k <- k + 1
       finer <- nodes_of(sch, level + k); stopifnot(nested(S, finer))
       y <- stand_run(p, env, ctrl, finer); costs[[paste0("level", level + k)]] <- y$cpu
       qy <- judged(y)[names(q)]
