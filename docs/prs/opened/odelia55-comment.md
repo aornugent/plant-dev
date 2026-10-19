@@ -26,7 +26,7 @@ plant's TF24 names its soil as the subsystem (aornugent/plant, TF24's soil PR). 
   - a run under pulses of inflow without stops matches one stopped at each knot;
   - a grid of times, and a row with its substeps dropped, are refused.
 - Full R suite: 729 pass and 2 errors, both in `test-ode-solver.R` lines from #77 that use an unqualified `OdeControl` and depend on the order the files run in; that file passes alone.
-- `tests/standalone` passes under clang. Under GCC 13, an existing test from #71 (`test_carried_k1_keeps_its_own_instant`) hits an internal compiler error; it does on master too.
+- `tests/standalone` passes under GCC 13 and clang. GCC 13 crashed (an internal compiler error) compiling a braced list of `instruction`s, now holding a `std::optional` member, from a `const double` NaN local; `bfa32cf` declares that local `constexpr`.
 
 ### For review
 1. `ode_step_rkck.hpp`, `take_substepped_step`: the extrapolated pass's input slope comes from the last adaptive step; the second pass runs along the line to the inputs at the t + h stage. The input slope and the substep ends are on the row, so no replay recomputes them.

@@ -18,7 +18,7 @@ The invader's gradient then matches a central difference of invasions (lma row 1
 - Runtime: a pass with the flag copies each row once more when it keeps states, and copies each row into the solver when it keeps none. The default pass is unchanged.
 
 ### Tests
-A standalone test under both explicit steppers steps a recording at another parameter value with the flag: it repeats the recorded program's choices bit for bit, each of a step's six evaluations reads the recorded row first, its own recording holds its own values, and its reverse sweep matches a central difference to 1e-8. `tests/standalone` passes under clang (GCC 13 hits an internal compiler error in an existing test from #71, as on master).
+A standalone test under both explicit steppers steps a recording at another parameter value with the flag: it repeats the recorded program's choices bit for bit, each of a step's six evaluations reads the recorded row first, its own recording holds its own values, and its reverse sweep matches a central difference to 1e-8. `tests/standalone` passes under GCC 13 and clang.
 
 ### For review
 `seeded_row_`'s lifetime: plant keeps a pointer into it from one step to the next, and to an insertion between them, as it kept one into a recorded row.
