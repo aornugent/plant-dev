@@ -115,3 +115,15 @@ agreement with the forward by test (`test_a_determined_collar_moves_with_its_bou
   the midpoint; the error is ≤ 1e-4 relative and bounded by GSS_tol_abs.
 - Q2: a polish can invert the collapsed interval by ~1e-7 (wet past dry). The midpoint is
   still defined and the rows still the mean. Default: leave it; no fixture reaches it.
+
+## Tests run after the changes
+- C++ (odelia v0.8.0, Linux): test_leaf 3018 checks, test_supplied_rows 178, test_transpose
+  154, 0 failures; golden and primitives pass with `--cross-platform`; regenerated on Linux,
+  all three golden outputs are byte-identical to master's.
+- The branch's test_leaf against master's headers: 17 failures, all refusals the branch
+  removes (9 dry-end, 6 determined, the named refusal, the starved bisection).
+- R testthat, installed: 1494 pass, 0 fail, 3 skips.
+- plant develop bd09645d against 0.10.4 (odelia 0.7.3): TF24 80, TF24f 58, FF16 guard 72,
+  fast sweep 5264, 0 failures. They show plant builds and its TF24 numbers hold; whether
+  they reach a dry end or a determined collar was not checked, so they do not test the
+  new rows.

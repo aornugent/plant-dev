@@ -92,8 +92,12 @@ libS); this PR carries the same rows onto 0.10.
   tangent-against-sweep identity.
 - C++ suite on Linux against odelia v0.8.0: test_leaf 3018 checks, test_supplied_rows 178,
   test_transpose 154, 0 failures; golden and primitives pass (cross-platform).
-- R testthat: PLACEHOLDER_R.
-- plant develop (bd09645d) built against 0.10.4: PLACEHOLDER_PLANT.
+- R testthat (installed package): 1494 pass, 0 fail, 3 skips (CRAN and macOS-only).
+- plant develop (bd09645d) built against 0.10.4 with odelia 0.7.3 and only its phylloptim
+  pin edited locally (phylloptim's DESCRIPTION floor lowered to 0.7.3 for that build; its
+  code does not use 0.8): `test-strategy-tf24.R` 80 pass, `test-strategy-tf24f.R` 58,
+  the FF16 guard 72, 0 failures; the fast sweep (89 files, all but `test-mutant.R` and the
+  two TF24 files) 5264 pass, 0 fail, 11 skips.
 
 ### What a reviewer should check
 - `collar_at`'s determined case takes both bound rows at the midpoint, up to 5e-4 MPa from
