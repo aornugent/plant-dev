@@ -98,7 +98,7 @@ push and every re-seed).
    refuses a row without substeps that spans a knot (parameter-independent:
    the forward always substeps such a step under Cash–Karp). Tested in odelia
    and plant.
-2. (applied) `make_node_schedule`'s events path still turns a program into a
+2. (not applied) `make_node_schedule`'s events path still turns a program into a
    grid (develop's behaviour). With records it would now be refused at a
    substepping step rather than collapse; the archive changed it to replay the
    program. Left as develop has it: changing it would alter FF16 replays given

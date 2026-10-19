@@ -240,3 +240,24 @@ Pre-registration 3 (written while the full runs below were running, before readi
 |---|---|---|
 | R1 | W + R 1e-10 costs 0.75–0.82 of today's forward on full runs, 0.90–0.93 of run + replay | 55% |
 | R2 | its quantities move from today's by under 0.06ε (the step-change noise W showed) | 70% |
+
+Full runs (`chain_ws2.sh`), episodic-lma, W (w = 1e-2) + R 1e-10, arms off, on, on, off
+(00:00–01:00, load 3.5–5):
+
+| arm | level 0 fwd / sweep (s) | replay fwd / sweep (s) | total | steps |
+|---|---|---|---|---|
+| off | 79.4 / 168.8 | 35.7 / 98.8 | 382.7 | 3645 |
+| on | 65.2 / 168.6 | 27.5 / 98.7 | 360.1 | 3656 |
+| on | 65.3 / 168.9 | 26.6 / 98.3 | 359.1 | 3656 |
+| off | 85.8 / 163.2 | 37.0 / 102.5 | 388.7 | 3645 |
+
+- The forward costs **0.776** of today's (pairs 0.806, 0.748), the sweep 1.002 (pairs 0.999,
+  1.005), run + replay **0.932** (pairs 0.941, 0.924). R1 holds on the forward and narrowly misses
+  on the total (0.932 against 0.90–0.93).
+- The quantities move by up to 0.133ε (TF24_cost_scale; rms 0.059) at level 0 and 0.100ε in the
+  replay, but the replay's estimate e by 0.011ε at worst: the replay is pinned to level 0's steps,
+  so the step change is common to both and cancels in e. R2 fails (0.13ε against 0.06ε). With
+  the steps held the same change moves nothing beyond 4e-9 (above), so this is the controller's
+  step-change noise, within R21's 0.19ε, and not the roots.
+- W's own full-run sweep ratio (0.97) was noise: the sweep does not move under either prototype,
+  so W alone is worth about 1 − 0.36 × 0.15 ≈ 0.95 of a run + replay and W + R about 0.92–0.93.
