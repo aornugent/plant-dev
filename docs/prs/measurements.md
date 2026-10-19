@@ -86,3 +86,41 @@ neighbouring changes less their mean.
   of lma's curvature ε, 1.17), far below the 1e-2 the curvature work uses;
 - verdict DROP unless a consumer reading below 1e-8 other than a finite-difference test is
   found.
+
+## M1 results
+
+Runs 04:05–05:30, one at a time (`scratchpad/meas/m1/queue.log`, `m1_report.R`). Rows and steps
+do not depend on load; CPU is the gradient run (forward + sweep).
+
+| case | arm | steps | rows | CPU (fwd + sweep) | ln J |
+|---|---|---|---|---|---|
+| episodic-lma | factors | 3 641 | 393 739 | 197 s (62 + 136); repeat 183 s | −3.46088461 |
+| | none | 4 295 | 524 859 | 267 s (91 + 176); repeat 255 s | −3.46064210 |
+| | ref 1e-5 | 7 602 | 959 277 | 452 s | −3.46072641 |
+| dry | factors | 4 804 | 618 707 | 269 s (86 + 183) | 0.18032241 |
+| | none | 5 953 | 874 218 | 419 s (129 + 290) | 0.18019382 |
+| | ref 1e-5 | 11 098 | 1 683 015 | 809 s | 0.18022728 |
+| long-wet | factors | 5 468 | 681 128 | 351 s (121 + 231) | 2.91682634 |
+| | none | 6 819 | 965 980 | 473 s (161 + 312) | 2.91683695 |
+| | ref 1e-5 | 13 134 | 1 919 536 | 966 s | 2.91677556 |
+
+| case | rows saved | steps saved | CPU saved | worst \|factors − ref\| | worst \|none − ref\| | worst \|factors − none\| | added distance, worst |
+|---|---|---|---|---|---|---|---|
+| episodic-lma | 25.0% | 15.2% | 25.9% (repeat, none first: 28.2%) | 0.096ε (storage_relaxation_offset) | 0.114ε (TF24_cost_scale) | 0.166ε | 0.075ε |
+| dry | 29.2% | 19.3% | 35.7% | 0.161ε (storage_relaxation_offset) | 0.321ε (a_l1) | 0.479ε (a_l1) | 0.090ε |
+| long-wet | 29.5% | 19.8% | 25.7% | 0.052ε (a_dG1) | 0.059ε (a_l1) | 0.047ε | 0.023ε |
+
+`ln J` moves by at most 0.01ε between any two arms. No quantity of the 47 is over ε/3 from the
+reference in either arm on any case.
+
+**Against the prediction.** Rows saved 25–30%, inside 15–35%; CPU within 5 points of rows
+except dry's single pair (+6.5 points, under load). Drift held: factors at most 0.16ε (predicted
+under 0.2ε), adding at most 0.09ε (predicted 0.1ε). One miss: *none* reached 0.32ε on dry's
+`a_l1` (predicted under 0.15ε), and the factors bring it to 0.16ε, so dry's 0.48ε gap between
+the two arms is the unfactored run's own tolerance error, not the factors'.
+
+**Verdict: LAND** (plant B + odelia B0). The factors save a quarter to a third of a gradient
+run on the substepped soil, at no cost in accuracy against a 1e-5 reference. Caveats for the
+PR: libNS is odelia 0.5.0, GSL's max-norm rule; upstream now defaults to Hairer's RMS norm, so
+B0 must be re-timed on one case under that rule (the factors scale `D0` in both). The soil
+factor and the time schedule were not separated here.
