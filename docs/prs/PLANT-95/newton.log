@@ -1,0 +1,20 @@
+run 1  b 10  ln J - ln b 1.72e+00  d ln J/d ln b -0.5353
+run 2  b 30.6994592  ln J - ln b -4.73e-01  d ln J/d ln b -0.3467
+run 3  b 21.60530862  ln J - ln b -9.51e-03  d ln J/d ln b -0.6504
+run 4  b 21.4811578  ln J - ln b 3.10e-04  d ln J/d ln b -0.7574
+run 5  b 21.48494812  ln J - ln b 9.18e-07  d ln J/d ln b -0.7545
+run 6  b 21.48495936  ln J - ln b 1.97e-09  d ln J/d ln b -0.7545
+Newton: 12.3 s
+identical invader R0' - 1 = 1.97e-09
+x0.9 R0' 8.97917 lma   rel 0.001 sweep -2541.6606 fd -2542.1908 err 2.1e-04  (walk+sweep 1.4s)
+x0.9 R0' 8.97917 lma   rel 0.0001 sweep -2541.6606 fd -2541.6915 err 1.2e-05  (walk+sweep 1.4s)
+x0.9 R0' 8.97917 hmat  rel 0.001 sweep -4.4916016 fd -4.4916263 err 5.5e-06  (walk+sweep 1.4s)
+x0.9 R0' 8.97917 hmat  rel 0.0001 sweep -4.4916016 fd -4.4916014 err 4.8e-08  (walk+sweep 1.4s)
+x0.9 R0' 8.97917 k_I   rel 0.001 sweep 403.16548 fd 403.21047 err 1.1e-04  (walk+sweep 1.4s)
+x0.9 R0' 8.97917 k_I   rel 0.0001 sweep 403.16548 fd 403.16671 err 3.0e-06  (walk+sweep 1.4s)
+x1.1 R0' 2.6542e-07 lma   rel 0.001 sweep -0.00019185293 fd -0.0001928736 err 5.3e-03  (walk+sweep 1.6s)
+x1.1 R0' 2.6542e-07 lma   rel 0.0001 sweep -0.00019185293 fd -0.00019186875 err 8.2e-05  (walk+sweep 1.6s)
+x1.1 R0' 2.6542e-07 hmat  rel 0.001 sweep -1.5411946e-06 fd -1.5415632e-06 err 2.4e-04  (walk+sweep 1.6s)
+x1.1 R0' 2.6542e-07 hmat  rel 0.0001 sweep -1.5411946e-06 fd -1.5411982e-06 err 2.4e-06  (walk+sweep 1.6s)
+x1.1 R0' 2.6542e-07 k_I   rel 0.001 sweep 3.4438796e-05 fd 3.4465418e-05 err 7.7e-04  (walk+sweep 1.6s)
+x1.1 R0' 2.6542e-07 k_I   rel 0.0001 sweep 3.4438796e-05 fd 3.4437372e-05 err 4.1e-05  (walk+sweep 1.6s)

@@ -1,0 +1,8 @@
+plant 2.0.0.9002 odelia 0.7.3 
+resident R0 5.59643556916463  (0.3s, 239 steps)
+lma x1.0  R0' 5.59643556916463  ln R0' - ln R0 -2.220e-16
+lma x0.7  R0' 77.5816404681124  ln R0' - ln R0 2.629e+00
+lma x0.9  R0' 22.1443273830999  ln R0' - ln R0 1.375e+00
+lma x1.1  R0' 0.0425853738178014  ln R0' - ln R0 -4.878e+00
+lma x2.0  R0' 1.4502399027437e-17  ln R0' - ln R0 -4.049e+01
+two invaders together (x1, x0.9): Incorrect length input; expected 2, received 1 

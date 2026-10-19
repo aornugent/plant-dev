@@ -1,0 +1,4 @@
+RESULT offset 7 d: J 13.276378401, accepted 10577, 102 s
+RESULT invader lma x0.9: ERROR TF24 storage is negative (-1.15773e-07 kg): the pool's flow does not leave [0, capacity], so this is a step that overshot the empty boundary (72 s)
+RESULT invader lma x1.2: ERROR TF24 storage is negative (-1.5508e-07 kg): the pool's flow does not leave [0, capacity], so this is a step that overshot the empty boundary (0 s)
+RESULT invader lma x0.7: ERROR TF24 storage is negative (-2.18217e-07 kg): the pool's flow does not leave [0, capacity], so this is a step that overshot the empty boundary (0 s)
