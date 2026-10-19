@@ -27,7 +27,7 @@ local({
     dir <- Sys.getenv("PLANT_DIR", file.path(here, "..", "plant"))
     suppressMessages(pkgload::load_all(dir, quiet = TRUE))
   }
-  message("plant ", packageVersion("plant"), " from ", dirname(getNamespaceInfo("plant", "path")))
+  message("plant ", packageVersion("plant"),  " from ", getNamespaceInfo("plant", "path"))
 })
 
 LIFETIME <- as.numeric(Sys.getenv("LIFETIME", "40"))
