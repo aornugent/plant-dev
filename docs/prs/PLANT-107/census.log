@@ -1,0 +1,2 @@
+PLANT-107 long-wet n=429 tol=0.0001 leg_ends=3378 out_of_order=0 (0.0%) from t=NA to NA most_pairs=0 max_gap_mm=0.000 J=16.75597761 elapsed=497
+PLANT-97 long-drought n=429 tol=0.0001 leg_ends=3358 out_of_order=2747 (81.8%) from t=6.92 to 40.00 most_pairs=5 max_gap_mm=1.032 J=12.78903523 elapsed=332

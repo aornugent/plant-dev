@@ -1,0 +1,4 @@
+PLANT-93 n=108 tol=0.0001 J=12.430811505939051 lnJ=2.5201781894687327 steps=12729 elapsed=78.6 cpu=71.1 end_pairs_out_of_order=0 max_gap_mm=0.000
+PLANT-107 n=108 tol=0.0001 J=12.430811505939051 lnJ=2.5201781894687327 steps=12729 elapsed=92.8 cpu=75.6 end_pairs_out_of_order=0 max_gap_mm=0.000
+PLANT-93 n=429 tol=0.0001 J=12.410765613265177 lnJ=2.5185642905661987 steps=13338 elapsed=302.5 cpu=282.6 end_pairs_out_of_order=0 max_gap_mm=0.000
+PLANT-107 n=429 tol=0.0001 J=12.410765613265177 lnJ=2.5185642905661987 steps=13338 elapsed=289.4 cpu=269.8 end_pairs_out_of_order=0 max_gap_mm=0.000

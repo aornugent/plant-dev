@@ -12,6 +12,9 @@ are a lower bound.
 - R3 (brief): smallest change; nothing ported from the spread (PLANT-108, dropped); the test lands
   with the change.
 - R4 (AGENTS.md): no parallel near-copy of an existing path.
+- Measured during the review: on PLANT-93 alone no build crosses on long drought (108, 429) or
+  long-wet (429). With PLANT-97's storage pool, crowns cross at 82% of leg ends. §16's +23% for
+  the walk was measured with the spread; without it the sort saves 6.2% of a crossed forward.
 
 ## Clean sheet
 When the scan reports a crossing on the birth-date coordinate, take the prefix over the nodes in
@@ -41,9 +44,10 @@ returns tallest first on passive positions (D1).
   the convention `reduce_competition` already uses for its `order`.
 - D3: chose sorting per build over keeping the node list sorted (or caching the order with the
   height scan). Settled by R3: the sort is O(n log n) on doubles against O(n) crown evaluations per
-  build, measured indistinguishable (§16: 0.114 against 0.113–0.117 ms per row; and here, see the
-  case). A cached order would need every height-changing path to invalidate it, which the scan's
-  cache already warns is easy to get wrong.
+  build. §16 measured it at 0.114 ms per row against 0.113–0.117 ms, and here it is inside the
+  −6.2% the sort saves on a crossed forward (PLANT-107.md). A cached order would need every
+  height-changing path to invalidate it, which the scan's cache already warns is easy to get
+  wrong.
 - D4: chose an exact sort over a height tolerance on the decreasing check. Settled by §16: a 1 cm
   tolerance repeated the sort's `J` only on the records tried, and needs a number to choose; the
   sort is exact on any record.
@@ -78,4 +82,7 @@ None open.
    metaphor words added (the existing `frozen` lambda is code and untouched in meaning).
 
 ## Questions with defaults
-None.
+Q1: should this wait for PLANT-97, since on PLANT-93 alone no realistic run reaches the sorted
+path and only the test exercises it? Default if unanswered: no. The code needs PLANT-93's weights
+and nothing from PLANT-97, the test covers the path on any base, and the PR says that the gain
+appears once PLANT-97 lands.
