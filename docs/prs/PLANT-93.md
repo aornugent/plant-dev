@@ -1,6 +1,6 @@
 # PLANT-93: exact establishment counts on the birth-date coordinate
 
-Branch `PLANT-93` on aornugent/plant, one commit on `develop` (bd09645d); the head of aornugent/plant#94.
+Branch `PLANT-93` on aornugent/plant at 77e15141, one commit on `develop` (bd09645d); the head of aornugent/plant#94.
 It re-ports bae2dd9a, which sat ten upstream merges back, onto the census gradient (#648, #657, #658),
 the Hermite light field (#649), the retried birth-date stage (#662) and the continuous and long patches (#661, #676).
 
@@ -83,7 +83,9 @@ point samples miss it by 13×, exact counts meet it with 5× to spare.
     `scripts/capture-default-baseline.R` from this branch.
 
 ### How it is tested
-- Full serial sweep on an `-O2` build: see the report (all files, including the three heavy ones).
+- Full serial sweep on an `-O2` build of 77e15141: 92 files, 5 455 expectations passed, 0 failed, 4 skipped
+  (the macOS-only default baseline, the opt-in scenario gateway, the plot diagnostics, one FF16 skip),
+  test-mutant, test-strategy-tf24 and test-strategy-tf24f included.
 - New or rewritten checks: the node's state on each coordinate and its interval rates (test-node); the
   patch's state and rates with the interval rate equal to the boundary node's `pr_estab` (test-patch);
   the census against an R re-derivation from the interval states, and its state adjoint against
