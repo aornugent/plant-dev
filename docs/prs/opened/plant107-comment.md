@@ -22,11 +22,11 @@ The −6.2% held in both interleaved pairs, but runs of the same build differ by
 
 ### What it costs
 - Runtime: none where nothing crosses; the build runs the old loop index for index. Where crowns cross, one O(n log n) sort of doubles per build, included in the −6.2%.
-- Lines: `species.h` +20/−13; `test-canopy-methods.R` +32. References moved: none on #94 alone.
+- Lines: `species.h` +20/−13; `test-canopy-methods.R` +32. References moved: none. On #94 + #113 + this commit the re-capture of `reference-gradient.tsv` is bit-identical, and long drought's `J` is unchanged (12.662188249).
 
 ### Tests
 - New, `test-canopy-methods.R`: a 2-year TF24 birth-date stand with the tallest (4.413 m) and shortest (0.590 m) cohort's heights swapped; the light at every knot equals Beer's law summed over every crown (`compute_competition_and_slope`) to 1e-14, value and slope. 56 of 65 knots lie between the swapped heights, so a running total in list order would fail it.
-- Full serial suite on #94 + this commit, `-O2`: 5 448 expectations, 0 failed. FF16's birth-date references pass unchanged.
+- On #94 + #113 + this commit, `-O2`: all files but the three slowest, plus those three, 5467 pass, 0 fail, 7 skipped (opt-in and report tests). FF16's birth-date references pass unchanged.
 
 ### For review
 1. The gate `(!scan.decreasing && !birth_date) || n_moments == 0`: on the birth-date coordinate a crossed list now keeps the running total. Evaluating every crown remains for the height coordinate and for crown profiles that are not polynomial.

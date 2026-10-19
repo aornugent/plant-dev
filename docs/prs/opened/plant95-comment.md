@@ -14,7 +14,7 @@ Stacked on #115 (top of the chain #94 ← #113 ← #114 ← #115 ← this). Need
   - TF24 gains the fitness flag, the `S_D` column and FF16's birth-rate column, line for line.
 
 ### Measured
-A 6-year TF24 stand (hmat 6, 12 introductions, `ode_tol` 1e-6, resident at birth rate 10), on the storage-pool build (odelia 0.7.3) against this one:
+A 6-year TF24 stand (hmat 6, 12 introductions, `ode_tol` 1e-6, resident at birth rate 10), measured on develop + #113 (odelia 0.7.3) against that + this change, before the stack was rebased:
 
 | invader | resident's leaf (before) | own leaf (this PR) | `ln R0′` moves |
 |---|---|---|---|
@@ -34,18 +34,7 @@ A 6-year TF24 stand (hmat 6, 12 introductions, `ode_tol` 1e-6, resident at birth
   | lma ×0.7 | fails in the leaf solve (`stem_curve_domain`) | 464.342 |
 
 - **The resident's fitness gradient** (`test-tf24-fitness-gradient.R`), against a central difference on the run's own steps over 14 columns: every column but lma and omega within 1e-4 at a step of 1e-4 (a_f1 2e-8, k_I 3.8e-6, a_d0 1.3e-6, hmat 1.8e-5). lma and omega set the seed height, whose root-find tolerance the difference reads, so they are held to 5e-3 at a step of 1e-3. `S_D`'s column is the value over `S_D`, to 1e-12.
-- **The resident's equilibrium birth rate.** Newton in `ln b` on `ln J − ln b`, from b = 10, its slope from the birth-rate column:
-
-  | run | b | `ln J − ln b` |
-  |---|---|---|
-  | 1 | 10 | 1.7 |
-  | 2 | 30.70 | −0.47 |
-  | 3 | 21.61 | −9.5e-3 |
-  | 4 | 21.48 | 3.1e-4 |
-  | 5 | 21.485 | 9.2e-7 |
-  | 6 | 21.48496 | 2.0e-9 |
-
-  Six runs, 12 s, with `d ln J/d ln b` = −0.7545 at b*. At b* the identical invader's `R0′ − 1` is 2.0e-9. Convergence is quadratic once the step error is below the slope's: at the default `ode_tol` 1e-4 the adaptive run's own slope differs from the reverse sweep's by 5–10%, Newton then contracts by about 0.05 a run, and reaching 1e-8 takes eight runs.
+- **The resident's equilibrium birth rate**, on the full stack. Newton in `ln b` on `ln J − ln b`, from b = 10, its slope from the birth-rate column: `ln J − ln b` runs 1.7, −0.47, −3.4e-3, 8.3e-5, −6.1e-6, −1.2e-7, −2.4e-9, so seven runs reach b* = 21.49, where the identical invader's `R0′` is 1 to 1e-8. The swept slope is right: `dJ/db` = −0.741537 against −0.741545 from a central difference on the run's own steps. Convergence is linear (about 0.02 a run), not quadratic, because a difference between adaptive runs reads −0.7604, 2.5% off: the step controller's choices move `J` with b. The test checks convergence below 1e-8 within eight runs, not a run count.
 - **The invader's gradient at b*,** against a central difference of invasions (step 1e-4):
 
   | invader | `R0′` | lma | hmat | k_I |
@@ -66,7 +55,8 @@ A 6-year TF24 stand (hmat 6, 12 introductions, `ode_tol` 1e-6, resident at birth
 - `test-tf24-mutant-gradient.R`: two invaders, alone and together, and the invader's fitness gradient against a difference.
 - `test-mutant.R`: both refusals.
 - `test-census.R` and five finite-difference files read the census rows where they classify census zeros.
-- Full serial suite on the storage-pool build + this change, `-O2`, odelia 0.8.1: 5527 passed, 0 failed, 4 skipped.
+- Full serial suite on the full stack (#94 + #113 + #114 + #115 + this change), `-O2`, odelia 0.8.2: 5564 passed, 0 failed, 7 skipped (opt-in and report tests).
+- `test-scm.R`: #115's substepped-soil test now checks the census and fitness rows together against the tangent replay and the central difference.
 
 ### For review
 1. `Patch::store_solved` now also reads: it keeps a light environment the copied row already holds. No pass without copies may hand it a row with `field.kept` set; every stepper clears its scratch row before an attempt that is not a replay.

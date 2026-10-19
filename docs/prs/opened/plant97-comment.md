@@ -1,5 +1,5 @@
 ### Merge order
-Stacked: #94 (exact establishment counts) ← this ← #114 (crossed crowns) ← #115 (TF24's soil substeps) ← #116 (TF24 fitness). The numbers below were measured on develop + this commit; the reference rows are re-captured on #94 + this commit.
+Stacked: #94 (exact establishment counts) ← this ← #114 (crossed crowns) ← #115 (TF24's soil substeps) ← #116 (TF24 fitness). The first table was measured on develop + this commit; the references are re-captured on #94 + this commit.
 
 ### The problem, in the model's terms
 - A seedling's pool relaxes at `λ = (charge + drain)/storage_max`, up to 1444 /yr (about 6 h), against daily forcing.
@@ -25,6 +25,8 @@ Stacked: #94 (exact establishment counts) ← this ← #114 (crossed crowns) ←
 | invaders lma ×0.9, ×1.2 | fail on the stage check | — | run (`J′` 61.0, 0.076) |
 | invader lma ×0.7 | fails in the leaf solve (`stem_curve_domain`) | same | same |
 
+On #94 + this commit (this PR's base), the same stand: `J` 12.417 → 12.662 (+2.0%), accepted steps 10 517 → 9 267, and invaders lma ×0.9, ×1.2 and ×2 on the resident's steps are refused on #94 and run with this commit.
+
 - ×0.7 fails in phylloptim's leaf solve in all three builds, so that failure is not the pool's; the TF24 fitness PR (#116) runs it (`J′` 464.3).
 - On the test fixture's birth-date stand, invaders ×0.7 and ×2 run; at a zero offset ×2 overflows its density (new test).
 - With exact establishment counts, `J` moved +2.0/+2.6/+2.7% at 108/215/429 introductions, and `dJ/d lma` from −168.556 to −195.988 by adjoint (central difference −168.462 → −195.975), with `dJ/d offset` = −22.074. Those were measured on an earlier build of the same change.
@@ -36,14 +38,23 @@ Stacked: #94 (exact establishment counts) ← this ← #114 (crossed crowns) ←
   - "offspring arrival" five-year values. Height coordinate: 24.321 → 18.598 (−23.5%) and 18.543 → 14.104 (−23.9%). Birth date: 219.27 → 212.02 (−3.3%) and 34.588 → 32.987 (−4.6%). The height coordinate's probe magnifies any change to the pool.
   - TF24's seeded stochastic count, 77 → 79 (77 at a zero offset, now tested).
   - The model-version snapshot (v12, v12.1, the new parameter).
-  - `reference-gradient.tsv`, with `scripts/capture-reference-gradient.R`: 30 new rows for the new column; 91 of 1380 rows move by more than 1e-3 of their metric's scale. The largest are `theta` and `omega` on `leaf_area` on the drought and seasonal stands (seasonal species 2 `theta` 239.06 → −1511.01): these stands' seedlings are where the divisor matters, and `theta` sets the storage capacity it reads. Every moved row's finite differences converge (spread ≤ 1.1 on values of order 1e3), and the whole-run check passes against the reverse sweep.
-  - The capture script called `census_metric_names_tf24()` without the run since #658; its unused metric count is dropped (−1 line).
+  - `reference-gradient.tsv`, re-captured on #94 + this commit with `scripts/capture-reference-gradient.R`: 30 new rows for the new column, and 86 of 1380 rows move by more than 1e-3 of their metric's largest converged value:
+
+    | regime | rows moved | largest move |
+    |---|---|---|
+    | wet | 8 | 0.008 |
+    | drought | 19 | 0.63 |
+    | seasonal | 25 | 1.19 (a sign change, species 2 `theta` on `leaf_area`) |
+    | shaded | 16 | 0.17 |
+    | clamped | 18 | 0.23 |
+
+    Nearly all are `theta`, `omega` and `a_bio`: these stands' seedlings are where the divisor matters, and `theta` sets the storage capacity it reads. Every moved row's finite differences converge, and the whole-run check passes against the reverse sweep.
 - TF24f's convergence check now compares against TF24 at `tol` 1e-6: at the default tolerance, TF24's own error (0.21%) exceeds TF24f's lag at `k_acclim` = 100 (0.04%).
 
 ### Tests
 - New: the divisor's form against a hand computation (1e-12) with the offset binding; the relaxation rate falling from about 380 to 55 /yr against `1/o` = 52; a negative offset refused; a stage below empty with finite rates that refill the pool; invaders ×0.7 and ×2 on the run's steps, and ×2 overflowing at a zero offset.
 - The relaxation-time and height-linear tests are set at a zero offset, so they still test what they did.
-- Full serial suite on develop + this commit, `-O2`, odelia 0.7.3, phylloptim 0.10.2: 5461 passed, 0 failed, 4 skipped. FF16's bit-identity checks pass.
+- Full serial suite on #94 + this commit, `-O2`, odelia 0.7.3, phylloptim 0.10.2: 5463 passed, 0 failed, 7 skipped (opt-in and report tests). FF16's bit-identity checks pass.
 
 ### For review
 1. Is 7 days acceptable as the default? It is a declared parameter, `o = 0` recovers v11's rates, and it sets every TF24 number.

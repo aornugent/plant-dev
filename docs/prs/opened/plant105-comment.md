@@ -25,11 +25,12 @@ From earlier builds of the same change:
 - Each run's records grow by an optional entry per step, about 0.4 MB per 7 000 steps.
 - A grid of times alone (`ode_times` without sizes) is refused across a step that would substep.
 - The water-balance sums (`sum_rainfall`, `sum_infiltration`, `sum_drainage`, `sum_resource_depletion`) still follow the main step, so they miss the rain the soil takes between stages: 3.1% of the rain on the dry record. A run whose water balance must close keeps the knot stops, as `test-tf24-water-budget.R` does.
-- References: the seasonal regime's 280 rows of `reference-gradient.tsv` are re-captured with `scripts/capture-reference-gradient.R` (seasonal only). That regime runs a cubic rain with no stops, so its forward model changed: it now reads the rain between stages. The worst row moved 0.32 of its metric's largest column (`theta` on `leaf_area`). The four constant-rain regimes are untouched, and FF16's bit-identity checks pass.
+- References, re-captured on #94 + #113 + #114 + this change: only the seasonal regime moves. That regime runs a cubic rain with no stops, so its forward model changed: it now reads the rain between stages. 12 of its 282 rows move by more than 1e-3 of their metric's largest converged value, all `theta` and `omega`, at most 0.035 (`theta` on `leaf_area`). The four constant-rain regimes are bit-identical, and FF16's bit-identity checks pass.
+- The model-version snapshot gains the new control (`ode_soil_substep_max_uptake`, default 0) in each model's controls, and nothing else.
 
 ### Tests
 - `test-scm.R`: a daily rainfall record without stops matches the stopped run (within 2e-5 at tol 1e-5; measured 1.1e-6); a substepped run replays bit for bit from its schedule and its parameters; the reverse sweep matches a tangent replay (1e-6) and central differences (1e-2); grids and sizes without records are refused.
-- Full serial suite, `-O2`, on develop + this change: 5457 pass, 0 fail, 11 skip.
+- On #94 + #113 + #114 + this change, `-O2`, odelia 0.8.1: all files but the three slowest 5321 pass, the three slowest, the whole-run reference, model-version and FF16 checks 280 pass; 0 fail, 7 skipped (opt-in and report tests).
 
 ### For review
 1. `step_by` refuses a row without substeps that spans a knot. A step substepped only because of the uptake fraction has no such check (a replay at other parameters may compute a different fraction), and NEWS says to carry the records then.
