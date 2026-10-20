@@ -14,7 +14,7 @@ stopped run's; a run with stops is unchanged bit for bit. Each step
 records its substeps (`ode_soil_input_slopes`, `ode_soil_substep_ends`)
 for replays, invasions and the reverse sweep: `set_ode_steps()` takes
 them beside times and sizes, and refuses sizes without them across a
-knot. `Control$ode_soil_substep_max_uptake` (default 0, off) also
-substeps steps where the plants take little of the soil's water.
+knot. `Control$ode_soil_substep = TRUE` (default FALSE) also substeps
+the soil wherever its stiffness or its own error holds the step back.
 
 Closes #105

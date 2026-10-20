@@ -30,7 +30,7 @@ p <- ggplot() +
            vjust = 1, size = 3.6) +
   scale_x_continuous(expand = expansion(mult = c(0.02, 0.28))) +
   labs(x = "days from the start of the step", y = expression("rainfall (m yr"^-1*")"),
-       title = sprintf("The six stages see %.0f%% of this step's rain; the soil's substeps land on every knot", 100 * seen / total),
+       title = sprintf("The stages see %.0f%% of this step's rain; the soil's substeps land on each knot", 100 * seen / total),
        subtitle = sprintf(paste("Synthetic record's stand, ode_tol 1e-4, no stops, B105; blue lines: %d knots",
                                 "of the daily rain\ninside the step; the plants' rates are taken only at the six stages"),
                           sum(knots$day > 0 & knots$day < h))) +

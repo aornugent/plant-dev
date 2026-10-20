@@ -34,13 +34,30 @@ on the seasonal regime substeps take 0.69 of the steps and 0.64 of the
 gradient run's CPU, but 1.07 of the stand's rate evaluations, since
 they are rejected 424 times against knot stops' 91.
 
-## The uptake fraction
+## Substepping where the soil holds the step back: an option
 
-A step that spans no knot is also substepped when, at its start, the
-plants take less than `Control$ode_soil_substep_max_uptake` of the water
-moving through the soil: Σ|uptake| / Σ(|inflow| + |drainage| + |uptake|)
-over the five layers (`TF24_Environment::uptake_fraction_of_flows`).
-The default, 0, turns this off. At 0.1 the synthetic record's stand
-takes 4101 steps against 4793 and is 7.4e-5 off in ln J against 3.0e-6.
-A step substepped for this reason has no knot to check against on
-replay, so a run that uses it should carry its records.
+With `Control$ode_soil_substep = TRUE`, a step that spans no knot is
+also substepped where the soil is what limits it: where the step is
+past Cash–Karp's stability limit on the soil (the soil's stiffness,
+read from the step's own last two rate evaluations, times the step
+above 3.73), or where the soil's own error set the previous step and
+the coupling error of substepping would have been smaller. odelia makes
+that decision (aornugent/odelia#57); plant only switches it on.
+
+On the synthetic record's stand (`ode_tol` 1e-4, gradient runs) it
+takes 4039 steps against the knot trigger's 4793, and 206 287 rows
+against 237 971 (13% fewer). ln J and every census elasticity stay
+within a third of ε (0.025 in ln J) of a run stopped at every knot at
+`ode_tol` 1e-5. On the seasonal regime it changes nothing (583 steps
+against 586).
+
+It is off by default because two checks assume the soil moves with the
+main step. The water-balance sums (`sum_rainfall`, `sum_infiltration`,
+`sum_drainage`, `sum_resource_depletion`) accumulate at the main step,
+so with it on the budget closes to about 1e-5 relative, not 1e-12. And
+the whole-run gradient references for the drought, shaded and clamped
+regimes move. Turning it on by default would move those sums into the
+soil's substeps (about 20 lines) and re-capture those references.
+
+**For the maintainers:** keep it opt-in, or make it the default, in this
+PR or a follow-up?
