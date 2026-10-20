@@ -1,0 +1,29 @@
+1. Resident equilibrium, lma = 0.19788
+  newton  1  b = 10  ln J - ln b = +1.72e+00
+  newton  2  b = 30.7189  ln J - ln b = -4.72e-01
+  newton  3  b = 21.5359  ln J - ln b = -3.40e-03
+  newton  4  b = 21.4927  ln J - ln b = +8.31e-05
+  newton  5  b = 21.4937  ln J - ln b = -6.08e-06
+  newton  6  b = 21.4937  ln J - ln b = -1.22e-07
+  newton  7  b = 21.4937  ln J - ln b = -2.44e-09
+   b* = 21.4937 after 7 runs; R0 = 0.9999999976
+2. Cache: the equilibrium run. An invader at the resident's traits:
+   ln R' = -2.44e-09 (zero at the equilibrium)
+   d ln R'/d ln lma: sweep chained -79.4553, central difference -78.8256
+3. Hill climb on ln R' in ln lma along the trade-off, against the cache
+   1  lma = 0.19788  ln R' = -0.0000  d ln R'/d ln lma = -79.455  -> lma 0.19591, ln R' +0.6483
+   invader lma = 0.19591 with ln R' = +0.6483
+4. Invasion: the invader at its own equilibrium, then the old resident as its invader
+  newton  1  b = 21.4937  ln J - ln b = +3.98e-02
+  newton  2  b = 21.9897  ln J - ln b = +4.16e-03
+  newton  3  b = 22.0554  ln J - ln b = +5.33e-05
+  newton  4  b = 22.0563  ln J - ln b = -7.72e-08
+  newton  5  b = 22.0563  ln J - ln b = +1.20e-10
+   invader alone: b* = 22.0563 after 5 runs; the old resident's ln R' = -0.3054
+   the old resident cannot return: the invader replaces it
+   community lma = 0.19591  b* = 22.0563  J/b = 1.0000000001
+5. The next cache: each survivor's selection gradient as an invader of it
+           lma 0.19591
+log_R     1.202454e-10
+gradient -6.105934e+01
+Cost: 12 recorded runs, 15 sweeps, 8 invasions, 19.6 s
