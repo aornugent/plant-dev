@@ -1,40 +1,52 @@
-# How it works
+## How a substepped step works
 
-## Two passes over the same substeps
+The fast part needs its inputs at every moment of the step, but the
+rest of the System only computes them at its six evaluations. The
+step therefore assumes the inputs change along a straight line, and
+it integrates the fast part twice.
 
-A stage of the whole System needs the subsystem at the stage's time
-before that stage has produced the inputs the subsystem reads. So the
-step integrates the subsystem twice over one set of substeps. The
-first pass holds the inputs on a line extrapolated along their slope
-since the last step and hands each stage the subsystem at its time.
-The second holds them on the line from the start's inputs to those the
-stage at `t + h` produced, and gives the step's end. The two passes'
-difference is the subsystem's error estimate; it measures the coupling,
-which shrinks as h² where Cash–Karp's own error shrinks as h⁵.
+The first time, it extends the inputs along the trend they showed over
+the previous step, and integrates the fast part with those. This gives
+the fast part's value at each of the six evaluation times, so the rest
+of the System can be evaluated as in any Cash-Karp step. Those
+evaluations produce the inputs at the end of the step. The second
+time, the step integrates the fast part with inputs on the straight
+line from their value at the start to their value at the end, and
+that result is the step's answer for the fast part. The difference
+between the two results is its error estimate.
 
-## When a step substeps
+The straight-line assumption makes this error shrink with the square
+of the step length, where a plain Cash-Karp step's error shrinks with
+the fifth power. That is why plain steps are cheaper when the fast
+part is not stiff, and why the solver substeps only when it has to.
 
-At every knot of the forcing, since the stages cannot read between
-knots. Elsewhere, only where the subsystem is what limits the step:
-past Cash–Karp's stability limit on it (its stiffness, read from the
-step's own last two evaluations, times h above 3.73), or where its own
-error set the previous step and the coupling error would have been
-smaller. Where the subsystem is not stiff, the h² coupling error would
-make substepping cost more than plain steps, so the step stays plain.
-An earlier version of this branch substepped wherever the System
-reported the subsystem weakly coupled; the figure shows what that cost:
+## When a step uses substeps
 
-![Accepted steps against the store's stiffness for plain Cash–Karp, the earlier weak-coupling trigger and this one, at matched accuracy](FIG:odelia-57/steps_vs_stiffness.png)
+A step that crosses a knot of the forcing always uses substeps,
+because the six evaluations cannot see the forcing between knots, and
+one substep ends on each knot. Any other step uses substeps in two
+cases. In the first, the step is longer than plain Cash-Karp can take
+stably on the fast part: the solver estimates the fast part's
+stiffness from the last two evaluations of each step and compares it,
+times the step length, with 3.73, Cash-Karp's stability limit. In the
+second, the fast part's own Cash-Karp error was what limited the
+previous step, and the straight-line error would have been smaller.
+`OdeControl::substep_subsystem`, on by default, switches both off and
+leaves only the knots.
 
-## What a replay must carry
+## What a replay must repeat
 
-The input slope comes from the step before, and a replay of one step
-has no step before it. So the run records the slope and the substep
-ends on the step's row (`instruction::subsystem`), and every other pass
-(a replay of the program, of a recording, at another scalar, and the
-reverse sweep) takes both from the row. The sweep therefore
-differentiates the step the run took; `test-substeps.R` checks the
-sweep and a tangent replay against central differences. A grid of
-times alone carries no substeps, so `step_to` refuses a step that would
-substep, and `step_by` refuses a recorded row without substeps across a
-knot.
+The first integration uses the inputs' trend over the previous step,
+and a replay of a single step, or the reverse sweep that computes
+gradients, does not have the previous step. So each accepted step
+records its input trend and the end time of every substep, in its
+entry of the run's program (`instruction::subsystem`). A replay at
+other parameters and the reverse sweep read them back and repeat the
+calculation the run made, and the sweep therefore gives the gradient
+of that calculation. `test-substeps.R` checks the sweep and a tangent
+replay against central differences of the replay.
+
+A replay given only the times of the steps has no record of the
+substeps, so `step_to` refuses an interval where a step would use
+them, and `step_by` refuses a recorded step that crosses a knot but
+has no substeps recorded. Only `method = "rkck"` takes substeps.

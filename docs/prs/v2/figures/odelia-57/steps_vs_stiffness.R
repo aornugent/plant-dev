@@ -25,14 +25,14 @@ p <- ggplot(best, aes(K, steps, colour = label, shape = label)) +
   geom_point(size = 2.4) +
   geom_text(data = ends, aes(y = steps * nudge_y, label = label), hjust = 0,
             nudge_x = 0.1, size = 3.4, colour = "#1A1A1A", show.legend = FALSE) +
-  scale_x_log10("store drainage K (stiffness grows as its square root)",
+  scale_x_log10("drainage rate K of the water layers (their stiffness grows as its square root)",
                 breaks = 10^(1:5), labels = c("10", "100", "1e3", "1e4", "1e5"),
                 expand = expansion(mult = c(0.03, 0.42))) +
   scale_y_log10("accepted steps", breaks = c(10, 30, 100, 300, 1000, 3000),
                 labels = function(x) format(x, big.mark = ",", scientific = FALSE, trim = TRUE)) +
   scale_colour_manual(values = cols, guide = "none") +
   scale_shape_manual(values = shapes, guide = "none") +
-  labs(title = "Substepping only where the store is stiff: plain steps up to K = 100",
+  labs(title = "Substeps only where the water layers are stiff: plain steps up to K = 100",
        subtitle = "Toy of test-substeps.R to t = 2; fewest steps within 1e-6 of a plain 1e-12 run. odelia a956c01, d663a2b") +
   theme_minimal(base_size = 12) +
   theme(plot.background = element_rect(fill = "white", colour = NA),

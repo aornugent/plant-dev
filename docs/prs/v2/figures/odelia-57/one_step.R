@@ -59,8 +59,8 @@ p <- ggplot() +
            size = 3.4, colour = grey, label = "reference, plain Cash-Karp at 1e-12") +
   scale_x_continuous("fraction of the step", breaks = stage_u,
                      labels = c("0", "1/5", "3/10", "3/5", "7/8", "1")) +
-  scale_y_continuous("store layer 1, w1", limits = c(lo - 0.8 * pad, hi + 0.4 * pad)) +
-  labs(title = sprintf("Substeps carry the stiff store across a step %.0f times Cash-Karp's own",
+  scale_y_continuous("water in layer 1, w1", limits = c(lo - 0.8 * pad, hi + 0.4 * pad)) +
+  labs(title = sprintf("This step is %.0f times longer than plain Cash-Karp can take",
                        d$h[1] / d$plain_h[1]),
        subtitle = sprintf("Toy of test-substeps.R, K = 1e4, tol 1e-6: step %d at t = %.3f, h = %.4f against plain %.5f",
                           d$step[1], d$t0[1], d$h[1], d$plain_h[1])) +

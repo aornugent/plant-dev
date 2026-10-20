@@ -1,1 +1,1 @@
-Integrate a subsystem in substeps of its own
+Integrate a System's stiff part in short substeps
