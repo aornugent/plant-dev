@@ -115,7 +115,7 @@ and runs the SCM's parameters on the schedule they make.
 | A run that kept no field | Run again on its own steps, keeping one, at the first invasion. |
 | A `run()` after an invasion | Runs the invaders as a community of their own; the next invasion reads that run. |
 | Memory | Keeping the field costs 3.5 % of a recorded TF24 run's peak; the invaders' rows carry none. |
-| Runtime | No pinned replay of the residents: the first invasion takes 0.28 s where it took 0.50 s. |
+| Runtime | No pinned replay of the residents: the first invasion takes 0.27 s where it took 0.50 s, and every invader number is bit-identical to the replay's. |
 
 ## The regnans workflow, with adjoints
 
