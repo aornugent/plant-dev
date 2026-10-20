@@ -1,8 +1,9 @@
 # When to substep a subsystem
 
-ODELIA-55 (aornugent/odelia#57, a956c01) and PLANT-105 (aornugent/plant#115,
-762ad2fc). Local branches, not pushed: odelia `trigger-odelia` (d663a2b, on
-a956c01) and plant `trigger-plant` (8282d1ab, on 762ad2fc). Scripts, data and
+ODELIA-55 (aornugent/odelia#57) and PLANT-105 (aornugent/plant#115). Landed
+as C with plant's switch: ODELIA-55 d663a2b, ODELIA-56 8533477, PLANT-97
+e6c08bfe, PLANT-107 64aecef7, PLANT-105 33a5bddf (trigger-plant's 8282d1ab
+folded in), PLANT-95 9d6a241c. Scripts, data and
 the pre-registered predictions are in
 `/tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/trig/`
 (`notes.md`, `toy/`, `plantrun/`). Counts only; plant was run under `nice -n 19`

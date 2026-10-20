@@ -20,7 +20,9 @@ past Cash–Karp's stability limit on it (its stiffness, read from the
 step's own last two evaluations, times h above 3.73), or where its own
 error set the previous step and the coupling error would have been
 smaller. Where the subsystem is not stiff, the h² coupling error would
-make substepping cost more than plain steps, so the step stays plain:
+make substepping cost more than plain steps, so the step stays plain.
+An earlier version of this branch substepped wherever the System
+reported the subsystem weakly coupled; the figure shows what that cost:
 
 ![Accepted steps against the store's stiffness for plain Cash–Karp, the earlier weak-coupling trigger and this one, at matched accuracy](FIG:odelia-57/steps_vs_stiffness.png)
 

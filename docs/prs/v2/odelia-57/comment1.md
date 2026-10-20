@@ -44,7 +44,7 @@ std::vector<double> subsystem_knots(double from, double to) const;
 Read `take_substepped_step` first; it is the whole mechanism.
 
 This is odelia 0.8.1. #58 (0.8.2) is stacked on it, and
-aornugent/plant#115 names TF24's soil as the subsystem. The second
-commit lets GCC 13 build `tests/standalone`: it crashed compiling a
+aornugent/plant#115 names TF24's soil as the subsystem. One commit
+lets GCC 13 build `tests/standalone`: it crashed compiling a
 braced list of `instruction`s, which now hold a `std::optional`, from a
 `const double` local; the local is now `constexpr`.
