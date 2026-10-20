@@ -1,0 +1,9 @@
+"scenario","build","arm","label","lnJ","lnJ_ref","error"
+"seasonal regime","B107","free","no stops, base (B107)",6.82149957697653,6.82181299917007,0.000313422193539914
+"seasonal regime","B105","free","no stops, substeps",6.82187691648736,6.82181299917007,6.39173172904961e-05
+"seasonal regime","B105","free0.1","no stops, substeps, uptake fraction 0.1",6.82187670579899,6.82181299917007,6.37066289206345e-05
+"seasonal regime","B105","stops","knot stops",6.82183279555024,6.82181299917007,1.97963801698009e-05
+"synthetic 41-yr daily record","B107","free","no stops, base (B107)",2.23661493175446,2.53913447576844,0.30251954401398
+"synthetic 41-yr daily record","B105","stops","knot stops",2.53981193475418,2.53913447576844,0.00067745898574012
+"synthetic 41-yr daily record","B105","free","no stops, substeps",2.53913146358319,2.53913447576844,3.01218525011748e-06
+"synthetic 41-yr daily record","B105","free0.1","no stops, substeps, uptake fraction 0.1",2.53920830139385,2.53913447576844,7.38256254098069e-05

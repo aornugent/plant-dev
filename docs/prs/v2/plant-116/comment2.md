@@ -1,61 +1,42 @@
 # How it works
 
-## An invader's own leaf, in the resident's light and soil
+## A copy of each recorded row
 
-TF24's rates hold one inner optimisation: each cohort's leaf settles at
-the root-collar water potential that maximises its carbon profit, given
-its traits, its light and its soil. A rare invader does not change the
-light or the soil, so an invasion reads the resident's field at every
-stage; but its leaf is its own, and its optimum moves with its traits.
+An invasion replays the resident's recording: its steps, and at every
+stage the field (the light spline and the soil water) the resident
+produced. The base's replay also loaded the resident's leaf operating
+point at each stage (`solve_leaf` → `replay_operating_point`), so the
+invader solved nothing. odelia 0.8.2's `advance_recorded(rec, true)`
+hands each stage a copy of the row instead. `Patch::store_solved` finds
+the copy's field already kept and reads it, and the invader's
+strategies solve their own leaves and store them in the copy, where the
+invasion's reverse sweep reads them. The recording itself is never
+written, so two invaders in one call each read the same resident.
 
-The base solved nothing in an invasion. Its second pass loaded the
-resident's recorded operating point at each stage
-(`solve_leaf` → `replay_operating_point`), so an invader at another lma
-ran with the resident's collar potential, and its reverse sweep
-differentiated a leaf that never optimised. With odelia 0.8.2 the
-second pass hands each stage a copy of the recorded row. The copy's
-field is the resident's (`Patch::store_solved` finds `field.kept` and
-reads it); the invader's strategies store their own solves into the
-copy, and the invasion's sweep reads those rows.
+## Newton on the birth-rate column
 
-The figure is the invader's fitness across lma multipliers 0.5 to 2, at
-the resident's equilibrium birth rate, on both builds. The short
-segments are the sweep's d ln R0'/d ln lma at {{NGRAD}} multipliers,
-each drawn as a tangent.
+For a species at a constant birth rate, `birth_rate_` sits at the
+working scalar as the last entry of `ad_parameters()`, so the sweep's
+`"1.birth_rate"` column of offspring production is dJ/db. At
+equilibrium J(b*) = b*, and Newton in ln b takes
+ln b ← ln b − (ln J − ln b) / (d ln J/d ln b − 1).
 
-![Invader fitness ln R0' against the lma multiplier, the resident's leaf (B105) against the invader's own (B95), with the sweep's gradient as tangents](FIG:plant-116/landscape.png)
+![Newton's |ln J − ln b| per run at ode_tol 1e-4 and 1e-6](FIG:plant-116/newton.png)
 
-{{LANDPROSE}}
+Convergence is linear, the last three runs each cutting |ln J − ln b|
+about fifty-fold, because the swept slope is the slope of one run's own steps. At b*
+(`ode_tol` 1e-6) it reads d ln J/d ln b = −0.741537, against −0.741544
+from a central difference of runs pinned to those steps, and −0.760361
+from a difference of adaptive runs, whose step sequences move with b.
+That 2.5% predicts a contraction of 0.011 a run, near the 0.02 seen. At
+`ode_tol` 1e-4 the residual stops falling near 1e-9, the runs' own
+noise.
 
-## The birth-rate column, and why Newton converges linearly
+## What an invasion refuses
 
-The birth rate is a strategy field read through the `birth_rate`
-driver. For a constant birth rate it is now also `birth_rate_`, at the
-working scalar, the last entry of `ad_parameters()`, so the sweep's
-column is dJ/db and `"<i>.offspring_production"` at a constant b gives
-d ln J/d ln b = (b/J) dJ/db. A variable birth rate is a driver read as
-a double and has no column.
-
-At equilibrium J(b*) = b*. Newton in ln b on ln J − ln b steps
-ln b ← ln b − (ln J − ln b)/(d ln J/d ln b − 1).
-
-![Newton's |ln J − ln b| per run, at ode_tol 1e-4 and 1e-6](FIG:plant-116/newton.png)
-
-{{NEWTONPROSE}}
-
-## What the invasion refuses
-
-An invasion is a replay of the resident's recorded program, which holds
-its steps and its introductions and nothing else. Two inputs would be
-skipped with every number finite, so `run_mutant()` now refuses them
-before it changes anything: a resident run whose events include a
-harvest or a climate extreme, which the replay would not apply to the
-invaders, and an invader introduced at a time where the resident
-introduced nothing (compared with `util::identical` against the
-recording's insertion rows), which the replay would never introduce.
-Both are tested on FF16 in `test-mutant.R`, since the refusal is in
-`SCM` and not in TF24.
-
-## What it costs
-
-{{COST}}
+The recording holds steps and introductions and nothing else, so
+`run_mutant()` now refuses, before changing anything, a resident run
+with a harvest or climate extreme, which would not reach the invaders,
+and an invader introduced where the resident introduced nothing, which
+would never be introduced. The refusals are in `SCM` and tested on
+FF16.

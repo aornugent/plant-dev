@@ -9,13 +9,12 @@ m <- aggregate(cpu_s ~ arm, d, median)
 p <- ggplot(d, aes(arm, cpu_s)) +
   geom_line(aes(group = rep), colour = "grey75") +
   geom_point(aes(colour = arm), size = 3) +
-  geom_text(aes(label = rep), nudge_x = 0.08, size = 3, colour = "grey40") +
   geom_errorbar(data = m, aes(ymin = cpu_s, ymax = cpu_s), width = 0.25, colour = "grey20") +
   scale_colour_manual(values = c("#D55E00", "#0072B2"), guide = "none") +
   labs(x = NULL, y = "forward run, user + system CPU (s)",
-       title = sprintf("Sorting crossed crowns: %+.1f%% forward CPU (medians), pairs joined",
-                       100 * (m$cpu_s[2] / m$cpu_s[1] - 1)),
-       subtitle = "Synthetic record's stand, 108 introductions, ode_tol 1e-3; run order: B97, B107, five times") +
+       title = sprintf("The sort cuts forward CPU by %.1f%% (medians); four of five pairs by 4-6%%",
+                       -100 * (m$cpu_s[2] / m$cpu_s[1] - 1)),
+       subtitle = "Synthetic record's stand, 429 introductions, ode_tol 1e-4, 12 016 steps on both;\nrun order B97, B107, five times; lines join each pair, bars mark medians; the axis does not start at 0") +
   theme_minimal(base_size = 12) + theme(plot.background = element_rect(fill = "white", colour = NA), plot.title.position = "plot")
 ragg::agg_png(file.path(here, "forward.png"), width = 8, height = 4.5, units = "in", res = 200)
 print(p); invisible(dev.off())

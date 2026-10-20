@@ -42,7 +42,7 @@ if (scen == "synthetic") {
   kt <- seq(0, lifetime, length.out = max(200L, as.integer(ceiling(lifetime * 48))))
   knots <- kt[kt > 0 & kt < lifetime]
 }
-ev <- if (arm == "stops") events(events_default(p), pulse_rows(knots)) else NULL
+ev <- if (arm == "stops") events(events_default(p), rainfall_pulse(time = knots, depth = rep(0, length(knots)))) else NULL
 t0 <- proc.time()
 scm <- run_scm(p, env, ctrl, events = ev, record_trajectory = grad)
 fwd <- cpu(proc.time() - t0)

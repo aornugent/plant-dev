@@ -22,6 +22,7 @@ two builds alternate (B97, B107, B97, ...).
 | widest pair 1.169 mm at t = 35.463, cohorts born 29.6296 and 29.7222 (34 days apart), 383 cohorts, 4 pairs at that stop | `crossing-run.R` → `crossing-heights.csv`; `crossing.R` → `crossing.png`, `crossing.csv` |
 | 108 introductions, `ode_tol` 1e-3: 3039 stops, none out of order | `N=108 TOL=1e-3 crossing-run.R` on B97 → `crossing-share-108.csv` |
 | 108 introductions: B97 and B107 J identical (12.662188249200183), 9266 accepted steps on both; CPU medians 44.10 s (B97) and 43.35 s (B107), ranges 43.34-44.83 and 42.81-44.18, five pairs | `N=108 TOL=1e-3 forward-run.R` → `forward-run-108.csv` |
-| 429 introductions timing | `N=429 TOL=1e-4 forward-run.R` → `forward-run.csv`; `forward.R` → `forward.png` |
+| 429 introductions, five alternating pairs: B97 CPU 223.79, 221.90, 224.66, 221.59, 223.81 s (median 223.79); B107 211.49, 211.40, 211.23, 212.67, 220.68 s (median 211.49); per pair −5.5, −4.7, −6.0, −4.0, −1.4%; medians −5.5%; 12 016 accepted steps on both; J 12.746534371612489 (B97) and 12.746534371656043 (B107), 3.4e-12 relative | `N=429 TOL=1e-4 forward-run.R <rep> forward-run.csv`, queued in `scratchpad/v2/queue2.sh`; `forward.R` → `forward.png` |
+| 108-introduction median gap 1.7% (44.10 vs 43.35 s), no crossing: the noise floor of this comparison | `forward-run-108.csv` |
 | `reference-gradient.tsv` unchanged by this PR (the file is identical at eb12399e and 6514fa4c; 20 of its 1430 rows are NA on both) | `../plant-113/reference-moves.R <plant clone> eb12399e 6514fa4c` |
 | file line counts | `git diff --numstat eb12399e 6514fa4c` |

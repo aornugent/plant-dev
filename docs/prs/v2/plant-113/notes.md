@@ -50,3 +50,43 @@ Scripts and data are in `docs/prs/v2/figures/plant-113/`.
 | B97 offset 0 on the synthetic record: J 12.494, accepted 10 261, rejected 2572 | `offset-run.csv` |
 | ln J moves at 7 d vs 0: seasonal +0.0695 (+7.2%), synthetic +0.0134, drought −0.0072, wet −0.0032, shaded −0.0029, clamped −0.0029 | `offset.csv` |
 | invader x2 on the synthetic record: refused on base; density overflow at 0, 1, 3 d; runs at 7, 14, 28 d | `offset-run.csv`, column `invader_x2` |
+
+## Detail cut from the PR text
+
+What happens to a stage below empty, and to a step that ends there:
+
+```
+  odelia step (Cash-Karp, six stages)
+    └─ TF24_Strategy::compute_rates, storage < 0 at a stage
+         base:   util::stop_domain("TF24 storage is negative ...")
+         branch: rates finite; numerator charge - (charge + drain) r > 0
+    ├─ adaptive resident step: base, the throw rejects the attempt;
+    │    branch, the error estimate rejects an inaccurate attempt and
+    │    Patch::ode_state_valid() (non_negative_states(): storage) an end
+    │    below empty; both retry smaller
+    ├─ fixed-size step (advance_fixed): either refusal subdivides the interval
+    └─ invasion: a recorded step cannot shrink, so a refusal stops it
+```
+
+| old | new |
+|---|---|
+| TF24 scientific_version 11, TF24f 11.1 | 12, 12.1 |
+| `TF24_Strategy()$pars` | gains `storage_relaxation_offset` = 7/365 yr, a gradient column |
+| `storage_domain_tol` | gone, with the stage check |
+| J at 7 d against the base | synthetic record +2.0%; regimes wet −0.3%, drought −0.7%, seasonal +7.2%, shaded −0.3%, clamped −0.3% |
+| `storage_relaxation_offset = 0` | v11's rates; a run where the old check fired steps differently (synthetic record: J 12.494 against the base's 12.417) |
+
+Other references re-captured on the branch (from its diff): the
+"offspring arrival" five-year values, TF24's seeded stochastic count
+77 → 79 (77 at offset 0, tested), the model-version snapshot.
+`reference-gradient.tsv`: 89 rows move (wet 8, drought 19, seasonal 28,
+shaded 16, clamped 18; theta 29, omega 27, a_bio 22), largest relative
+move 1.19 of scale (seasonal, species 2, theta, leaf_area, 308.9 → −1639.0),
+drought's largest 0.63.
+
+The cohort: production falls through zero over weeks, so at first λ is
+small at either offset; at offset 0 the fastest the pool relaxes in the
+40 days shown is 345 /yr (25 h), at 7 d 45 /yr. The 19.4 d of the
+branch's NEWS entry, o ln(a_st3 a_dG2), assumes production drops at
+once from r = a_st3; this cohort runs down in 8.6 d at offset 0, not
+hours, because its production drifts down.

@@ -48,8 +48,9 @@ error against the 1e-12 reference falls as the step count to the power
 5.7 to 6.1 where its steps are set by accuracy (`K` up to 1e3). The
 size of the substepped error falls as the store stiffens. At `K = 1e4` and
 tolerance 1e-6 the substepped run ends 9.4e-9 from the reference; at
-`K = 10`, 5.4e-5, about fifty times the tolerance, where plain
-Cash–Karp ends 6.1e-7 from it.
+`K = 10`, 5.4e-5, which is 1e-7 of the population there (x ≈ 531) and
+inside the run's relative tolerance; plain Cash–Karp ends 6.1e-7 from
+it because it carries its fifth-order solution.
 
 ## What a replay must carry
 
