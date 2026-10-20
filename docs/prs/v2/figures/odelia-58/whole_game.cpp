@@ -65,28 +65,27 @@ int main() {
   run.advance_adaptive(std::vector<double>{0.0, 1.0});
   const auto rec = run.recording();
 
-  // A pass over its steps at r = 5 that reads every recorded choice.
-  Solver<Chooser<>> reads(Chooser<>(5.0), OdeControl{});
-  reads.set_keep_states(true);
-  reads.reset();
-  reads.advance_recorded(rec);
+  // A replay of its steps at r = 5 that reuses every recorded choice.
+  Solver<Chooser<>> reuses(Chooser<>(5.0), OdeControl{});
+  reuses.set_keep_states(true);
+  reuses.reset();
+  reuses.advance_recorded(rec);
 
-  // The same pass, storing what it solves into a copy of each row.
+  // The same replay, storing its own choices in a copy of each step's values.
   Solver<Chooser<>> stores(Chooser<>(5.0), OdeControl{});
   stores.set_keep_states(true);
   stores.reset();
   stores.advance_recorded(rec, true);
 
-  // The run's steps at r = 5 with no rows at all.
-  Solver<Chooser<>> steps(Chooser<>(5.0), OdeControl{});
-  steps.advance_recorded(run.schedule());
+  // A fresh run at r = 5 on the same steps, with no recorded values at all.
+  Solver<Chooser<>> fresh(Chooser<>(5.0), OdeControl{});
+  fresh.advance_recorded(run.schedule());
 
-  std::printf("steps %zu, stage values per step %zu\n", rec.size() - 1, rec[1].solved.size());
-  std::printf("y(1): reads %.12g  stores %.12g  steps alone %.12g\n",
-              reads.state()[0], stores.state()[0], steps.state()[0]);
-  std::printf("stage values at s = 0.5: run %d  reads %d  stores %d\n",
-              count_halves(rec), count_halves(reads.recording()),
-              count_halves(stores.recording()));
+  std::printf("y(1): reuses %.12g  stores %.12g  fresh run on the same steps %.12g\n",
+              reuses.state()[0], stores.state()[0], fresh.state()[0]);
+  std::printf("choices of s = 0.5: recorded %d  reuses %d  stores %d of %zu\n",
+              count_halves(rec), count_halves(reuses.recording()),
+              count_halves(stores.recording()), 6 * (rec.size() - 1));
 
   // d y(1) / d r from a sweep of each pass's own recording, and a central
   // difference of that pass.
@@ -102,7 +101,9 @@ int main() {
     return s.state()[0];
   };
   const double h = 1e-6;
-  std::printf("dy(1)/dr: reads %.8g (difference %.8g)  stores %.8g (difference %.8g)\n",
-              sweep(reads), (pass_at(5 + h, false) - pass_at(5 - h, false)) / (2 * h),
-              sweep(stores), (pass_at(5 + h, true) - pass_at(5 - h, true)) / (2 * h));
+  std::printf("dy(1)/dr from the sweep: reuses %.8g  stores %.8g\n",
+              sweep(reuses), sweep(stores));
+  std::printf("dy(1)/dr from central differences: reuses %.8g  stores %.8g\n",
+              (pass_at(5 + h, false) - pass_at(5 - h, false)) / (2 * h),
+              (pass_at(5 + h, true) - pass_at(5 - h, true)) / (2 * h));
 }

@@ -1,1 +1,1 @@
-Let a pass over a recording store its own values
+Let a replay store the values a System solves

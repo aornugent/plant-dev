@@ -1,7 +1,7 @@
 # The collar interval's two bounds closing against soil suction, and the
-# collar's psi_soil row against a central difference of the solve, on phylloptim
+# collar's psi_soil derivative against a central difference of the solve, on phylloptim
 # master (0.10.3) and PHYLLOPTIM-18 (0.10.4, 4026aad), both against odelia 0.8.0.
-# Data from leaf_rows.R (see root_integral.R), the two *_collar.csv files stacked
+# Data from sweeps.R (see root_integral.R), the two *_collar.csv files stacked
 # into collar_interval.csv.
 here <- dirname(normalizePath(sub("--file=", "", grep("--file=", commandArgs(FALSE), value = TRUE))))
 library(ggplot2)
@@ -19,12 +19,12 @@ lines <- rbind(
   data.frame(psi_soil = b$psi_soil, y = b$wet - b$psi_soil, series = "wet bound", panel = top),
   data.frame(psi_soil = b$psi_soil, y = b$dry - b$psi_soil, series = "dry bound", panel = top),
   data.frame(psi_soil = b$psi_soil, y = b$collar - b$psi_soil, series = "collar", panel = top),
-  data.frame(psi_soil = b$psi_soil, y = b$row, series = "row", panel = bot))
+  data.frame(psi_soil = b$psi_soil, y = b$deriv, series = "deriv", panel = bot))
 lines <- subset(lines, psi_soil < shut)
 lines$panel <- factor(lines$panel, levels = lv)
 fd <- subset(b, psi_soil < shut & seq_len(nrow(b)) %% 4 == 1)
 fd <- data.frame(psi_soil = fd$psi_soil, y = fd$fd, panel = factor(bot, levels = lv))
-cols <- c("wet bound" = grey, "dry bound" = "#000000", collar = blue, row = blue)
+cols <- c("wet bound" = grey, "dry bound" = "#000000", collar = blue, deriv = blue)
 lab <- do.call(rbind, lapply(split(subset(lines, panel == top), lines$series[lines$panel == top]),
                              function(x) x[which.min(x$psi_soil), ]))
 
@@ -34,9 +34,9 @@ ann <- data.frame(
   y = c(0.12, 0.62, 0.62),
   hjust = c(0.5, 0, 1),
   colour = c(verm, blue, grey),
-  label = c("interval narrower than GSS_tol_abs:\nmaster refused every collar row here",
-            "line: this branch's row\ncircles: central difference of the solve",
-            "dry bound at the root's own\nlimit: the row halves"))
+  label = c("interval narrower than GSS_tol_abs:\nmaster refused every derivative here",
+            "line: this branch's derivative\ncircles: central difference of the solve",
+            "dry bound at the root's own\nlimit: the derivative halves"))
 p <- ggplot() +
   annotate("rect", xmin = refused[1] - step, xmax = refused[2] + step, ymin = -Inf, ymax = Inf,
            fill = verm, alpha = 0.10) +
@@ -51,7 +51,7 @@ p <- ggplot() +
   scale_colour_manual(values = cols, guide = "none") +
   scale_x_continuous("soil suction psi_soil (MPa)", expand = expansion(mult = c(0.13, 0.02))) +
   scale_y_continuous(NULL) +
-  labs(title = "Where the collar interval closes, the collar's row is the mean of its bounds'",
+  labs(title = "Where the collar interval closes, the collar's derivative is the mean of its bounds'",
        subtitle = sprintf("One layer; stem_P50 3.4287, root_P50 3.4 MPa; GSS_tol_abs 0.1, 400 knots; shut down from %.3f MPa. 4026aad and master",
                           shut)) +
   theme_minimal(base_size = 12) +

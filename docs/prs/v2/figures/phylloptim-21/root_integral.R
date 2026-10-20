@@ -1,8 +1,8 @@
-# The root vulnerability integral G(psi) and its root_P50 row past the curve's
+# The root vulnerability integral G(psi) and its derivative in root_P50 past the curve's
 # dry end, on phylloptim master (0.10.3) and PHYLLOPTIM-18 (0.10.4, 4026aad),
-# both against odelia 0.8.0. Data from leaf_rows.R, run once per build:
-#   Rscript leaf_rows.R <master lib> <odelia lib> master <dir>/master
-#   Rscript leaf_rows.R <branch lib> <odelia lib> branch <dir>/branch
+# both against odelia 0.8.0. Data from sweeps.R, run once per build:
+#   Rscript sweeps.R <master lib> <odelia lib> master <dir>/master
+#   Rscript sweeps.R <branch lib> <odelia lib> branch <dir>/branch
 # then the two *_G.csv files stacked into root_integral.csv.
 here <- dirname(normalizePath(sub("--file=", "", grep("--file=", commandArgs(FALSE), value = TRUE))))
 library(ggplot2)
@@ -19,7 +19,7 @@ refused_from <- min(m$psi[m$refused != ""])
 grey <- "#6E6E6E"; blue <- "#0072B2"; verm <- "#D55E00"
 long <- rbind(
   data.frame(psi = b$psi, y = b$G, what = "line", panel = "G(psi), the table's value"),
-  data.frame(psi = b$psi, y = b$row, what = "line", panel = "dG / d root_P50"))
+  data.frame(psi = b$psi, y = b$deriv, what = "line", panel = "dG / d root_P50"))
 fd <- subset(b, abs((psi * 20) - round(psi * 20)) < 1e-9 & round(psi * 20) %% 4 == 0)
 fd <- data.frame(psi = fd$psi, y = fd$fd, panel = "dG / d root_P50")
 long$panel <- factor(long$panel, levels = c("G(psi), the table's value", "dG / d root_P50"))
@@ -31,8 +31,8 @@ ann <- data.frame(
   y = c(3.25, 3.25, 0.52, 0.85),
   hjust = c(1, 0, 0, 0),
   label = c(sprintf("last knot\n%.2f MPa", dry_end), sprintf("tangent reaches G(inf)\n%.2f MPa", cap),
-            "line: this branch's row\ncircles: central difference\nof the table in root_P50",
-            "master refused every\nrow here: stem_curve_domain"),
+            "line: this branch's derivative\ncircles: central difference\nof the table in root_P50",
+            "master refused every\nderivative here: stem_curve_domain"),
   colour = c(grey, grey, blue, verm))
 p <- ggplot() +
   annotate("rect", xmin = refused_from, xmax = Inf, ymin = -Inf, ymax = Inf, fill = verm, alpha = 0.10) +
@@ -44,7 +44,7 @@ p <- ggplot() +
   facet_wrap(~panel, ncol = 1, scales = "free_y") +
   scale_x_continuous("soil or collar suction psi (MPa)", breaks = 4:10) +
   scale_y_continuous(NULL) +
-  labs(title = "Past the root curve's last knot the row follows the table, where master refused",
+  labs(title = "Past the last knot the derivative follows the table; master refused it",
        subtitle = "root_P50 3.4 MPa, root_c 2.680147 (plant's TF24 root), 400 knots; phylloptim 4026aad and master, odelia 0.8.0") +
   theme_minimal(base_size = 12) +
   theme(plot.background = element_rect(fill = "white", colour = NA), panel.grid.minor = element_blank(),

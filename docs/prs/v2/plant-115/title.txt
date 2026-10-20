@@ -1,1 +1,1 @@
-Integrate TF24's soil in substeps of its own
+Substep TF24's soil so runs need not stop each day

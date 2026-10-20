@@ -1,9 +1,17 @@
-# The whole thing
+## What changes, on a small stand
 
-A TF24 stand's equilibrium, found with its own gradient, and an invader
-differentiated there. The stand is `test-tf24-fitness-gradient.R`'s:
-one species with `hmat` 6 m so cohorts mature in its 6 years, 12
-introductions, constant rain 1 m/yr, birth date.
+The example is the stand in `test-tf24-fitness-gradient.R`: one TF24
+species with a maturation height of 6 m, so that cohorts reproduce
+within the stand's 6 years, 12 cohorts introduced, constant rain of
+1 m/yr, on the birth-date coordinate at `ode_tol` 1e-6.
+
+A resident is at its demographic equilibrium when it produces as many
+seeds as it receives, J(b) = b for birth rate b. The loop below finds
+that birth rate by Newton's method on ln J − ln b, taking the slope
+from the gradient of offspring production with respect to the new
+birth-rate column. It then introduces an invader with 0.9 times the
+resident's leaf mass per area and differentiates the invader's
+fitness, its net reproduction ratio R0′.
 
 ```r
 env  <- fitness_stand_environment()
@@ -37,34 +45,41 @@ gi$gradient
 #> 1.net_reproduction_ratio -2543.109 -4.490476
 ```
 
-The invader is built through `TF24_hyperpar`, so its lma x0.9 moves
-the traits that map ties to lma; the gradient's columns hold every
-other parameter fixed. On the base the loop's first `stand_gradient()` stops with
-`Unknown metric: 1.offspring_production`, and two invaders in one
-`run_mutant()` with `Incorrect length input; expected 2, received 1`.
+On the base the loop stops at its first `stand_gradient()` call with
+`Unknown metric: 1.offspring_production`. This invader is built
+through `TF24_hyperpar`, so changing its leaf mass per area also
+changes the traits that the hyperparameters tie to it; the gradient's
+columns hold every other parameter fixed.
 
-Each invader now solves its own leaf in the resident's light and soil.
-Across invaders that differ from the resident in lma alone:
+The figure shows what the invader's own leaf changes. Each curve is
+the fitness of invaders that differ from the resident only in leaf
+mass per area, at the equilibrium found above. On the base (orange)
+each invader carries the resident's leaf; on this branch (blue) it
+optimises its own. Below the resident's leaf mass per area the
+invader's own leaf raises ln R0′ by up to 0.6, and the largest change,
+1.7, is on the steep side just above it. The resident introduced as
+its own invader is unchanged, with ln R0′ of 5.6e-11 on both builds.
 
-![Invader fitness against the lma multiplier, with the resident's leaf (base) and the invader's own (this branch), and the sweep's slope drawn as tangents](FIG:plant-116/landscape.png)
+![Invader fitness against its leaf mass per area as a multiple of the resident's, with the resident's leaf and with its own, and the gradient drawn as tangents](FIG:plant-116/landscape.png)
 
-On the base every invader carries the resident's operating point; with
-its own leaf an invader below the resident's lma gains up to 0.6 in
-ln R0', and the largest change, 1.7, sits on the steep side just above
-it. The resident itself, as its own invader, is unchanged (ln R0' 5.6e-11
-on both builds). The sweep's d ln R0'/d ln lma agrees with a central
-difference of invasions (step 1e-4 in ln lma) to 2e-5 relative at six
-of the eight points; on the cliff at x1.02 to 2.2e-3, and at the
-resident itself, where the curve turns sharply, they differ by 4.8%.
+The orange segments are the gradient of ln R0′ from the invasion's
+reverse sweep, drawn as tangents. Away from the resident it agrees
+with a central difference of invasions to 2e-5 relative at six of the
+eight points. On the steep side at 1.02 times the resident it agrees
+to 2.2e-3, and at the resident itself, where the curve bends sharply,
+the two differ by 4.8%.
 
-| file | lines | what |
-|---|---|---|
-| `scm.h` | +34 −6 | `run_mutant`: two refusals, `advance_recorded(rec, true)` |
-| `patch.h` | +9 −1 | `store_solved` reads the field a copied row already holds |
-| `models/tf24_strategy.h` | +41 −18 | `differentiable_fitness`, the birth-rate column, `S_D` a column |
-| `tests/testthat/test-tf24-fitness-gradient.R` | +159 | new: the gradient against pinned-step differences, Newton to b*, an invader at b* |
-| `tests/testthat/test-tf24-mutant-gradient.R`, `test-mutant.R` | +52 −7 | two invaders alone and together; the refusals |
+## What changes for existing code
 
-Read `SCM::run_mutant` from the refusals to
-`advance_recorded(resident_recording, true)`, then the `field.kept`
-branch of `Patch::store_solved`.
+TF24's offspring production and net reproduction ratio are now stand
+metrics, `S_D` is a gradient column, and a species at a constant birth
+rate gains a `"<i>.birth_rate"` column, last in its block, so code
+that indexes TF24's gradient columns by position should index them by
+name. `stand_gradient()` on TF24 now returns the census and the two
+fitness metrics by default. TF24 invaders' fitness values change.
+
+The changes are in `SCM::run_mutant` (`scm.h`), the branch of
+`Patch::store_solved` that reads a light environment already in the
+copy (`patch.h`), and TF24's fitness declaration and birth-rate column
+(`models/tf24_strategy.h`). The new tests are in
+`test-tf24-fitness-gradient.R`.

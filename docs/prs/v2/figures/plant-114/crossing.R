@@ -38,7 +38,7 @@ p <- ggplot(both, aes(birth, value)) +
   scale_x_continuous(expand = expansion(mult = c(0.05, 0.12))) +
   labs(x = "birth date of the cohort (yr)", y = NULL,
        title = "Younger cohorts stand taller than the cohorts born just before them",
-       subtitle = sprintf(paste("Synthetic record's stand, 429 introductions, ode_tol 1e-4, B97, at t = %.2f yr:",
+       subtitle = sprintf(paste("Synthetic record's stand, 429 introductions, ode_tol 1e-4, before this PR, at t = %.2f yr:",
                                 "\n%d cohorts, %d pairs out of order (orange)"), d$t[1], nrow(d),
                           sum(diff(d$height) > 0))) +
   theme_minimal(base_size = 12) +

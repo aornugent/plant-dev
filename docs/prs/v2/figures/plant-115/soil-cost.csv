@@ -8,9 +8,9 @@
 "seasonal regime","gradient run CPU","no stops, substeps",16.001,0.636121491611672
 "seasonal regime","gradient run CPU","no stops, substeps, uptake fraction 0.1",16.326,0.649041901884392
 "seasonal regime","gradient run CPU","knot stops",25.154,1
-"seasonal regime","rows","no stops, substeps",47438,0.687826238255423
-"seasonal regime","rows","no stops, substeps, uptake fraction 0.1",47251,0.685114835865909
-"seasonal regime","rows","knot stops",68968,1
+"seasonal regime","recorded node-steps","no stops, substeps",47438,0.687826238255423
+"seasonal regime","recorded node-steps","no stops, substeps, uptake fraction 0.1",47251,0.685114835865909
+"seasonal regime","recorded node-steps","knot stops",68968,1
 "seasonal regime","stand rate evaluations","no stops, substeps",6060,1.07332624867163
 "seasonal regime","stand rate evaluations","no stops, substeps, uptake fraction 0.1",6036,1.06907545164718
 "seasonal regime","stand rate evaluations","knot stops",5646,1
@@ -23,9 +23,9 @@
 "synthetic 41-yr daily record","gradient run CPU","no stops, substeps",82.219,0.354370856931047
 "synthetic 41-yr daily record","gradient run CPU","no stops, substeps, uptake fraction 0.1",74.087,0.319321247855733
 "synthetic 41-yr daily record","gradient run CPU","knot stops",232.014,1
-"synthetic 41-yr daily record","rows","no stops, substeps",237971,0.371534201705206
-"synthetic 41-yr daily record","rows","no stops, substeps, uptake fraction 0.1",209737,0.327453634531287
-"synthetic 41-yr daily record","rows","knot stops",640509,1
+"synthetic 41-yr daily record","recorded node-steps","no stops, substeps",237971,0.371534201705206
+"synthetic 41-yr daily record","recorded node-steps","no stops, substeps, uptake fraction 0.1",209737,0.327453634531287
+"synthetic 41-yr daily record","recorded node-steps","knot stops",640509,1
 "synthetic 41-yr daily record","stand rate evaluations","no stops, substeps",47232,0.55440523980562
 "synthetic 41-yr daily record","stand rate evaluations","no stops, substeps, uptake fraction 0.1",41478,0.486865272202268
 "synthetic 41-yr daily record","stand rate evaluations","knot stops",85194,1

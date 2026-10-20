@@ -13,7 +13,7 @@ p <- ggplot(d, aes(run, abs(excess), colour = tol)) +
   scale_colour_manual(values = pal, guide = "none") +
   labs(x = "Newton run (one resident run and one sweep each)", y = "|ln J - ln b|",
        title = "Newton reaches |ln J - ln b| near 1e-10 in seven runs",
-       subtitle = paste("TF24 fitness stand (6 yr, hmat 6 m, 12 introductions, rain 1 m/yr), B95, from b = 10;",
+       subtitle = paste("TF24 fitness stand (6 yr, hmat 6 m, 12 introductions, rain 1 m/yr), this PR, from b = 10;",
                         "\nslope from the birth-rate column; at 1e-4 it stops falling below 1e-9")) +
   theme_minimal(base_size = 12) + theme(plot.background = element_rect(fill = "white", colour = NA), plot.title.position = "plot")
 ragg::agg_png(file.path(here, "newton.png"), width = 8, height = 4.5, units = "in", res = 200)

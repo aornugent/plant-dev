@@ -1,20 +1,19 @@
-On a variable rainfall record TF24's soil sets every step of a run. The
-rain is a cubic between daily knots, and a step that spans knots reads
-it only at its six stages: on a synthetic 41-year daily record, run
-without stops, offspring production J was 26% low. The way round, a
-zero-depth rainfall pulse at every knot, made every cohort take the
-soil's short steps.
+TF24's soil water is the fastest part of the model, and on a daily
+rainfall record it sets the step length for every cohort. The rain is
+a cubic that changes every day, and a step longer than a day reads it
+at only six times. Run without stops on a synthetic 41-year daily
+record, a stand's offspring production J came out 26% low. The usual
+workaround, a zero-depth rainfall pulse on every day, stops the run at
+each day, so every cohort is integrated in daily steps.
 
-The patch now names the soil as odelia's subsystem (odelia 0.8.1). A
-Cash-Karp step that spans a knot integrates the soil in substeps of its
-own, one ending on each knot, while the plants take the step's six
-stages. On that record, without stops, J lands within 0.07% of the
-stopped run in 41% of its steps, and a gradient costs 0.35 of the
-stopped run's; a run with stops is unchanged bit for bit. Each step
-records its substeps (`ode_soil_input_slopes`, `ode_soil_substep_ends`)
-for replays, invasions and the reverse sweep: `set_ode_steps()` takes
-them beside times and sizes, and refuses sizes without them across a
-knot. `Control$ode_soil_substep = TRUE` (default FALSE) also substeps
-the soil wherever its stiffness or its own error holds the step back.
+TF24 now names its soil as the fast part that odelia 0.8.1 integrates
+in substeps. A step that crosses a day boundary integrates the soil in
+short substeps, one ending on each day boundary, while the plants are
+evaluated at the usual six points. On that record a run without stops
+lands within 0.07% of the stopped run in 0.41 times as many steps, and
+its gradient takes 0.35 times as long. Runs that keep their stops are
+unchanged. Each step records its substeps, and `set_ode_steps()` takes
+those records beside the step times and sizes, so a replay repeats the
+same calculation.
 
 Closes #105

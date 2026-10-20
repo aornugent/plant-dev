@@ -15,7 +15,7 @@ p <- ggplot(d, aes(t, pairs_out_of_order)) +
   scale_y_continuous(breaks = 0:5, limits = c(0, 5.2)) +
   labs(x = "time (yr)", y = "pairs out of height order",
        title = sprintf("Crossed pairs accumulate and never uncross: %.0f%% of stops have one", 100 * mean(d$pairs_out_of_order > 0)),
-       subtitle = sprintf(paste("Synthetic record's stand, 429 introductions, ode_tol 1e-4, B97;",
+       subtitle = sprintf(paste("Synthetic record's stand, 429 introductions, ode_tol 1e-4, before this PR;",
                                 "\n%d stops, at each introduction and rain knot"), nrow(d))) +
   theme_minimal(base_size = 12) +
   theme(plot.background = element_rect(fill = "white", colour = NA), plot.title.position = "plot")

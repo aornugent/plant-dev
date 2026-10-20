@@ -14,8 +14,8 @@ Measured 2026-10-19, under `nice -n 19`, at most two processes.
 
 ## Whole game and figures
 
-`figures/phylloptim-21/leaf_rows_cpp.R` defines `compile_leaf_rows()`,
-which compiles `G_rows()` and `collar_rows()` with Rcpp against the
+`figures/phylloptim-21/leaf_cpp.R` defines `compile_leaf()`,
+which compiles `G_derivative()` and `collar_derivative()` with Rcpp against the
 headers of the phylloptim in a given library. `whole_game.R` prints
 comment 1's outputs:
 
@@ -24,7 +24,7 @@ Rscript whole_game.R scratchpad/v2own/lib_ph104 scratchpad/v2own/lib_od80   # br
 Rscript whole_game.R scratchpad/v2own/lib_ph103 scratchpad/v2own/lib_od80   # master
 ```
 
-`leaf_rows.R <ph lib> <od lib> <label> <prefix>` runs the sweeps; the
+`sweeps.R <ph lib> <od lib> <label> <prefix>` runs the sweeps; the
 two builds' outputs stacked are `root_integral.csv` and
 `collar_interval.csv`; `root_integral.R` and `collar_interval.R` draw
 the figures from them.
@@ -32,7 +32,7 @@ the figures from them.
 Configuration: root_P50 3.4, root_c 2.680147 (plant TF24's defaults in
 `tf24_strategy.h`), 400 knots (plant's `vulnerability_curve_ncontrol`
 on its branches), `GSS_tol_abs` 0.1 (plant's `control.cpp` on
-PLANT-95). The leaf of `collar_rows()` is `test_leaf.cpp`'s: one layer
+PLANT-95). The leaf of `collar_derivative()` is `test_leaf.cpp`'s: one layer
 1 m deep, root carbon 1/0.05, PPFD 900, VPD 2, ca 40, 25 C, conductance
 `K_s θ / h` with θ = 0.000157, h = 5, traits as its determined fixture
 with stem_P50 3.4287.

@@ -71,7 +71,7 @@ p <- ggplot(curves, aes(day, r, colour = offset)) +
   labs(x = "days since the cohort's net production turned negative",
        y = "r = storage / storage_max",
        title = "A 7-day offset slows this seedling's run-down from 8.6 to 21.4 days",
-       subtitle = paste0("TF24 cohort born at t = 2.96 yr, synthetic record, B97; dots: the run (offset 7 d);\n",
+       subtitle = paste0("TF24 cohort born at t = 2.96 yr, synthetic record, this PR; dots: the run (offset 7 d);\n",
                          "lines: its pool integrated from the recorded production at each offset")) +
   theme_minimal(base_size = 12) + theme(plot.background = element_rect(fill = "white", colour = NA), plot.title.position = "plot")
 ragg::agg_png(file.path(here, "cohort.png"), width = 8, height = 4.5, units = "in", res = 200)

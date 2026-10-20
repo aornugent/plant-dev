@@ -1,20 +1,20 @@
-`run_mutant()` placed every TF24 invader's leaf at the resident's
-recorded operating point, so the fitness it reported for another trait
-was the resident's leaf on the invader's body, and two invaders together
-failed with `expected 2, received 1`. TF24 also declared no fitness, so
-`stand_gradient()` offered its census only.
+An invader's fitness should come from its own leaf, optimised in the
+resident stand's light and soil water. TF24's invasions reused the leaf
+operating point the resident had recorded, so the fitness reported for
+an invader with different traits was the resident's leaf on the
+invader's body, and two invaders run together failed with `expected 2,
+received 1`. TF24 also declared no fitness, so `stand_gradient()` could
+not differentiate it.
 
-An invasion now steps through the resident's recording on a copy of
-each row (odelia 0.8.2, `advance_recorded(rec, true)`): each rate
-evaluation reads the resident's light and soil from the row, and each
-invader solves its own leaf and stores it in the copy, which the
-invasion's reverse sweep then reads. TF24 declares
-`differentiable_fitness`, as FF16 does: `"<i>.net_reproduction_ratio"`
-and `"<i>.offspring_production"` are stand metrics, `S_D` is a column,
-and a species at a constant birth rate has a `"<i>.birth_rate"` column,
-so Newton's method on ln J - ln b finds the resident's equilibrium
-birth rate. `run_mutant()` refuses a resident run with a harvest or
-climate extreme, and an invader introduced where the resident
-introduced nothing. No resident number moves; TF24 invaders' do.
+An invasion now replays the resident's recorded steps with a copy of
+each step's values (odelia 0.8.2): each invader reads the resident's
+light and soil from the copy, solves its own leaf, and stores the result
+there, where the invasion's reverse sweep reads it. TF24 declares its
+fitness differentiable, and a species at a constant birth rate has a
+birth-rate column, so Newton's method finds the resident's equilibrium
+birth rate from one gradient per run. `run_mutant()` also refuses two
+cases its replay cannot represent: a resident run with a harvest or a
+climate extreme, and an invader introduced at a time the resident
+introduced nothing. Residents' results are unchanged.
 
 Closes #95

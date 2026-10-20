@@ -1,16 +1,19 @@
-A pass over a recording, `advance_recorded(rec)`, hands each stage the
-recorded row as `const`: the System reads every value the recorded run
-solved for and stores none of its own. A System that reads some of a
-row and solves the rest had nowhere to put what it solved. plant's
-TF24 invader is one: it reads the resident stand's light environment
-from the row and solves its own leaf, so its fitness was computed at
-the resident's leaf and a sweep of its pass read the resident's values.
+A recording keeps, for every step, the values a System solved for
+during that step's rate evaluations, such as the operating point of a
+plant's leaf. `advance_recorded(rec)` replays the recorded steps and
+hands each evaluation those values as read-only, so the System reuses
+them and solves nothing. Some replays need to reuse part of what was
+recorded and solve the rest. plant's invader is one: it should read
+the resident stand's light environment from the recording but solve
+its own leaf. With nowhere to store what it solved, its fitness was
+computed at the resident's leaf.
 
-`advance_recorded(rec, true)` copies each step's row and hands the
-stages the copy. The System reads what the recorded run left there and
-writes its own values over it, and a pass that keeps its states records
-the copy, so a sweep of that pass reads the values the pass solved.
-The copy lasts until the next step, as a recorded row does.
-`advance_recorded(rec)` is unchanged.
+`advance_recorded(rec, true)` copies each step's recorded values and
+hands the copy to the evaluations. The System reads what it needs
+from the copy and writes the values it solves over the rest. The
+replay's own recording keeps the copy, so the reverse sweep of the
+replay reads the values the replay computed. The copy lasts until the
+next step, as a recorded entry does. `advance_recorded(rec)` is
+unchanged.
 
 Closes #56

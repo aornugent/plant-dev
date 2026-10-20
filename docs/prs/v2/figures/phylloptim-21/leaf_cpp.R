@@ -1,7 +1,7 @@
-# Compiles G_rows() and collar_rows(): the leaf's derivative path called
+# Compiles G_derivative() and collar_derivative(): the leaf's derivative path called
 # through Rcpp against the phylloptim installed in `ph_lib`, with the odelia
 # headers in `od_lib`.
-compile_leaf_rows <- function(ph_lib, od_lib) {
+compile_leaf <- function(ph_lib, od_lib) {
   inc <- c(file.path(ph_lib, "phylloptim", "include"), file.path(od_lib, "odelia", "include"),
            system.file("include", package = "BH"))
   Sys.setenv(PKG_CPPFLAGS = paste(paste0("-isystem", shQuote(inc)), collapse = " "),
@@ -27,14 +27,14 @@ compile_leaf_rows <- function(ph_lib, od_lib) {
     return r;
   }
 
-  // G(psi) as the root table returns it, its root_P50 row on the derivative path,
+  // G(psi) as the root table returns it, its derivative in root_P50 on the derivative path,
   // and a central difference of the table read in root_P50.
   // [[Rcpp::export]]
-  Rcpp::DataFrame G_rows(std::vector<double> psi, double P50, double c,
+  Rcpp::DataFrame G_derivative(std::vector<double> psi, double P50, double c,
                          double resolution, double h) {
     const phylloptim::MultiLayerRoots r = roots_at(P50, c, resolution),
       up = roots_at(P50 + h, c, resolution), down = roots_at(P50 - h, c, resolution);
-    std::vector<double> value(psi.size()), row(psi.size()), fd(psi.size());
+    std::vector<double> value(psi.size()), deriv(psi.size()), fd(psi.size());
     std::vector<std::string> refused(psi.size());
     for (size_t i = 0; i < psi.size(); ++i) {
       value[i] = r.root_vuln_integral_at(psi[i]);
@@ -44,14 +44,14 @@ compile_leaf_rows <- function(ph_lib, od_lib) {
       try {
         const AD G = phylloptim::closed_form_integral<AD>(
           value[i], r.root_vuln_integral_deriv_at(psi[i]), AD(psi[i]), aP50, ac);
-        row[i] = xad::derivative(G);
+        deriv[i] = xad::derivative(G);
       } catch (const std::exception& e) {
-        row[i] = NA_REAL;
+        deriv[i] = NA_REAL;
         refused[i] = e.what();
       }
     }
     return Rcpp::DataFrame::create(Rcpp::_["psi"] = psi, Rcpp::_["G"] = value,
-      Rcpp::_["row"] = row, Rcpp::_["fd"] = fd, Rcpp::_["refused"] = refused,
+      Rcpp::_["deriv"] = deriv, Rcpp::_["fd"] = fd, Rcpp::_["refused"] = refused,
       Rcpp::_["dry_end"] = phylloptim::vulnerability_psi_max(r.root_b, c),
       Rcpp::_["G_inf"] = phylloptim::cumulative_vulnerability_integral_limit(r.root_b, c));
   }
@@ -78,16 +78,16 @@ compile_leaf_rows <- function(ph_lib, od_lib) {
   }
 
   // Across psi_soil: the feasible interval\'s two bounds as the solve brackets
-  // them, the kind, the collar, its psi_soil row from collar_at on the tangent
+  // them, the kind, the collar, its derivative in psi_soil from collar_at on the tangent
   // scalar, and a central difference of the solved collar.
   // [[Rcpp::export]]
-  Rcpp::DataFrame collar_rows(std::vector<double> psi_soil, double stem_P50,
+  Rcpp::DataFrame collar_derivative(std::vector<double> psi_soil, double stem_P50,
                               double root_P50, double GSS_tol_abs,
                               double resolution, double h) {
     constexpr auto K = phylloptim::Leaf::CostCurve::TF24;
     const Fixture f{stem_P50, root_P50, GSS_tol_abs, resolution};
     const size_t n = psi_soil.size();
-    std::vector<double> wet(n), dry(n), collar(n), row(n), fd(n), psi_crit(n), root_psi_crit(n);
+    std::vector<double> wet(n), dry(n), collar(n), deriv(n), fd(n), psi_crit(n), root_psi_crit(n);
     std::vector<std::string> kind(n), refused(n);
     for (size_t i = 0; i < n; ++i) {
       phylloptim::Leaf b = leaf_at(f, psi_soil[i], false);
@@ -110,15 +110,15 @@ compile_leaf_rows <- function(ph_lib, od_lib) {
         const phylloptim::SupplyAt<T> supply{soil, r_h, r_v, pars[phylloptim::par_root_P50],
                                              pars[phylloptim::par_root_c]};
         const auto draw = l.supply_draw_at<T>(T(l.opt_root_psi_), supply);
-        row[i] = odelia::ode::derivative_along(l.collar_at<K, T>(draw, pars));
+        deriv[i] = odelia::ode::derivative_along(l.collar_at<K, T>(draw, pars));
       } catch (const std::exception& e) {
-        row[i] = NA_REAL;
+        deriv[i] = NA_REAL;
         refused[i] = e.what();
       }
     }
     return Rcpp::DataFrame::create(Rcpp::_["psi_soil"] = psi_soil, Rcpp::_["wet"] = wet,
       Rcpp::_["dry"] = dry, Rcpp::_["kind"] = kind, Rcpp::_["collar"] = collar,
-      Rcpp::_["row"] = row, Rcpp::_["fd"] = fd, Rcpp::_["refused"] = refused,
+      Rcpp::_["deriv"] = deriv, Rcpp::_["fd"] = fd, Rcpp::_["refused"] = refused,
       Rcpp::_["psi_crit"] = psi_crit, Rcpp::_["root_psi_crit"] = root_psi_crit);
   }
   ', verbose = FALSE)

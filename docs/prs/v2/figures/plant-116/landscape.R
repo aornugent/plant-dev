@@ -6,7 +6,7 @@
 library(ggplot2)
 here <- "/home/user/plant-dev/docs/prs/v2/figures/plant-116"
 d <- read.csv(file.path(here, "landscape.csv"))
-d$leaf <- ifelse(d$build == "B95", "invader's own leaf (B95)", "resident's leaf (B105)")
+d$leaf <- ifelse(d$build == "B95", "invader's own leaf (this PR)", "resident's leaf (before this PR)")
 side <- function(m) factor(ifelse(m <= 1, "lma at or below the resident's", "lma above the resident's"),
                            levels = c("lma at or below the resident's", "lma above the resident's"))
 d$side <- side(d$multiplier)
@@ -17,7 +17,7 @@ tan <- do.call(rbind, lapply(seq_len(nrow(g)), function(i) {
   data.frame(id = i, multiplier = exp(x), side = g$side[i],
              lnR0 = g$lnR0[i] + g$dlnR0_dlnlma[i] * (x - log(g$multiplier[i])))
 }))
-pal <- c("invader's own leaf (B95)" = "#0072B2", "resident's leaf (B105)" = "#E69F00")
+pal <- c("invader's own leaf (this PR)" = "#0072B2", "resident's leaf (before this PR)" = "#E69F00")
 lab <- data.frame(multiplier = c(0.52, 0.52), lnR0 = c(6.7, 3.2), side = side(c(0.5, 0.5)),
                   leaf = names(pal))
 p <- ggplot(d, aes(multiplier, lnR0, colour = leaf)) +
@@ -33,8 +33,8 @@ p <- ggplot(d, aes(multiplier, lnR0, colour = leaf)) +
   labs(x = "invader's lma as a multiple of the resident's, every other trait the resident's (log scale)", y = "ln R0'",
        title = "An invader's own leaf moves ln R0' by up to 1.7; the sweep's slope follows the curve",
        subtitle = sprintf(paste("TF24 fitness stand at b* = %.4f, ode_tol 1e-6; orange: d ln R0'/d ln lma from",
-                                "the invasion's\nreverse sweep on B95 as tangents, within 2e-5 of a central difference",
-                                "off the cliff"), d$bstar[1])) +
+                                "the invasion's\nreverse sweep as tangents, within 2e-5 of a central difference",
+                                "away from the steep drop near 1"), d$bstar[1])) +
   theme_minimal(base_size = 11) +
   theme(plot.background = element_rect(fill = "white", colour = NA), plot.title.position = "plot")
 ragg::agg_png(file.path(here, "landscape.png"), width = 8, height = 4.5, units = "in", res = 200)
