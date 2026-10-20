@@ -40,7 +40,8 @@ p <- ggplot(long, aes(offset_days, value, colour = scenario)) +
   labs(x = "storage_relaxation_offset (days)", y = NULL,
        title = "The offset buys fewer steps, and moves J most on the seasonal regime (+7% at 7 d)",
        subtitle = paste("B97, each relative to offset 0; synthetic: 40-yr stand, 108 introductions, ode_tol 1e-3;",
-                        "\nregimes: 10-yr stands, 93 introductions, ode_tol 1e-4; dotted: 0.025 in ln J; grey: the default, 7 d")) +
+                        "\nregimes: 10-yr stands, 93 introductions, ode_tol 1e-4; CPU: median of 3 runs;",
+                        "\ndotted: 0.025 in ln J; grey band: the 7 d default")) +
   theme_minimal(base_size = 11) +
   theme(plot.background = element_rect(fill = "white", colour = NA), plot.title.position = "plot", strip.text = element_text(size = 9.5))
 ragg::agg_png(file.path(here, "offset.png"), width = 8, height = 4.5, units = "in", res = 200)

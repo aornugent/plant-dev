@@ -90,3 +90,15 @@ small at either offset; at offset 0 the fastest the pool relaxes in the
 branch's NEWS entry, o ln(a_st3 a_dG2), assumes production drops at
 once from r = a_st3; this cohort runs down in 8.6 d at offset 0, not
 hours, because its production drifts down.
+
+Full test suite on B97 (serial, installed package, `scratchpad/v2/runtests.R` over the PLANT-97 worktree's `tests/testthat` at the same commit): 5468 passed, 0 failed, 0 errors, 4 skipped. Log `scratchpad/v2/out/tests-B97.log`.
+
+## Offset sweep, repeats
+
+Every configuration ran three times (first pass in `queue.sh`, two more in
+`queue4.sh`); counts and J are identical across repeats. CPU medians at 7 d
+against 0: synthetic 43.445 / 47.025 s (−7.6%), wet 3.684 / 3.750, drought
+0.821 / 0.934, seasonal 4.013 / 4.291, shaded 5.065 / 5.890, clamped 4.155 /
+5.691 (−27%). Spread of the three runs: up to 18% above and 7% below their
+median. Base (B93) medians: synthetic 46.757 s, wet 3.766, drought 0.911,
+seasonal 4.342, shaded 5.835, clamped 5.511.

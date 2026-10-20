@@ -14,7 +14,7 @@ p <- ggplot(d, aes(arm, cpu_s)) +
   labs(x = NULL, y = "forward run, user + system CPU (s)",
        title = sprintf("The sort cuts forward CPU by %.1f%% (medians); four of five pairs by 4-6%%",
                        -100 * (m$cpu_s[2] / m$cpu_s[1] - 1)),
-       subtitle = "Synthetic record's stand, 429 introductions, ode_tol 1e-4, 12 016 steps on both;\nrun order B97, B107, five times; lines join each pair, bars mark medians; the axis does not start at 0") +
+       subtitle = "Synthetic record's stand, 429 introductions, ode_tol 1e-4, 12 016 steps on both;\nrun order B97, B107, five times; lines join each pair, bars mark medians;\nthe axis does not start at 0") +
   theme_minimal(base_size = 12) + theme(plot.background = element_rect(fill = "white", colour = NA), plot.title.position = "plot")
 ragg::agg_png(file.path(here, "forward.png"), width = 8, height = 4.5, units = "in", res = 200)
 print(p); invisible(dev.off())

@@ -34,4 +34,12 @@ reference regimes (`ladder_reference_regimes()`) as 10-year stands at
 
 ![Accepted steps, rejected steps, CPU and the change in ln J against the offset](FIG:plant-113/offset.png)
 
-{{OFFSETPROSE}}
+At 7 d every stand but wet takes 5 to 25% fewer accepted steps and
+fewer rejected attempts than at offset 0, and CPU (the median of three runs,
+which spread up to 18% above and 7% below it) falls by 2 to 27%; on the
+synthetic record, 7.6%. ln J moves by under 0.025 on every
+stand but the seasonal one, whose J rises 7.2%: a change to the model's
+answer, which is why the version moves to 12. On the synthetic record
+the invader at x2 overflows its density at offsets 0, 1 and 3 d and
+runs from 7 d on. Above 7 d the steps barely fall further while ln J
+keeps moving, by 0.05 to 0.14 at 28 d.

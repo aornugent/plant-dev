@@ -31,3 +31,5 @@ CPU is `proc.time()` user + system, one R process at a time.
 | `reference-gradient.tsv`: only seasonal moves; 12 of 1430 rows by more than 1e-3 of their scale, all theta and omega, largest 0.036 of scale (species 2 theta on area_stem); 1143 identical | `../plant-113/reference-moves.R <plant clone> 6514fa4c 762ad2fc` |
 | record facts (14 965 days, 2931 knots in the stand) | `record.R`; `length(AK)` |
 | file line counts | `git diff --numstat 6514fa4c 762ad2fc` |
+
+Full test suite on B105 (serial, installed package, `scratchpad/v2/runtests.R` over the PLANT-105 worktree's `tests/testthat` at the same commit): 5503 passed, 0 failed, 0 errors, 4 skipped. Log `scratchpad/v2/out/tests-B105.log`.

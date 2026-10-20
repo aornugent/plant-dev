@@ -26,3 +26,5 @@ two builds alternate (B97, B107, B97, ...).
 | 108-introduction median gap 1.7% (44.10 vs 43.35 s), no crossing: the noise floor of this comparison | `forward-run-108.csv` |
 | `reference-gradient.tsv` unchanged by this PR (the file is identical at eb12399e and 6514fa4c; 20 of its 1430 rows are NA on both) | `../plant-113/reference-moves.R <plant clone> eb12399e 6514fa4c` |
 | file line counts | `git diff --numstat eb12399e 6514fa4c` |
+
+Full test suite on B107 (serial, installed package, `scratchpad/v2/runtests.R` over the PLANT-107 worktree's `tests/testthat` at the same commit): 5472 passed, 0 failed, 0 errors, 4 skipped. Log `scratchpad/v2/out/tests-B107.log`.

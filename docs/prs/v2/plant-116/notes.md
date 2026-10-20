@@ -29,3 +29,5 @@ CPU is `proc.time()` user + system, one R process at a time.
 | an earlier landscape built with `fitness_stand_parameters(1, x)`, i.e. through `TF24_hyperpar`, read the sweep 1.3-2x off the curve: the curve then moves every trait the map ties to lma, the column only lma | `scratchpad/v2/out/landscape-hyperpar.csv` |
 | `reference-gradient.tsv` unchanged by this PR (identical at 762ad2fc and 6ba51da1) | `git diff` |
 | file line counts | `git diff --numstat 762ad2fc 6ba51da1` |
+
+Full test suite on B95 (serial, installed package, `scratchpad/v2/runtests.R` over the PLANT-95 worktree's `tests/testthat` at the same commit): 5569 passed, 0 failed, 0 errors, 4 skipped. Log `scratchpad/v2/out/tests-B95.log`.
