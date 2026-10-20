@@ -114,14 +114,17 @@ stand_gradient(scm, metrics = NULL, traits = NULL,
 ```
 
 - `hyperpar = NULL`: today's partials, unchanged.
-- Otherwise, per species:
+- Otherwise, for each species a requested column belongs to (every species when `traits` is
+  unset):
   1. **Derived set:** the columns the function adds to a one-row matrix of the strategy's own
      parameters (none for K93).
   2. **Guard:** those columns, re-derived from the strategy's own traits, equal its
      parameters within 1e-7 relative (the function's own filter drops a column within
      `sqrt(.Machine$double.eps)` of the default, so equality is to that, not to the bit).
-     Otherwise stop: "species 1's k_l is not TF24_hyperpar's at its traits; pass the function
-     it was built with, or hyperpar = NULL for partials".
+     Otherwise stop, naming the parameters and the usual causes: built by hand (TF24's own
+     default is not on `TF24_hyperpar`'s trade-off), edited, built at an input the strategy
+     does not keep (`attr(hyperpar, "input_traits")`, FF16's `narea`), or built through
+     another function. A species no requested column belongs to is not checked.
   3. **Jacobian:** one call on a matrix of 2P + 1 rows, each pair moving one trait by ±h, gives
      every derived parameter's derivative with respect to every trait.
   4. **Total:** `G[, traits] + G[, derived] %*% J` for the species' columns. A derived
