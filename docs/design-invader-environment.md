@@ -1,8 +1,8 @@
 # Design: the environment an invader grows in
 
-Status: a proposal, stress-tested against odelia `ODELIA-55` (8b7ff84) and plant
-`PLANT-95` (1dcf7d7e). It replaces odelia#58, which is closed, and reshapes the
-invader half of plant#116.
+Status: built. odelia `ODELIA-59` (0.9.0, on `ODELIA-55`) hands each rate
+evaluation its slot; plant `PLANT-95` (#116) has the invaders read the field
+by slot and time. It replaces odelia#58, which is closed.
 
 ## The domain
 
@@ -11,13 +11,14 @@ change either, so it grows in the residents' environment as it was: the light
 profile, and the soil's ODE state, at each of the plants' rate evaluations.
 plant calls the two together the *field*. For the invader the field is an
 input, like rainfall: read, never solved, never differentiated. The invader's
-own leaf operating points are solved: its run records them and its reverse
-sweep reads them back.
+own leaf operating points are solved: its run records them and its sweep
+reads them back.
 
-The invader mirrors the resident's run: the same steps and the same
-introductions. Anything external to the stand, such as seed rain, harvest or
-rainfall, has already shaped the field it reads. This is for fitness landscapes
-and coexistence, not for simulating turnover.
+The invader mirrors the residents' run. It takes the same steps, its
+introductions fall where theirs did, and it meets the same harvests and
+climate extremes. Anything the residents' environment met (rain, a water
+pulse) is already in the field it reads. This is for fitness landscapes and
+coexistence, not for simulating turnover.
 
 ## Where the complexity came from
 
@@ -47,49 +48,53 @@ About 60 lines. Since then:
    - the pinned replay of every resident, because a resident's own sweep must
      not load the field back.
 
-The root is (2): the invader *loads* the resident's row, when all it needs is
+The root is (2): the invader *loaded* the resident's row, when all it needs is
 to *read* one member of it.
 
 ## The data structure
 
 A recorded run is its rows. Each row holds a step, the state that step reached
-and one record for each of the step's rate evaluations. A record holds what
-that evaluation produced:
+and one record per rate evaluation, in six slots: the five stages after the
+first, then `end_slot`, the evaluation at the state the step ends at. A record
+holds what that evaluation produced:
 - `strategies`, each species' solved values (TF24's leaf operating points), which
   the run's own sweep loads back;
-- `field`, the environment the evaluation computed, which the run's own sweep
-  never loads and an invader reads.
+- `field`, the environment the evaluation computed, which a run keeps when it
+  records its states, never loads back, and an invader reads.
 
-That is `patch_solved_values` as it stands. Nothing new is stored. What changes
-is who reads what:
+Two states have no step behind them: the run's start, and the state after each
+entry (an instant's actions and introductions). The SCM keeps the field at each
+of those as the run reaches it (`entry_fields`), since no slot holds it.
 
-- **A resident** stores both members when it keeps its field. Its sweep loads
-  `strategies` only, and recomputes its field from its state, as it must.
-  Storing the field is therefore safe in any resident run, so the run that
-  reaches equilibrium records it directly and the pinned replay goes.
-- **An invader** holds a pointer to the resident's recording. At each evaluation
-  it reads `resident[step].solved[stage].field`, in its run and in its sweep
-  alike. It stores and loads its own `strategies` in its own rows, which carry
-  no field.
+The invaders read a scalar-free table built from the two, `invaded_run`: one
+`field_row` per row, the step and its six fields, with the start's and each
+entry's field in that row's end slot. It is built at the first invasion and
+kept until the next `run()`.
 
 ## The interface
 
-**odelia: each rate evaluation is told where it is.** A System may declare
-`begin_evaluation(step, stage)`. odelia calls it at the start of every rate
-evaluation inside a step, in a run, a replay and a sweep: `step` is the row the
-step writes, and `stage` is the slot of that row's record (0 to 5). Unchanged:
-the solved row, `store_solved`, `load_solved`, `end_solved`, and the two
-existing ways to advance (a program solves everything; a recording loads what
-was solved). An invader run is `advance_recorded(resident.schedule())`, which
-already exists.
+**odelia: each rate evaluation is handed its slot.** `store_solved(into, slot)`
+and `load_solved(from, slot)`, called by the steppers in a run, a replay and a
+sweep. Nothing else changes: the solved row, `end_solved`, and the two ways to
+advance.
 
-**plant: one pointer.** The Patch gains `const resident_recording* resident`,
-null for a resident. `begin_evaluation` sets the field this evaluation reads to
-`&(*resident)[step].solved[stage].field`. `compute_environment` installs that
-field (light and soil state) when the pointer is set, and computes its own
-otherwise. Under a read field the environment has no rates of its own, so the
-invader integrates no soil and needs no substeps. The invader's schedule is the
-resident's with the substeps dropped.
+**plant: one pointer and one rule.** The Patch holds `field_run`, null except
+in an invasion. With it set, `compute_environment` installs the field it finds
+and builds none, and the environment's own rates are zero, so the invader
+integrates no soil. The field is found by the evaluation's time:
+- inside a step, in the evaluation's slot of the first step at or after the
+  time (or the step before, where a stage's time rounds past its step's end);
+- outside a step, where the patch is at a recorded state, in the end slot of
+  the last row at the time, which is the state after any entry made there.
+
+The time alone is ambiguous at both ends of a step: Cash-Karp's stage at t + h
+and the step's end share a time, and so do a step's end and the entry after it.
+The slot settles the first, and being inside a step or not settles the second.
+
+`run_mutant(p)` is a run: the invaders' parameters, the table's steps as their
+program, the residents' patch-wide harvests and extremes added to their
+schedule, and `run_schedule()`. `run()` leaves an invasion: it drops the table
+and runs the SCM's parameters on the schedule they make.
 
 #661's held field is the same input with one field for every evaluation.
 
@@ -97,57 +102,49 @@ resident's with the substeps dropped.
 
 | Case | Verdict |
 |---|---|
-| Stages of a step | The invader replays the resident's schedule row for row, introductions included, so `{step, stage}` names the same evaluation in both runs. |
+| Stages of a step | Found by slot and time. |
 | First rates carried from the step before | Not evaluated. |
-| First rates derived afresh (run start, after an introduction) | No slot of its own. It reads the last field recorded before it, as the invader does today. That is exact if an introduction leaves the field unchanged at its instant, which #116's bit-for-bit check at the resident's own traits suggests on the birth-date coordinate. The spike measures it. If it is not exact, these first rates get a slot (the end slot of the row before, which is empty for an introduction or the start). |
-| The inflow at an introduction | The map runs on the state the step below ended at, so the field is that row's slot 5, exactly. |
-| A pinned step crossed in sub-steps | The addresses repeat at other times. The existing check that the field's recorded time equals the evaluation's time refuses. |
-| Rejected attempts in the resident's adaptive run | Each retry overwrites the same slots, so only the accepted step's records remain. |
-| Cash-Karp against Dormand-Prince | Slots mean different things in the two tableaux. One check: the invader's stepper is the resident's. |
-| The invader's sweep | It reads the same fields at the same addresses. They are plain doubles, so they carry no derivative: the rare-invader derivative, by construction. |
+| First rates derived afresh (start, after an entry) | Outside a step: the start's or the entry's field, kept as the run reached it. |
+| An introduction's inflow | Outside a step: the entry's field, after the entry's actions. |
+| A harvest or climate extreme | Mirrored onto the invaders; the field after it is the entry's. One aimed at a single species is refused, since an invader is none of them. |
+| A water pulse | In the field already; not applied to the invaders. |
+| Rejected attempts in the residents' adaptive run | Each retry overwrites the same slots, so only the accepted step's records remain. |
+| The invader's sweep | Reads the same fields. They are plain doubles, so they carry no derivative: the rare-invader derivative, by construction. |
 | Several invaders in one patch | The fields hold no species, so there is no species-count coupling and no borrowed leaf values. |
-| A resumed resident | Its first step's slots hold its own fields, so `stand_in` and `resident_start_field` go, and so does the TF24 refusal. |
-| TF24w private water | The newcomer's inputs (patch mean water, crown cover) go in the field. Today they would be recomputed from the invader's own columns. |
-| Memory | The invader's rows lose the copied field, which is most of their size today. |
-| Runtime | No pinned replay: 0.82 of a forward run saved per resident. |
-| Forked invader batches | The resident's recording is read-only, so it is shared safely. |
-| FF16 and K93 | The same, with no leaf values. |
+| A resumed resident | The start's field is kept like an entry's, so the TF24 refusal goes. |
+| A run that kept no field | Run again on its own steps, keeping one, at the first invasion. |
+| A `run()` after an invasion | Runs the invaders as a community of their own; the next invasion reads that run. |
+| Memory | Keeping the field costs 3.5 % of a recorded TF24 run's peak; the invaders' rows carry none. |
+| Runtime | No pinned replay of the residents: the first invasion takes 0.28 s where it took 0.50 s. |
 
 ## The regnans workflow, with adjoints
 
-1. **Equilibrium.** Solve `f(ln b) = ln J(b) − ln b = 0` on runs that keep their
-   field, so the last one is the cache.
-   - One sweep at a run gives `∂ln J/∂ln b` (the birth-rate column) and
-     `∂ln J/∂θ` for every trait at once.
-   - Cold, the secant method wins: 6 runs from b = 1. The #116 Newton loop
-     needed 7, each with a sweep of about 2.9 forward runs.
-   - The adjoint pays at the warm start. The sweep at an equilibrium gives
-     `d ln b*/dθ = −(∂ln J/∂θ)/(∂ln J/∂ln b − 1)` for every trait, so the next
-     resident starts from a first-order prediction of its `b*`.
-   - With k coexisting species, Newton's Jacobian `∂ln J_i/∂ln b_j` takes k
-     sweeps: one per species' J.
-2. **Cache.** Keep the equilibrium run's recording. Its fields are the cache.
+1. **Equilibrium.** Solve `f(ln b) = ln J(b) − ln b = 0` on recorded runs. One
+   sweep at a run gives `∂ln J/∂ln b` and `∂ln J/∂θ` for every trait at once.
+   With k coexisting species, Newton's Jacobian `∂ln J_i/∂ln b_j` takes k
+   sweeps, one per species' J.
+2. **Cache.** The equilibrium run's recording is the cache: its fields become
+   the invaders' table at the first invasion.
 3. **Hill climb.** Each step runs invaders against the cache, then sweeps once
    for `∂ ln R′/∂θ′` over every trait. Invaders do not interact, so the trial
    points of a line search run together in one patch.
 4. **Invasion.** Where `ln R′ > 0`, the invader joins the residents at a small
-   birth rate and the community's equilibrium is solved again, from the
-   residents' `b*`. A species whose `b*` falls below a threshold is excluded.
-   The new equilibrium run is the next cache, and the next invader starts.
+   birth rate and the community's equilibrium is solved again. A species whose
+   `b*` falls below a threshold is excluded. The new equilibrium run is the
+   next cache.
 
-## What it deletes and what it adds
+## What it deleted and what it added
 
 Deleted:
-- odelia#58;
-- the pinned resident replay;
+- odelia#58's copy-and-overwrite pass;
+- the pinned replay of the residents;
 - `loaded_field`'s persistence, `field_fresh`, `stand_in`,
-  `resident_start_field`;
-- `introduction_fields` and the `solved[5]` lookup in the gradient;
-- the species-count check between rows, and the TF24 resumed-resident refusal;
+  `resident_start_field`, `introduction_fields` and the gradient's lookup of
+  them;
+- the TF24 resumed-resident refusal and the harvest refusal;
 - the invader's soil integration.
 
 Added:
-- in odelia, one optional System member, `begin_evaluation(step, stage)`,
-  called where the steppers and the sweep already hand a slot;
-- in plant, the `resident` pointer and the branch in `compute_environment` that
-  reads it.
+- in odelia, the slot on `store_solved` and `load_solved`, and `end_slot`;
+- in plant, `field_row`, the `field_run` pointer and its lookup, and the SCM's
+  `entry_fields`, `invaded_run` and `invaded_actions`.
