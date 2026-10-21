@@ -80,7 +80,50 @@ are now read by nothing on the tape, so their 255 statements per evaluation
 are recorded and dead. Removing them would mean `hermite_spline` deriving its
 active coefficients from the knots rather than storing them.
 
-Multi-species stands at lifetime 60, interleaved (`tools/multi.R`):
+**Field rows** (plant 11, odelia 9) supply the rows of `field_splits`, the
+reduction that builds each knot's competition from the moment prefix sums. Each
+knot's value and slope become one statement each, with rows on the prefix sums,
+the height, and the two ends of the interval the crown crosses. The height's
+row on the slope needs the weights' second derivative,
+`CanopyShape::height_weight_curvatures`. Field statements fall from 2641 to
+1811 per evaluation.
+
+⚠️ **The first build of this was slower than the one before it** (6.35x for one
+metric, against 5.75x). The rows were fine. The cost was in how they were
+gathered: `push_back` onto a function-local `static std::vector` is not inlined,
+because the compiler cannot see the capacity. That cost 199M instructions in
+`emplace_back` alone, in the crown and in odelia's own gather. Writing by index
+into scratch that is resized once removes it. odelia 9 also takes the rows as
+two parallel arrays (`const S*` and `double`), which a caller can keep between
+calls; a list of `input_and_derivative`, which holds references, cannot be
+kept.
+
+At lifetime 60:
+
+| arm | ratio, 1 metric | ratio, 5 metrics | seconds, 1 metric | seconds, 5 metrics |
+| --- | --- | --- | --- | --- |
+| B | 14.5x | 29.5x | 0.55 s | 1.05 s |
+| K: knot rows | 5.75x | 9.45x | 0.238 s | 0.343 s |
+| **G2: + plant 11, odelia 9** | **5.50x** | **8.88x** | **0.208 s** | **0.321 s** |
+
+The seconds are medians of three interleaved rounds (`tools/wall2.R`). The
+forward run takes about 0.040 s, so G2 runs at about 5.2x for one metric and
+8.0x for five. Values are bit-identical to K, and the gradient's worst
+relative change against B is 2.3e-12. The test files give the same failure
+sets as B.
+
+Multi-species stands at lifetime 60, one interleaved run each:
+
+| species | forward | all metrics, K | all metrics, G2 | per metric, K → G2 |
+| --- | --- | --- | --- | --- |
+| 1 | 0.04 s | 0.333 s | 0.323 s | 0.029 → 0.022 s |
+| 2 | 0.08 s | 0.789 s | 0.749 s | 0.059 → 0.053 s |
+| 4 | 0.15–0.20 s | 2.24 s | 1.98 s | 0.130 → 0.115 s |
+
+The forward run varies by up to 30% between runs at four species, so compare
+the seconds, not the ratios.
+
+Multi-species stands at lifetime 60, interleaved (`tools/multi.R`), as of H2:
 
 | species | metrics × columns | forward | 1 metric, B → H2 | all metrics, B → H2 |
 | --- | --- | --- | --- | --- |

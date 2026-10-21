@@ -1,0 +1,141 @@
+From 38e4b37a25955e26e1d84b83e0d743a3a00cc832 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 05:56:42 +0000
+Subject: [PATCH] Spike: supplied rows as parallel arrays, gathered into
+ presized scratch
+
+---
+ inst/include/odelia/implicit_node.hpp | 74 ++++++++++++++++++---------
+ 1 file changed, 50 insertions(+), 24 deletions(-)
+
+diff --git a/inst/include/odelia/implicit_node.hpp b/inst/include/odelia/implicit_node.hpp
+index de97ba9..d57c564 100644
+--- a/inst/include/odelia/implicit_node.hpp
++++ b/inst/include/odelia/implicit_node.hpp
+@@ -77,22 +77,27 @@ concept CarriesAdjoint = xad::ExprTraits<S>::isReverse;
+ //
+ // The report is the return, so a caller cannot take the number without being
+ // handed the reading of it.
+-template <class S>
+-[[nodiscard]] record_report record_with_derivatives(
+-    double value, std::span<const input_and_derivative<S>> against, S& into) {
+-  for (std::size_t i = 0; i < against.size(); ++i) {
++namespace internal {
++
++// record_with_derivatives over n rows, row i's input and derivative read
++// through `input(i)` and `derivative(i)`, so each public form keeps its rows in
++// the shape its callers already hold them.
++template <class S, class Input, class Derivative>
++record_report record_rows(double value, std::size_t n, Input&& input,
++                          Derivative&& derivative, S& into) {
++  for (std::size_t i = 0; i < n; ++i) {
+     // Either half being non-finite poisons the VALUE and not only what is
+     // recorded against it: NaN times zero is not a number, and an infinite input
+     // minus its own passive copy is NaN rather than zero. Tested here, where the
+     // halves are still separable; downstream they are one expression.
+-    const double at = util::to_passive(against[i].input);
+-    if (!util::is_finite(against[i].derivative) || !util::is_finite(at)) {
++    const double at = util::to_passive(input(i));
++    if (!util::is_finite(derivative(i)) || !util::is_finite(at)) {
+       into = value;
+       return {false, i,
+               "input " + util::to_string(static_cast<int>(i)) + " of " +
+-                  util::to_string(static_cast<int>(against.size())) +
++                  util::to_string(static_cast<int>(n)) +
+                   " has value " + util::format_double(at) + " and derivative " +
+-                  util::format_double(against[i].derivative) +
++                  util::format_double(derivative(i)) +
+                   ", one of which is not finite, so the value they belong to "
+                   "cannot be recorded"};
+     }
+@@ -108,50 +113,71 @@ template <class S>
+     // `registerOutput` is a no-op on a value that already holds a slot, leaving
+     // the rows for whatever statement closes next, so the destination is built
+     // here and moved out.
+-    //
+-    // Pushed one row at a time rather than gathered first: operations accumulate
+-    // until the left-hand side closes over them, so the run is the same run and
+-    // the two scratch arrays a gather needs are two allocations per call at a
+-    // rate of millions.
+     S out = value;
+     if (tape_type* tape = tape_type::getActive()) {
+       // Gathered into scratch the function keeps and pushed as one run: a push
+       // per row is a container call per row. Nothing here is reentrant.
+       static std::vector<double> muls;
+       static std::vector<typename tape_type::slot_type> slots;
+-      muls.clear();
+-      slots.clear();
+-      for (const input_and_derivative<S>& term : against) {
+-        if (term.derivative == 0.0) {
++      muls.resize(n);
++      slots.resize(n);
++      std::size_t pushed = 0;
++      for (std::size_t i = 0; i < n; ++i) {
++        if (derivative(i) == 0.0) {
+           continue;
+         }
+         // A passive input holds no slot, and the sweep indexes the slot it is
+         // pushed without a bounds check, so pushing one would corrupt memory
+         // rather than raise. It has no row to carry either way.
+-        const typename tape_type::slot_type slot = term.input.getSlot();
++        const typename tape_type::slot_type slot = input(i).getSlot();
+         if (slot == tape_type::INVALID_SLOT) {
+           continue;
+         }
+-        muls.push_back(term.derivative);
+-        slots.push_back(slot);
++        muls[pushed] = derivative(i);
++        slots[pushed++] = slot;
+       }
+-      tape->pushAll(muls.data(), slots.data(), unsigned(muls.size()));
++      tape->pushAll(muls.data(), slots.data(), unsigned(pushed));
+       tape->registerOutput(out);
+     }
+     into = std::move(out);
+   } else {
+     S out = value;
+-    for (const input_and_derivative<S>& term : against) {
+-      if (term.derivative == 0.0) {
++    for (std::size_t i = 0; i < n; ++i) {
++      if (derivative(i) == 0.0) {
+         continue;
+       }
+       // Zero in value and carrying the derivative, so the number is untouched.
+-      out += term.derivative * (term.input - util::to_passive(term.input));
++      out += derivative(i) * (input(i) - util::to_passive(input(i)));
+     }
+     into = out;
+   }
+   return {};
+ }
++
++}  // namespace internal
++
++template <class S>
++[[nodiscard]] record_report record_with_derivatives(
++    double value, std::span<const input_and_derivative<S>> against, S& into) {
++  return internal::record_rows<S>(
++      value, against.size(),
++      [&](std::size_t i) -> const S& { return against[i].input; },
++      [&](std::size_t i) { return against[i].derivative; }, into);
++}
++
++// The same, with the rows as two parallel arrays: input i is *inputs[i] and its
++// derivative derivatives[i]. For a caller building many rows a call, where a
++// list of references is a container it cannot reuse.
++template <class S>
++[[nodiscard]] record_report record_with_derivatives(
++    double value, std::span<const S* const> inputs,
++    std::span<const double> derivatives, S& into) {
++  return internal::record_rows<S>(
++      value, inputs.size(),
++      [&](std::size_t i) -> const S& { return *inputs[i]; },
++      [&](std::size_t i) { return derivatives[i]; }, into);
++}
++
+ // The value y* defined implicitly by a scalar equation F(y) = 0, made
+ // differentiable. y* is solved in double, off the tape, by whatever root-find the
+ // caller already has; this returns it on the tape carrying the derivative the
+-- 
+2.43.0
+

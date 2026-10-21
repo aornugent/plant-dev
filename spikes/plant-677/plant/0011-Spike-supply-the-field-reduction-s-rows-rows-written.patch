@@ -1,0 +1,201 @@
+From 7b10122d52ede0e6f507693c3f2af4ee5745fff1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 05:56:43 +0000
+Subject: [PATCH] Spike: supply the field reduction's rows; rows written into
+ presized scratch
+
+---
+ inst/include/plant/canopy_shape.h         | 13 ++++
+ inst/include/plant/models/ff16_strategy.h | 29 +++++----
+ inst/include/plant/species.h              | 79 ++++++++++++++++++++++-
+ 3 files changed, 109 insertions(+), 12 deletions(-)
+
+diff --git a/inst/include/plant/canopy_shape.h b/inst/include/plant/canopy_shape.h
+index 7ff02e85..6593e5e7 100644
+--- a/inst/include/plant/canopy_shape.h
++++ b/inst/include/plant/canopy_shape.h
+@@ -270,6 +270,19 @@ public:
+     out[2] = 2.0 * eta_ * t * t_over_z;
+   }
+ 
++  // d/dz of height_weight_slopes at a passive height, for a caller supplying the
++  // slope channel's own height row. Zero at the crown base, where the slopes
++  // above are recorded as constants.
++  std::array<double, max_moments> height_weight_curvatures(double z) const {
++    if (!(z > 0.0)) {
++      return {0.0, 0.0, 0.0};
++    }
++    const double eta = odelia::util::to_passive(eta_);
++    const double t = odelia::util::to_passive(pow_eta(S(z)));
++    return {0.0, -2.0 * eta * (eta - 1.0) * t / (z * z),
++            2.0 * eta * (2.0 * eta - 1.0) * t * t / (z * z)};
++  }
++
+   // Both of the above from one z^eta.
+   void height_weights_and_slopes(const S& z, std::array<S, max_moments>& w,
+                                  std::array<S, max_moments>& slope) const {
+diff --git a/inst/include/plant/models/ff16_strategy.h b/inst/include/plant/models/ff16_strategy.h
+index b20dc1ca..4812e7ff 100644
+--- a/inst/include/plant/models/ff16_strategy.h
++++ b/inst/include/plant/models/ff16_strategy.h
+@@ -1091,21 +1091,28 @@ bool FF16_Strategy<S>::assimilation_deep_crown_rows(
+     return false;
+   }
+   const double al = to_passive(area_leaf);
+-  static std::vector<odelia::input_and_derivative<S>> rows;
+-  rows.clear();
+-  rows.push_back({area_leaf, A});
+-  rows.push_back({pars.a_p1, al * dp1});
+-  rows.push_back({pars.a_p2, al * dp2});
+-  rows.push_back({height, al * dh});
+-  rows.push_back({field.height_max_, al * dtop});
++  // Five rows, then a value and a slope row per knot.
++  static std::vector<const S*> in;
++  static std::vector<double> d;
++  in.resize(5 + 2 * knot_rows.size());
++  d.resize(in.size());
++  in[0] = &area_leaf;            d[0] = A;
++  in[1] = &pars.a_p1;            d[1] = al * dp1;
++  in[2] = &pars.a_p2;            d[2] = al * dp2;
++  in[3] = &height;               d[3] = al * dh;
++  in[4] = &field.height_max_;    d[4] = al * dtop;
++  std::size_t n = 5;
+   for (std::size_t k : touched) {
+-    rows.push_back({spline.values()[k], al * knot_rows[k][0]});
+-    rows.push_back({spline.slopes()[k], al * knot_rows[k][1]});
++    in[n] = &spline.values()[k];
++    d[n++] = al * knot_rows[k][0];
++    in[n] = &spline.slopes()[k];
++    d[n++] = al * knot_rows[k][1];
+     knot_rows[k] = {0.0, 0.0};
+     is_touched[k] = 0;
+   }
+-  const odelia::record_report report =
+-      odelia::record_with_derivatives<S>(al * A, rows, out);
++  const odelia::record_report report = odelia::record_with_derivatives<S>(
++      al * A, std::span<const S* const>(in.data(), n),
++      std::span<const double>(d.data(), n), out);
+   if (!report.whole) {
+     util::stop("assimilation_deep_crown: " + report.why);
+   }
+diff --git a/inst/include/plant/species.h b/inst/include/plant/species.h
+index b4c896d2..0e1e1aaf 100644
+--- a/inst/include/plant/species.h
++++ b/inst/include/plant/species.h
+@@ -11,6 +11,7 @@
+ #include <plant/canopy_shape.h>
+ #include <plant/environment.h>
+ #include <odelia/ode_interface.hpp>
++#include <odelia/implicit_node.hpp>
+ #include <plant/node.h>
+ #include <plant/species_base.h>
+ #include <plant/census.h>
+@@ -475,6 +476,14 @@ private:
+   // The nodes' part of field_splits().
+   void field_splits_nodes(const std::vector<value_type>& heights,
+                           std::vector<competition_split>& out) const;
++  // One knot's split at an active scalar, its value and slope each one tape
++  // statement with rows supplied: both are linear in the prefix sums and the two
++  // crossing reads, and their height rows are the moment weights' derivatives.
++  template <class Moments>
++  void split_with_rows(const value_type& height, const Moments& prefix,
++                       std::size_t n_moments, std::size_t last, std::size_t stop,
++                       const std::vector<double>& abscissa,
++                       competition_split& c) const;
+ 
+   // The abscissa every reduction over the size distribution is taken over,
+   // increasing as the node list is walked from the tallest down. Heights are
+@@ -806,6 +815,11 @@ void Species<T,E>::field_splits_nodes(const std::vector<value_type>& heights,
+     const std::size_t last = stop < n ? stop : n - 1;
+     const std::size_t summed = last > 0 ? last - (stop < n ? 1 : 0) : 0;
+ 
++    competition_split& c = out[k];
++    if constexpr (odelia::CarriesAdjoint<value_type>) {
++      split_with_rows(height, prefix[summed], n_moments, last, stop, abscissa, c);
++      continue;
++    }
+     strategy->canopy_shape.height_weights_and_slopes(height, weight, weight_slope);
+     with_slope<value_type> sum{value_type(0.0), value_type(0.0)};
+     for (std::size_t j = 0; j < n_moments; ++j) {
+@@ -817,7 +831,6 @@ void Species<T,E>::field_splits_nodes(const std::vector<value_type>& heights,
+     // not hold: its lower node reaches the height and its upper node does not, so
+     // the polynomial would evaluate (z / H)^eta above one there rather than the
+     // zero the profile has. It is the interval the walk closes by hand too.
+-    competition_split& c = out[k];
+     with_slope<value_type> fs_last =
+       nodes[last].compute_competition_and_slope(height);
+     if (stop < n) {
+@@ -835,6 +848,70 @@ void Species<T,E>::field_splits_nodes(const std::vector<value_type>& heights,
+   }
+ }
+ 
++template <typename T, typename E>
++template <class Moments>
++void Species<T,E>::split_with_rows(const value_type& height, const Moments& prefix,
++                                   std::size_t n_moments, std::size_t last,
++                                   std::size_t stop,
++                                   const std::vector<double>& abscissa,
++                                   competition_split& c) const {
++  using odelia::util::to_passive;
++  const auto& shape = strategy->canopy_shape;
++  const double z = to_passive(height);
++  Moments w, ws;
++  shape.height_weights_and_slopes(value_type(z), w, ws);
++  const auto wc = shape.height_weight_curvatures(z);
++  // Rows: the moment prefix sums, the height, then the crossing interval's two
++  // ends. The value and the slope read the same inputs.
++  std::array<const value_type*, 6> in;
++  std::array<double, 6> dv, ds_rows;
++  std::size_t n_rows = 0;
++  // In the recorded loop's order, so the numbers are its numbers.
++  double v = 0.0, s = 0.0, ds = 0.0;
++  for (std::size_t j = 0; j < n_moments; ++j) {
++    const double p = to_passive(prefix[j]);
++    v += to_passive(w[j]) * p;
++    s += to_passive(ws[j]) * p;
++    ds += wc[j] * p;
++    in[n_rows] = &prefix[j];
++    dv[n_rows] = to_passive(w[j]);
++    ds_rows[n_rows++] = to_passive(ws[j]);
++  }
++  // d(value)/dz is the slope the same sums give.
++  in[n_rows] = &height;
++  dv[n_rows] = s;
++  ds_rows[n_rows++] = ds;
++  with_slope<value_type> fs_last = nodes[last].compute_competition_and_slope(height);
++  with_slope<value_type> fs_above{value_type(0.0), value_type(0.0)};
++  std::array<const value_type*, 6> in_slope = in;
++  if (stop < nodes.size()) {
++    fs_above = nodes[stop - 1].compute_competition_and_slope(height);
++    const double width = abscissa[stop] - abscissa[stop - 1];
++    v += width * (to_passive(fs_above.value) + to_passive(fs_last.value));
++    s += width * (to_passive(fs_above.slope) + to_passive(fs_last.slope));
++    in[n_rows] = &fs_above.value;
++    in_slope[n_rows] = &fs_above.slope;
++    dv[n_rows] = ds_rows[n_rows] = width;
++    ++n_rows;
++    in[n_rows] = &fs_last.value;
++    in_slope[n_rows] = &fs_last.slope;
++    dv[n_rows] = ds_rows[n_rows] = width;
++    ++n_rows;
++  }
++  const odelia::record_report rv_report = odelia::record_with_derivatives<value_type>(
++      v, std::span<const value_type* const>(in.data(), n_rows),
++      std::span<const double>(dv.data(), n_rows), c.sum.value);
++  const odelia::record_report rs_report = odelia::record_with_derivatives<value_type>(
++      s, std::span<const value_type* const>(in_slope.data(), n_rows),
++      std::span<const double>(ds_rows.data(), n_rows), c.sum.slope);
++  if (!rv_report.whole || !rs_report.whole) {
++    util::stop("field_splits: " + (rv_report.whole ? rs_report.why : rv_report.why));
++  }
++  c.x1 = abscissa[last];
++  c.at_x1 = std::move(fs_last);
++  c.closes = closes_on(c.at_x1.value);
++}
++
+ // One reduction over the nodes in ascending abscissa. `order` names that order
+ // where the node list is not in it; empty means in place, which is what the
+ // decreasing heights buy -- abscissa_of negates height so that the two coincide.
+-- 
+2.43.0
+
