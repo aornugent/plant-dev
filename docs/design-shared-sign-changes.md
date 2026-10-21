@@ -1,5 +1,8 @@
 # Where a System's rates are not smooth: step ends at shared sign changes
 
+> Closed by `design-schedule.md`: the division's trigger was a 1% chord, and the
+> table takes no chords.
+
 The design for aornugent/plant#112, worked under the system-design skill. It decides
 how odelia handles a point inside a step where a System's rates are not smooth,
 how that relates to the existing splits and rain knots, and to plant's `Events`

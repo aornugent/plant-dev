@@ -1,5 +1,8 @@
 # Design: a step and node controller for TF24's gradients
 
+> The time axis as settled here is kept by `design-schedule.md`, which finalises
+> what the grid serves.
+
 The goal is `OBJECTIVES.md`. A **grid** is a run's node introductions (birth
 dates) together with its ODE steps. The controller chooses the grid and the
 solver does each step's arithmetic. Together they make forward runs, the

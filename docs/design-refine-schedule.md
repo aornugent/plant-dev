@@ -1,5 +1,8 @@
 # Refining a TF24 node schedule until it converges
 
+> Finalised for the table of sites and strategies in `design-schedule.md`, which
+> changes what the loop judges and adds the entries' schedule.
+
 A design under `.claude/skills/system-design/SKILL.md`, written after the root-cause rounds
 (`docs/measurements/schedule-search/rootcause/`, evidence in `rootcause/evidence/notes.md`) and
 revised after a Tier-3 review (`rootcause/review/design-review.md`, against a blind clean sheet,
