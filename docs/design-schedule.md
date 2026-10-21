@@ -134,6 +134,15 @@ Kept true by structure:
    on all introductions, and swept), and F_θ if asked. The replay on every other
    node gives the coarse recording, and the invader walk and sweep on it give
    the coarse g.
+   - The replay is ln J's and F's estimate, paid whatever g needs. The coarse
+     invader has the coarse half's members, so its walk and sweep cost about
+     half a fine one's: 0.3 + 1.0 F (E7: 0.59 and 1.94 at 201 nodes). That is
+     g's certificate's whole price, about 1.3 F.
+   - It is paid once per row schedule. A rejected pass pays nothing: the
+     rejected run's g is the coarse g. Later runs on a held schedule (steps in
+     c, the site's other records) carry the certified estimate, and certify
+     again when their b has moved by more than a tenth (*judgement*: b moves
+     with the field, and the field carries g's error).
    - Report Q − e. Stop when every 0.5|e| + u_q < ε (as built).
    - Otherwise double, as built: the rejected run is the next run's estimate.
 5. **The entry schedule:** the root law on the residents' own shares, spacing ∝
@@ -171,8 +180,19 @@ offspring in the birth dates where the residents earn theirs.
   level 0 everywhere). But g needs about 200 introductions on long drought
   (E2, E6), and scale 1's graded layout is 232 on dry. The level is what g
   needs. The cost was the judged set: two resident sweeps over about 50
-  elasticities, about 6 forwards per grid. It is now one coarse invader sweep
-  per resident, about 3.1 forwards.
+  elasticities, about 6 forwards per grid. It is now a replay ln J needs anyway
+  and a coarse invader walk and sweep at half the members: about 1.3 forwards
+  per resident, once per row schedule.
+- **Why g's certificate cannot be cheaper than a coarse sweep.** g's node error
+  has an own part, the invader's quadrature in birth date, and a field part,
+  the coarse field it would read. The own part could come from a second seed
+  in the fine sweep (the coarse sub-sum's weights). The field part cannot: it
+  is a mixed derivative ∂² ln R′/∂θ′∂E along the drop's defect, and it is not
+  small. It is +0.380 in `lma` on 108 → 215, 1.9ε, almost all light
+  (`measurements/field-adjoint-map.md`). Spreading each panel's leaf area over
+  its members' heights took it to −0.034 (`canopy-spread.md`), but the spread
+  was dropped on 2026-10-19. With it back, the certificate would be the own
+  part alone, from the fine sweep, at a few percent.
 - **C's 40.6% was measured on ln R′ only.** Entries are values, so that is the
   quantity. The gradient that needs full nodes is the diagonal's, which takes
   them (step 4).
@@ -269,11 +289,11 @@ For 100 sites × 300 strategies, three residents a row:
 
 | part | before | now |
 |---|---|---|
-| rows: balance, run, residents' g | about 1,450 F | about 2,000 F, with the coarse g per resident |
+| rows: balance, run, residents' g | about 1,250 F | about 1,700 F, with the replay and g's certificate |
 | entries | 18,000 F at 0.6 F | about 10,700 F at 0.36 F (C saves 40.6%) |
-| total | about 19,500 F, 265 core-hours | about 12,700 F, 175 core-hours |
+| total | about 19,250 F, 260 core-hours | about 12,400 F, 170 core-hours |
 
-At an absolute tolerance of 1e-4, if V1 adopts it, about 0.65 of that: 115
+At an absolute tolerance of 1e-4, if V1 adopts it, about 0.65 of that: 110
 core-hours. The rows' share rises, but every number now carries its estimate.
 
 ## The tool
