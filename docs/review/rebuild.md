@@ -40,9 +40,104 @@ residual, instead of solving for it.**
 - **Where the residual is zero within ε**, it constrains the unknowns c: the
   trade-off slopes and the physiology. The data calibrate the assumptions,
   instead of the assumptions predicting the data.
-- **Where it is not zero**, it is the selection acting on that forest now: the
-  direction and strength of disequilibrium, in every trait, with no
-  equilibrium assumed and no mutational covariance needed.
+- **Where it is not zero**, it says in which direction, and how strongly, a
+  small variant of each species is favoured against the competitors actually
+  present, under the site's climate. Evolutionary equilibrium is tested, not
+  assumed (§2a).
+
+## 2a. What the residual is, exactly
+
+**What one site returns, per species i:**
+1. **F_i = ln R′ at its own traits.** Balancing b sets it to about zero; a
+   species that cannot be balanced at its observed traits is a direct
+   disagreement between model and site.
+2. **g_i, an elasticity per parameter:** d ln R′/d ln θ_k for a rare lineage of
+   species i that differs by 1% in θ_k, growing in the light and water the
+   observed community makes, under the record. One sweep gives every k.
+   - In partials (`hyperpar = NULL`), each parameter moves alone.
+   - Along a trade-off, g is Tᵀ g_partial, with T the trade-off's Jacobian.
+     "Selection on `lma`" means selection on `lma` with whatever moves with it,
+     so its value depends on T. That is why T is what the fit infers.
+3. **Optionally, F_θ:** the same species' gradient when all of it changes and
+   the field responds. g − F_θ is its commons vector.
+4. **Optionally, attribution:** g split over patch age, size and time by the
+   adjoint rows, and over the days of the record with climate on the tape.
+
+**What "selection" means here.** g is the selection gradient of adaptive
+dynamics: the canonical equation moves the mean trait at M g (Durinx, Metz &
+Meszéna 2008). It is per generation of the lineage, and it applies to the
+climate regime the record represents, not one year. Without M it gives the
+direction and the strength of selection, not the rate of change.
+
+**The scale, from the one number measured.** On long drought at the roadtest's
+start (`lma` 0.32, TF24 defaults), g in `lma` along the trade-off is −23.8. A
+variant with 1% lower `lma` has ln R′ higher by 0.24, R′ about 1.27. The
+defaults are not an observed community, so this says only that they are far
+from singular on that record. As a plausibility check (*judgement*):
+- Field estimates of standardised linear selection gradients are mostly of
+  order 0.1–0.2 per standard deviation (Kingsolver et al. 2001).
+- A within-species spread in ln `lma` of 0.2 would turn −23.8 into about 5 per
+  standard deviation.
+- A residual that large at a real site would point to the trade-off or the
+  model before it pointed to real selection.
+
+**A nonzero residual has four readings, which one site cannot separate:**
+
+| reading | its signature across sites |
+|---|---|
+| a wrong or missing trade-off | shared by every site: one T fits them all |
+| disequilibrium: climate has moved, or the species arrived recently | aligned with each site's recent climate trend |
+| constraint: little heritable variation in that direction | shared across a lineage's sites, whatever the climate |
+| model error | none of the above |
+
+So the residual is a structured decomposition, and the fit is the tool that
+separates its parts.
+
+**What is still assumed.**
+- **Ecological balance, approximately.** b is balanced so that F ≈ 0. It need
+  not be exact: on long drought a gradient read at |F| < 0.06 is within ε,
+  because dg/d ln b = −6.0 (E5). A forest recovering from fire or harvest is
+  outside this.
+- **The record represents the climate regime.** It is replayed as the
+  stationary climate the community lives in.
+
+**Not assumed:** evolutionary equilibrium, the trade-off, and the mutational
+covariance M.
+
+**What it offers theorists** (*judgement*):
+- **A quantitative test of the ESS hypothesis on real communities,** in every
+  trait. Tests today compare the signs of trends, in one or two traits.
+- **Trade-offs read from outcomes.** Theory knows evolutionary outcomes hinge
+  on the trade-off's shape (de Mazancourt & Dieckmann 2004), and cannot
+  measure it. Here the slopes that make observed communities singular are
+  fitted, with a consistency test across sites. It is revealed preference for
+  evolution.
+- **Density dependence that is specified, not assumed** (Mylius & Diekmann
+  1995): it is the model's light and water.
+- **Nash against planner, decided by data.** Do observed traits satisfy g = 0,
+  uninvadability, or F_θ = 0, the stand optimum? Each is one sweep, trait by
+  trait. This tests whether nature follows an optimisation principle, which
+  Metz, Mylius & Diekmann (2008) say exists only when the feedback is
+  one-dimensional.
+- **Selection separated from inheritance:** β without G, comparable with field
+  estimates of selection.
+- **The dimension of selection in real communities:** H1, with data.
+
+**What it offers vegetation modellers** (*judgement*):
+- **Trait data as a calibration constraint.** Traits are inputs to vegetation
+  models today: parameters per functional type. Here AusTraits or TRY
+  constrains the physiology through fitness, beside flux data.
+- **The convenience of optimality, with competition.** Like the P-model, the
+  condition is used algebraically and evolution is never simulated. Unlike it,
+  the condition is uninvadability against competitors, which is the gap
+  EEO's critics name (Lichstein et al. 2024; Harrison et al. 2021).
+- **A cost they can run:** minutes to hours per site, with no evolutionary
+  simulation.
+- **A mismatch map:** where communities sit away from their singular traits,
+  in which traits, and how strongly. Trait-flexible vegetation models need
+  exactly this to say where traits will shift.
+- **Structural diagnosis:** species that cannot balance, and residuals shared
+  by every site, point at missing physiology.
 
 **What it gives up:** the forward prediction of an evolved community in a
 climate with no observed community. That is the price, and it is the right
@@ -228,6 +323,12 @@ attributing a site's residual to its weather events.
 
 ## References
 
+Kingsolver et al. 2001, Durinx, Metz & Meszéna 2008, Metz, Mylius & Diekmann
+2008, Lichstein et al. 2024 and Harrison et al. 2021 are listed in
+`literature.md`; Mylius & Diekmann 1995 in `novelty-revisited.md`.
+
+- de Mazancourt, C. & Dieckmann, U. (2004). Trade-off geometries and
+  frequency-dependent selection. *Am. Nat.* 164: 765–778. doi:10.1086/424762
 - Bajari, P., Benkard, C.L. & Levin, J. (2007). Estimating dynamic models of
   imperfect competition. *Econometrica* 75: 1331–1370.
   doi:10.1111/j.1468-0262.2007.00796.x
