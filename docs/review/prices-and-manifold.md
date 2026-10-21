@@ -154,6 +154,53 @@ price of.**
 - **Envelope theorem.** Freezing the leaf's operating point leaves the invader's
   g unchanged (`theory.md` C.4).
 
+## 3a. What field sensitivities require
+
+**What S is.**
+- S is ∂ ln R′/∂(field) for an invader reading the resident's recorded field.
+- In the code, each rate evaluation reads a `recorded_field` (`patch.h`): the
+  light interpolant's knots, values and slopes over height, and the soil water
+  per layer. There are six per step, in `field_row`.
+
+**Why it is absent.** An invader installs the field from doubles
+(`Patch::compute_environment`, the `field_run` branch: `r_init_interpolators`,
+`set_ode_state`). On its tape the field is a constant.
+
+**Two ways to get it.**
+- **A, banded S through coefficients (plant only).**
+  - Zero-valued coefficients appended to `ad_parameters()`, one per band: light
+    by height band × patch-age band, and soil water by layer × patch-age band.
+  - Each scales the installed field in its band by (1 + c).
+  - The sweep's existing parameter gradient returns them beside the trait
+    columns, as elasticities d ln R′/d ln(field in band).
+  - This is the field probe's mechanism (`field_probe.patch`: +12% of a sweep,
+    bit-identical at zero), without its node-defect logic.
+- **B, per-slot S: the field adjoint row (plant and odelia).**
+  - The installed field values become tape inputs at every evaluation, and their
+    adjoints are read after each step's reverse pass.
+  - This needs a generic odelia hook for per-step inputs. It is the dual of
+    `field_row`, and belongs with the adjoint-rows spike.
+
+**What either needs to be trusted.**
+1. **The direct check.** An invader in a given field is an exact function of it.
+   Scaling one band by 1% and rerunning the invader tests S's prediction exactly
+   and cheaply.
+2. **The same quadrature guarantees as g,** since S is a sum over the invader's
+   introductions.
+3. **One-sided values at the kinks:** the light floor, and the leaf's regime
+   switches.
+4. **Impacts alongside sensitivities.**
+   - S's own singular spectrum depends on the units and banding of field space.
+     The basis-free object is Meszéna's pairing, A_ij = ⟨S_i, I_j⟩, of invader
+     sensitivities with resident impacts.
+   - A resident's impact on the field, with respect to its abundance, is the
+     difference between two recorded resident fields at b* e^{±0.03}.
+   - The resident's own ⟨S, I⟩ must equal F_{ln b} (I3; −1.75 on long drought).
+     So the check and the science quantity are one calculation.
+
+Route A plus impacts is enough for the H1 and H2 pilot and the I3 check. Route B
+follows if the adjoint-rows spike shows the dual representation is clean.
+
 ## 4. Spectral structure is easy at the scale H1 and H2 need
 
 - `frontier.md` §4.4 described matrix-free spectra. Those are needed only for
