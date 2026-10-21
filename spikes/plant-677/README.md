@@ -298,6 +298,80 @@ Registering only the asked-for traits in the reverse sweep was also measured
 columns and saves 3.5% at one metric and 5.6% at five, the same whether 1 or
 4 traits are kept.
 
+**Not pursued.** Many traits at once is the reason for the reverse pass, so a
+mode that pays per trait does not answer the question. The comparison is kept
+for the record.
+
+## Fifth round: the shape of the reverse pass
+
+```
+gradient = Σ_steps [ record(step) + seeds × sweep(step) ]
+```
+
+- **Traits cost almost nothing.** The sweep does not depend on how many
+  columns there are; with all 32 active, parameter operations were 3–6%.
+- **Seeds: carry a basis, not every metric** (odelia 12). A descent is linear
+  in its seeds, so a metric whose seed lies in the span of others has the same
+  combination of their adjoints at every row. That holds for the state rows
+  and for the parameter rows. `solve_adjoint` now:
+  1. picks a basis of the seed rows by modified Gram–Schmidt;
+  2. leaves out only rows whose residual is below 1e-14 of their norm;
+  3. carries the basis down;
+  4. rebuilds every row at the end.
+
+  For FF16, `offspring_production` is `net_reproduction_ratio` weighted by the
+  birth rate at each node's introduction. At a constant birth rate their seeds
+  are proportional, so each species adds one seed rather than two.
+
+  | species | metrics | sweeps carried | all metrics, E → F2 |
+  | --- | --- | --- | --- |
+  | 1 | 5 | 4 | 2997M → 2694M instructions (−10%); 0.31 → 0.25–0.27 s |
+  | 2 | 7 | 5 | 0.69 → 0.58–0.61 s |
+  | 4 | 11 | 7 | 1.75–1.82 → 1.35–1.47 s (−20%) |
+
+  Values are identical, and the rebuilt rows move at rounding (worst 8.6e-14
+  relative). Test files give the same failure sets as B. All-zero seeds, as in
+  a fit at its own truth, are swept as given.
+- **Recording is the floor of operator-overloading AD for this code.** It is
+  about 3.9 times the double evaluation, and 80% of a one-metric gradient.
+  About 30 of those points are XAD's bookkeeping: around 77 instructions per
+  statement, with every operation stored twice (a stack buffer, then the
+  chunked container). The rest is the model's arithmetic at the active scalar.
+  The node and field blocks are at about XAD's minimum for their algebra; the
+  field reduction records 8 small statements per node, 2 of them dead.
+
+### Independence: the remaining multiplicative lever
+
+A step's recording reads only the recorded forward state, never λ. So
+recordings can run on other cores ahead of the sweep, in any order. Measured
+(`tools/parallel/`): one 6-stage step tape at lifetime 60, 53,502 statements,
+recorded K times serially and then on threads, each thread with its own tape
+and its own active patch:
+
+| threads | speed-up |
+| --- | --- |
+| 2 | 1.67–1.74x |
+| 4 | 2.80–3.11x |
+
+What it takes:
+
+- **Thread-local tapes.** Both packages build with `XAD_NO_THREADLOCAL`.
+  Without it the gradient costs 10% more instructions at one metric and 7% at
+  five, single-threaded; wall clock could not separate the two.
+- **No shared scratch.** The function-local `static` scratch in the crown rows
+  and in `record_with_derivatives` becomes `thread_local`.
+- **No R from a worker.** Errors are caught on the worker and raised again on
+  the main thread.
+- **A pipeline across widths, not inside them.** A segment is about one step
+  long, since a node is introduced at almost every step, so the pipeline
+  cannot batch within a segment. Each worker re-seats its own active System to
+  the width of the step it records. That is cheap since odelia 11: 69k
+  instructions against a 10M recording.
+
+Estimated wall clock on 4 cores: one metric falls from 1.8G to about 0.6G
+instructions' worth, roughly 1.7x the forward run. With five metrics the four
+serial basis sweeps then dominate.
+
 ### What else the tape shows
 
 The closing field build has 384 dead statements of 853:

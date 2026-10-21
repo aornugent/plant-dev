@@ -1,0 +1,150 @@
+From 4f045de698a12464afe3e23a1f7c137b0e7bbfa3 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 08:07:11 +0000
+Subject: [PATCH] Spike: carry only a basis of the seeds down a descent
+
+---
+ inst/include/odelia/adjoint.hpp    | 77 ++++++++++++++++++++++++++++++
+ inst/include/odelia/ode_solver.hpp | 24 ++++++++++
+ 2 files changed, 101 insertions(+)
+
+diff --git a/inst/include/odelia/adjoint.hpp b/inst/include/odelia/adjoint.hpp
+index 319777e..87cbadc 100644
+--- a/inst/include/odelia/adjoint.hpp
++++ b/inst/include/odelia/adjoint.hpp
+@@ -3,6 +3,7 @@
+ #define ODELIA_ADJOINT_HPP_
+ 
+ #include <algorithm>
++#include <cmath>
+ #include <cstddef>
+ #include <memory>
+ #include <span>
+@@ -189,6 +190,82 @@ void release_slot(S& x) {
+ // model's, and only once two recordings differ in shape -- which is every sweep
+ // that narrows. So every active value the System holds is released before the
+ // clear, and the tape is asked whether any was missed.
++// The seed rows a descent has to carry: a basis of their span, and every row as
++// a combination of it. A descent is linear in its seeds, so a row inside the span
++// of others is that same combination at every row the descent reaches, and its
++// parameter rows likewise. Only a row whose residual against the rows before it
++// is within rounding of zero is left out, so the combinations are exact to
++// rounding.
++struct seed_basis {
++  std::vector<std::size_t> kept;
++  // coefficient[m][b]: row m in kept row b.
++  std::vector<std::vector<double>> coefficient;
++
++  static seed_basis of(const adjoint_rows& seeds) {
++    constexpr double tolerance = 1e-14;
++    seed_basis ret;
++    const std::size_t n = seeds.width();
++    std::vector<std::vector<double>> q;    // orthonormal, one per kept row
++    std::vector<std::vector<double>> r;    // r[j][b]: kept row b on q[j]
++    for (std::size_t m = 0; m < seeds.rows(); ++m) {
++      const std::span<const double> row = seeds[m];
++      std::vector<double> v(row.begin(), row.end());
++      std::vector<double> on(q.size(), 0.0);
++      for (std::size_t j = 0; j < q.size(); ++j) {
++        double dot = 0.0;
++        for (std::size_t i = 0; i < n; ++i) dot += q[j][i] * v[i];
++        on[j] = dot;
++        for (std::size_t i = 0; i < n; ++i) v[i] -= dot * q[j][i];
++      }
++      double norm = 0.0, residual = 0.0;
++      for (std::size_t i = 0; i < n; ++i) {
++        norm += row[i] * row[i];
++        residual += v[i] * v[i];
++      }
++      norm = std::sqrt(norm);
++      residual = std::sqrt(residual);
++      if (residual > tolerance * norm) {
++        for (double& x : v) x /= residual;
++        q.push_back(std::move(v));
++        for (std::size_t j = 0; j < r.size(); ++j) r[j].push_back(on[j]);
++        r.push_back(std::vector<double>(q.size(), 0.0));
++        r.back().back() = residual;
++        std::vector<double> c(q.size(), 0.0);
++        c.back() = 1.0;
++        ret.kept.push_back(m);
++        ret.coefficient.push_back(std::move(c));
++      } else {
++        // Row m is sum_j on[j] q[j]; with kept row b = sum_j r[j][b] q[j], its
++        // coefficients solve the triangular r c = on.
++        std::vector<double> c(q.size(), 0.0);
++        for (std::size_t j = q.size(); j-- > 0;) {
++          double x = on[j];
++          for (std::size_t b = j + 1; b < q.size(); ++b) x -= r[j][b] * c[b];
++          c[j] = x / r[j][j];
++        }
++        ret.coefficient.push_back(std::move(c));
++      }
++    }
++    for (auto& c : ret.coefficient) c.resize(ret.kept.size(), 0.0);
++    return ret;
++  }
++
++  bool carries_every_row() const { return kept.size() == coefficient.size(); }
++
++  // Every row from the kept rows' results, added into `into` row by row.
++  void expand_into(const adjoint_rows& from, adjoint_rows& into) const {
++    for (std::size_t m = 0; m < coefficient.size(); ++m) {
++      const std::span<double> to = into[m];
++      for (std::size_t b = 0; b < kept.size(); ++b) {
++        const double c = coefficient[m][b];
++        if (c == 0.0) continue;
++        const std::span<const double> part = from[b];
++        for (std::size_t i = 0; i < to.size(); ++i) to[i] += c * part[i];
++      }
++    }
++  }
++};
++
+ template <class System>
+ struct active_system {
+   using scalar = active_scalar<double>;
+diff --git a/inst/include/odelia/ode_solver.hpp b/inst/include/odelia/ode_solver.hpp
+index 3996d7b..bbe8a19 100644
+--- a/inst/include/odelia/ode_solver.hpp
++++ b/inst/include/odelia/ode_solver.hpp
+@@ -462,6 +462,29 @@ public:
+                             ode::adjoint_rows& parameter_adjoint,
+                             size_t k_first, size_t k_last,
+                             const std::vector<size_t>& extra_stops = {})
++  {
++    // Only a basis of the seeds is carried down; the others are rebuilt from it.
++    const ode::seed_basis basis = ode::seed_basis::of(lambda);
++    // Seeds that are all zero span nothing, and are swept as given.
++    if (basis.carries_every_row() || basis.kept.empty()) {
++      return descend(lambda, parameter_adjoint, k_first, k_last, extra_stops);
++    }
++    ode::adjoint_rows carried = lambda.select(basis.kept);
++    ode::adjoint_rows carried_parameters(basis.kept.size(),
++                                         parameter_adjoint.width());
++    const std::size_t swept = descend(carried, carried_parameters, k_first,
++                                      k_last, extra_stops);
++    lambda.assign(lambda.rows(), carried.width());
++    basis.expand_into(carried, lambda);
++    basis.expand_into(carried_parameters, parameter_adjoint);
++    return swept;
++  }
++
++private:
++  std::size_t descend(ode::adjoint_rows& lambda,
++                      ode::adjoint_rows& parameter_adjoint,
++                      size_t k_first, size_t k_last,
++                      const std::vector<size_t>& extra_stops)
+   {
+     using scalar = ode::active_scalar<double>;
+     static_assert(ode::Sweepable<System>,
+@@ -615,6 +638,7 @@ public:
+     return swept;
+   }
+ 
++public:
+   // The whole recording.
+   std::size_t solve_adjoint(ode::adjoint_rows& lambda,
+                             ode::adjoint_rows& parameter_adjoint,
+-- 
+2.43.0
+
