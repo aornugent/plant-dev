@@ -1,0 +1,84 @@
+From 218e7dcbb1152ae58ff6694f7572d10f8e060695 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 02:36:44 +0000
+Subject: [PATCH 3/3] Spike: two statements per crown node on the active path
+
+The light is read at height * fraction without recording the product, and the
+leaf rate is accumulated in one expression, so a node records the read and the
+accumulate rather than four named values.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/plant/models/ff16_environment.h |  8 ++++++++
+ inst/include/plant/models/ff16_strategy.h    |  9 +++++++--
+ inst/include/plant/resource_spline.h         | 13 +++++++++++++
+ 3 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/inst/include/plant/models/ff16_environment.h b/inst/include/plant/models/ff16_environment.h
+index 6c1ec430..4e7c7bce 100644
+--- a/inst/include/plant/models/ff16_environment.h
++++ b/inst/include/plant/models/ff16_environment.h
+@@ -84,6 +84,14 @@ public:
+     return step_light(light_availability.get_value_at_height(height, cap));
+   }
+ 
++  S get_environment_at_fraction(const S& height, double fraction,
++                                double cap) const {
++    if (!light_profile_stepped) {
++      return light_availability.get_value_at_fraction(height, fraction, cap);
++    }
++    return step_light(light_availability.get_value_at_fraction(height, fraction, cap));
++  }
++
+   // Discretise a smooth light value into PPA canopy layers. For the smooth
+   // models this is a single predicted branch returning the input unchanged, so
+   // it adds no measurable cost to deep-crown/crown-centre. For PPA it maps the
+diff --git a/inst/include/plant/models/ff16_strategy.h b/inst/include/plant/models/ff16_strategy.h
+index 235f1ccd..e206421e 100644
+--- a/inst/include/plant/models/ff16_strategy.h
++++ b/inst/include/plant/models/ff16_strategy.h
+@@ -1034,9 +1034,14 @@ S FF16_Strategy<S>::assimilation_deep_crown(const FF16_Environment<S>& environme
+   // spline.max() at every quadrature point.
+   const double canopy_top = environment.max_environment_height();
+   if constexpr (!std::is_same_v<S, double>) {
++    // Two statements a node: the light read, and the leaf rate accumulated in
++    // one expression -- ff16_assimilation_leaf's arithmetic in its order.
++    const S& a_p1 = pars.a_p1;
++    const S& a_p2 = pars.a_p2;
+     for (size_t j = 0; j < crown_fractions.size(); ++j) {
+-      A += crown_weights[j] * assimilation_leaf(environment.get_environment_at_height(
+-                                  height * crown_fractions[j], canopy_top));
++      const S E = environment.get_environment_at_fraction(
++          height, crown_fractions[j], canopy_top);
++      A += crown_weights[j] * (a_p1 * E / (E + a_p2));
+     }
+     return area_leaf * A;
+   }
+diff --git a/inst/include/plant/resource_spline.h b/inst/include/plant/resource_spline.h
+index ad59cb53..181ab56f 100644
+--- a/inst/include/plant/resource_spline.h
++++ b/inst/include/plant/resource_spline.h
+@@ -131,6 +131,19 @@ public:
+     return value;
+   }
+ 
++  // The same read at height * fraction, with the product left inside the one
++  // statement the read records rather than recorded on its own.
++  S get_value_at_fraction(const S& height, double fraction, double cap) const {
++    if (!(odelia::util::to_passive(height) * fraction <= cap)) {
++      return S(1.0);
++    }
++    S value = spline(height * fraction / height_max_);
++    if (!(0.0 < odelia::util::to_passive(value))) {
++      return S(0.0);
++    }
++    return value;
++  }
++
+   // The heights, then the values, then the slopes: the columns of r_get_state()
+   // laid end to end.
+   virtual void r_init_interpolators(const std::vector<double>& state) {
+-- 
+2.43.0
+

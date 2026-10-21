@@ -1,0 +1,131 @@
+From 44fe3feffc7cd8f7a60628ae2b4391dcb3ab90a9 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 02:48:14 +0000
+Subject: [PATCH] Spike: preaccumulate a block from its own operands
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/XAD/Tape.hpp             | 13 +++++
+ inst/include/odelia/implicit_node.hpp | 80 +++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+)
+
+diff --git a/inst/include/XAD/Tape.hpp b/inst/include/XAD/Tape.hpp
+index 426afa6..6beaa2f 100644
+--- a/inst/include/XAD/Tape.hpp
++++ b/inst/include/XAD/Tape.hpp
+@@ -259,6 +259,19 @@ class Tape
+     void resetTo(position_type pos);
+     // roll back the adjoints just to the given position (not to the start)
+     void computeAdjointsTo(position_type pos);
++    // Each statement recorded after `pos`, in order: f(lhs, operand_slots...)
++    // is called as f(lhs, slot_of) with slot_of(k) the k-th operand's slot and
++    // the operand count passed alongside.
++    template <class F>
++    void for_each_statement_after(position_type pos, F&& f) const
++    {
++        for (std::size_t i = std::size_t(pos) + 1; i < statement_.size(); ++i)
++        {
++            const size_type begin = statement_[i - 1].first, end = statement_[i].first;
++            f(statement_[i].second, begin, end);
++        }
++    }
++    slot_type operand_slot(size_type k) const { return operations_[k].second; }
+ 
+   private:
+     void computeAdjointsToImpl(position_type pos, position_type start);
+diff --git a/inst/include/odelia/implicit_node.hpp b/inst/include/odelia/implicit_node.hpp
+index ef7eb9a..9e4b8e5 100644
+--- a/inst/include/odelia/implicit_node.hpp
++++ b/inst/include/odelia/implicit_node.hpp
+@@ -303,6 +303,86 @@ S implicit_value(double y_star, double dFdy, Residual&& F, const First& first,
+ }
+ 
+ 
++// The value `body` computes, put on the caller's tape as ONE statement whose rows
++// are its derivatives against every active value the block read. The block is
++// recorded, swept once here and rewound, so a consumer sweeping k seeds walks
++// one statement k times instead of the block's T statements k times.
++//
++// Inputs are read off the block's own operands: a slot an operation reads
++// before any statement of the block has defined it. Nothing is listed, so
++// nothing can be left off a list.
++//
++// Pays where k exceeds about the ratio of the block's local sweep to what the
++// statement saves; it loses at one seed, where the local sweep is extra work.
++template <class S, class Body>
++S preaccumulated(Body&& body) {
++  if constexpr (!CarriesAdjoint<S>) {
++    return body();
++  } else {
++    using tape_type = typename S::tape_type;
++    using slot_type = typename tape_type::slot_type;
++    tape_type* tape = tape_type::getActive();
++    if (tape == nullptr) {
++      return body();
++    }
++    const typename tape_type::position_type mark = tape->getPosition();
++    // Scratch reused across calls: the slots marked defined or input, and the
++    // inputs with the adjoints they held.
++    thread_local std::vector<unsigned char> seen;
++    thread_local std::vector<slot_type> touched, inputs;
++    thread_local std::vector<double> held;
++    double value;
++    {
++      S block = body();
++      value = util::to_passive(block);
++      if (block.getSlot() == tape_type::INVALID_SLOT) {
++        tape->resetTo(mark);
++        return S(value);
++      }
++      touched.clear();
++      inputs.clear();
++      auto mark_slot = [&](slot_type s, unsigned char how) {
++        if (s >= seen.size()) seen.resize(std::size_t(s) + 1, 0);
++        if (seen[s] == 0) touched.push_back(s);
++        seen[s] = how;
++      };
++      tape->for_each_statement_after(mark, [&](slot_type lhs, auto begin, auto end) {
++        for (auto k = begin; k < end; ++k) {
++          const slot_type s = tape->operand_slot(k);
++          if (s >= seen.size() || seen[s] == 0) {
++            mark_slot(s, 2);
++            inputs.push_back(s);
++          }
++        }
++        mark_slot(lhs, 1);
++      });
++      for (slot_type s : touched) seen[s] = 0;
++      held.resize(inputs.size());
++      for (std::size_t i = 0; i < inputs.size(); ++i) {
++        held[i] = tape->derivative(inputs[i]);
++        tape->derivative(inputs[i]) = 0.0;
++      }
++      tape->registerOutput(block);
++      xad::derivative(block) = 1.0;
++      tape->computeAdjointsTo(mark);
++      for (std::size_t i = 0; i < inputs.size(); ++i) {
++        const double row = tape->derivative(inputs[i]);
++        tape->derivative(inputs[i]) = held[i];
++        held[i] = row;
++      }
++    }
++    tape->resetTo(mark);
++    S out = value;
++    for (std::size_t i = 0; i < inputs.size(); ++i) {
++      if (held[i] != 0.0) {
++        tape->pushAll(&held[i], &inputs[i], 1u);
++      }
++    }
++    tape->registerOutput(out);
++    return out;
++  }
++}
++
+ }
+ 
+ #endif
+\ No newline at end of file
+-- 
+2.43.0
+

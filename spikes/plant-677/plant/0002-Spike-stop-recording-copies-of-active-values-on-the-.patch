@@ -1,0 +1,226 @@
+From 12f2f8f795612d2b6f901b690c87793a54e8da3a Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 02:30:09 +0000
+Subject: [PATCH 2/3] Spike: stop recording copies of active values on the FF16
+ rate path
+
+A copy of an active scalar is a tape statement, and a move hands over the
+slot. Kernel arguments, canopy-shape arguments, the aux reads in
+compute_rates and compute_competition_and_slope, and Node::height() are taken
+by reference; temporaries written into Internals and a competition split are
+moved. Per rate evaluation at 91 nodes, copies fall from 7,180 to about 1,800.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/plant/canopy_shape.h                | 16 +++++++++-------
+ inst/include/plant/internals.h                   |  6 ++++++
+ .../plant/models/ff16_production_kernel.h        | 12 ++++++------
+ inst/include/plant/models/ff16_strategy.h        | 10 +++++-----
+ inst/include/plant/node.h                        |  2 +-
+ inst/include/plant/species.h                     |  6 +++---
+ 6 files changed, 30 insertions(+), 22 deletions(-)
+
+diff --git a/inst/include/plant/canopy_shape.h b/inst/include/plant/canopy_shape.h
+index ac88473d..420ece5d 100644
+--- a/inst/include/plant/canopy_shape.h
++++ b/inst/include/plant/canopy_shape.h
+@@ -166,7 +166,8 @@ public:
+   // FlatTopSoftBox carries its own smoothstep derivative, below. FlatTopBox is a
+   // hard step, so its slope is a point mass with no finite value to return -- and
+   // that model already cannot build a light environment at all.
+-  std::pair<S, S> Q_and_q(S z_over_height, S z, S height_inverse) const {
++  std::pair<S, S> Q_and_q(const S& z_over_height, const S& z,
++                          const S& height_inverse) const {
+     if (shading_model_ == ShadingModel::FlatTopBox) {
+       throw std::runtime_error("The flat-top-box competition profile is a step, "
+                                "so it has no vertical slope and no light "
+@@ -246,7 +247,7 @@ public:
+     out[2] = 2.0 * eta_ * t * t_over_z;
+   }
+ 
+-  S Q(S z_over_height) const {
++  S Q(const S& z_over_height) const {
+     if (z_over_height > 1.0) {
+       return S(0.0);
+     }
+@@ -278,7 +279,7 @@ private:
+   // every crown quadrature point of every cohort, so a copy taken by value is
+   // a statement per point per cohort (#677).
+   typedef S (*pow_eta_fn)(const S&, const S&);
+-  typedef S (*leaf_above_fn)(const CanopyShape&, S);
++  typedef S (*leaf_above_fn)(const CanopyShape&, const S&);
+ 
+   // u^eta, by THE SAME ALGORITHM AT BOTH SCALARS.
+   //
+@@ -310,13 +311,13 @@ private:
+   }
+ 
+   // Smooth Yokozawa profile -- the correct shading a crown casts.
+-  static S leaf_above_deep(const CanopyShape& c, S z_over_height) {
++  static S leaf_above_deep(const CanopyShape& c, const S& z_over_height) {
+     return c.Q(z_over_height);
+   }
+ 
+   // FlatTopBox: all leaf area collapsed into the thin crown-centre layer, so the
+   // crown fully shades everything below z = H*eta_c and nothing above. A step.
+-  static S leaf_above_box(const CanopyShape& c, S z_over_height) {
++  static S leaf_above_box(const CanopyShape& c, const S& z_over_height) {
+     return z_over_height < c.eta_c_ ? S(1.0) : S(0.0);
+   }
+ 
+@@ -324,7 +325,7 @@ private:
+   // to lo = max(0, 2*eta_c - 1) then a cubic-smoothstep fall to zero at the crown
+   // top (so the transition is centred on the crown centre eta_c and the profile
+   // is continuous -- buildable -- but still box-like, not the Yokozawa taper).
+-  static S leaf_above_softbox(const CanopyShape& c, S z_over_height) {
++  static S leaf_above_softbox(const CanopyShape& c, const S& z_over_height) {
+     const S lo = c.eta_c_ > 0.5 ? 2.0 * c.eta_c_ - 1.0 : S(0.0);
+     if (z_over_height <= lo) {
+       return S(1.0);
+@@ -339,7 +340,8 @@ private:
+   // The smoothstep above and its exact negative vertical derivative, from one
+   // evaluation of t. d/dt of 1 - t^2(3 - 2t) is -6t(1 - t), so q = -dQ/dz is
+   // 6t(1 - t) / ((1 - lo) H), and it vanishes at both ends of the transition.
+-  std::pair<S, S> Q_and_q_softbox(S z_over_height, S height_inverse) const {
++  std::pair<S, S> Q_and_q_softbox(const S& z_over_height,
++                                  const S& height_inverse) const {
+     const S lo = eta_c_ > 0.5 ? 2.0 * eta_c_ - 1.0 : S(0.0);
+     if (z_over_height <= lo) {
+       return {S(1.0), S(0.0)};
+diff --git a/inst/include/plant/internals.h b/inst/include/plant/internals.h
+index 24d95f32..6d1dc4f9 100644
+--- a/inst/include/plant/internals.h
++++ b/inst/include/plant/internals.h
+@@ -4,6 +4,7 @@
+ 
+ #include <memory> // std::shared_ptr
+ #include <odelia/ode_interface.hpp>
++#include <utility>
+ #include <vector>
+ // #include <plant/plant_internals.h>
+ 
+@@ -78,9 +79,14 @@ public:
+   const S& aux(int i) const { return auxs[i]; }
+   const S& consumption_rate(int i) const { return consumption_rates[i]; }
+ 
++  // A temporary is moved in: at an active scalar that hands over its slot,
++  // where a copy records a statement.
+   void set_state(int i, const S& v) { states[i] = v; }
++  void set_state(int i, S&& v) { states[i] = std::move(v); }
+   void set_rate(int i, const S& v) { rates[i] = v; }
++  void set_rate(int i, S&& v) { rates[i] = std::move(v); }
+   void set_aux(int i, const S& v) { auxs[i] = v; }
++  void set_aux(int i, S&& v) { auxs[i] = std::move(v); }
+   void set_consumption_rate(int i, const S& v) { consumption_rates[i] = v; }
+ 
+   void resize(size_t new_size, size_t new_aux_size) {
+diff --git a/inst/include/plant/models/ff16_production_kernel.h b/inst/include/plant/models/ff16_production_kernel.h
+index 377729a8..412cc468 100644
+--- a/inst/include/plant/models/ff16_production_kernel.h
++++ b/inst/include/plant/models/ff16_production_kernel.h
+@@ -20,7 +20,7 @@ namespace plant {
+ // allometric traits a_l1, a_l2, so it is the entry point through which a trait
+ // reaches both the mass cascade and the resident competition / light spline.
+ template <typename S>
+-S ff16_area_leaf(S a_l1, S a_l2, S height) {
++S ff16_area_leaf(const S& a_l1, const S& a_l2, const S& height) {
+   using std::pow;
+   return pow(height / a_l1, 1.0 / a_l2);
+ }
+@@ -35,21 +35,21 @@ S ff16_assimilation_leaf(const S& a_p1, const S& a_p2, const S& x) {
+ 
+ // [eqn 13] Total maintenance respiration (linear in the mass cascade).
+ template <typename S>
+-S ff16_respiration(S mass_leaf, S mass_sapwood, S mass_bark, S mass_root,
+-                   S r_l, S r_s, S r_b, S r_r) {
++S ff16_respiration(const S& mass_leaf, const S& mass_sapwood, const S& mass_bark, const S& mass_root,
++                   const S& r_l, const S& r_s, const S& r_b, const S& r_r) {
+   return r_l * mass_leaf + r_b * mass_bark + r_s * mass_sapwood + r_r * mass_root;
+ }
+ 
+ // [eqn 14] Total turnover.
+ template <typename S>
+-S ff16_turnover(S mass_leaf, S mass_bark, S mass_sapwood, S mass_root,
+-                S k_l, S k_b, S k_s, S k_r) {
++S ff16_turnover(const S& mass_leaf, const S& mass_bark, const S& mass_sapwood, const S& mass_root,
++                const S& k_l, const S& k_b, const S& k_s, const S& k_r) {
+   return k_l * mass_leaf + k_b * mass_bark + k_s * mass_sapwood + k_r * mass_root;
+ }
+ 
+ // [eqn 15] Net production from assimilation/respiration/turnover.
+ template <typename S>
+-S ff16_net_production_A(S a_bio, S a_y, S assimilation, S respiration, S turnover) {
++S ff16_net_production_A(const S& a_bio, const S& a_y, const S& assimilation, const S& respiration, const S& turnover) {
+   return a_bio * a_y * (assimilation - respiration) - turnover;
+ }
+ 
+diff --git a/inst/include/plant/models/ff16_strategy.h b/inst/include/plant/models/ff16_strategy.h
+index 9df132ca..235f1ccd 100644
+--- a/inst/include/plant/models/ff16_strategy.h
++++ b/inst/include/plant/models/ff16_strategy.h
+@@ -693,8 +693,8 @@ public:
+   // compute_competition() returns.
+   with_slope<S>
+   compute_competition_and_slope(const S& z, const Internals<S>& vars) const {
+-    const S area_leaf_ = vars.aux(COMPETITION_EFFECT_AUX_INDEX);
+-    const S height_inverse = vars.aux(HEIGHT_INVERSE_AUX_INDEX);
++    const S& area_leaf_ = vars.aux(COMPETITION_EFFECT_AUX_INDEX);
++    const S& height_inverse = vars.aux(HEIGHT_INVERSE_AUX_INDEX);
+     const S scale = pars.k_I * area_leaf_;
+     const std::pair<S, S> Qq =
+       canopy_shape.Q_and_q(z * height_inverse, z, height_inverse);
+@@ -967,9 +967,9 @@ void FF16_Strategy<S>::compute_rates(const FF16_Environment<S>& environment,
+                                      Internals<S>& vars) {
+   using std::pow;
+ 
+-  S height = vars.state(HEIGHT_INDEX);
+-  S area_leaf_ = vars.aux(COMPETITION_EFFECT_AUX_INDEX);
+-  S height_inverse = vars.aux(HEIGHT_INVERSE_AUX_INDEX);
++  const S& height = vars.state(HEIGHT_INDEX);
++  const S& area_leaf_ = vars.aux(COMPETITION_EFFECT_AUX_INDEX);
++  const S& height_inverse = vars.aux(HEIGHT_INVERSE_AUX_INDEX);
+ 
+   // Reuse the sapwood intermediates the worker already computes (for
+   // respiration/turnover) rather than recomputing them below; bit-identical.
+diff --git a/inst/include/plant/node.h b/inst/include/plant/node.h
+index ebffcf31..0fe1ee69 100644
+--- a/inst/include/plant/node.h
++++ b/inst/include/plant/node.h
+@@ -28,7 +28,7 @@ public:
+   // Wrapper to growth_rate_gradient for testing
+   value_type r_growth_rate_gradient(const environment_type& environment);
+ 
+-  value_type height() const {return individual.state(HEIGHT_INDEX);}
++  const value_type& height() const {return individual.state(HEIGHT_INDEX);}
+   value_type compute_competition(const value_type& z) const;
+   // The node's competition contribution and its vertical derivative, both
+   // weighted by density. The first entry equals compute_competition(z) exactly.
+diff --git a/inst/include/plant/species.h b/inst/include/plant/species.h
+index 91253ee3..9d13eb64 100644
+--- a/inst/include/plant/species.h
++++ b/inst/include/plant/species.h
+@@ -813,7 +813,7 @@ void Species<T,E>::field_splits_nodes(const std::vector<value_type>& heights,
+     // the polynomial would evaluate (z / H)^eta above one there rather than the
+     // zero the profile has. It is the interval the walk closes by hand too.
+     competition_split& c = out[k];
+-    const with_slope<value_type> fs_last =
++    with_slope<value_type> fs_last =
+       nodes[last].compute_competition_and_slope(height);
+     if (stop < n) {
+       const with_slope<value_type> fs_above =
+@@ -823,9 +823,9 @@ void Species<T,E>::field_splits_nodes(const std::vector<value_type>& heights,
+       sum.slope += width * (fs_above.slope + fs_last.slope);
+     }
+ 
+-    c.sum = sum;
++    c.sum = std::move(sum);
+     c.x1 = abscissa[last];
+-    c.at_x1 = fs_last;
++    c.at_x1 = std::move(fs_last);
+     c.closes = closes_on(c.at_x1.value);
+   }
+ }
+-- 
+2.43.0
+
