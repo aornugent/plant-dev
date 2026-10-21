@@ -1,89 +1,106 @@
 # FF16 adjoint cost (traitecoevo/plant#677): spikes
 
-The FF16 reverse pass divided by its own forward run, for one species. The first
-four columns are callgrind instructions per step at `max_patch_lifetime` 8, with
-one census metric. The last two are wall-clock seconds at lifetime 30,
-interleaved against the baseline in one sitting.
+The FF16 reverse pass divided by its own forward run, for one species. The
+middle columns are callgrind instructions per step at `max_patch_lifetime` 8.
+The seconds column is the median of three runs at lifetime 30, interleaved
+against B in one sitting.
 
-| arm | gradient / step | sweep / step | ratio, 1 metric | ratio, 5 metrics | seconds, 1 metric | seconds, 5 metrics |
-| --- | --- | --- | --- | --- | --- | --- |
-| A: develop, odelia 0.7.3 | 49.7M | — | 24.7x | — | — | — |
-| B: plant#679, odelia 0.8.0 | 29.6M | 6.49M | 14.5x | — | 14.0-15.4x | 26.3-29.4x |
-| + fold the crown shape (patch 1) | 22.1M | 4.55M | 10.8x | — | 9.0-9.9x | 17.8-18.5x |
-| + stop recording copies (patch 2) | 19.5M | 3.98M | 9.6x | — | — | — |
-| + two statements per crown node (patch 3) | 17.7M | 3.46M | 8.7x | 16.4x | 8.1x | 15.4-16.0x |
+| arm | ratio, 1 metric | ratio, 5 metrics | seconds, 5 metrics |
+| --- | --- | --- | --- |
+| A: develop, odelia 0.7.3 | 24.7x | — | — |
+| B: plant#679, odelia 0.8.0 | 14.5x | — | 0.837 s (27x) |
+| + plant 1: fold the crown shape | 10.8x | — | — |
+| + plant 2: stop recording copies | 9.6x | — | — |
+| + plant 3: two statements per crown node | 8.7x | 16.4x | — |
+| + odelia 1: 12-byte operations, one clear per walk | 8.0x | 14.6x | — |
+| + odelia 2: no `memmove` per statement | 7.5x | 14.1x | — |
+| + odelia 3: a cubic's slope read at its value | 7.3x | 13.6x | — |
+| + odelia 4, plant 4: move stage states | 7.2x | 13.4x | — |
+| + odelia 5, plant 5: move knot data into the spline | 7.0x | 13.0x | — |
+| + plant 6: one statement per half of a competition read | 6.7x | 12.3x | — |
+| + odelia 6, plant 7: fewer field statements | **6.6x** | **12.0x** | **0.350 s (11x)** |
 
-The forward run is the same in every arm from B down, because the patches touch
-only the active path. Against B, every gradient entry stays finite and none
-drops to zero; the worst relative change is 2.6e-12 and the median is 3e-15.
+The double forward run is identical in every arm from B down: same values, same
+step counts. Two kinds of change:
+
+- **Odelia 1–4 and 6** only reorganise how the tape is stored or swept. The
+  gradient is bit-identical to the arm above.
+- **The plant patches and odelia 5** remove recorded copies, which changes the
+  order adjoints are summed in. Against B, every entry stays finite and none
+  drops to zero; the worst relative change is 2.6e-12.
+
+Test files, each run on B and on the spike stack, with identical failure sets:
+
+| suite | tests | failures | the same on B |
+| --- | --- | --- | --- |
+| odelia | 127 | 0 failed, 12 errors | yes: upstream's steady-state `sourceCpp` helpers do not compile |
+| plant gradient, ladder, census, fitness and FF16 files | 160 | 3 | yes |
+| plant strategy, canopy, patch, species, node and environment files | 171 | 2 | yes |
 
 ## Why FF16's ratio is high and TF24's is not
 
-TF24's forward run is 90% `solve_leaf`, with `toms748_solve` alone at 62%. Its
-replay loads the solved leaf instead of solving it again. Per step, TF24's
-gradient costs 120M instructions and FF16's 30M, but TF24's forward costs 43M
-and FF16's 2M. Take the leaf solve out of TF24's forward and its ratio would be
-about 28x. FF16 has nothing to drop from its replay: every flop of its rate
-evaluation becomes a tape statement.
+TF24's forward run is 90% `solve_leaf`, which its replay loads instead of
+solving again. FF16 has nothing to drop: every flop of a rate evaluation becomes
+a tape statement. Per step, TF24's gradient costs more than FF16's; it is only
+divided by a far larger forward run.
 
-## What each patch removes, per rate evaluation at 91 nodes
+## Where the cost is now
 
-`tools/probe.cpp` records one rate evaluation of a real patch state and counts
-statements by region. A statement with one operand and a multiplier of 1 is
-counted as a copy.
+Recording and sweeping both run at XAD's own floor per statement.
+`tools/floor.cpp` measures that floor on two-statement kernels: about 124
+instructions per statement to record (with the fix in odelia 2), and about 5 ns
+per statement per seed to sweep. `tools/probe_sweep.cpp` shows the sweep is not
+cache-bound: 4.9, 5.4 and 4.7 ns per statement per seed on tapes of 15k, 89k and
+358k statements, with a 2 MiB L2. So the cost is roughly
 
-- **Patch 1.** The crown nodes sit at `h * s_j`, so `q`'s shape factor is a
-  per-node constant, because `eta` carries no gradient column. A crown integral
-  drops from 193 statements to 85.
-- **Patch 2.** Copies of active values. Kernel arguments taken by value were 21
-  copies per node. The others: the aux reads in `compute_rates` and
-  `compute_competition_and_slope`, `Node::height()` returning by value,
-  `Q_and_q` arguments, and temporaries written into `Internals`, which are now
-  moved. Copies fall from 7,180 to about 1,800 per evaluation.
-- **Patch 3.** The light read takes the fraction, so `h * s_j` is not recorded
-  on its own. The leaf rate is accumulated in one expression. A crown node drops
-  from 85 statements to 43.
+> statements × (record + metrics × sweep)
 
-## Measured and not worth it here
+and every remaining lever removes statements or operations.
 
-**Preaccumulating the crown** (odelia patch 1, `preaccumulated<S>(body)`) is
-correct: its rows match the inline sweep exactly. It cuts the sweep per metric
-from 3.46M to 2.45M instructions per step. But its local sweep adds the same
-1.0M per step to recording, so it breaks even at one metric and saves about
-(k - 1) x 1.0M per step at k metrics. As written it also paid for TLS scratch
-(11% of instructions) and XAD re-initialising its derivative array on every
-local sweep.
+Statements per rate evaluation at 91 nodes, after all patches: about 13k in
+all.
+
+| source | statements |
+| --- | --- |
+| crown quadrature (21 points × 2 statements × 92 nodes) | 3.96k |
+| field reduction `field_splits` | 2.5k |
+| the rest of the field build | 2.1k |
+| non-crown rates | 3.1k |
+| state load and rate write-out | 1.3k |
+
+## Measured and rejected
+
+| proposal | measurement |
+| --- | --- |
+| **Vector adjoints (`AReal<double, 5>`), one sweep for 5 metrics** | 1.5x slower to sweep (4.47 ms against 2.97 ms) on one step's tape, with identical adjoints. Recording costs the same. (`tools/probe_vec.cpp`, with XAD's tape compiled at width 5.) |
+| **Preaccumulating the crown** (`odelia-preaccumulated/`) | Rows are exact. Its local sweep costs what each metric's sweep saves, so it breaks even at one metric and saves about 12% at five. Not worth the code. |
+| **`XAD_TAPE_REUSE_SLOTS`** | Recording 64% slower; sweep 2% faster. |
+| **Skipping zero multipliers inside XAD** | Every operation then pays a branch: the sweep falls 5.5% and recording rises 5.6%. The site that produced 90% of the zeros is fixed instead (odelia 3). |
+| **Moving rates out of `Internals` on write-out** | Would save 637 copies per evaluation. Not done: a later reader of a moved rate would get its value without its derivative, with nothing raised. |
 
 ## What is left
 
-Measured on the patch-3 build, per rate evaluation:
-
-| region | statements |
-| --- | --- |
-| field build | 6,407 |
-| rates | 7,125 |
-| loading the state | 1,106 |
-| writing the rates out | 637 |
-
-About 3,100 of these statements are still copies, and most are on odelia's side
-or at its interface with plant:
-
-| source | copies per evaluation | where |
-| --- | --- | --- |
-| `hermite_spline::set_data` | 387 per build, 774 in all | odelia |
-| loading the stage state into the patch | 637 | odelia's stepper would need to move it |
-| `ode_rates` writing the rates out | 637 | plant |
-
-With five metrics the sweep is half the process, at about 38 instructions per
-statement. odelia's vector-width measurement (`ode_interface.hpp`) was taken on
-TF24, not on FF16.
+- **The crown** is about 2 statements per quadrature point, which is XAD's
+  minimum for that arithmetic.
+- **The number of crown points** is `function_integration_rule` (QK21). That is
+  a model accuracy decision, not a tape one.
+- **The excluded field's spline** is built only for the boundary node, which
+  reads at heights below its seed height: one or two spans of 64.
+- **odelia 1** sets `XAD_REDUCED_MEMORY` in the vendored `XAD/Config.hpp`, so
+  every package reading odelia's headers agrees on the tape layout.
 
 ## Reproducing
 
-Build each arm into its own library and load it with `R_LIBS`. Apply the
-patches on `pr679` (`git fetch upstream pull/679/head`) with plant's pins
-relaxed to odelia >= 0.8.0 and phylloptim >= 0.10.3. Run `rm -f src/*.o
-src/*.so` before every build: R does not track header dependencies, and one
-stale build here reproduced its baseline exactly. Use `tools/guard.R` and
-`tools/cmp.R` for values, `tools/prof3.R` under callgrind for instructions
-(`METRICS=all` for five metrics), and `tools/wall.R` interleaved for seconds.
+Build each arm into its own library and load it with `R_LIBS`. Run `rm -f
+src/*.o src/*.so` before every build: R does not track header dependencies, and
+one stale build here reproduced its baseline exactly.
+
+- **plant:** apply `plant/` on `pr679` (`git fetch upstream pull/679/head`),
+  with plant's pins relaxed to odelia >= 0.8.0 and phylloptim >= 0.10.3.
+- **odelia:** apply `odelia/` on odelia `1e0f0f0`.
+- **Values:** `tools/guard.R`, then `tools/cmp.R`.
+- **Instructions:** `tools/prof3.R` under callgrind, with `METRICS=all` for five
+  metrics.
+- **Seconds:** `tools/wall.R`, interleaved.
+- **Statements by region:** `tools/probe.cpp`.
+- **Tests on both arms:** `tools/runtests.R`.

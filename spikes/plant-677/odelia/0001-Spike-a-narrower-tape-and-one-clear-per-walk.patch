@@ -1,0 +1,89 @@
+From 49ff6188c5dae924c54d723e933bdc55da4a3d1a Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 03:04:01 +0000
+Subject: [PATCH 1/6] Spike: a narrower tape and one clear per walk
+
+XAD_REDUCED_MEMORY stores an operation in 12 bytes rather than a padded 16, and
+a sweep after the first zeroes only the inputs it reads. Bit-identical.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/XAD/Config.hpp     |  8 +++++++-
+ inst/include/odelia/adjoint.hpp | 19 +++++++++++++------
+ 2 files changed, 20 insertions(+), 7 deletions(-)
+
+diff --git a/inst/include/XAD/Config.hpp b/inst/include/XAD/Config.hpp
+index 1d36159..44dd7ba 100644
+--- a/inst/include/XAD/Config.hpp
++++ b/inst/include/XAD/Config.hpp
+@@ -47,7 +47,13 @@
+ // #define XAD_NO_THREADLOCAL
+ 
+ // Reduce memory usage in the tape, at a slight performance cost
+-// #define XAD_REDUCED_MEMORY
++//
++// Set here, so every package reading these headers stores operations the same
++// way: multipliers and slots in two arrays, 12 bytes an operation rather than a
++// padded 16-byte pair. A sweep streams the operations, and on a plant stand it
++// is bound by that stream: measured, a fifth off each sweep and a twelfth off
++// recording.
++#define XAD_REDUCED_MEMORY
+ 
+ // Enable JIT compilation support (record-once, compile-once, evaluate-many)
+ // #define XAD_ENABLE_JIT
+diff --git a/inst/include/odelia/adjoint.hpp b/inst/include/odelia/adjoint.hpp
+index 47ea591..61461bb 100644
+--- a/inst/include/odelia/adjoint.hpp
++++ b/inst/include/odelia/adjoint.hpp
+@@ -270,17 +270,21 @@ namespace internal {
+ // Seed the recorded outputs and sweep, once per seed row; `read(m)` runs with
+ // seed m's adjoints standing on the tape.
+ //
+-// The derivatives are cleared between sweeps. Without it the previous seed's
+-// adjoints are still on the slots and every row after the first is the running
+-// sum of the ones before it. Clearing leaves the recorded operations alone, so
+-// each sweep is bit-identical to the row a fresh recording would give: one
+-// recording is substitutable for one per seed rather than an approximation of it.
++// The derivatives are cleared before the first sweep only. A sweep zeroes the
++// adjoint of every statement it walks, so what a sweep leaves standing is on the
++// registered inputs alone, and `read` zeroes each one as it reads it. Without
++// that, every row after the first is the running sum of the ones before it.
++// Clearing the whole array per seed costs a pass over every slot the recording
++// made; this costs one over the inputs. Either way each sweep is bit-identical to
++// the row a fresh recording would give.
+ template <class Read>
+ void sweep_each_seed(adjoint_tape<double>& tape,
+                      std::vector<active_scalar<double>>& outputs,
+                      const adjoint_rows& output_adjoints, Read&& read) {
+     for (std::size_t m = 0; m < output_adjoints.rows(); ++m) {
+-        tape.clearDerivatives();
++        if (m == 0) {
++            tape.clearDerivatives();
++        }
+         // The adjoint slots, named directly rather than through an accessor of
+         // their own: this is the only place in the family that touches one, and a
+         // name for two sites inside the function that owns the tape would say
+@@ -350,6 +354,7 @@ std::size_t vector_jacobian_product(adjoint_tape<double>& tape,
+                               [&](std::size_t m) -> void {
+         for (std::size_t i = 0; i < x_active.size(); ++i) {
+             input_adjoints[m][i] = xad::derivative(x_active[i]);
++            xad::derivative(x_active[i]) = 0.0;
+         }
+     });
+ 
+@@ -454,9 +459,11 @@ std::size_t state_and_parameter_adjoints(
+                               [&](std::size_t m) -> void {
+         for (std::size_t i = 0; i < n_state; ++i) {
+             state_adjoint[m][i] = xad::derivative(state_active[i]);
++            xad::derivative(state_active[i]) = 0.0;
+         }
+         for (std::size_t p = 0; p < n_parameter; ++p) {
+             parameter_adjoint[m][p] += xad::derivative(*parameters[p]);
++            xad::derivative(*parameters[p]) = 0.0;
+         }
+     });
+     return tape.getMemory();
+-- 
+2.43.0
+

@@ -1,0 +1,44 @@
+From 805ed228c22131d5fcdcd466ce90f5b39f9d0eef Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 03:21:49 +0000
+Subject: [PATCH 3/6] Spike: read an active cubic's slope at its value
+
+The slope multiplies u - up, which is zero at the value, so its coefficients
+were recorded a second time with partials of exactly zero: 90% of the
+zero-multiplier operations on an FF16 tape. Bit-identical.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/odelia/spline.hpp | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/inst/include/odelia/spline.hpp b/inst/include/odelia/spline.hpp
+index d6b81fb..37dd3f9 100644
+--- a/inst/include/odelia/spline.hpp
++++ b/inst/include/odelia/spline.hpp
+@@ -315,12 +315,19 @@ private:
+     // d(value)/du are theirs bit for bit. A knot coefficient's partial is the same
+     // product associated from the root rather than through the Horner chain, so
+     // an adjoint reaching the knots agrees with theirs to rounding, not bit for bit.
++    //
++    // The slope multiplies u - up, which is zero at the value, so the slope is
++    // taken at its value: active, its coefficients would be recorded a second
++    // time each with a partial of exactly zero.
+     template <typename U>
+     S value_at_query(const U& u, double up) const {
+       static_assert(Order == 3, "value_at_query spells the cubic only.");
++      using odelia::util::to_passive;
+       const double t = local(up);
+-      return S(y0 + t * (c[0] + t * (c[1] + t * c[2])) +
+-               (c[0] + t * (2.0 * c[1] + t * (3.0 * c[2]))) * inv_h * (u - up));
++      const double slope =
++          (to_passive(c[0]) + t * (2.0 * to_passive(c[1]) + t * (3.0 * to_passive(c[2])))) *
++          inv_h;
++      return S(y0 + t * (c[0] + t * (c[1] + t * c[2])) + slope * (u - up));
+     }
+   };
+ 
+-- 
+2.43.0
+

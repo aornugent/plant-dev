@@ -1,0 +1,117 @@
+From b8fb72b8012b9f40b5312c1a47da1b20d582f582 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 03:31:53 +0000
+Subject: [PATCH 4/6] Spike: move each stage's state into the System
+
+A recorded step copied its inputs into a local start state, and copied every
+stage's state into the System: a statement per entry each time. The start
+state is now the recorded inputs, and stages 2 to 6 are moved in, since the
+next stage rebuilds them. Bit-identical.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/odelia/adjoint.hpp       |  6 +++++-
+ inst/include/odelia/ode_interface.hpp | 28 +++++++++++++++++++++++++++
+ inst/include/odelia/ode_step_rkck.hpp | 11 ++++++-----
+ 3 files changed, 39 insertions(+), 6 deletions(-)
+
+diff --git a/inst/include/odelia/adjoint.hpp b/inst/include/odelia/adjoint.hpp
+index 61461bb..d8da9ac 100644
+--- a/inst/include/odelia/adjoint.hpp
++++ b/inst/include/odelia/adjoint.hpp
+@@ -446,7 +446,11 @@ std::size_t state_and_parameter_adjoints(
+     tape.newRecording();
+ 
+     std::vector<scalar> outputs(n_out);
+-    evaluate(active.system, state_active.begin(), outputs);
++    if constexpr (requires { evaluate(active.system, std::as_const(state_active), outputs); }) {
++        evaluate(active.system, std::as_const(state_active), outputs);
++    } else {
++        evaluate(active.system, std::as_const(state_active).begin(), outputs);
++    }
+     if (outputs.size() != n_out) {
+         util::stop("state_and_parameter_adjoints: the map resized the output "
+                    "buffer; it is handed one entry per output adjoint and must "
+diff --git a/inst/include/odelia/ode_interface.hpp b/inst/include/odelia/ode_interface.hpp
+index 543931d..fe0a24e 100644
+--- a/inst/include/odelia/ode_interface.hpp
++++ b/inst/include/odelia/ode_interface.hpp
+@@ -521,6 +521,17 @@ void set_ode_state(T& obj, const StateType& y, double time) {
+   }
+ }
+ 
++// A state the caller is done with is moved in: at an active scalar that hands
++// each value's slot over, where a copy records a statement per entry.
++template <typename T, typename StateType>
++void set_ode_state_moving(T& obj, StateType& y, double time) {
++  if constexpr (HasOdeTime<T>) {
++    obj.set_ode_state(std::make_move_iterator(y.begin()), time);
++  } else {
++    obj.set_ode_state(std::make_move_iterator(y.begin()));
++  }
++}
++
+ }
+ 
+ // One rate evaluation: set the state, read the rates. Every stage of a step
+@@ -573,6 +584,23 @@ void derivs(T& obj, const StateType& y, StateType& dydt, const double time,
+   obj.ode_rates(dydt.begin());
+ }
+ 
++// The same two evaluations with a state the caller hands over: its entries are
++// moved into the System and left holding their values with no slot.
++template <typename T, typename StateType>
++  requires(!std::is_reference_v<StateType>)
++void derivs(T& obj, StateType&& y, StateType& dydt, const double time) {
++  internal::set_ode_state_moving(obj, y, time);
++  obj.ode_rates(dydt.begin());
++}
++template <typename T, typename StateType, typename Values>
++  requires(!std::is_reference_v<StateType>)
++void derivs(T& obj, StateType&& y, StateType& dydt, const double time,
++            Values& solved) {
++  const solved_scope<T, Values> extent{obj, solved};
++  internal::set_ode_state_moving(obj, y, time);
++  obj.ode_rates(dydt.begin());
++}
++
+ // R interface functions - always use std::vector<double>
+ template <typename T>
+ std::vector<double> r_derivs(T& obj, const std::vector<double>& y, const double time) {
+diff --git a/inst/include/odelia/ode_step_rkck.hpp b/inst/include/odelia/ode_step_rkck.hpp
+index 7bc4152..225d47c 100644
+--- a/inst/include/odelia/ode_step_rkck.hpp
++++ b/inst/include/odelia/ode_step_rkck.hpp
+@@ -316,10 +316,10 @@ void Step<System>::step_adjoint(active_system<System>& active,
+   // in the two callers above that happen to check it.
+   util::check_length(y.size(), size);
+ 
+-  auto whole_step = [&](auto& sys,
+-                        typename std::vector<scalar>::const_iterator x,
++  // The recorded inputs themselves, not a copy of them: a copy is a statement
++  // per entry.
++  auto whole_step = [&](auto& sys, const std::vector<scalar>& y0,
+                         std::vector<scalar>& y_end) -> void {
+-    const std::vector<scalar> y0(x, x + static_cast<std::ptrdiff_t>(size));
+     std::vector<std::vector<scalar>> rate(6, std::vector<scalar>(size));
+     std::vector<scalar> stage(size);
+     // k1 is re-derived at this step's own start state, as `k1` says the run took
+@@ -339,11 +339,12 @@ void Step<System>::step_adjoint(active_system<System>& active,
+     ++recorded_rates;
+     for (int i = 1; i < 6; ++i) {
+       stage_state(i, y0, rate, h, stage);
++      // Moved in: stage_state rebuilds every entry before the next use.
+       if constexpr (SolvesForValues<System>) {
+-        ode::derivs(sys, stage, rate[i], stage_time(i, time, h),
++        ode::derivs(sys, std::move(stage), rate[i], stage_time(i, time, h),
+                     std::as_const(solved[i - 1]));
+       } else {
+-        ode::derivs(sys, stage, rate[i], stage_time(i, time, h));
++        ode::derivs(sys, std::move(stage), rate[i], stage_time(i, time, h));
+       }
+       ++recorded_rates;
+     }
+-- 
+2.43.0
+

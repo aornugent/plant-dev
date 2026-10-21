@@ -1,0 +1,37 @@
+From 5db1b54a255a53ef00d3a057fdd6c256865d16ed Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 03:55:14 +0000
+Subject: [PATCH 6/6] Spike: one statement per cubic coefficient
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/odelia/spline.hpp | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/inst/include/odelia/spline.hpp b/inst/include/odelia/spline.hpp
+index 0e2090c..274852f 100644
+--- a/inst/include/odelia/spline.hpp
++++ b/inst/include/odelia/spline.hpp
+@@ -114,12 +114,14 @@ public:
+       const double h = x[k + 1] - x[k];
+       const S& a = y[k];
+       const S& b = y[k + 1];
+-      const S sa = m[k] * h, sb = m[k + 1] * h;
+       Span& s = spans[k];
+       s.y0 = a;
+-      s.c[0] = sa;
+-      s.c[1] = 3.0 * (b - a) - 2.0 * sa - sb;
+-      s.c[2] = 2.0 * (a - b) + sa + sb;
++      // Each coefficient one statement: the scaled slopes are not named, since
++      // at an active scalar a name is a statement and a copy into c[0] another.
++      s.c[0] = m[k] * h;
++      const S& sa = s.c[0];
++      s.c[1] = 3.0 * (b - a) - 2.0 * sa - m[k + 1] * h;
++      s.c[2] = 2.0 * (a - b) + sa + m[k + 1] * h;
+     }
+     initialised = true;
+   }
+-- 
+2.43.0
+

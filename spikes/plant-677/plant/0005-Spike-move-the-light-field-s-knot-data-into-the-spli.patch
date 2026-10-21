@@ -1,0 +1,39 @@
+From 9def1d17a7e3ab33e19cdb320c9a49300983f6e7 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 03:37:07 +0000
+Subject: [PATCH 5/7] Spike: move the light field's knot data into the spline
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/plant/resource_spline.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/inst/include/plant/resource_spline.h b/inst/include/plant/resource_spline.h
+index 181ab56f..a4d0c648 100644
+--- a/inst/include/plant/resource_spline.h
++++ b/inst/include/plant/resource_spline.h
+@@ -68,7 +68,7 @@ public:
+     // The reduction's slope is per unit height and the interpolant's abscissa is
+     // u, so the chain factor is the canopy top itself.
+     for (size_t k = 0; k < n; ++k) { m[k] = m[k] * height_max; }
+-    spline.set_data(y, m);
++    spline.set_data(std::move(y), std::move(m));
+   };
+ 
+   void set_fixed_value(S value, S height_max) {
+@@ -292,9 +292,9 @@ void build_extinction_field(Field& field, Function f_competition_all_knots,
+         std::vector<value_type>& m) -> void {
+       f_competition_all_knots(x, y, m);
+       for (std::size_t k = 0; k < x.size(); ++k) {
+-        const value_type E = exp(-y[k]);
++        value_type E = exp(-y[k]);
+         m[k] = -(m[k] * E);
+-        y[k] = E;
++        y[k] = std::move(E);
+       }
+     },
+     height_max);
+-- 
+2.43.0
+

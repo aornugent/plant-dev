@@ -1,0 +1,74 @@
+From 6b57672a9ac723a2d2a20dc3ae0768c4d891dfdb Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 03:37:06 +0000
+Subject: [PATCH 5/6] Spike: take a spline's knot data by value
+
+A caller done with its buffers moves them in, and a span reads its two knots
+by reference: each was a copy, so a statement, per knot per build.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/odelia/spline.hpp | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/inst/include/odelia/spline.hpp b/inst/include/odelia/spline.hpp
+index 37dd3f9..0e2090c 100644
+--- a/inst/include/odelia/spline.hpp
++++ b/inst/include/odelia/spline.hpp
+@@ -102,15 +102,18 @@ public:
+   }
+ 
+   // Values and dy/dx at the nodes already set, one entry each per node.
+-  void set_data(const std::vector<S>& y_, const std::vector<S>& dydx_) {
++  // By value, so a caller done with its buffers moves them in: at an active
++  // scalar a copy is a statement per knot.
++  void set_data(std::vector<S> y_, std::vector<S> dydx_) {
+     static_assert(Order == 3,
+                   "a quintic span has a curvature coefficient, so it needs the "
+                   "second derivative at every knot; leaving it out would make the "
+                   "read quintic in storage and cubic in fact.");
+-    begin_data(y_, dydx_);
++    begin_data(std::move(y_), std::move(dydx_));
+     for (std::size_t k = 0; k < spans.size(); ++k) {
+       const double h = x[k + 1] - x[k];
+-      const S a = y[k], b = y[k + 1];
++      const S& a = y[k];
++      const S& b = y[k + 1];
+       const S sa = m[k] * h, sb = m[k + 1] * h;
+       Span& s = spans[k];
+       s.y0 = a;
+@@ -123,12 +126,12 @@ public:
+ 
+   // As above, with d2y/dx2 as well: the unique quintic through both knots' value,
+   // slope and curvature.
+-  void set_data(const std::vector<S>& y_, const std::vector<S>& dydx_,
++  void set_data(std::vector<S> y_, std::vector<S> dydx_,
+                 const std::vector<S>& d2ydx2_) {
+     static_assert(Order == 5,
+                   "a cubic span is determined by the value and the slope, so a "
+                   "curvature has nowhere to go and would be silently dropped.");
+-    begin_data(y_, dydx_);
++    begin_data(std::move(y_), std::move(dydx_));
+     util::check_length(d2ydx2_.size(), x.size());
+     // The curvatures are read into the spans and not kept. values() and slopes()
+     // are held because a caller hands them on and a slope recovered from a span is
+@@ -332,12 +335,12 @@ private:
+   };
+ 
+   // The two length checks and the two vectors every order stores.
+-  void begin_data(const std::vector<S>& y_, const std::vector<S>& dydx_) {
++  void begin_data(std::vector<S>&& y_, std::vector<S>&& dydx_) {
+     if (spans.empty()) util::stop("hermite_spline: no knots set");
+     util::check_length(y_.size(), x.size());
+     util::check_length(dydx_.size(), x.size());
+-    y = y_;
+-    m = dydx_;
++    y = std::move(y_);
++    m = std::move(dydx_);
+   }
+ 
+   // The query's derivative, materialised while its operands are alive. A deduced
+-- 
+2.43.0
+

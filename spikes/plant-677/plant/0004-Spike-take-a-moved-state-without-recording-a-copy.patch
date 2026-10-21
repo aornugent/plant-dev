@@ -1,0 +1,62 @@
+From 43bd99114dbb1c28869afe0e452373a2464d1756 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 03:31:53 +0000
+Subject: [PATCH 4/7] Spike: take a moved state without recording a copy
+
+Individual::set_state and Node::set_log_density take a moved value, and
+update_dependent_aux reads the height by reference.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/plant/individual.h           | 4 ++++
+ inst/include/plant/models/ff16_strategy.h | 2 +-
+ inst/include/plant/node.h                 | 4 ++++
+ 3 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/inst/include/plant/individual.h b/inst/include/plant/individual.h
+index d9598ad5..283fe6fe 100644
+--- a/inst/include/plant/individual.h
++++ b/inst/include/plant/individual.h
+@@ -61,6 +61,10 @@ public:
+     vars.set_state(i, v);
+     strategy->update_dependent_aux(i, vars);
+   }
++  void set_state(int i, value_type&& v) {
++    vars.set_state(i, std::move(v));
++    strategy->update_dependent_aux(i, vars);
++  }
+ 
+   // aux vars by name and index
+   const value_type& aux(std::string name) const {
+diff --git a/inst/include/plant/models/ff16_strategy.h b/inst/include/plant/models/ff16_strategy.h
+index e206421e..223603cd 100644
+--- a/inst/include/plant/models/ff16_strategy.h
++++ b/inst/include/plant/models/ff16_strategy.h
+@@ -472,7 +472,7 @@ public:
+   // and lets the now-inline area_leaf fold in.
+   void update_dependent_aux(const int index, Internals<S>& vars) {
+     if (index == HEIGHT_INDEX) {
+-      S height = vars.state(HEIGHT_INDEX);
++      const S& height = vars.state(HEIGHT_INDEX);
+       vars.set_aux(COMPETITION_EFFECT_AUX_INDEX, area_leaf(height));
+       vars.set_aux(HEIGHT_INVERSE_AUX_INDEX, 1.0 / height);
+     }
+diff --git a/inst/include/plant/node.h b/inst/include/plant/node.h
+index 0fe1ee69..9e8c4926 100644
+--- a/inst/include/plant/node.h
++++ b/inst/include/plant/node.h
+@@ -106,6 +106,10 @@ public:
+     log_density = x;
+     density = exp(log_density);
+   }
++  void set_log_density(value_type&& x) {
++    log_density = std::move(x);
++    density = exp(log_density);
++  }
+ 
+   // ODE interface.
+   //
+-- 
+2.43.0
+

@@ -69,6 +69,30 @@ Rcpp::List probe_regions(SEXP patch_sexp, int reps) {
   active.ode_rates(dydt.begin());
   const mark m3 = at(tape);
 
+  {
+    std::vector<A> moved(ya.size());
+    for (std::size_t i = 0; i < ya.size(); ++i) moved[i] = ya[i] * 1.0;
+    const mark q0 = at(tape);
+    active.set_ode_state(std::make_move_iterator(moved.begin()), time);
+    const mark q1 = at(tape);
+    active.compute_environment();
+    const mark q2 = at(tape);
+    const auto c = classify(tape, q0, q1);
+    const auto cf = classify(tape, q1, q2);
+    {
+      auto& nd = active.species[0].nodes[3];
+      std::vector<A> v(nd.ode_size());
+      for (std::size_t i = 0; i < v.size(); ++i) v[i] = ya[i] * 1.0;
+      const mark z0 = at(tape);
+      nd.set_ode_state(std::make_move_iterator(v.begin()));
+      const mark z1 = at(tape);
+      const auto cz = classify(tape, z0, z1);
+      Rcpp::Rcout << "one node by move: " << (z1.st - z0.st) << " stmts, copies " << cz[0]
+                  << " of " << v.size() << " values\n";
+    }
+    Rcpp::Rcout << "load by move (incl. field): " << (q1.st - q0.st) << " stmts, copies " << c[0]
+                << "; field alone " << (q2.st - q1.st) << " copies " << cf[0] << "\n";
+  }
   // The same pieces once more, each on its own: the field alone (state already
   // loaded), the rates alone, and the write-out of the rates.
   const mark e0 = at(tape);
@@ -120,6 +144,23 @@ Rcpp::List probe_regions(SEXP patch_sexp, int reps) {
       sp.field_splits(x, out);
       mark f1 = at(tape);
       show("field_splits (65 knots)", f0, f1);
+      {
+        const A& z = x[40];
+        std::array<A, 3> w, ws;
+        mark g0 = at(tape);
+        strat.canopy_shape.height_weights(z, w);
+        mark g1 = at(tape);
+        strat.canopy_shape.height_weight_slopes(z, ws);
+        mark g2 = at(tape);
+        auto fsn = sp.nodes[5].compute_competition_and_slope(z);
+        mark g3 = at(tape);
+        strat.canopy_shape.crown_moments(A(1.0) / sp.nodes[5].height(), w);
+        mark g4 = at(tape);
+        show("  height_weights", g0, g1);
+        show("  height_weight_slopes", g1, g2);
+        show("  Node::compute_competition_and_slope", g2, g3);
+        show("  crown_moments (+1/H)", g3, g4);
+      }
       mark f2 = at(tape);
       std::vector<A> yy(fr.size()), mm(fr.size());
       for (size_t k = 0; k < fr.size(); ++k) { yy[k] = out[k].sum.value * 1.0; mm[k] = out[k].sum.slope * 1.0; }
@@ -232,11 +273,32 @@ Rcpp::List probe_regions(SEXP patch_sexp, int reps) {
       Rcpp::Rcout << "crown inline:         record " << 1e9 * t_rec_inline / R << " ns, sweep " << 1e9 * t_sweep_inline / R << " ns\n";
       Rcpp::Rcout << "crown preaccumulated: record " << 1e9 * t_pre / R << " ns, sweep " << 1e9 * t_sweep_pre / R << " ns, rows " << n_rows << ", worst row rel diff " << worst << "\n";
     }
+    {
+      mark h0 = at(tape);
+      node.compute_rates(env, 1.0);
+      mark h1 = at(tape);
+      std::map<std::size_t, int> hist;
+      for (std::size_t i = h0.st; i < h1.st; ++i) {
+        const std::size_t n = tape.statement_[i].first - (i == 0 ? 0 : tape.statement_[i - 1].first);
+        ++hist[n];
+      }
+      Rcpp::Rcout << "node statements by operand count:";
+      for (auto& kv : hist) Rcpp::Rcout << " " << kv.first << ":" << kv.second;
+      Rcpp::Rcout << "\n";
+    }
     Rcpp::Rcout << "one node:\n";
     show("Node::compute_rates", n0, n1);
     show("Individual::compute_rates", n1, n2);
     show("net_mass_production_dt", n3, n4);
     show("assimilation (crown)", n4, n5);
+  }
+  {
+    double zero = 0, total = 0;
+    for (std::size_t o = tape.statement_[0].first; o < tape.operations_.size(); ++o) {
+      ++total;
+      if (tape.operations_[o].first == 0.0) ++zero;
+    }
+    Rcpp::Rcout << "operations with an exactly-zero multiplier: " << zero << " of " << total << "\n";
   }
   const std::vector<double> c_field = classify(tape, m0, m1);
   const std::vector<double> c_rates = classify(tape, m2, m3);

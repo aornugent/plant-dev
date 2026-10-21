@@ -1,0 +1,78 @@
+From fadb6f3affbc7dc9be79d10c1626ad80edbec714 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 03:10:23 +0000
+Subject: [PATCH 2/6] Spike: copy a statement's operations without memmove
+
+XAD's split operations container copied each statement's multipliers and slots
+with uninitialized_copy_n, which lowers to two memmove calls a statement. A
+statement has two to four, so the copy is unrolled. Bit-identical.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/XAD/OperationsContainer.hpp | 37 +++++++++++++++++++-----
+ 1 file changed, 29 insertions(+), 8 deletions(-)
+
+diff --git a/inst/include/XAD/OperationsContainer.hpp b/inst/include/XAD/OperationsContainer.hpp
+index 95c7f6c..2aadbf7 100644
+--- a/inst/include/XAD/OperationsContainer.hpp
++++ b/inst/include/XAD/OperationsContainer.hpp
+@@ -144,11 +144,11 @@ class OperationsContainer
+     template <class MulIt, class SlotIt>
+     XAD_FORCE_INLINE void append_n(MulIt muls, SlotIt slots, size_type n)
+     {
++        // A statement's operations are a handful, so the copy is a loop: copy_n
++        // lowers to a call to memmove per array per statement, which was a third
++        // of recording.
+         auto items = (std::min)(ChunkSize - idx_, n);
+-        std::uninitialized_copy_n(detail::make_checked(muls, items), items,
+-                                  detail::make_checked(mul_chunk(chunk_), ChunkSize) + idx_);
+-        std::uninitialized_copy_n(detail::make_checked(slots, items), items,
+-                                  detail::make_checked(slot_chunk(chunk_), ChunkSize) + idx_);
++        copy_into(muls, slots, items, idx_);
+         idx_ += items;
+ 
+         while (XAD_VERY_UNLIKELY(idx_ == ChunkSize))
+@@ -161,14 +161,35 @@ class OperationsContainer
+             slots += items;
+ 
+             items = (std::min)(ChunkSize, n);
+-            std::uninitialized_copy_n(detail::make_checked(muls, items), items,
+-                                      detail::make_checked(mul_chunk(chunk_), ChunkSize));
+-            std::uninitialized_copy_n(detail::make_checked(slots, items), items,
+-                                      detail::make_checked(slot_chunk(chunk_), ChunkSize));
++            copy_into(muls, slots, items, 0);
+             idx_ += items;
+         }
+     }
+ 
++    template <class MulIt, class SlotIt>
++    XAD_FORCE_INLINE void copy_into(MulIt muls, SlotIt slots, size_type items, size_type at)
++    {
++        T* dm = mul_chunk(chunk_) + at;
++        S* ds = slot_chunk(chunk_) + at;
++        // Unrolled for the counts a statement has: a loop over two to four
++        // elements is vectorised, and its prologue and tail cost more than the
++        // copy.
++        switch (items)
++        {
++            case 4: ::new (dm + 3) T(muls[3]); ds[3] = slots[3]; [[fallthrough]];
++            case 3: ::new (dm + 2) T(muls[2]); ds[2] = slots[2]; [[fallthrough]];
++            case 2: ::new (dm + 1) T(muls[1]); ds[1] = slots[1]; [[fallthrough]];
++            case 1: ::new (dm + 0) T(muls[0]); ds[0] = slots[0]; [[fallthrough]];
++            case 0: break;
++            default:
++                for (size_type i = 0; i < items; ++i)
++                {
++                    ::new (dm + i) T(muls[i]);
++                    ds[i] = slots[i];
++                }
++        }
++    }
++
+     XAD_FORCE_INLINE std::pair<mul_type, slot_type> operator[](size_type n) const
+     {
+         auto chunk = n / ChunkSize;
+-- 
+2.43.0
+

@@ -1,0 +1,33 @@
+From 0a237e440b955fca400dfe77808ad51f0b2b50c1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 03:55:14 +0000
+Subject: [PATCH 7/7] Spike: halve the captured reduction inside the knot sums
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/plant/patch.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/inst/include/plant/patch.h b/inst/include/plant/patch.h
+index a8e28604..db629d3b 100644
+--- a/inst/include/plant/patch.h
++++ b/inst/include/plant/patch.h
+@@ -1454,10 +1454,10 @@ void Patch<T,E>::compute_environment_excl_capturing() {
+     for (size_t i = 0; i < size(); ++i) {
+       species[i].field_splits(x, competition_capture[i]);
+       for (size_t k = 0; k < x.size(); ++k) {
+-        const with_slope<value_type> open =
+-          competition_capture[i][k].without_boundary();
+-        y[k] += open.value / area;
+-        m[k] += open.slope / area;
++        // without_boundary()'s halves, inside the sums rather than named.
++        const auto& sum = competition_capture[i][k].sum;
++        y[k] += (sum.value / 2) / area;
++        m[k] += (sum.slope / 2) / area;
+       }
+     }
+   };
+-- 
+2.43.0
+

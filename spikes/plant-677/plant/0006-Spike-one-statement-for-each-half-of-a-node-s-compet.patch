@@ -1,0 +1,143 @@
+From bb6370de75d32bc5708fb0b931c91fe713f54dd8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 03:48:57 +0000
+Subject: [PATCH 6/7] Spike: one statement for each half of a node's
+ competition read
+
+The deep crown's Q and q are scaled by leaf area and density inside the one
+expression each, rather than recorded and multiplied after; and the field's
+height weights and their slopes share one z^eta. A node's read drops from 11
+statements to 5. The forward values are unchanged.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/plant/canopy_shape.h         | 31 +++++++++++++++++++++++
+ inst/include/plant/individual.h           |  8 ++++++
+ inst/include/plant/models/ff16_strategy.h | 12 +++++++++
+ inst/include/plant/node.h                 |  3 +++
+ inst/include/plant/species.h              |  3 +--
+ 5 files changed, 55 insertions(+), 2 deletions(-)
+
+diff --git a/inst/include/plant/canopy_shape.h b/inst/include/plant/canopy_shape.h
+index 420ece5d..a3159b73 100644
+--- a/inst/include/plant/canopy_shape.h
++++ b/inst/include/plant/canopy_shape.h
+@@ -190,6 +190,24 @@ public:
+     return {tmp * tmp, 2.0 * eta_ * tmp * u_eta / z};
+   }
+ 
++  // Q_and_q's pair times (k * a) and then b, the way a node scales its crown's
++  // competition by its leaf area and density. On the deep crown each half is one
++  // expression, the same operations in the same order, so where a value and its
++  // scaling would be three statements apiece they are one.
++  std::pair<S, S> Q_and_q_times(const S& z_over_height, const S& z,
++                                const S& height_inverse, const S& k,
++                                const S& a, const S& b) const {
++    if (shading_model_ == ShadingModel::DeepCrown && !(z_over_height > 1.0) &&
++        !(z <= 0.0)) {
++      const S u_eta = pow_eta(z_over_height);
++      return {b * ((k * a) * ((1.0 - u_eta) * (1.0 - u_eta))),
++              b * (-((k * a) * (2.0 * eta_ * (1.0 - u_eta) * u_eta / z)))};
++    }
++    const S scale = k * a;
++    const std::pair<S, S> Qq = Q_and_q(z_over_height, z, height_inverse);
++    return {b * (scale * Qq.first), b * (-(scale * Qq.second))};
++  }
++
+ 
+   // Q as a polynomial in w = (z / H)^eta -- for the smooth profile Q = 1 - 2w + w^2
+   // -- and w SEPARATES: w = z^eta * H^-eta. So a reduction over crowns at many
+@@ -247,6 +265,19 @@ public:
+     out[2] = 2.0 * eta_ * t * t_over_z;
+   }
+ 
++  // Both of the above from one z^eta.
++  void height_weights_and_slopes(const S& z, std::array<S, max_moments>& w,
++                                 std::array<S, max_moments>& slope) const {
++    const S t = pow_eta(z);
++    w[0] = S(1.0);
++    w[1] = -2.0 * t;
++    w[2] = t * t;
++    const S t_over_z = z > 0.0 ? S(t / z) : (eta_ == 1.0 ? S(1.0) : S(0.0));
++    slope[0] = S(0.0);
++    slope[1] = -2.0 * eta_ * t_over_z;
++    slope[2] = 2.0 * eta_ * t * t_over_z;
++  }
++
+   S Q(const S& z_over_height) const {
+     if (z_over_height > 1.0) {
+       return S(0.0);
+diff --git a/inst/include/plant/individual.h b/inst/include/plant/individual.h
+index 283fe6fe..fa927895 100644
+--- a/inst/include/plant/individual.h
++++ b/inst/include/plant/individual.h
+@@ -97,6 +97,14 @@ public:
+   compute_competition_and_slope(const value_type& z) const {
+     return strategy->compute_competition_and_slope(z, vars);
+   }
++  with_slope<value_type>
++  compute_competition_and_slope(const value_type& z, const value_type& scale) const
++    requires requires(const strategy_type& s, const Internals<value_type>& v) {
++      s.compute_competition_and_slope(z, v, scale);
++    }
++  {
++    return strategy->compute_competition_and_slope(z, vars, scale);
++  }
+ 
+   // d(leaf area)/d(height), for a caller pulling a leaf-area adjoint back.
+   value_type darea_leaf_dheight() const {
+diff --git a/inst/include/plant/models/ff16_strategy.h b/inst/include/plant/models/ff16_strategy.h
+index 223603cd..a3b3f988 100644
+--- a/inst/include/plant/models/ff16_strategy.h
++++ b/inst/include/plant/models/ff16_strategy.h
+@@ -701,6 +701,18 @@ public:
+     return {scale * Qq.first, -(scale * Qq.second)};
+   }
+ 
++  // The same pair times a node's density, with the scalings inside the
++  // expressions rather than recorded after them.
++  with_slope<S>
++  compute_competition_and_slope(const S& z, const Internals<S>& vars,
++                                const S& density) const {
++    const S& area_leaf_ = vars.aux(COMPETITION_EFFECT_AUX_INDEX);
++    const S& height_inverse = vars.aux(HEIGHT_INVERSE_AUX_INDEX);
++    std::pair<S, S> scaled = canopy_shape.Q_and_q_times(
++        z * height_inverse, z, height_inverse, pars.k_I, area_leaf_, density);
++    return {std::move(scaled.first), std::move(scaled.second)};
++  }
++
+   // [      ] Inverse of Q: height above which fraction 'x' of leaf found
+   S Qp(const S& x, const S& height) const;
+ 
+diff --git a/inst/include/plant/node.h b/inst/include/plant/node.h
+index 9e8c4926..2e92c7b2 100644
+--- a/inst/include/plant/node.h
++++ b/inst/include/plant/node.h
+@@ -337,6 +337,9 @@ Node<T,E>::compute_competition(const value_type& height_) const {
+ template <typename T, typename E>
+ with_slope<typename Node<T,E>::value_type>
+ Node<T,E>::compute_competition_and_slope(const value_type& height_) const {
++  if constexpr (requires { individual.compute_competition_and_slope(height_, density); }) {
++    return individual.compute_competition_and_slope(height_, density);
++  }
+   const with_slope<value_type> fs =
+     individual.compute_competition_and_slope(height_);
+   return {density * fs.value, density * fs.slope};
+diff --git a/inst/include/plant/species.h b/inst/include/plant/species.h
+index 9d13eb64..5f57f9fb 100644
+--- a/inst/include/plant/species.h
++++ b/inst/include/plant/species.h
+@@ -800,8 +800,7 @@ void Species<T,E>::field_splits_nodes(const std::vector<value_type>& heights,
+     const std::size_t last = stop < n ? stop : n - 1;
+     const std::size_t summed = last > 0 ? last - (stop < n ? 1 : 0) : 0;
+ 
+-    strategy->canopy_shape.height_weights(height, weight);
+-    strategy->canopy_shape.height_weight_slopes(height, weight_slope);
++    strategy->canopy_shape.height_weights_and_slopes(height, weight, weight_slope);
+     with_slope<value_type> sum{value_type(0.0), value_type(0.0)};
+     for (std::size_t j = 0; j < n_moments; ++j) {
+       sum.value += weight[j] * prefix[summed][j];
+-- 
+2.43.0
+
