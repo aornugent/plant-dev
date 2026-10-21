@@ -37,3 +37,17 @@ E5 the selection gradient against ln b around b*, 201 uniform nodes (b* row is E
   0.03 4.818375 -0.05075510 -23.96821 -0.05075510
   0.10 5.167747 -0.17419383 -24.41314 -0.17419383
 fits: dg/d ln b = -5.99, dF/d ln b = -1.75
+
+E6 node count at ode_tol_abs 1e-4, long drought at b*
+ nodes     lnJ steps     grad lnR_095 cpu_resident cpu_3_invaders
+   108 1.53685  5151 -24.8169 1.03432       28.710         50.572
+   201 1.54364  5157 -23.7627 1.05214       51.581         90.188
+   402 1.54393  5355 -23.7531 1.05735       99.859        186.801
+
+E8 constant rain at b* = 45.06, the rebuilt 257-node schedule: offspring per seed by node, resident and invaders at lma x (1-1e-4, 1, 1+1e-4)
+ node    birth  resident     minus      same      plus
+    1 0.000000 1.630e+04 1.862e+05 1.630e+04 6.005e+01
+    2 0.005606 4.726e-05 1.028e-04 4.726e-05 2.530e-05
+    3 0.011211 8.678e-08 1.108e-07 8.678e-08 6.872e-08
+    4 0.016817 3.217e-09 3.708e-09 3.217e-09 2.802e-09
+ln R:  2.43597e+00 -1.50726e-06 -5.60338e+00 
