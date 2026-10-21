@@ -66,6 +66,24 @@ Lifetime 60, one species, the gradient divided by its own forward run:
 The seconds are medians of three interleaved rounds against a forward run of
 about 0.038 s.
 
+## What each mechanism is worth now
+
+The history above credits each patch with whatever moved when it landed, in
+sequence and partly at lifetime 8. Switching each mechanism off on its own in
+the final build (F2) and counting again, at lifetime 60:
+
+| switched off | 1 metric | 5 metrics |
+| --- | --- | --- |
+| crown integral as one statement (plant 0009, 0010, 0012) | +19% | +31% |
+| 12-byte operations (odelia 0001) | +11% | +10% |
+| one active System per descent (plant 0015, odelia 0011) | +7% | +5% |
+| seed basis (odelia 0012) | 0 | +11% |
+| field reduction rows (plant 0011, 0014) | +2% | +6% |
+| excluded field built only below the boundary node (part of plant 0008) | +1% | +1% |
+
+The remainder, about four-fifths of the one-metric reduction since B, is
+copies no longer recorded. `REVIEW.md` turns this into a PR plan.
+
 ## Measured and not kept
 
 | proposal | result |
