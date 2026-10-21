@@ -1,0 +1,31 @@
+E1 long drought at b* = 4.676, uniform nodes
+     arm nodes    cpu      J accepted step_median_d step_p90_d     at_cap
+ abs1e-4   201 48.290 4.6816     5157        2.0073     6.6574 0.00581734
+    base   201 77.409 4.6845     8549        1.1623     3.9955 0.00035092
+    n108   108 41.783 4.6466     8223        1.1672     4.1067 0.00194576
+   nocap   201 75.974 4.6846     8414        1.1842     4.0218 0.00035655
+
+E4 other climates, 201 uniform nodes, base setting
+      arm nodes    cpu          J accepted step_median_d step_p90_d     at_cap
+ constant   201 25.396 2.7707e-10     3221        3.2869     9.3894 0.00031046
+ seasonal   201 79.891 5.0067e+00     8691        1.1344     3.8856 0.00046025
+
+E2 node count, long drought at b*
+ nodes     lnJ steps     grad lnR_095 cpu_resident cpu_3_invaders
+    54 1.55960  7915 -29.4390 1.09423       22.083         38.686
+   108 1.53613  8223 -24.8376 1.03387       42.623         76.820
+   201 1.54426  8549 -23.7859 1.05312       77.017        148.425
+   402 1.54403  9024 -23.7478 1.05735      155.766        302.905
+
+E3 the invader gradient at the resident, 201 nodes
+List of 6
+ $ nodes  : int 201
+ $ R      : num 1
+ $ sweep  : num -23.8
+ $ tangent: num -23.8
+ $ cd     : num -23.8
+ $ cpu    : Named num [1:5] 79.6 49.2 157.6 101.2 95.4
+  ..- attr(*, "names")= chr [1:5] "resident" "invader" "sweep" "tangent" ...
+   R = 1.001820; sweep -23.78595, tangent -23.78595, central difference (h 1e-3) -23.78594
+     resident       invader         sweep       tangent cd_2_invaders 
+       79.647        49.234       157.596       101.179        95.358 
