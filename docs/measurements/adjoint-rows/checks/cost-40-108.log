@@ -1,0 +1,24 @@
+          used (Mb) gc trigger (Mb) max used (Mb)
+Ncells  653749 35.0    1366101   73  1366101 73.0
+Vcells 1087593  8.3    8388608   64  1977559 15.1
+          used (Mb) gc trigger (Mb) max used (Mb)
+Ncells  688020 36.8    1366101   73  1366101 73.0
+Vcells 1150708  8.8    8388608   64  8192614 62.6
+Warning message:
+In rm(x) : object 'x' not found
+          used (Mb) gc trigger (Mb) max used (Mb)
+Ncells  689255 36.9    1366101   73  1366101 73.0
+Vcells 1153800  8.9    8388608   64  8192614 62.6
+off LIFETIME 40 NODES 108: run 45.2 s, 6154884 recorded state doubles (47.0 MB); resident sweeps 136.5 132.5 137.9 s; VmHWM run 384 -> sweeps 405 MB; invader run 33.5 s, sweeps 99.3 100.2 98.8 s; VmHWM 422 -> 439 MB
+          used (Mb) gc trigger (Mb) max used (Mb)
+Ncells  653749 35.0    1366101   73  1366101 73.0
+Vcells 1087593  8.3    8388608   64  1977559 15.1
+          used (Mb) gc trigger (Mb) max used (Mb)
+Ncells  688020 36.8    1366101   73  1366101 73.0
+Vcells 1150708  8.8    8388608   64  8192614 62.6
+Warning message:
+In rm(x) : object 'x' not found
+          used (Mb) gc trigger (Mb) max used (Mb)
+Ncells  689083 36.9    1366101 73.0  1366101 73.0
+Vcells 1153414  8.8    8811264 67.3 10401410 79.4
+on LIFETIME 40 NODES 108: run 44.2 s, 6154884 recorded state doubles (47.0 MB); resident sweeps 139.1 139.2 134.0 s; VmHWM run 384 -> sweeps 440 MB; invader run 34.1 s, sweeps 100.5 101.2 100.7 s; VmHWM 440 -> 440 MB

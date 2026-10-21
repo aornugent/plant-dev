@@ -51,3 +51,19 @@ E8 constant rain at b* = 45.06, the rebuilt 257-node schedule: offspring per see
     3 0.011211 8.678e-08 1.108e-07 8.678e-08 6.872e-08
     4 0.016817 3.217e-09 3.708e-09 3.217e-09 2.802e-09
 ln R:  2.43597e+00 -1.50726e-06 -5.60338e+00 
+
+E7 at ode_tol_abs 1e-08, long drought at b*, 201 uniform nodes, 51 trait columns: F_theta -5.91015, g sweep -23.78595, g difference -23.78594
+               plain recorded resident_sweep invader invader_sweep
+cpu             81.2    80.30         173.80   49.60        157.30
+ratio_to_plain   1.0     0.99           2.14    0.61          1.94
+               cd_2_invaders
+cpu                    98.10
+ratio_to_plain          1.21
+
+E7 at ode_tol_abs 0.0001, long drought at b*, 201 uniform nodes, 51 trait columns: F_theta -5.89294, g sweep -23.76309, g difference -23.76269
+               plain recorded resident_sweep invader invader_sweep
+cpu               49     48.8         104.60   28.80          93.4
+ratio_to_plain     1      1.0           2.13    0.59           1.9
+               cd_2_invaders
+cpu                    58.00
+ratio_to_plain          1.18

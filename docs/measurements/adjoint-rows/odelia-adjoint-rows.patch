@@ -1,0 +1,125 @@
+diff --git a/inst/include/odelia/ode_solver.hpp b/inst/include/odelia/ode_solver.hpp
+index 3afa92b..2f9f284 100644
+--- a/inst/include/odelia/ode_solver.hpp
++++ b/inst/include/odelia/ode_solver.hpp
+@@ -453,6 +453,9 @@ public:
+   // stop is the same one either way, so a caller can ask for a split and compare: a
+   // check, not a choice.
+   //
++  // `kept`, where given, is sized to the recording and receives the adjoint of each
++  // row's state in [k_first, k_last]; a row whose state is empty is left empty.
++  //
+   // The System is put where each range needs it and left where the run left it,
+   // so a sub-range can be swept without the caller positioning anything and the
+   // whole can be swept again afterwards.
+@@ -461,7 +464,8 @@ public:
+   std::size_t solve_adjoint(ode::adjoint_rows& lambda,
+                             ode::adjoint_rows& parameter_adjoint,
+                             size_t k_first, size_t k_last,
+-                            const std::vector<size_t>& extra_stops = {})
++                            const std::vector<size_t>& extra_stops = {},
++                            std::vector<ode::adjoint_rows>* kept = nullptr)
+   {
+     using scalar = ode::active_scalar<double>;
+     static_assert(ode::Sweepable<System>,
+@@ -525,6 +529,10 @@ public:
+     // where one tape per recording regrows it every time.
+     ode::adjoint_tape<double> tape(false);
+     ode::tape_scope<ode::adjoint_tape<double>> running{tape};
++    if (kept) {
++      kept->resize(rec.size());
++      (*kept)[k_last] = lambda;
++    }
+ 
+     // One range per width, highest first: the System is put at the range's top, so
+     // whoever narrows it is whoever rebinds on it and no descent inherits a width
+@@ -544,7 +552,7 @@ public:
+       // cohort: a step with no state has no output, so it carries no adjoint and
+       // adds nothing to any parameter's.
+       if (lo < hi && lambda.width() > 0) {
+-        sweep_range(tape, rec, lambda, parameter_adjoint, lo, hi);
++        sweep_range(tape, rec, lambda, parameter_adjoint, lo, hi, kept);
+         ++swept;
+       }
+     };
+@@ -608,6 +616,9 @@ public:
+       ode::state_and_parameter_adjoints(widened, rec[at - 1].state, lambda, insert,
+                                        narrowed, parameter_adjoint);
+       lambda = std::move(narrowed);
++      if (kept) {
++        (*kept)[at - 1] = lambda;
++      }
+       hi = at - 1;
+     }
+     sweep_down_to(k_first);
+@@ -617,10 +628,11 @@ public:
+   // The whole recording.
+   std::size_t solve_adjoint(ode::adjoint_rows& lambda,
+                             ode::adjoint_rows& parameter_adjoint,
+-                            const std::vector<size_t>& extra_stops = {})
++                            const std::vector<size_t>& extra_stops = {},
++                            std::vector<ode::adjoint_rows>* kept = nullptr)
+   {
+     return solve_adjoint(lambda, parameter_adjoint, 0, recording().size() - 1,
+-                         extra_stops);
++                         extra_stops, kept);
+   }
+ 
+   // Rate evaluations the sweeps since the last clear have recorded;
+@@ -643,7 +655,8 @@ private:
+   void sweep_range(ode::adjoint_tape<double>& tape,
+                    std::span<const ode::step_record<System>> rec,
+                    ode::adjoint_rows& lambda, ode::adjoint_rows& parameter_adjoint,
+-                   size_t k_first, size_t k_last)
++                   size_t k_first, size_t k_last,
++                   std::vector<ode::adjoint_rows>* kept)
+   {
+     if (lambda.empty()) {
+       util::stop("solve_adjoint: needs at least one seed");
+@@ -707,6 +720,9 @@ private:
+       // into empty, so the next step allocates one the same size again. Swapping
+       // hands it the row above's, which the sweep refills rather than regrows.
+       std::swap(lambda, lambda_in);
++      if (kept) {
++        (*kept)[k - 1] = lambda;
++      }
+       double worst_here = 0.0;
+       for (size_t m = 0; m < lambda.rows(); ++m) {
+         const std::span<double> row = lambda[m];
+diff --git a/tests/standalone/r_free.cpp b/tests/standalone/r_free.cpp
+index be9a0a5..373791e 100644
+--- a/tests/standalone/r_free.cpp
++++ b/tests/standalone/r_free.cpp
+@@ -1100,6 +1100,32 @@ void test_sweep_across_an_insertion(odelia::ode::Method m) {
+         "d(sum of cells)/dr across the insertion is the central difference");
+   std::printf("       (sweep %.10g, difference %.10g)\n", dp[0][0], fd);
+ 
++  // Kept rows: the same sweep, each row's adjoint the one a sweep from the top
++  // down to that row alone ends holding.
++  odelia::ode::adjoint_rows seed = odelia::ode::adjoint_rows::one_row({1.0, 1.0});
++  odelia::ode::adjoint_rows lambda_kept = seed;
++  odelia::ode::adjoint_rows dp_kept(1, 1);
++  std::vector<odelia::ode::adjoint_rows> kept;
++  s.solve_adjoint(lambda_kept, dp_kept, {}, &kept);
++  check(dp_kept[0][0] == dp[0][0] && lambda_kept[0][0] == lambda[0][0],
++        "keeping rows changes neither the gradient nor the adjoint returned");
++  check(kept.size() == rec.size(), "one kept row per recorded row");
++  bool widths = true, alone = true;
++  for (size_t k = 0; k < rec.size(); ++k) {
++    widths = widths && kept[k].width() == rec[k].state.size();
++    if (k + 1 < rec.size()) {
++      odelia::ode::adjoint_rows top = seed;
++      odelia::ode::adjoint_rows dp_top(1, 1);
++      s.solve_adjoint(top, dp_top, rec[k].insertion ? k - 1 : k, rec.size() - 1);
++      const odelia::ode::adjoint_rows& want = rec[k].insertion ? kept[k - 1] : kept[k];
++      for (size_t j = 0; j < top.width(); ++j) {
++        alone = alone && top[0][j] == want[0][j];
++      }
++    }
++  }
++  check(widths, "each kept row is as wide as the state recorded there");
++  check(alone, "each kept row is the adjoint a sweep down to that row holds");
++
+   // The newborn's size is r / 100, so its own row carries a derivative that is
+   // not the dynamics'.
+   odelia::ode::adjoint_rows newborn = odelia::ode::adjoint_rows::one_row({0.0, 1.0});
