@@ -156,11 +156,24 @@ Where it stands against this:
   It warns that the AD columns are "optimistic by an order of magnitude", citing
   FF16 sweeps at 21–32 times a run (traitecoevo/plant#677). TF24's sweep
   measures 2.05–2.9 forwards. The two have not been compared on the same footing.
-- **The entry point.** Issue #88 / PR #89 adds
-  `derivative_control(resident_jacobian = "implicit")`, with
-  `dn*/dx = −S_n⁻¹ S_x` and `dg/dx = G_x + G_n dn*/dx`, assembled in
-  `fixed_environment_jacobian()`. That is the predictor algebra of `rootcause/`
-  §7. One resident sweep supplies S_x for every trait, and S_n.
+- **The entry point, which has the algebra but not the plumbing.** Open PR #89
+  (issue #88) adds `derivative_control(resident_jacobian = "implicit")`, with
+  `dn*/dx = −S_n⁻¹ S_x` and `dg/dx = G_x + G_n dn*/dx`. These are the predictor
+  (I4) and the convergence-Jacobian shortcut.
+  - They are used only for the convergence Jacobian: in classification, and in
+    the canonical equation's stiff solver. They are not used to step the birth
+    rate along a path.
+  - The blocks come from central differences in `fixed_environment_jacobian()`:
+    2m(k + 1) runs at given traits and densities, each with 2k mutants for G.
+    Its comment names it as where a differentiating harness "would supply these
+    blocks instead"; no such connector exists.
+  - The default stays `"stencil"`.
+  - What our loop still needs from regnans:
+    - a sweep-fed connector: S_x and S_n from one resident sweep, and G_x and
+      G_n from chords of invader sweeps;
+    - the predictor used in the evolutionary step;
+    - a TF24 bridge;
+    - a tolerance on F set by the gradient's sensitivity.
 - **The planned but unbuilt joint eco-evolutionary Newton** on (n, x) is the
   loop that follows the curve.
 - **The gaps:**
