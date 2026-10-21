@@ -134,6 +134,86 @@ Multi-species stands at lifetime 60, interleaved (`tools/multi.R`), as of H2:
 Columns are close to free. Each extra metric is one more sweep, at about
 0.7–0.9 of a forward run, where B paid 3–3.3.
 
+## Third round: a ledger by region
+
+Callgrind collected only inside `census_trait_gradient_ff16`
+(`--toggle-collect=census_trait_gradient_ff16*`), parsed into calls and cost
+per call (`tools/cgtree/ledger.py`), at lifetime 60, on arm C2 (G2 plus plant
+12 and odelia 10). The sweep is split by each region's share of live
+operations, from `tools/live2.cpp`. The gradient is 1968M instructions for one
+metric and 3237M for five.
+
+| region | calls | per call | 1 metric, recorded | 5 metrics, with its share of the sweep |
+| --- | --- | --- | --- | --- |
+| node rates without the crown | 58,180 | 4.9k | 285M | ~850M (26%) |
+| the crown | 58,180 | 7.0k | 405M | ~815M (25%) |
+| field builds | 1,232 | 383k | 474M | ~760M (23%) |
+| per segment: two rebinds and an insertion | 118 | ~1.7M | ~200M | ~245M (8%) |
+| sweep, all regions | 269 / 1,325 | 1.02M / 1.07M | 274M | 1411M (44%) |
+
+What the counts say about the data model:
+
+- **A node is introduced at almost every step.** There are 118 insertions in
+  146 steps, so a segment is about one step. Each segment pays two
+  `rebind_from` calls at 535k each, plus an insertion recorded and swept. That
+  is construction plumbing: `Parameters` validation, the node schedule built
+  again, a field build in `reset()`, about 160k `malloc` calls, and nodes
+  introduced one at a time without a `reserve`.
+- **The field is built 1,232 times for 876 rate evaluations.** The other 356
+  builds come from `reset()` inside each rebind and from each insertion.
+- **A crown's rows barely deduplicate.** A mid-canopy node's crown statement
+  has 81 operations, 76 of them on knots. Its 21 points land in about 19
+  different spans of the 64.
+- **A node's other 34 statements carry about 94 operations,** about 40 of which
+  read trait parameters directly. Three per node depend on the parameters
+  alone and are recomputed for every node.
+
+**The sweep is at its floor.** It costs about 10 instructions per statement
+plus about 8.5 per live operation: a load, a multiply-add and a store at a
+scattered slot.
+
+**A sweep carrying several adjoints per slot saves nothing.** Measured on one
+real step tape at lifetime 60, with 58k statements and 179k operations
+(`tools/probe_lanes.cpp`), and bit-identical to XAD's own sweep:
+
+| sweep | seconds |
+| --- | --- |
+| 5 scalar sweeps | 1.39 ms |
+| one walk, 5 lanes per slot | 1.39 ms |
+| one walk, 8 lanes, 5 used | 2.03 ms |
+
+The work left per lane is the scattered update itself, and lanes do not remove
+it. This replaces the lifetime-8 vector-mode figure in *Measured and
+rejected*, with the same verdict.
+
+**The crown's recording** (plant 12, odelia 10) went from 8,458 to 6,967
+instructions per call:
+
+- A crown's points read a knot range between its lowest and highest span, so
+  rows are gathered over that range, without per-knot bookkeeping.
+- Zero rows are not emitted.
+- `record_with_derivatives` gathers in one pass. It tests finiteness through
+  `d * 0.0 + x * 0.0`, which is zero exactly when both halves are finite and
+  NaN otherwise. It falls back to the per-row test only to name the bad row.
+
+Gradients are bit-identical to G2. In instructions this takes one metric from
+5.50x to 5.24x and five from 8.88x to 8.62x. That is under what wall clock
+resolves here: medians of 0.208 against 0.210 s, and 0.321 against 0.307 s.
+
+What is left, by size at five metrics:
+
+1. **Node rates without the crown (26%).** Hoist the parameter-only
+   subexpressions out of the per-node path, and fold parameter products, so
+   each node reads fewer parameter operands.
+2. **The crown (25%).** Rows are now near what the knot grid implies. What
+   remains is the double arithmetic of 21 Hermite reads per crown, at about
+   1.4 times the forward crown.
+3. **Field builds (23%).** Supply the crossing interval's competition as rows
+   on the two nodes rather than recording it. Skip the 356 builds that no
+   evaluation reads.
+4. **Per-segment plumbing (8%).** Stop rebinding twice per segment, or make a
+   rebind skip validation and the field build.
+
 ## What a statement costs (corrected)
 
 - **XAD's bookkeeping is about 106 instructions per recorded statement.** The

@@ -1,0 +1,101 @@
+From 2cf0f8238a29c9da81c203faf315e5f99880232c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 06:32:48 +0000
+Subject: [PATCH] Spike: gather supplied rows in one pass, testing finiteness
+ through a product with zero
+
+---
+ inst/include/odelia/implicit_node.hpp | 49 +++++++++++++++++----------
+ 1 file changed, 32 insertions(+), 17 deletions(-)
+
+diff --git a/inst/include/odelia/implicit_node.hpp b/inst/include/odelia/implicit_node.hpp
+index d57c564..5ad980f 100644
+--- a/inst/include/odelia/implicit_node.hpp
++++ b/inst/include/odelia/implicit_node.hpp
+@@ -85,23 +85,26 @@ namespace internal {
+ template <class S, class Input, class Derivative>
+ record_report record_rows(double value, std::size_t n, Input&& input,
+                           Derivative&& derivative, S& into) {
+-  for (std::size_t i = 0; i < n; ++i) {
+-    // Either half being non-finite poisons the VALUE and not only what is
+-    // recorded against it: NaN times zero is not a number, and an infinite input
+-    // minus its own passive copy is NaN rather than zero. Tested here, where the
+-    // halves are still separable; downstream they are one expression.
+-    const double at = util::to_passive(input(i));
+-    if (!util::is_finite(derivative(i)) || !util::is_finite(at)) {
+-      into = value;
+-      return {false, i,
+-              "input " + util::to_string(static_cast<int>(i)) + " of " +
+-                  util::to_string(static_cast<int>(n)) +
+-                  " has value " + util::format_double(at) + " and derivative " +
+-                  util::format_double(derivative(i)) +
+-                  ", one of which is not finite, so the value they belong to "
+-                  "cannot be recorded"};
++  auto refuse_non_finite = [&]() -> record_report {
++    for (std::size_t i = 0; i < n; ++i) {
++      // Either half being non-finite poisons the VALUE and not only what is
++      // recorded against it: NaN times zero is not a number, and an infinite input
++      // minus its own passive copy is NaN rather than zero. Tested here, where the
++      // halves are still separable; downstream they are one expression.
++      const double at = util::to_passive(input(i));
++      if (!util::is_finite(derivative(i)) || !util::is_finite(at)) {
++        into = value;
++        return {false, i,
++                "input " + util::to_string(static_cast<int>(i)) + " of " +
++                    util::to_string(static_cast<int>(n)) +
++                    " has value " + util::format_double(at) + " and derivative " +
++                    util::format_double(derivative(i)) +
++                    ", one of which is not finite, so the value they belong to "
++                    "cannot be recorded"};
++      }
+     }
+-  }
++    return {};
++  };
+   // A zero derivative contributes exactly zero to the value and exactly nothing to
+   // the transpose, and carrying it costs a tape edge the sweep then walks.
+   if constexpr (CarriesAdjoint<S>) {
+@@ -109,7 +112,7 @@ record_report record_rows(double value, std::size_t n, Input&& input,
+     // ⚠️ THE ORDER IS THE VALUE, THEN THE ROWS, THEN THE CLOSE, and each step is
+     // load-bearing. A statement's operations are everything pushed since the last
+     // left-hand side, so anything that pushes between the first row and the close
+-    // claims them -- which is why every row is tested above rather than here.
++    // claims them -- which is why every row is tested before the first push.
+     // `registerOutput` is a no-op on a value that already holds a slot, leaving
+     // the rows for whatever statement closes next, so the destination is built
+     // here and moved out.
+@@ -122,7 +125,11 @@ record_report record_rows(double value, std::size_t n, Input&& input,
+       muls.resize(n);
+       slots.resize(n);
+       std::size_t pushed = 0;
++      // Zero exactly when every row is finite, since a non-finite half times
++      // zero is NaN; the rows are tested one by one only to name the bad one.
++      double poison = 0.0;
+       for (std::size_t i = 0; i < n; ++i) {
++        poison += derivative(i) * 0.0 + util::to_passive(input(i)) * 0.0;
+         if (derivative(i) == 0.0) {
+           continue;
+         }
+@@ -136,11 +143,19 @@ record_report record_rows(double value, std::size_t n, Input&& input,
+         muls[pushed] = derivative(i);
+         slots[pushed++] = slot;
+       }
++      if (poison != 0.0) {
++        return refuse_non_finite();
++      }
+       tape->pushAll(muls.data(), slots.data(), unsigned(pushed));
+       tape->registerOutput(out);
++    } else if (const record_report r = refuse_non_finite(); !r.whole) {
++      return r;
+     }
+     into = std::move(out);
+   } else {
++    if (const record_report r = refuse_non_finite(); !r.whole) {
++      return r;
++    }
+     S out = value;
+     for (std::size_t i = 0; i < n; ++i) {
+       if (derivative(i) == 0.0) {
+-- 
+2.43.0
+

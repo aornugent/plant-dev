@@ -1,0 +1,103 @@
+From a6fa7e4693b53774711298adad6c4ac912787540 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 06:32:48 +0000
+Subject: [PATCH] Spike: gather the crown's rows over the knot range it reads
+
+---
+ inst/include/plant/models/ff16_strategy.h | 53 ++++++++++-------------
+ 1 file changed, 24 insertions(+), 29 deletions(-)
+
+diff --git a/inst/include/plant/models/ff16_strategy.h b/inst/include/plant/models/ff16_strategy.h
+index 4812e7ff..b9ad2816 100644
+--- a/inst/include/plant/models/ff16_strategy.h
++++ b/inst/include/plant/models/ff16_strategy.h
+@@ -1044,13 +1044,14 @@ bool FF16_Strategy<S>::assimilation_deep_crown_rows(
+   const auto& spline = field.spline;
+   const double h = to_passive(height), top = field.max_height();
+   const double p1 = to_passive(pars.a_p1), p2 = to_passive(pars.a_p2);
+-  // Rows on each knot's value and slope.
+-  static std::vector<std::array<double, 2>> knot_rows;
+-  static std::vector<char> is_touched;
+-  static std::vector<std::size_t> touched;
+-  knot_rows.resize(spline.span_count() + 1);
+-  is_touched.resize(spline.span_count() + 1, 0);
+-  touched.clear();
++  // Rows on each knot's value and slope, zero between calls. The knots read lie
++  // between the lowest span read and the knot above the highest.
++  static std::vector<double> value_rows, slope_rows;
++  value_rows.resize(spline.span_count() + 1, 0.0);
++  slope_rows.resize(spline.span_count() + 1, 0.0);
++  double* const rv = value_rows.data();
++  double* const rs = slope_rows.data();
++  std::size_t lo = value_rows.size(), hi = 0;
+   double A = 0.0, dp1 = 0.0, dp2 = 0.0, dh = 0.0, dtop = 0.0;
+   bool ok = true;
+   for (size_t j = 0; j < crown_fractions.size(); ++j) {
+@@ -1064,16 +1065,12 @@ bool FF16_Strategy<S>::assimilation_deep_crown_rows(
+       if (0.0 < r.value) {
+         const double D = r.value + p2;
+         const double w = crown_weights[j] * (p1 * p2 / (D * D));
+-        for (std::size_t k = r.span; k <= r.span + 1; ++k) {
+-          if (!is_touched[k]) {
+-            is_touched[k] = 1;
+-            touched.push_back(k);
+-          }
+-        }
+-        knot_rows[r.span][0] += w * r.weight[0];
+-        knot_rows[r.span][1] += w * r.weight[1];
+-        knot_rows[r.span + 1][0] += w * r.weight[2];
+-        knot_rows[r.span + 1][1] += w * r.weight[3];
++        lo = std::min(lo, r.span);
++        hi = std::max(hi, r.span + 1);
++        rv[r.span] += w * r.weight[0];
++        rs[r.span] += w * r.weight[1];
++        rv[r.span + 1] += w * r.weight[2];
++        rs[r.span + 1] += w * r.weight[3];
+         dh += w * r.slope * (s / top);
+         dtop -= w * r.slope * (u / top);
+       }
+@@ -1084,17 +1081,14 @@ bool FF16_Strategy<S>::assimilation_deep_crown_rows(
+     dp2 -= crown_weights[j] * (p1 * E / (D * D));
+   }
+   if (!ok) {
+-    for (std::size_t k : touched) {
+-      knot_rows[k] = {0.0, 0.0};
+-      is_touched[k] = 0;
+-    }
++    for (std::size_t k = lo; k <= hi; ++k) rv[k] = rs[k] = 0.0;
+     return false;
+   }
+   const double al = to_passive(area_leaf);
+   // Five rows, then a value and a slope row per knot.
+   static std::vector<const S*> in;
+   static std::vector<double> d;
+-  in.resize(5 + 2 * knot_rows.size());
++  in.resize(5 + 2 * value_rows.size());
+   d.resize(in.size());
+   in[0] = &area_leaf;            d[0] = A;
+   in[1] = &pars.a_p1;            d[1] = al * dp1;
+@@ -1102,13 +1096,14 @@ bool FF16_Strategy<S>::assimilation_deep_crown_rows(
+   in[3] = &height;               d[3] = al * dh;
+   in[4] = &field.height_max_;    d[4] = al * dtop;
+   std::size_t n = 5;
+-  for (std::size_t k : touched) {
+-    in[n] = &spline.values()[k];
+-    d[n++] = al * knot_rows[k][0];
+-    in[n] = &spline.slopes()[k];
+-    d[n++] = al * knot_rows[k][1];
+-    knot_rows[k] = {0.0, 0.0};
+-    is_touched[k] = 0;
++  for (std::size_t k = lo; k <= hi; ++k) {
++    if (rv[k] != 0.0 || rs[k] != 0.0) {
++      in[n] = &spline.values()[k];
++      d[n++] = al * rv[k];
++      in[n] = &spline.slopes()[k];
++      d[n++] = al * rs[k];
++    }
++    rv[k] = rs[k] = 0.0;
+   }
+   const odelia::record_report report = odelia::record_with_derivatives<S>(
+       al * A, std::span<const S* const>(in.data(), n),
+-- 
+2.43.0
+
