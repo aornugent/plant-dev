@@ -35,7 +35,7 @@ Everything an analysis asks is linear algebra on derivatives of G at a root:
 | is this an outcome? | G = 0 |
 | how it shifts with c | dx*/dc = −G_x⁻¹ G_c |
 | one output y's sensitivity to all of c (calibration, attribution) | dy/dc = −μᵀ G_c, with G_xᵀ μ = ∂y/∂x |
-| is it an attractor of evolution? | the eigenvalues of M G_x restricted to the g rows (M is the mutational covariance) |
+| is it an attractor of evolution? | the eigenvalues of M S, where S = g_θ − g_{ln b} F_{ln b}⁻¹ F_θ is G_x's Schur complement on the traits: the convergence Jacobian, regnans #89's `dg/dx`. M is the mutational covariance |
 | is it uninvadable? | the invader Hessian ∂²ln R′/∂θ′² ≤ 0 on each species |
 | where species are gained or lost | G_x singular along a path in c |
 
@@ -100,11 +100,13 @@ There are three ways, and they combine.
 (*derived and judgement*). Solve G = 0 matrix-free by Newton–Krylov (Knoll &
 Keyes 2004, doi:10.1016/j.jcp.2003.08.010). The Krylov (Arnoldi) iteration
 builds a small Hessenberg matrix, and its eigenvalues (Ritz values) approximate
-G_x's. Read them:
+the operator's. Iterating on the Schur complement S does the same, since
+S v = g_θ v − g_{ln b}(F_{ln b}⁻¹(F_θ v)) needs only an m × m solve beside the
+products. Read them:
 
 | what the solver does | what it means ecologically |
 |---|---|
-| converges; Ritz values of M G_x on the g rows have negative real parts | a convergence-stable singular community |
+| converges; the Ritz values of M S have negative real parts | a convergence-stable singular community |
 | converges; some have positive real parts | a repeller: a root evolution does not reach |
 | needs few Krylov iterations | G_x acts in a low-dimensional subspace: few selection modes, which is H1 measured by the solver |
 | converges slowly in some directions | small eigenvalues: near-neutral traits, which is Falster et al. 2017's evolved near-neutrality |
