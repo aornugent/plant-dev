@@ -1,0 +1,234 @@
+From 3442d4564b4dcaeb12deb49e57849be1a79f657f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 12:10:25 +0000
+Subject: [PATCH] Spike: read_linear total and named; value_and_partials
+
+read_linear reads any u (the ends extend linearly) and returns the four knot
+values and slopes it is linear in, with their weights. value_and_partials
+evaluates f once at a forward scalar with one lane per argument.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/odelia/spline.hpp  | 35 ++++++++------
+ inst/include/odelia/tangent.hpp | 34 ++++++++++++++
+ tests/testthat/test-spline-ad.R | 81 +++++++++++++++++++++++++++++++++
+ 3 files changed, 136 insertions(+), 14 deletions(-)
+
+diff --git a/inst/include/odelia/spline.hpp b/inst/include/odelia/spline.hpp
+index 3487628..d39b1c0 100644
+--- a/inst/include/odelia/spline.hpp
++++ b/inst/include/odelia/spline.hpp
+@@ -233,33 +233,40 @@ public:
+   template <typename U>
+   S operator()(const U& u) const { return eval(u); }
+ 
+-  // A cubic read strictly inside the knots, as what it is linear in: value is
+-  // the sum of weight[i] times the knot data y[span], m[span], y[span + 1],
+-  // m[span + 1] (the Hermite basis), and slope is d(value)/du. The value is eval's bit for bit. For a caller supplying
+-  // its own rows: a model that reads a field many times can push one statement
+-  // against the coefficients rather than record every read.
++  // A read at u as the combination of knot data it is: value is the sum over i
++  // of weight[i] * *input[i], where the inputs are the value and slope at the
++  // two knots the read depends on, and slope is d(value)/du. Inside the knots the
++  // weights are the Hermite basis; beyond either end they are the end line eval
++  // extends. value and slope are eval's and slope's bit for bit. For a caller
++  // that supplies rows: one statement for many reads, with the reads' rows on the
++  // knot data, in place of one recorded read each.
+   struct linear_read {
+     double value, slope;
+-    std::size_t span;
++    std::array<const S*, 4> input;
+     std::array<double, 4> weight;
+   };
+-  linear_read read_linear(double u) const {
++  [[gnu::always_inline]] linear_read read_linear(double u) const {
+     static_assert(Order == 3, "read_linear spells the cubic only.");
++    using util::to_passive;
++    check_initialised();
++    if (u <= x.front() || u >= x.back()) {
++      const std::size_t k = u <= x.front() ? 0 : x.size() - 1;
++      const double dx = u - x[k];
++      return {to_passive(y[k]) + to_passive(m[k]) * dx, to_passive(m[k]),
++              {&y[k], &m[k], &y[k], &m[k]}, {1.0, dx, 0.0, 0.0}};
++    }
+     const std::size_t k = span_of(u);
+     const Span& s = spans[k];
+     const double t = s.local(u);
+-    const double c0 = util::to_passive(s.c[0]), c1 = util::to_passive(s.c[1]),
+-                 c2 = util::to_passive(s.c[2]);
++    const double c0 = to_passive(s.c[0]), c1 = to_passive(s.c[1]),
++                 c2 = to_passive(s.c[2]);
+     const double h = x[k + 1] - x[k], t2 = t * t, t3 = t2 * t;
+-    return {util::to_passive(s.y0) + t * (c0 + t * (c1 + t * c2)),
++    return {to_passive(s.y0) + t * (c0 + t * (c1 + t * c2)),
+             (c0 + t * (2.0 * c1 + t * (3.0 * c2))) * s.inv_h,
+-            k,
++            {&y[k], &m[k], &y[k + 1], &m[k + 1]},
+             {1.0 - 3.0 * t2 + 2.0 * t3, h * (t - 2.0 * t2 + t3),
+              3.0 * t2 - 2.0 * t3, h * (t3 - t2)}};
+   }
+-  bool inside(double u) const { return u > x.front() && u < x.back(); }
+-
+-  std::size_t span_count() const { return spans.size(); }
+ 
+ protected:
+   // eval at a double position without the initialisation check, for a front end
+diff --git a/inst/include/odelia/tangent.hpp b/inst/include/odelia/tangent.hpp
+index f4dbf62..91e649f 100644
+--- a/inst/include/odelia/tangent.hpp
++++ b/inst/include/odelia/tangent.hpp
+@@ -3,6 +3,10 @@
+ #define ODELIA_TANGENT_HPP_
+ 
+ #include <XAD/XAD.hpp>
++#include <array>
++#include <cstddef>
++#include <tuple>
++#include <utility>
+ 
+ // The forward-mode vocabulary, apart from the reverse-mode one because a
+ // consumer can want this and not that: a package with no tape reaches for the
+@@ -62,6 +66,36 @@ typename S::derivative_type derivative_along(const S& x) {
+   return xad::derivative(x);
+ }
+ 
++// A function's value and its partial in each argument.
++template <std::size_t N>
++struct value_with_partials {
++  double value;
++  std::array<double, N> partial;
++};
++
++// f at x, with its partials, from one evaluation at a tangent scalar carrying a
++// direction per argument. For a small function written once over its scalar,
++// whose partials a caller then supplies as rows: nothing is differentiated by
++// hand, and the value is f's arithmetic at double.
++template <class F, class... X>
++[[gnu::flatten]] value_with_partials<sizeof...(X)> value_and_partials(F&& f, X... x) {
++  constexpr std::size_t N = sizeof...(X);
++  using T = typename xad::fwd<double, N>::active_type;
++  const auto lane = [](auto& d, std::size_t i) -> double& {
++    if constexpr (N == 1) { return d; } else { return d[i]; }
++  };
++  std::array<T, N> at{T(static_cast<double>(x))...};
++  for (std::size_t i = 0; i < N; ++i) {
++    lane(xad::derivative(at[i]), i) = 1.0;
++  }
++  T r = std::apply(f, std::as_const(at));
++  value_with_partials<N> ret{xad::value(r), {}};
++  for (std::size_t i = 0; i < N; ++i) {
++    ret.partial[i] = lane(xad::derivative(r), i);
++  }
++  return ret;
++}
++
+ }
+ }
+ 
+diff --git a/tests/testthat/test-spline-ad.R b/tests/testthat/test-spline-ad.R
+index f4278ef..a22172b 100644
+--- a/tests/testthat/test-spline-ad.R
++++ b/tests/testthat/test-spline-ad.R
+@@ -30,6 +30,7 @@ compile_spline_ad_interface <- function() {
+       #include <XAD/XAD.hpp>
+       #include <odelia/spline.hpp>
+       #include <odelia/interpolator.hpp>
++      #include <odelia/tangent.hpp>
+ 
+       // Reverse-mode gradient of the spline value at q w.r.t. each knot value.
+       // [[Rcpp::export]]
+@@ -130,6 +131,57 @@ compile_spline_ad_interface <- function() {
+         odelia::interpolator::Interpolator I;   // = hermite_interpolator<double>
+         I.init(x, y);
+         return I.eval(q);
++      }
++
++      // read_linear at q on a spline with active knot data: its value and slope
++      // beside eval and slope, its weights summed per knot value and slope, and
++      // the tape gradient of eval with respect to the same knot data.
++      // [[Rcpp::export]]
++      Rcpp::List spline_read_linear(std::vector<double> x, std::vector<double> y,
++                                    std::vector<double> m, double q) {
++        using ad = xad::adj<double>;
++        using ad_t = ad::active_type;
++        ad::tape_type tape;
++        std::vector<ad_t> ya(y.begin(), y.end()), ma(m.begin(), m.end());
++        for (auto& v : ya) tape.registerInput(v);
++        for (auto& v : ma) tape.registerInput(v);
++        tape.newRecording();
++        odelia::interpolator::hermite_spline<ad_t> s;
++        s.init(x, ya, ma);
++        const auto r = s.read_linear(q);
++        const ad_t* held_y = s.values().data();
++        const ad_t* held_m = s.slopes().data();
++        Rcpp::NumericVector wy(y.size()), wm(m.size());
++        for (std::size_t i = 0; i < 4; ++i) {
++          if (r.input[i] >= held_y && r.input[i] < held_y + y.size()) {
++            wy[r.input[i] - held_y] += r.weight[i];
++          } else {
++            wm[r.input[i] - held_m] += r.weight[i];
++          }
++        }
++        ad_t val = s.eval(q);
++        tape.registerOutput(val);
++        xad::derivative(val) = 1.0;
++        tape.computeAdjoints();
++        Rcpp::NumericVector gy(y.size()), gm(m.size());
++        for (std::size_t i = 0; i < y.size(); ++i) {
++          gy[i] = xad::derivative(ya[i]);
++          gm[i] = xad::derivative(ma[i]);
++        }
++        return Rcpp::List::create(
++            Rcpp::_["value"] = r.value, Rcpp::_["slope"] = r.slope,
++            Rcpp::_["eval"] = xad::value(val),
++            Rcpp::_["eval_slope"] = xad::value(s.slope(q)),
++            Rcpp::_["weight_y"] = wy, Rcpp::_["weight_m"] = wm,
++            Rcpp::_["grad_y"] = gy, Rcpp::_["grad_m"] = gm);
++      }
++
++      // a b / (a + b) and its two partials, from value_and_partials.
++      // [[Rcpp::export]]
++      Rcpp::NumericVector tangent_value_and_partials(double a, double b) {
++        const auto r = odelia::ode::value_and_partials(
++            [](const auto& p, const auto& q) { return p * q / (p + q); }, a, b);
++        return Rcpp::NumericVector::create(r.value, r.partial[0], r.partial[1]);
+       }', verbose = FALSE)
+     NULL
+   }, error = function(e) e)
+@@ -235,3 +287,32 @@ testthat::test_that("hermite_spline<ad> read at an active position", {
+   expect_equal(spline_active_query(x, y, 3.3, w, composed = FALSE)$statements, 1)
+   expect_gt(spline_active_query(x, y, 3.3, w, composed = TRUE)$statements, 1)
+ })
++
++testthat::test_that("read_linear is eval's read, and its weights are the read's gradient", {
++  testthat::skip_if(is_pkgload_dll(), "Skipping sourceCpp build in load_all session.")
++  compile_spline_ad_interface()
++
++  x <- c(0.0, 1.0, 2.5, 4.0, 6.0, 9.0)
++  y <- sin(0.4 * x) + 0.1 * x
++  m <- 0.4 * cos(0.4 * x) + 0.1
++  # Inside, on a knot, and beyond either end, where eval extends the end line.
++  for (q in c(3.3, 0.2, 4.0, 8.99, -0.5, 9.7)) {
++    r <- spline_read_linear(x, y, m, q)
++    expect_identical(r$value, r$eval, label = paste("value at", q))
++    expect_identical(r$slope, r$eval_slope, label = paste("slope at", q))
++    # The weights are the Hermite basis; the tape reaches the knots through the
++    # span coefficients, which associate differently.
++    expect_equal(r$weight_y, r$grad_y, tolerance = 1e-12)
++    expect_equal(r$weight_m, r$grad_m, tolerance = 1e-12)
++  }
++})
++
++testthat::test_that("value_and_partials is f and its exact partials", {
++  testthat::skip_if(is_pkgload_dll(), "Skipping sourceCpp build in load_all session.")
++  compile_spline_ad_interface()
++
++  a <- 0.7; b <- 0.3
++  r <- tangent_value_and_partials(a, b)
++  expect_identical(r[1], a * b / (a + b))
++  expect_equal(r[2:3], c(b^2, a^2) / (a + b)^2, tolerance = 1e-15)
++})
+-- 
+2.43.0
+

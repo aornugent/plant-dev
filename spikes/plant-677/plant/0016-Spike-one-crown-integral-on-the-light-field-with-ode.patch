@@ -1,0 +1,651 @@
+From 6fdc031b82f8979a2782d83a8ddc931f1d882e80 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 12:22:49 +0000
+Subject: [PATCH] Spike: one crown integral on the light field (with odelia
+ 0013)
+
+ResourceSpline::crown_integral sums w_j phi(E(h s_j)) over a unit crown rule
+with the canopy shape folded into the weights, and records one statement per
+crown at an active scalar. It replaces the FF16 deep-crown rows, the FF16
+average light and TF24 mean light, and deletes TF24's unused assimilation.
+Under mean light the radiation-site floor no longer fires: the folded weights
+sum to one, so a mean of floored points cannot fall below the floor.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/plant/canopy_shape.h            |  20 +++
+ inst/include/plant/models/ff16_environment.h |   8 -
+ inst/include/plant/models/ff16_strategy.h    | 163 ++-----------------
+ inst/include/plant/models/tf24_strategy.h    |  87 +++-------
+ inst/include/plant/qk.h                      |   3 +
+ inst/include/plant/resource_spline.h         |  86 ++++++++++
+ tests/testthat/test-gradient-incidence.R     |  19 ++-
+ tests/testthat/test-gradient-parity.R        |   6 +-
+ 8 files changed, 158 insertions(+), 234 deletions(-)
+
+diff --git a/inst/include/plant/canopy_shape.h b/inst/include/plant/canopy_shape.h
+index d31b2f0d..fcdb121c 100644
+--- a/inst/include/plant/canopy_shape.h
++++ b/inst/include/plant/canopy_shape.h
+@@ -9,7 +9,9 @@
+ #include <utility>
+ #include <array>
+ #include <cstddef>
++#include <vector>
+ #include <odelia/ode_util.hpp>
++#include <plant/qk.h>
+ 
+ namespace plant {
+ 
+@@ -80,6 +82,13 @@ inline ShadingModel shading_model_from_string(const std::string& name,
+   return shading_model_from_string(name);
+ }
+ 
++// A quadrature over the unit crown with the leaf-area density in its weights.
++// For z = H s, q(z, H) dz = q(s, 1) ds, so an integral over a crown of height H
++// of f(z) q(z, H) dz is the sum of weight[j] * f(H * fraction[j]).
++struct crown_rule {
++  std::vector<double> fraction, weight;
++};
++
+ // Canopy profile used by the FF16/TF24/K93 strategies. The equations follow
+ // the Yokozawa (1995) foliage-profile model, written in terms of the
+ // height-normalised coordinate u = z / H:
+@@ -148,6 +157,17 @@ public:
+     return 2.0 * eta_ * (1.0 - u_eta) * u_eta / z;
+   }
+ 
++  // `rule`'s points on the unit crown, weighted by this shape's q(s, 1).
++  crown_rule unit_crown(const quadrature::QK& rule) const {
++    crown_rule ret;
++    rule.unit_rule(ret.fraction, ret.weight);
++    for (std::size_t j = 0; j < ret.fraction.size(); ++j) {
++      const S s(ret.fraction[j]);
++      ret.weight[j] *= odelia::util::to_passive(q(s, s));
++    }
++    return ret;
++  }
++
+   S q_from_height(S z, S height) const {
+     // The 1 / z above is 0 / 0 at the crown base, so take the limit: 0 for every
+     // eta above 1, and 2 / height at eta = 1. The light field's lowest knot asks
+diff --git a/inst/include/plant/models/ff16_environment.h b/inst/include/plant/models/ff16_environment.h
+index 583fff28..d208ded4 100644
+--- a/inst/include/plant/models/ff16_environment.h
++++ b/inst/include/plant/models/ff16_environment.h
+@@ -84,14 +84,6 @@ public:
+     return step_light(light_availability.get_value_at_height(height, cap));
+   }
+ 
+-  S get_environment_at_fraction(const S& height, double fraction,
+-                                double cap) const {
+-    if (!light_profile_stepped) {
+-      return light_availability.get_value_at_fraction(height, fraction, cap);
+-    }
+-    return step_light(light_availability.get_value_at_fraction(height, fraction, cap));
+-  }
+-
+   // Discretise a smooth light value into PPA canopy layers. For the smooth
+   // models this is a single predicted branch returning the input unchanged, so
+   // it adds no measurable cost to deep-crown/crown-centre. For PPA it maps the
+diff --git a/inst/include/plant/models/ff16_strategy.h b/inst/include/plant/models/ff16_strategy.h
+index 489b9c78..8afb4b5d 100644
+--- a/inst/include/plant/models/ff16_strategy.h
++++ b/inst/include/plant/models/ff16_strategy.h
+@@ -495,9 +495,6 @@ public:
+   //                both crown-centre and PPA; they differ only in how the patch
+   //                light profile is built (smooth vs stepped), which this read
+   //                picks up transparently through the environment.
+-  bool assimilation_deep_crown_rows(const FF16_Environment<S>& environment,
+-                                    const S& height, const S& area_leaf,
+-                                    double canopy_top, S& out) const;
+   S assimilation_deep_crown(const FF16_Environment<S>& environment,
+                             const S& height, const S& area_leaf,
+                             const S& height_inverse);
+@@ -832,8 +829,7 @@ public:
+     dmass_dheight_0 = src.dmass_dheight_0;
+     area_leaf_0 = S(odelia::util::to_passive(src.area_leaf_0));
+     function_integrator = src.function_integrator;
+-    crown_fractions = src.crown_fractions;
+-    crown_weights = src.crown_weights;
++    crown = src.crown;
+ 
+     // The index maps and the slot numbers are a function of the names, so they
+     // are derived rather than carried.
+@@ -887,10 +883,9 @@ public:
+   // For integrating functions with using Gauss-Kronrod quadrature
+   quadrature::QK function_integrator;
+ 
+-  // The deep-crown rule at crown fractions s_j, with q's shape and the
+-  // interval's half-length folded into each weight: the integral is then
+-  // sum_j crown_weights[j] * assimilation_leaf(light(height * s_j)).
+-  std::vector<double> crown_fractions, crown_weights;
++  // The quadrature over this strategy's unit crown, which every crown integral
++  // reads the light field on.
++  crown_rule crown;
+ 
+ private:
+   // Bind the competition profile and the assimilation implementation to one
+@@ -1075,92 +1070,6 @@ void FF16_Strategy<S>::compute_rates(const FF16_Environment<S>& environment,
+       mortality_dt(net_mass_production_dt_ / area_leaf_, vars.state(MORTALITY_INDEX)));
+ }
+ 
+-// The deep-crown integral at an active scalar as ONE tape statement: the value
+-// and its rows are taken in double and supplied. A light read is linear in the
+-// value and slope at its span's two knots, and the leaf rate a_p1 E / (E + a_p2)
+-// has the partials below, so the rows are the chain rule written once rather
+-// than recorded at every quadrature point. Neighbouring spans share a knot, so
+-// rows are gathered per knot. The value is the recorded loop's bit for bit. False,
+-// leaving `out` alone, where a point reads outside the spline's interior.
+-template <typename S>
+-bool FF16_Strategy<S>::assimilation_deep_crown_rows(
+-    const FF16_Environment<S>& environment, const S& height, const S& area_leaf,
+-    double canopy_top, S& out) const {
+-  using odelia::util::to_passive;
+-  const auto& field = environment.light_availability;
+-  const auto& spline = field.spline;
+-  const double h = to_passive(height), top = field.max_height();
+-  const double p1 = to_passive(pars.a_p1), p2 = to_passive(pars.a_p2);
+-  // Rows on each knot's value and slope, zero between calls. The knots read lie
+-  // between the lowest span read and the knot above the highest.
+-  static std::vector<double> value_rows, slope_rows;
+-  value_rows.resize(spline.span_count() + 1, 0.0);
+-  slope_rows.resize(spline.span_count() + 1, 0.0);
+-  double* const rv = value_rows.data();
+-  double* const rs = slope_rows.data();
+-  std::size_t lo = value_rows.size(), hi = 0;
+-  double A = 0.0, dp1 = 0.0, dp2 = 0.0, dh = 0.0, dtop = 0.0;
+-  bool ok = true;
+-  for (size_t j = 0; j < crown_fractions.size(); ++j) {
+-    const double s = crown_fractions[j], z = h * s;
+-    double E = 1.0;
+-    if (z <= canopy_top) {
+-      const double u = z / top;
+-      if (!spline.inside(u)) { ok = false; break; }
+-      const auto r = spline.read_linear(u);
+-      E = 0.0 < r.value ? r.value : 0.0;
+-      if (0.0 < r.value) {
+-        const double D = r.value + p2;
+-        const double w = crown_weights[j] * (p1 * p2 / (D * D));
+-        lo = std::min(lo, r.span);
+-        hi = std::max(hi, r.span + 1);
+-        rv[r.span] += w * r.weight[0];
+-        rs[r.span] += w * r.weight[1];
+-        rv[r.span + 1] += w * r.weight[2];
+-        rs[r.span + 1] += w * r.weight[3];
+-        dh += w * r.slope * (s / top);
+-        dtop -= w * r.slope * (u / top);
+-      }
+-    }
+-    const double D = E + p2;
+-    A += crown_weights[j] * (p1 * E / D);
+-    dp1 += crown_weights[j] * (E / D);
+-    dp2 -= crown_weights[j] * (p1 * E / (D * D));
+-  }
+-  if (!ok) {
+-    for (std::size_t k = lo; k <= hi; ++k) rv[k] = rs[k] = 0.0;
+-    return false;
+-  }
+-  const double al = to_passive(area_leaf);
+-  // Five rows, then a value and a slope row per knot.
+-  static std::vector<const S*> in;
+-  static std::vector<double> d;
+-  in.resize(5 + 2 * value_rows.size());
+-  d.resize(in.size());
+-  in[0] = &area_leaf;            d[0] = A;
+-  in[1] = &pars.a_p1;            d[1] = al * dp1;
+-  in[2] = &pars.a_p2;            d[2] = al * dp2;
+-  in[3] = &height;               d[3] = al * dh;
+-  in[4] = &field.height_max_;    d[4] = al * dtop;
+-  std::size_t n = 5;
+-  for (std::size_t k = lo; k <= hi; ++k) {
+-    if (rv[k] != 0.0 || rs[k] != 0.0) {
+-      in[n] = &spline.values()[k];
+-      d[n++] = al * rv[k];
+-      in[n] = &spline.slopes()[k];
+-      d[n++] = al * rs[k];
+-    }
+-    rv[k] = rs[k] = 0.0;
+-  }
+-  const odelia::record_report report = odelia::record_with_derivatives<S>(
+-      al * A, std::span<const S* const>(in.data(), n),
+-      std::span<const double>(d.data(), n), out);
+-  if (!report.whole) {
+-    util::stop("assimilation_deep_crown: " + report.why);
+-  }
+-  return true;
+-}
+-
+ // [eqn 12] Gross annual CO2 assimilation -- deep-crown model.
+ // Integrate photosynthesis over crown depth: for a given height in the crown,
+ // take photosynthesis at that depth multiplied by the amount of leaf there.
+@@ -1168,46 +1077,13 @@ template <typename S>
+ S FF16_Strategy<S>::assimilation_deep_crown(const FF16_Environment<S>& environment,
+                                             const S& height,
+                                             const S& area_leaf,
+-                                            const S& height_inverse) {
+-
+-  S A = 0.0;
+-
+-  // Define an anonymous function to integrate.
+-  // Keep the lambda's own closure type (do not wrap in std::function) so the
+-  // templated QK::integrate inlines the integrand at each quadrature point
+-  // instead of making a type-erased indirect call.
+-  // Hoist the light-spline upper bound (canopy top) out of the integrand: it
+-  // is invariant across the quadrature, so fetch it once and pass it into the
+-  // capped get_environment_at_height() overload rather than re-reading
+-  // spline.max() at every quadrature point.
+-  const double canopy_top = environment.max_environment_height();
+-  if constexpr (!std::is_same_v<S, double>) {
+-    // Two statements a node: the light read, and the leaf rate accumulated in
+-    // one expression -- ff16_assimilation_leaf's arithmetic in its order.
+-    S out;
+-    if (assimilation_deep_crown_rows(environment, height, area_leaf, canopy_top, out)) {
+-      return out;
+-    }
+-    const S& a_p1 = pars.a_p1;
+-    const S& a_p2 = pars.a_p2;
+-    for (size_t j = 0; j < crown_fractions.size(); ++j) {
+-      const S E = environment.get_environment_at_fraction(
+-          height, crown_fractions[j], canopy_top);
+-      A += crown_weights[j] * (a_p1 * E / (E + a_p2));
+-    }
+-    return area_leaf * A;
+-  }
+-  auto f = [&](const S& z) -> S {
+-    return assimilation_leaf(environment.get_environment_at_height(z, canopy_top)) *
+-      canopy_shape.q(z * height_inverse, z);
+-  };
+-
+-  // Integrate over crown depth using using Gauss-Kronrod quadrature.
+-  // The number of points used in the integration is determined by the control parameter
+-  // function_integration_rule. Rules defined in qk_rules.cpp
+-  A = function_integrator.integrate(f, S(0.0), height);
+-
+-  return area_leaf * A;
++                                            const S& /* height_inverse */) {
++  return area_leaf * environment.light_availability.crown_integral(
++      height, crown,
++      [](const auto& E, const auto& a_p1, const auto& a_p2) {
++        return ff16_assimilation_leaf(a_p1, a_p2, E);
++      },
++      pars.a_p1, pars.a_p2);
+ }
+ 
+ // [eqn 12] Gross annual CO2 assimilation -- mean-light model.
+@@ -1222,13 +1098,9 @@ template <typename S>
+ S FF16_Strategy<S>::assimilation_average_light(const FF16_Environment<S>& environment,
+                                                const S& height,
+                                                const S& area_leaf,
+-                                               const S& height_inverse) {
+-  const double canopy_top = environment.max_environment_height();
+-  auto f = [&](const S& z) -> S {
+-    return environment.get_environment_at_height(z, canopy_top) *
+-      canopy_shape.q(z * height_inverse, z);
+-  };
+-  const S mean_light = function_integrator.integrate(f, S(0.0), height);
++                                               const S& /* height_inverse */) {
++  const S mean_light = environment.light_availability.crown_integral(
++      height, crown, [](const auto& E) { return E; });
+   return area_leaf * assimilation_leaf(mean_light);
+ }
+ 
+@@ -1700,12 +1572,7 @@ void FF16_Strategy<S>::prepare_strategy() {
+     shading_model_from_string(this->control.shading_model, ShadingModel::DeepCrown));
+ 
+   eta_c = CanopyShape<S>::eta_c(pars.eta);
+-  // q(s, h s) * h = q(s, s), so at h = 1 the shape and the interval's
+-  // half-length fold into one weight per node.
+-  function_integrator.unit_rule(crown_fractions, crown_weights);
+-  for (size_t j = 0; j < crown_fractions.size(); ++j) {
+-    crown_weights[j] *= canopy_shape.q(crown_fractions[j], crown_fractions[j]);
+-  }
++  crown = canopy_shape.unit_crown(function_integrator);
+   // NOTE: Also pre-computing, though less trivial
+   height_0 = height_seed();
+   area_leaf_0 = area_leaf(height_0);
+diff --git a/inst/include/plant/models/tf24_strategy.h b/inst/include/plant/models/tf24_strategy.h
+index 56ae9e8c..27f8deb8 100644
+--- a/inst/include/plant/models/tf24_strategy.h
++++ b/inst/include/plant/models/tf24_strategy.h
+@@ -750,9 +750,6 @@ public:
+   // pinned outputs.
+   static constexpr int scientific_version = 11;
+ 
+-  S compute_average_light_environment(const S& z, const S& height,
+-                                      const TF24_Environment<S> &environment);
+-
+   // calculate the amount of water transpired relativised by leaf area index.
+ 
+   S evapotranspiration_dt(const S& area_leaf_, int soil_layer);
+@@ -961,12 +958,6 @@ public:
+   void update_dependent_aux(const int index, Internals<S>& vars);
+ 
+   // * Mass production
+-  // [eqn 12] Gross annual CO2 assimilation
+-  S assimilation(const TF24_Environment<S>& environment, const S& height,
+-                 const S& area_leaf);
+-  // [Appendix S6] Per-leaf photosynthetic rate.
+-  S assimilation_leaf(const S& x) const;
+-
+   // [eqn 13] Total maintenance respiration
+   S respiration(const S& mass_leaf, const S& mass_sapwood,
+                 const S& mass_bark, const S& mass_root) const;
+@@ -1223,6 +1214,7 @@ public:
+     beta_R_H = src.beta_R_H;
+     beta_R_V = src.beta_R_V;
+     function_integrator = src.function_integrator;
++    crown = src.crown;
+     // Shared, not copied: a clamp on this path fires inside a per-unit copy that
+     // is then discarded, so the count has to land in storage the run still owns.
+     // The missing-row flag is shared for the same reason.
+@@ -1399,6 +1391,9 @@ public:
+ 
+   // For integrating functions with using Gauss-Kronrod quadrature
+   quadrature::QK function_integrator;
++  // The quadrature over this strategy's unit crown, which the mean light reads
++  // the light field on.
++  crown_rule crown;
+ 
+   // Reusable per-layer root-carbon buffer, refilled (not reallocated) each
+   // net_mass_production_dt call to avoid a heap allocation per derivs eval.
+@@ -1521,26 +1516,6 @@ TF24_Strategy<S>::TF24_Strategy() {
+   this->name = "TF24";
+ }
+ 
+-// not sure 'average' is the right term here..
+-template <typename S>
+-S TF24_Strategy<S>::compute_average_light_environment(
+-    const S& z, const S& height, const TF24_Environment<S> &environment) {
+-// NOTE: the light environment is clamped to a small positive floor (1e-4)
+-// rather than allowed to reach 0 (original rationale was never recorded;
+-// preserved as-is).
+-//
+-// Counted, because this is where the floor binds first: the mean this feeds is
+-// an integral of already-floored values against a shape that integrates to one,
+-// so a floored point here cannot lower the mean below the floor and the read
+-// downstream sees nothing.
+-     using std::max;
+-     const S light = environment.get_environment_at_height(z);
+-     if (light < S(0.0001)) {
+-       note_clamp(CLAMP_LIGHT_FLOOR_CROWN);
+-     }
+-     return max(light, S(0.0001)) * canopy_shape.q_from_height(z, height);
+-}
+-
+ // assumes optimise_psi_stem_TF has been run for optimal psi_stem
+ template <typename S>
+ S TF24_Strategy<S>::evapotranspiration_dt(const S& area_leaf_, int soil_layer) {
+@@ -2094,38 +2069,6 @@ void TF24_Strategy<S>::compute_rates(const TF24_Environment<S>& environment,  In
+ 
+ }
+ 
+-// [eqn 12] Gross annual CO2 assimilation (!!not in use for TF24 model!!)
+-template <typename S>
+-S TF24_Strategy<S>::assimilation(const TF24_Environment<S>& environment,
+-                                    const S& height,
+-                                    const S& area_leaf) {
+-
+-
+-  S A = 0.0;
+-
+-  // Define an anonymous function to integrate
+-  // For given height in crown, take photosynthesis at depth multipled by 
+-  //   amount of leaf at that depth
+-  std::function<S(S)> f = [&](const S& z) -> S {
+-    return assimilation_leaf(environment.get_environment_at_height(z)) *
+-      canopy_shape.q_from_height(z, height);
+-  };
+-
+-  // Integrate over crown depth using using Gauss-Kronrod quadrature.
+-  // The number of points used in the integration is determined by the control parameter
+-  // function_integration_rule. Rules defined in qk_rules.cpp
+-  A = function_integrator.integrate(f, S(0.0), height);
+-
+-  return area_leaf * A;
+-}
+-
+-// Photosynthetic rate per leaf area
+-// `x` is openness, ranging from 0 to 1.
+-template <typename S>
+-S TF24_Strategy<S>::assimilation_leaf(const S& x) const {
+-  return pars.a_p1 * x / (x + pars.a_p2);
+-}
+-
+ // [eqn 13] Total maintenance respiration
+ // NOTE: In contrast with Falster ref model, we do not normalise by pars.a_y*pars.a_bio.
+ template <typename S>
+@@ -2357,8 +2300,8 @@ S TF24_Strategy<S>::net_mass_production_dt(const TF24_Environment<S>& environmen
+   };
+ 
+   // Convert canopy openness (0-1) into absorbed radiation: PPFD attenuated by
+-  // the self-shading coefficient pars.k_I. The light floor (1e-4) matches
+-  // compute_average_light_environment().
++  // the self-shading coefficient pars.k_I. The light floor (1e-4) matches the
++  // mean light's.
+   const double PPFD = environment.get_PPFD();
+   auto radiation_at = [&](const S& light) -> S {
+     // Counted, not merely applied. Where this binds the cohort's radiation is a
+@@ -2392,10 +2335,21 @@ S TF24_Strategy<S>::net_mass_production_dt(const TF24_Environment<S>& environmen
+     // Leaf-area-weighted mean canopy openness = integral of (light * q) over the
+     // crown (q integrates to one). radiation_at then applies pars.k_I * PPFD, exactly
+     // reproducing TF24's established average_radiation.
+-    auto f = [&](const S& x) -> S {
+-      return compute_average_light_environment(x, height, environment);
++    //
++    // Each point's light is floored at 1e-4 first (the original rationale was
++    // never recorded; preserved as-is). Counted here, because this is where the
++    // floor binds: the crown weights sum to one, so a mean of floored values
++    // cannot fall below the floor itself.
++    const auto floored = [this](const auto& light) {
++      using X = std::decay_t<decltype(light)>;
++      if (light < X(0.0001)) {
++        note_clamp(CLAMP_LIGHT_FLOOR_CROWN);
++        return X(0.0001);
++      }
++      return X(light);
+     };
+-    optimise_at(radiation_at(function_integrator.integrate(f, S(0.0), height)));
++    optimise_at(radiation_at(
++        environment.light_availability.crown_integral(height, crown, floored)));
+   } else { // DeepCrown
+     if constexpr (std::is_same_v<S, double>) {
+       const std::vector<double> nodes =
+@@ -2871,6 +2825,7 @@ void TF24_Strategy<S>::prepare_strategy() {
+   }
+ 
+   canopy_shape.initialise(pars.eta, shading_model_);
++  crown = canopy_shape.unit_crown(function_integrator);
+ 
+   eta_c = CanopyShape<S>::eta_c(pars.eta);
+   // NOTE: Also pre-computing, though less trivial
+diff --git a/inst/include/plant/qk.h b/inst/include/plant/qk.h
+index 8bd6fdf9..f935f527 100644
+--- a/inst/include/plant/qk.h
++++ b/inst/include/plant/qk.h
+@@ -22,6 +22,9 @@ namespace quadrature {
+ 
+ class QK {
+ public:
++  // The most points any rule here has: QK61's.
++  static constexpr std::size_t max_points = 61;
++
+   QK();
+   QK(size_t rule);
+   // The limits and the integrand's values carry the scalar the caller evaluates
+diff --git a/inst/include/plant/resource_spline.h b/inst/include/plant/resource_spline.h
+index 74c88f9b..525af3a7 100644
+--- a/inst/include/plant/resource_spline.h
++++ b/inst/include/plant/resource_spline.h
+@@ -6,7 +6,12 @@
+ #include <odelia/interpolator.hpp>
+ #include <odelia/ode_util.hpp>
+ #include <odelia/ode_interface.hpp>
++#include <odelia/implicit_node.hpp>
++#include <odelia/tangent.hpp>
++#include <plant/canopy_shape.h>
+ #include <plant/util.h>
++#include <array>
++#include <vector>
+ #include <algorithm> // std::max, for the resource-availability floor (#253)
+ #include <utility>   // std::pair, the value and slope a build supplies
+ 
+@@ -156,6 +161,87 @@ public:
+     return value;
+   }
+ 
++  // The integral over a crown of height `height` of phi(E, p...), E the field at
++  // each depth: the sum of crown.weight[j] * phi(E(height * crown.fraction[j]),
++  // p...), each E read as get_value_at_fraction reads it. phi is written once,
++  // over its scalar.
++  //
++  // At an active scalar the sum is taken at double, so it is the passive sum bit
++  // for bit, and recorded as one statement. Its rows on the knot data are each
++  // read's own, scaled by phi's slope in E; on the height and the canopy top they
++  // come through each read's position; on p, from one tangent of phi per read.
++  template <class Phi, class... P>
++  S crown_integral(const S& height, const crown_rule& crown, Phi phi,
++                   const P&... p) const {
++    const double cap = max_height();
++    if constexpr (!odelia::CarriesAdjoint<S>) {
++      S total = 0.0;
++      for (std::size_t j = 0; j < crown.fraction.size(); ++j) {
++        total += crown.weight[j] *
++                 phi(get_value_at_fraction(height, crown.fraction[j], cap), p...);
++      }
++      return total;
++    } else {
++      static_assert((std::is_same_v<P, S> && ...),
++                    "crown_integral: phi's parameters carry the field's scalar");
++      using odelia::util::to_passive;
++      const double h = to_passive(height), top = to_passive(height_max_);
++      // Four rows a read, then the height, the canopy top and p: bounded by the
++      // largest rule, so they are held here and nothing is allocated per crown.
++      constexpr std::size_t max_rows =
++          4 * quadrature::QK::max_points + 2 + sizeof...(P);
++      std::array<const S*, max_rows> inputs;
++      std::array<double, max_rows> derivatives;
++      std::size_t n = 0;
++      double total = 0.0, d_height = 0.0, d_top = 0.0;
++      std::array<double, sizeof...(P)> d_p{};
++      for (std::size_t j = 0; j < crown.fraction.size(); ++j) {
++        const double s = crown.fraction[j];
++        // Open above the canopy top and floored at zero, as the passive read is;
++        // neither constant depends on the knots or the read's position.
++        double E = 1.0;
++        bool on_field = h * s <= cap;
++        typename decltype(spline)::linear_read read{};
++        if (on_field) {
++          read = spline.read_linear(h * s / top);
++          on_field = 0.0 < read.value;
++          E = on_field ? read.value : 0.0;
++        }
++        const auto f = odelia::ode::value_and_partials(phi, E, to_passive(p)...);
++        total += crown.weight[j] * f.value;
++        for (std::size_t i = 0; i < sizeof...(P); ++i) {
++          d_p[i] += crown.weight[j] * f.partial[i + 1];
++        }
++        if (on_field) {
++          const double g = crown.weight[j] * f.partial[0];
++          for (std::size_t i = 0; i < read.input.size(); ++i) {
++            inputs[n] = read.input[i];
++            derivatives[n++] = g * read.weight[i];
++          }
++          d_height += g * read.slope * (s / top);
++          d_top -= g * read.slope * (h * s / top / top);
++        }
++      }
++      inputs[n] = &height;
++      derivatives[n++] = d_height;
++      inputs[n] = &height_max_;
++      derivatives[n++] = d_top;
++      const std::array<const S*, sizeof...(P)> parameters{&p...};
++      for (std::size_t i = 0; i < sizeof...(P); ++i) {
++        inputs[n] = parameters[i];
++        derivatives[n++] = d_p[i];
++      }
++      S out;
++      const odelia::record_report report = odelia::record_with_derivatives<S>(
++          total, std::span<const S* const>(inputs.data(), n),
++          std::span<const double>(derivatives.data(), n), out);
++      if (!report.whole) {
++        util::stop("crown_integral: " + report.why);
++      }
++      return out;
++    }
++  }
++
+   // The heights, then the values, then the slopes: the columns of r_get_state()
+   // laid end to end.
+   virtual void r_init_interpolators(const std::vector<double>& state) {
+diff --git a/tests/testthat/test-gradient-incidence.R b/tests/testthat/test-gradient-incidence.R
+index 08eb11a2..4e815e5c 100644
+--- a/tests/testthat/test-gradient-incidence.R
++++ b/tests/testthat/test-gradient-incidence.R
+@@ -146,10 +146,10 @@ test_that("the light floor is counted on both paths, and binds at neither shippe
+   #
+   # ⚠️ THE FLOOR IS TWO SITES, NOT ONE, and the uncounted one bound first. The
+   # crown site floors each quadrature point of the mean-light integrand; the
+-  # radiation site floors the mean those points make. Since the shape integrates
+-  # to one, a floored point cannot pull the mean below the floor -- so on the
+-  # shipped shading model the crown site fires ~150x more often, and reading the
+-  # radiation site alone under-reports the severance by that factor.
++  # radiation site floors the mean those points make. The crown weights sum to
++  # one, so a mean of floored points cannot fall below the floor: on the shipped
++  # shading model only the crown site fires, and reading the radiation site
++  # alone would report no severance at all.
+   # Scoped to the two light sites: the other clamps have their own regimes and
+   # their own block below, and several of them do bind at shipped values.
+   nm <- census_clamp_names_tf24()
+@@ -178,9 +178,10 @@ test_that("the light floor is counted on both paths, and binds at neither shippe
+                   solves, nm[light[1]], fired[light[1]],
+                   nm[light[2]], fired[light[2]],
+                   fired[light[2]] / fired[light[1]]))
+-  expect_true(all(fired[light] > 0))
+-  # The crown site binds first, so it cannot be the smaller of the two.
+-  expect_gt(fired[[light[[2]]]], fired[[light[[1]]]])
++  expect_gt(fired[[light[[2]]]], 0)
++  # The mean of floored points is at or above the floor, so the radiation site
++  # does not bind under mean light.
++  expect_equal(fired[[light[[1]]]], 0)
+ 
+   # The forward model keeps running, and the light floor is not what stops the
+   # gradient: below the floor the census is not a function of light at all, so
+@@ -209,11 +210,11 @@ test_that("the light floor is counted on both paths, and binds at neither shippe
+   message(sprintf("  the sweep's own severances: %s",
+                   paste(sprintf("%s %.0f", nm[light], swept[light]),
+                         collapse = "  ")))
+-  expect_true(all(swept[light] > 0))
++  expect_gt(swept[[light[[2]]]], 0)
++  expect_equal(swept[[light[[1]]]], 0)
+   # A counter a rebind drops reports zero however often the clamp fires, which is
+   # what this one did before the storage was shared. And the sweep visits the
+   # recorded steps rather than every solve, so its tally is the smaller.
+-  expect_lt(swept[[light[[1]]]], fired[[light[[1]]]])
+   expect_lt(swept[[light[[2]]]], fired[[light[[2]]]])
+ 
+   # Named from the enum, so a site cannot be counted under its neighbour's name.
+diff --git a/tests/testthat/test-gradient-parity.R b/tests/testthat/test-gradient-parity.R
+index a6228521..0e567edc 100644
+--- a/tests/testthat/test-gradient-parity.R
++++ b/tests/testthat/test-gradient-parity.R
+@@ -251,12 +251,12 @@ test_that("the driver that reaches a clamp says so, answered or not", {
+ 
+   # The light floor is the driver-specific one: the shaded driver reaches it and
+   # the control does not, so these counts measure the driver rather than the clamp.
+-  # Both sites, because the crown one is where it binds first. Counted over the
++  # The crown site, because under mean light a mean of floored points cannot
++  # fall below the floor, so the radiation site does not bind. Counted over the
+   # steps the descent reached before it was refused, which is a subset of the run
+   # and not none.
+-  expect_gt(at("clamped", "light_floor"), 0)
+   expect_gt(at("clamped", "light_floor_crown"), 0)
+-  expect_gt(at("clamped", "light_floor_crown"), at("clamped", "light_floor"))
++  expect_equal(at("clamped", "light_floor"), 0)
+   expect_equal(at("wet", "light_floor"), 0)
+   expect_equal(at("wet", "light_floor_crown"), 0)
+ 
+-- 
+2.43.0
+

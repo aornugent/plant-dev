@@ -36,6 +36,7 @@ README.
 | 0013 | No recorded copies or repeats among a node's parameter reads | rounding | node rates 690.8M → 652.7M |
 | 0014 | The field reduction's crossing interval as rows on the two nodes | rounding | sweep −6% per metric, recording +4%; pays only at several metrics |
 | 0015 | `Patch::assign_from`: a rebind written in place (with odelia 0011) | bit-identical | 237 rebinds → 2; 5.13x / 8.32x → 4.80x / 7.98x |
+| 0016 | `ResourceSpline::crown_integral`: one crown integral for FF16 deep crown, FF16 average light and TF24 mean light, replacing 0009, 0010 and 0012's hand-written rows (with odelia 0013) | rounding | gradient unchanged at FF16; FF16 forward run 369.7M → 229.9M; TF24 gradient 18.90G → 15.41G |
 
 ## odelia
 
@@ -53,6 +54,7 @@ README.
 | 0010 | Gather supplied rows in one pass; test finiteness through `d*0 + x*0` | bit-identical | with plant 0012 |
 | 0011 | One `active_system` per descent, re-seated at each width | bit-identical | with plant 0015 |
 | 0012 | Carry only a basis of the metric seeds; rebuild the rest at the end | rounding (worst 8.6e-14) | five metrics 2997M → 2694M; 4 species × 11 metrics −20% wall |
+| 0013 | `read_linear` reads any u and names its inputs; `value_and_partials` | bit-identical | with plant 0016 |
 
 ## Where it ends up
 
