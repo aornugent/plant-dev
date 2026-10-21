@@ -1,0 +1,222 @@
+From 100602faad7051171fe427ee3632fbeadd9f46ec Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 04:47:43 +0000
+Subject: [PATCH 8/9] Spike: record nothing the rates do not read
+
+Found by a liveness pass over one rate evaluation's tape. A height above a
+crown reads passive zeros rather than zeros scaled by active factors; the
+height scan copies only the tallest height; and the field without the boundary
+interval, read only by the boundary nodes, is built only up to their height.
+Forward values and the gradient are unchanged.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/plant/canopy_shape.h            |  5 +++++
+ inst/include/plant/models/ff16_environment.h |  4 ++--
+ inst/include/plant/models/k93_environment.h  |  4 ++--
+ inst/include/plant/models/tf24_environment.h |  4 ++--
+ inst/include/plant/patch.h                   | 10 ++++++++--
+ inst/include/plant/resource_spline.h         | 20 ++++++++++++++++----
+ inst/include/plant/species.h                 | 16 +++++++++++-----
+ 7 files changed, 46 insertions(+), 17 deletions(-)
+
+diff --git a/inst/include/plant/canopy_shape.h b/inst/include/plant/canopy_shape.h
+index a3159b73..7ff02e85 100644
+--- a/inst/include/plant/canopy_shape.h
++++ b/inst/include/plant/canopy_shape.h
+@@ -203,6 +203,11 @@ public:
+       return {b * ((k * a) * ((1.0 - u_eta) * (1.0 - u_eta))),
+               b * (-((k * a) * (2.0 * eta_ * (1.0 - u_eta) * u_eta / z)))};
+     }
++    // Above the crown both are zero whatever scales them, and scaling a
++    // passive zero by active factors records a statement for nothing.
++    if (z_over_height > 1.0) {
++      return Q_and_q(z_over_height, z, height_inverse);
++    }
+     const S scale = k * a;
+     const std::pair<S, S> Qq = Q_and_q(z_over_height, z, height_inverse);
+     return {b * (scale * Qq.first), b * (-(scale * Qq.second))};
+diff --git a/inst/include/plant/models/ff16_environment.h b/inst/include/plant/models/ff16_environment.h
+index 4e7c7bce..583fff28 100644
+--- a/inst/include/plant/models/ff16_environment.h
++++ b/inst/include/plant/models/ff16_environment.h
+@@ -166,9 +166,9 @@ public:
+   // The light every knot is left with, from the competition profile above it.
+   template <typename Function>
+   void compute_environment(Function f_compute_competition_and_slope,
+-                           S height_max) {
++                           S height_max, double read_below = R_PosInf) {
+     build_extinction_field(light_availability, f_compute_competition_and_slope,
+-                           height_max);
++                           height_max, read_below);
+   }
+ 
+   virtual void clear_environment() {
+diff --git a/inst/include/plant/models/k93_environment.h b/inst/include/plant/models/k93_environment.h
+index 1370d86a..0a8dfcbd 100644
+--- a/inst/include/plant/models/k93_environment.h
++++ b/inst/include/plant/models/k93_environment.h
+@@ -48,9 +48,9 @@ public:
+   // The light a height is left with, from the competition profile above it.
+   template <typename Function>
+   void compute_environment(Function f_compute_competition_and_slope,
+-                           double height_max) {
++                           double height_max, double read_below = R_PosInf) {
+     build_extinction_field(light_availability, f_compute_competition_and_slope,
+-                           height_max);
++                           height_max, read_below);
+   }
+ 
+   virtual void clear_environment() {
+diff --git a/inst/include/plant/models/tf24_environment.h b/inst/include/plant/models/tf24_environment.h
+index 6bb59a93..7a0c9694 100644
+--- a/inst/include/plant/models/tf24_environment.h
++++ b/inst/include/plant/models/tf24_environment.h
+@@ -865,9 +865,9 @@ public:
+   // The light a height is left with, from the competition profile above it.
+   template <typename Function>
+   void compute_environment(Function f_compute_competition_and_slope,
+-                           S height_max) {
++                           S height_max, double read_below = R_PosInf) {
+     build_extinction_field(light_availability, f_compute_competition_and_slope,
+-                           height_max);
++                           height_max, read_below);
+   }
+ 
+ 
+diff --git a/inst/include/plant/patch.h b/inst/include/plant/patch.h
+index db629d3b..acfea2b0 100644
+--- a/inst/include/plant/patch.h
++++ b/inst/include/plant/patch.h
+@@ -1442,6 +1442,12 @@ void Patch<T,E>::compute_environment_excl_capturing() {
+   // The reduction fills one entry per knot, so the only thing needed here is one
+   // vector per species; field_splits sizes each of them.
+   competition_capture.resize(size());
++  // This field is read only by the boundary nodes, each at or below its own
++  // height, so it is built only up to the tallest of them.
++  double read_below = 0.0;
++  for (const auto& s : species) {
++    read_below = std::max(read_below, odelia::util::to_passive(s.r_new_node().height()));
++  }
+   auto f = [&](const std::vector<value_type>& x, std::vector<value_type>& y,
+                std::vector<value_type>& m) -> void {
+     for (size_t k = 0; k < x.size(); ++k) {
+@@ -1453,7 +1459,7 @@ void Patch<T,E>::compute_environment_excl_capturing() {
+     // set, and asking it per knot is what made the build quadratic.
+     for (size_t i = 0; i < size(); ++i) {
+       species[i].field_splits(x, competition_capture[i]);
+-      for (size_t k = 0; k < x.size(); ++k) {
++      for (size_t k = 0; k < x.size() && knot_built(x, k, read_below); ++k) {
+         // without_boundary()'s halves, inside the sums rather than named.
+         const auto& sum = competition_capture[i][k].sum;
+         y[k] += (sum.value / 2) / area;
+@@ -1462,7 +1468,7 @@ void Patch<T,E>::compute_environment_excl_capturing() {
+     }
+   };
+   if (size() > 0) {
+-    environment.compute_environment(f, height_max());
++    environment.compute_environment(f, height_max(), read_below);
+   }
+ }
+ 
+diff --git a/inst/include/plant/resource_spline.h b/inst/include/plant/resource_spline.h
+index a4d0c648..74c88f9b 100644
+--- a/inst/include/plant/resource_spline.h
++++ b/inst/include/plant/resource_spline.h
+@@ -14,6 +14,15 @@ using namespace Rcpp;
+ 
+ namespace plant {
+ 
++// A field read only at or below `read_below` is built only there: a knot is
++// built when the one beneath it is at or below that height, so every span a read
++// can reach has both its knots. Above, the reduction leaves passive zeros and
++// nothing is recorded for them; their spans hold no light and must not be read.
++template <typename S>
++bool knot_built(const std::vector<S>& x, std::size_t k, double read_below) {
++  return k == 0 || odelia::util::to_passive(x[k - 1]) <= read_below;
++}
++
+ // Templated on the scalar S the resource values carry; the knot positions stay
+ // double. S = double is production.
+ //
+@@ -51,7 +60,8 @@ public:
+   // that produces the values is linear in the nodes plus the knots and quadratic
+   // only if it is asked per knot.
+   template <typename Function>
+-  void compute_environment(Function f_all_knots, S height_max) {
++  void compute_environment(Function f_all_knots, S height_max,
++                           double read_below = R_PosInf) {
+     lay_out_knots();
+     height_max_ = height_max;
+     // The reduction is asked at the knots' HEIGHTS, and they are active: a knot
+@@ -67,7 +77,9 @@ public:
+     f_all_knots(x, y, m);
+     // The reduction's slope is per unit height and the interpolant's abscissa is
+     // u, so the chain factor is the canopy top itself.
+-    for (size_t k = 0; k < n; ++k) { m[k] = m[k] * height_max; }
++    for (size_t k = 0; k < n && knot_built(x, k, read_below); ++k) {
++      m[k] = m[k] * height_max;
++    }
+     spline.set_data(std::move(y), std::move(m));
+   };
+ 
+@@ -285,7 +297,7 @@ private:
+ // hands the field an expression template referencing operands that die here.
+ template <typename Field, typename Function, typename S>
+ void build_extinction_field(Field& field, Function f_competition_all_knots,
+-                            S height_max) {
++                            S height_max, double read_below = R_PosInf) {
+   using value_type = typename Field::value_type;
+   field.compute_environment(
+     [&](const std::vector<value_type>& x, std::vector<value_type>& y,
+@@ -297,7 +309,7 @@ void build_extinction_field(Field& field, Function f_competition_all_knots,
+         y[k] = std::move(E);
+       }
+     },
+-    height_max);
++    height_max, read_below);
+ }
+ 
+ } // plant namespace
+diff --git a/inst/include/plant/species.h b/inst/include/plant/species.h
+index 5f57f9fb..b4c896d2 100644
+--- a/inst/include/plant/species.h
++++ b/inst/include/plant/species.h
+@@ -598,7 +598,10 @@ const typename Species<T,E>::HeightScan& Species<T,E>::scan_heights() const {
+ template <typename T, typename E>
+ typename Species<T,E>::HeightScan Species<T,E>::compute_height_scan() const {
+   HeightScan ret{value_type(-std::numeric_limits<double>::infinity()), true};
+-  value_type h_prev = std::numeric_limits<double>::infinity();
++  // The ordering is a comparison of values and the maximum is one height, so
++  // only that one is copied: at an active scalar every copy is a statement.
++  double h_prev = std::numeric_limits<double>::infinity();
++  const value_type* tallest = nullptr;
+   // ⚠️ WITH THE TOP LAYER ON, A FROZEN COHORT IS LEFT OUT OF THE SCAN. Its height
+   // froze when it was absorbed (or reached zero density) and younger cohorts
+   // grow past it, so counted it breaks the ordering and every field build falls
+@@ -615,14 +618,17 @@ typename Species<T,E>::HeightScan Species<T,E>::compute_height_scan() const {
+       continue;
+     }
+     any = true;
+-    const value_type h = it->height();
++    const value_type& h = it->height();
+     if (h > h_prev) {
+       ret.decreasing = false;
+     }
+-    if (h > ret.h_max) {
+-      ret.h_max = h;
++    if (tallest == nullptr || h > *tallest) {
++      tallest = &h;
+     }
+-    h_prev = h;
++    h_prev = odelia::util::to_passive(h);
++  }
++  if (tallest != nullptr) {
++    ret.h_max = *tallest;
+   }
+   // Every cohort retired: the canopy top is the seed's, as for an empty species.
+   if (skip_retired && !any) {
+-- 
+2.43.0
+

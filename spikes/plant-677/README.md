@@ -37,6 +37,73 @@ Test files, each run on B and on the spike stack, with identical failure sets:
 | plant gradient, ladder, census, fitness and FF16 files | 160 | 3 | yes |
 | plant strategy, canopy, patch, species, node and environment files | 171 | 2 | yes |
 
+## Second round, at a representative fixture
+
+⚠️ **Measure at lifetime 60, not 8.** At lifetime 8 the tallest FF16 plant is
+about 1.2 m and the seedling about 0.39 m. A gradient run with a debug print
+showed the seedling at 82% of the canopy top on average over all 881 rate
+evaluations, so any lever that depends on canopy structure looks smaller
+there than it is. The issue measured lifetimes of 8, 30 and 60. A probe
+evaluated at one state, such as the end of a run, also misleads: weight the
+evidence by the run.
+
+Callgrind instructions per step and interleaved seconds, at lifetime 60:
+
+| arm | ratio, 1 metric | ratio, 5 metrics | seconds, 1 metric | seconds, 5 metrics |
+| --- | --- | --- | --- | --- |
+| B | 14.5x | 29.5x | 0.56 s | 1.04 s (26x) |
+| R12: the first round, plus plant 8 | 6.3x | 11.7x | 0.25 s | 0.41 s (10.7x) |
+| **H2: + plant 9, odelia 7** | **5.8x** | **9.6x** | **0.22 s** | **0.33 s (8.8x)** |
+
+- **Plant 8 comes from a liveness pass** (`tools/live.cpp`). It walks one
+  evaluation's tape backwards from the rates and marks each statement dead or
+  live, and live statements that depend on parameters alone. It found three
+  things to fix:
+  - a height above a crown recording zeros scaled by active factors
+  - the height scan copying every node's height two or three times
+  - the field without the boundary interval being built in full, although only
+    the seedling reads it, at its own height
+  Gradients are bit-identical.
+- **Plant 9 supplies the crown integral's rows**, through odelia's own
+  `record_with_derivatives`. The rows are computed in double, using odelia 7's
+  `read_linear`, which returns a light read as its span's four coefficients
+  and their weights. This is a hand-written adjoint of the leaf rate only; the
+  spline's linear form stays in odelia. Values are bit-identical, rows move at
+  rounding level, and plant's finite-difference FF16 gradient tests pass.
+
+## What a statement costs (corrected)
+
+- **XAD's bookkeeping is about 106 instructions per recorded statement.** The
+  same kernel run taped and passive: `tools/floor2.cpp`.
+- **A dead statement costs that at record time, and almost nothing to sweep.**
+  Its adjoint is zero, so XAD skips its operations. Removing dead statements
+  therefore moves the ratio less than the statement count suggests.
+- **What scales with the number of metrics is live operations.** A light read
+  is linear in four coefficients, so a crown block reads few distinct inputs
+  many times. Supplying deduplicated rows cuts its sweep cost by about
+  two-thirds.
+- **Supplying rows saved nothing at record time.** A crown costs about 9.7k
+  instructions computed in double plus about 79 rows, against about 10.1k for
+  XAD to record its 43 statements. XAD's recording is efficient; the win is the
+  sweep.
+
+## Preaccumulation, priced exactly
+
+Per crown, with the input scan and the local sweep made cheap:
+
+| piece | instructions |
+| --- | --- |
+| recording the crown body (unchanged) | 10.3k |
+| local sweep | 3.5k |
+| hold, restore and compaction loops over about 79 inputs | 2.6k |
+| input scan | 1.2k |
+| `initDerivatives`, on each call, as new slots grow the array | about 1.6k |
+| **saved on each metric's sweep** | **2.6k** |
+
+So it breaks even at about three metrics, and even at its floor (about 4.5k
+of overhead) at about two. Rejected in favour of supplied rows, which pay
+nothing extra at record time.
+
 ## Why FF16's ratio is high and TF24's is not
 
 TF24's forward run is 90% `solve_leaf`, which its replay loads instead of

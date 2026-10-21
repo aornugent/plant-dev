@@ -1,7 +1,7 @@
 From 805ed228c22131d5fcdcd466ce90f5b39f9d0eef Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 03:21:49 +0000
-Subject: [PATCH 3/6] Spike: read an active cubic's slope at its value
+Subject: [PATCH 3/7] Spike: read an active cubic's slope at its value
 
 The slope multiplies u - up, which is zero at the value, so its coefficients
 were recorded a second time with partials of exactly zero: 90% of the

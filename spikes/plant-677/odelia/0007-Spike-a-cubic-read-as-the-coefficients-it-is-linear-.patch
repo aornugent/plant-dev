@@ -1,0 +1,97 @@
+From e22a15b7c2c839e3e2c6744a56c97000db2beba1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 05:02:32 +0000
+Subject: [PATCH 7/7] Spike: a cubic read as the coefficients it is linear in;
+ supplied rows pushed as one run
+
+hermite_spline::read_linear returns a read's value (eval's bit for bit), its
+slope, and its span's coefficients with their weights, for a caller supplying
+rows. record_with_derivatives gathers its rows into kept scratch and pushes
+them in one call.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/odelia/implicit_node.hpp | 10 ++++++++-
+ inst/include/odelia/spline.hpp        | 29 +++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/inst/include/odelia/implicit_node.hpp b/inst/include/odelia/implicit_node.hpp
+index ef7eb9a..de97ba9 100644
+--- a/inst/include/odelia/implicit_node.hpp
++++ b/inst/include/odelia/implicit_node.hpp
+@@ -115,6 +115,12 @@ template <class S>
+     // rate of millions.
+     S out = value;
+     if (tape_type* tape = tape_type::getActive()) {
++      // Gathered into scratch the function keeps and pushed as one run: a push
++      // per row is a container call per row. Nothing here is reentrant.
++      static std::vector<double> muls;
++      static std::vector<typename tape_type::slot_type> slots;
++      muls.clear();
++      slots.clear();
+       for (const input_and_derivative<S>& term : against) {
+         if (term.derivative == 0.0) {
+           continue;
+@@ -126,8 +132,10 @@ template <class S>
+         if (slot == tape_type::INVALID_SLOT) {
+           continue;
+         }
+-        tape->pushAll(&term.derivative, &slot, 1u);
++        muls.push_back(term.derivative);
++        slots.push_back(slot);
+       }
++      tape->pushAll(muls.data(), slots.data(), unsigned(muls.size()));
+       tape->registerOutput(out);
+     }
+     into = std::move(out);
+diff --git a/inst/include/odelia/spline.hpp b/inst/include/odelia/spline.hpp
+index 274852f..c80575c 100644
+--- a/inst/include/odelia/spline.hpp
++++ b/inst/include/odelia/spline.hpp
+@@ -8,6 +8,7 @@
+ #include <list>
+ #include <type_traits>
+ #include <limits>
++#include <array>
+ #include <vector>
+ #include <odelia/ode_util.hpp>
+ 
+@@ -232,6 +233,34 @@ public:
+   template <typename U>
+   S operator()(const U& u) const { return eval(u); }
+ 
++  // A cubic read strictly inside the knots, as what it is linear in: value is
++  // the sum of weight[i] * span_coefficients(span)[i], and slope is d(value)/du. The value is eval's bit for bit. For a caller supplying
++  // its own rows: a model that reads a field many times can push one statement
++  // against the coefficients rather than record every read.
++  struct linear_read {
++    double value, slope;
++    std::size_t span;
++    std::array<double, 4> weight;
++  };
++  linear_read read_linear(double u) const {
++    static_assert(Order == 3, "read_linear spells the cubic only.");
++    const std::size_t k = span_of(u);
++    const Span& s = spans[k];
++    const double t = s.local(u);
++    const double c0 = util::to_passive(s.c[0]), c1 = util::to_passive(s.c[1]),
++                 c2 = util::to_passive(s.c[2]);
++    return {util::to_passive(s.y0) + t * (c0 + t * (c1 + t * c2)),
++            (c0 + t * (2.0 * c1 + t * (3.0 * c2))) * s.inv_h,
++            k,
++            {1.0, t, t * t, t * t * t}};
++  }
++  bool inside(double u) const { return u > x.front() && u < x.back(); }
++  std::array<const S*, 4> span_coefficients(std::size_t k) const {
++    const Span& s = spans[k];
++    return {&s.y0, &s.c[0], &s.c[1], &s.c[2]};
++  }
++  std::size_t span_count() const { return spans.size(); }
++
+ protected:
+   // eval at a double position without the initialisation check, for a front end
+   // whose own unchecked read is documented as such.
+-- 
+2.43.0
+

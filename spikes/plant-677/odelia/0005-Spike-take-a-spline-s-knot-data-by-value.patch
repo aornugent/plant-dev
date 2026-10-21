@@ -1,7 +1,7 @@
 From 6b57672a9ac723a2d2a20dc3ae0768c4d891dfdb Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 03:37:06 +0000
-Subject: [PATCH 5/6] Spike: take a spline's knot data by value
+Subject: [PATCH 5/7] Spike: take a spline's knot data by value
 
 A caller done with its buffers moves them in, and a span reads its two knots
 by reference: each was a copy, so a statement, per knot per build.

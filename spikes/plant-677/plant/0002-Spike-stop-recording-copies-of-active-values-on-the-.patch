@@ -1,7 +1,7 @@
 From 12f2f8f795612d2b6f901b690c87793a54e8da3a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 02:30:09 +0000
-Subject: [PATCH 2/7] Spike: stop recording copies of active values on the FF16
+Subject: [PATCH 2/9] Spike: stop recording copies of active values on the FF16
  rate path
 
 A copy of an active scalar is a tape statement, and a move hands over the

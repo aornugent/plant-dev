@@ -1,0 +1,132 @@
+From d0c5604382c6b0350887b58b56c2ee101e6b36bd Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 05:02:32 +0000
+Subject: [PATCH 9/9] Spike: supply the deep-crown integral's rows at an active
+ scalar
+
+The crown integral is one tape statement with its rows taken in double: each
+light read is linear in its span's coefficients, and the leaf rate's partials
+are written once. The value is the recorded loop's bit for bit; a read outside
+the spline's interior falls back to the recorded loop. A sweep walks one
+statement and a row per input rather than 43 statements and 232 operations.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/plant/models/ff16_strategy.h | 86 +++++++++++++++++++++++
+ 1 file changed, 86 insertions(+)
+
+diff --git a/inst/include/plant/models/ff16_strategy.h b/inst/include/plant/models/ff16_strategy.h
+index a3b3f988..e0fce47f 100644
+--- a/inst/include/plant/models/ff16_strategy.h
++++ b/inst/include/plant/models/ff16_strategy.h
+@@ -495,6 +495,9 @@ public:
+   //                both crown-centre and PPA; they differ only in how the patch
+   //                light profile is built (smooth vs stepped), which this read
+   //                picks up transparently through the environment.
++  bool assimilation_deep_crown_rows(const FF16_Environment<S>& environment,
++                                    const S& height, const S& area_leaf,
++                                    double canopy_top, S& out) const;
+   S assimilation_deep_crown(const FF16_Environment<S>& environment,
+                             const S& height, const S& area_leaf,
+                             const S& height_inverse);
+@@ -1025,6 +1028,85 @@ void FF16_Strategy<S>::compute_rates(const FF16_Environment<S>& environment,
+       mortality_dt(net_mass_production_dt_ / area_leaf_, vars.state(MORTALITY_INDEX)));
+ }
+ 
++// The deep-crown integral at an active scalar as ONE tape statement: the value
++// and its rows are taken in double and supplied. A light read is linear in its
++// span's four coefficients, and the leaf rate a_p1 E / (E + a_p2) has the partials
++// below, so the rows are the chain rule written once rather than recorded at
++// every quadrature point. The value is the recorded loop's bit for bit. False,
++// leaving `out` alone, where a point reads outside the spline's interior.
++template <typename S>
++bool FF16_Strategy<S>::assimilation_deep_crown_rows(
++    const FF16_Environment<S>& environment, const S& height, const S& area_leaf,
++    double canopy_top, S& out) const {
++  using odelia::util::to_passive;
++  const auto& field = environment.light_availability;
++  const auto& spline = field.spline;
++  const double h = to_passive(height), top = field.max_height();
++  const double p1 = to_passive(pars.a_p1), p2 = to_passive(pars.a_p2);
++  // Rows on each span's coefficients, gathered by span so a coefficient two
++  // points share is one row.
++  static std::vector<std::array<double, 4>> span_rows;
++  static std::vector<char> is_touched;
++  static std::vector<std::size_t> touched;
++  span_rows.resize(spline.span_count());
++  is_touched.resize(spline.span_count(), 0);
++  touched.clear();
++  double A = 0.0, dp1 = 0.0, dp2 = 0.0, dh = 0.0, dtop = 0.0;
++  bool ok = true;
++  for (size_t j = 0; j < crown_fractions.size(); ++j) {
++    const double s = crown_fractions[j], z = h * s;
++    double E = 1.0;
++    if (z <= canopy_top) {
++      const double u = z / top;
++      if (!spline.inside(u)) { ok = false; break; }
++      const auto r = spline.read_linear(u);
++      E = 0.0 < r.value ? r.value : 0.0;
++      if (0.0 < r.value) {
++        const double D = r.value + p2;
++        const double w = crown_weights[j] * (p1 * p2 / (D * D));
++        if (!is_touched[r.span]) {
++          is_touched[r.span] = 1;
++          touched.push_back(r.span);
++        }
++        for (int i = 0; i < 4; ++i) span_rows[r.span][i] += w * r.weight[i];
++        dh += w * r.slope * (s / top);
++        dtop -= w * r.slope * (u / top);
++      }
++    }
++    const double D = E + p2;
++    A += crown_weights[j] * (p1 * E / D);
++    dp1 += crown_weights[j] * (E / D);
++    dp2 -= crown_weights[j] * (p1 * E / (D * D));
++  }
++  if (!ok) {
++    for (std::size_t k : touched) {
++      span_rows[k] = {0.0, 0.0, 0.0, 0.0};
++      is_touched[k] = 0;
++    }
++    return false;
++  }
++  const double al = to_passive(area_leaf);
++  static std::vector<odelia::input_and_derivative<S>> rows;
++  rows.clear();
++  rows.push_back({area_leaf, A});
++  rows.push_back({pars.a_p1, al * dp1});
++  rows.push_back({pars.a_p2, al * dp2});
++  rows.push_back({height, al * dh});
++  rows.push_back({field.height_max_, al * dtop});
++  for (std::size_t k : touched) {
++    const auto c = spline.span_coefficients(k);
++    for (int i = 0; i < 4; ++i) rows.push_back({*c[i], al * span_rows[k][i]});
++    span_rows[k] = {0.0, 0.0, 0.0, 0.0};
++    is_touched[k] = 0;
++  }
++  const odelia::record_report report =
++      odelia::record_with_derivatives<S>(al * A, rows, out);
++  if (!report.whole) {
++    util::stop("assimilation_deep_crown: " + report.why);
++  }
++  return true;
++}
++
+ // [eqn 12] Gross annual CO2 assimilation -- deep-crown model.
+ // Integrate photosynthesis over crown depth: for a given height in the crown,
+ // take photosynthesis at that depth multiplied by the amount of leaf there.
+@@ -1048,6 +1130,10 @@ S FF16_Strategy<S>::assimilation_deep_crown(const FF16_Environment<S>& environme
+   if constexpr (!std::is_same_v<S, double>) {
+     // Two statements a node: the light read, and the leaf rate accumulated in
+     // one expression -- ff16_assimilation_leaf's arithmetic in its order.
++    S out;
++    if (assimilation_deep_crown_rows(environment, height, area_leaf, canopy_top, out)) {
++      return out;
++    }
+     const S& a_p1 = pars.a_p1;
+     const S& a_p2 = pars.a_p2;
+     for (size_t j = 0; j < crown_fractions.size(); ++j) {
+-- 
+2.43.0
+

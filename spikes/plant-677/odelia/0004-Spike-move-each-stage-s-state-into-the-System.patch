@@ -1,7 +1,7 @@
 From b8fb72b8012b9f40b5312c1a47da1b20d582f582 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 03:31:53 +0000
-Subject: [PATCH 4/6] Spike: move each stage's state into the System
+Subject: [PATCH 4/7] Spike: move each stage's state into the System
 
 A recorded step copied its inputs into a local start state, and copied every
 stage's state into the System: a statement per entry each time. The start
