@@ -1,7 +1,7 @@
 From 49ff6188c5dae924c54d723e933bdc55da4a3d1a Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 03:04:01 +0000
-Subject: [PATCH 1/7] Spike: a narrower tape and one clear per walk
+Subject: [PATCH 1/8] Spike: a narrower tape and one clear per walk
 
 XAD_REDUCED_MEMORY stores an operation in 12 bytes rather than a padded 16, and
 a sweep after the first zeroes only the inputs it reads. Bit-identical.

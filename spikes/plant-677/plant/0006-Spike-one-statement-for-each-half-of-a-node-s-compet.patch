@@ -1,7 +1,7 @@
 From bb6370de75d32bc5708fb0b931c91fe713f54dd8 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 03:48:57 +0000
-Subject: [PATCH 6/9] Spike: one statement for each half of a node's
+Subject: [PATCH 06/10] Spike: one statement for each half of a node's
  competition read
 
 The deep crown's Q and q are scaled by leaf area and density inside the one

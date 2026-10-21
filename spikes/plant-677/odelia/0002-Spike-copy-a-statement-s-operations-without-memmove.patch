@@ -1,7 +1,7 @@
 From fadb6f3affbc7dc9be79d10c1626ad80edbec714 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 03:10:23 +0000
-Subject: [PATCH 2/7] Spike: copy a statement's operations without memmove
+Subject: [PATCH 2/8] Spike: copy a statement's operations without memmove
 
 XAD's split operations container copied each statement's multipliers and slots
 with uninitialized_copy_n, which lowers to two memmove calls a statement. A

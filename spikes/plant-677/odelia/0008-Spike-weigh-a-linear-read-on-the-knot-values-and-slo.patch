@@ -1,0 +1,52 @@
+From 01071ddc90ae82fdaa651d502c429d77d44516a8 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 05:24:03 +0000
+Subject: [PATCH 8/8] Spike: weigh a linear read on the knot values and slopes
+
+The Hermite basis over the span's two knots, so a caller supplying rows for
+many reads gathers them per knot, where neighbouring spans share one.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/odelia/spline.hpp | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/inst/include/odelia/spline.hpp b/inst/include/odelia/spline.hpp
+index c80575c..3487628 100644
+--- a/inst/include/odelia/spline.hpp
++++ b/inst/include/odelia/spline.hpp
+@@ -234,7 +234,8 @@ public:
+   S operator()(const U& u) const { return eval(u); }
+ 
+   // A cubic read strictly inside the knots, as what it is linear in: value is
+-  // the sum of weight[i] * span_coefficients(span)[i], and slope is d(value)/du. The value is eval's bit for bit. For a caller supplying
++  // the sum of weight[i] times the knot data y[span], m[span], y[span + 1],
++  // m[span + 1] (the Hermite basis), and slope is d(value)/du. The value is eval's bit for bit. For a caller supplying
+   // its own rows: a model that reads a field many times can push one statement
+   // against the coefficients rather than record every read.
+   struct linear_read {
+@@ -249,16 +250,15 @@ public:
+     const double t = s.local(u);
+     const double c0 = util::to_passive(s.c[0]), c1 = util::to_passive(s.c[1]),
+                  c2 = util::to_passive(s.c[2]);
++    const double h = x[k + 1] - x[k], t2 = t * t, t3 = t2 * t;
+     return {util::to_passive(s.y0) + t * (c0 + t * (c1 + t * c2)),
+             (c0 + t * (2.0 * c1 + t * (3.0 * c2))) * s.inv_h,
+             k,
+-            {1.0, t, t * t, t * t * t}};
++            {1.0 - 3.0 * t2 + 2.0 * t3, h * (t - 2.0 * t2 + t3),
++             3.0 * t2 - 2.0 * t3, h * (t3 - t2)}};
+   }
+   bool inside(double u) const { return u > x.front() && u < x.back(); }
+-  std::array<const S*, 4> span_coefficients(std::size_t k) const {
+-    const Span& s = spans[k];
+-    return {&s.y0, &s.c[0], &s.c[1], &s.c[2]};
+-  }
++
+   std::size_t span_count() const { return spans.size(); }
+ 
+ protected:
+-- 
+2.43.0
+

@@ -1,7 +1,7 @@
 From 218e7dcbb1152ae58ff6694f7572d10f8e060695 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 02:36:44 +0000
-Subject: [PATCH 3/9] Spike: two statements per crown node on the active path
+Subject: [PATCH 03/10] Spike: two statements per crown node on the active path
 
 The light is read at height * fraction without recording the product, and the
 leaf rate is accumulated in one expression, so a node records the read and the

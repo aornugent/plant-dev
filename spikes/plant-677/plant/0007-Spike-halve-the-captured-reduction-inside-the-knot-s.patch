@@ -1,7 +1,8 @@
 From 0a237e440b955fca400dfe77808ad51f0b2b50c1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 03:55:14 +0000
-Subject: [PATCH 7/9] Spike: halve the captured reduction inside the knot sums
+Subject: [PATCH 07/10] Spike: halve the captured reduction inside the knot
+ sums
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB

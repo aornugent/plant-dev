@@ -1,7 +1,7 @@
 From 5db1b54a255a53ef00d3a057fdd6c256865d16ed Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 03:55:14 +0000
-Subject: [PATCH 6/7] Spike: one statement per cubic coefficient
+Subject: [PATCH 6/8] Spike: one statement per cubic coefficient
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB

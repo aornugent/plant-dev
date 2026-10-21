@@ -1,7 +1,7 @@
 From 9def1d17a7e3ab33e19cdb320c9a49300983f6e7 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 03:37:07 +0000
-Subject: [PATCH 5/9] Spike: move the light field's knot data into the spline
+Subject: [PATCH 05/10] Spike: move the light field's knot data into the spline
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB

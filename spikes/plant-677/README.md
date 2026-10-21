@@ -71,6 +71,26 @@ Callgrind instructions per step and interleaved seconds, at lifetime 60:
   spline's linear form stays in odelia. Values are bit-identical, rows move at
   rounding level, and plant's finite-difference FF16 gradient tests pass.
 
+**Knot rows** (plant 10, odelia 8) put the crown's rows on each knot's value
+and slope rather than on each span's four coefficients. Neighbouring spans
+share a knot, so the rows roughly halve. At lifetime 60 the ratio goes from
+5.82x to 5.75x for one metric and from 9.64x to 9.45x for five, and the sweep
+per metric from 2.14M to 2.07M instructions per step. The span coefficients
+are now read by nothing on the tape, so their 255 statements per evaluation
+are recorded and dead. Removing them would mean `hermite_spline` deriving its
+active coefficients from the knots rather than storing them.
+
+Multi-species stands at lifetime 60, interleaved (`tools/multi.R`):
+
+| species | metrics × columns | forward | 1 metric, B → H2 | all metrics, B → H2 |
+| --- | --- | --- | --- | --- |
+| 1 | 5 × 32 | 0.038 s | 14–15x → 5.7–5.8x | 25–30x → 8.6–8.8x |
+| 2 | 7 × 64 | 0.075 s | 13–17x → 5.8–6.0x | 32–36x → 10.6–11.5x |
+| 4 | 11 × 128 | 0.155 s | 17–18x → 5.6–6.1x | 51x → 13.4–14.1x |
+
+Columns are close to free. Each extra metric is one more sweep, at about
+0.7–0.9 of a forward run, where B paid 3–3.3.
+
 ## What a statement costs (corrected)
 
 - **XAD's bookkeeping is about 106 instructions per recorded statement.** The

@@ -1,7 +1,7 @@
 From e22a15b7c2c839e3e2c6744a56c97000db2beba1 Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 05:02:32 +0000
-Subject: [PATCH 7/7] Spike: a cubic read as the coefficients it is linear in;
+Subject: [PATCH 7/8] Spike: a cubic read as the coefficients it is linear in;
  supplied rows pushed as one run
 
 hermite_spline::read_linear returns a read's value (eval's bit for bit), its

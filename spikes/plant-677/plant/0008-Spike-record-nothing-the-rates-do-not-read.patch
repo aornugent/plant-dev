@@ -1,7 +1,7 @@
 From 100602faad7051171fe427ee3632fbeadd9f46ec Mon Sep 17 00:00:00 2001
 From: Claude <noreply@anthropic.com>
 Date: Wed, 21 Oct 2026 04:47:43 +0000
-Subject: [PATCH 8/9] Spike: record nothing the rates do not read
+Subject: [PATCH 08/10] Spike: record nothing the rates do not read
 
 Found by a liveness pass over one rate evaluation's tape. A height above a
 crown reads passive zeros rather than zeros scaled by active factors; the

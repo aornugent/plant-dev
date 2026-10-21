@@ -1,0 +1,95 @@
+From 30621c4aa2af6bc4af930704dc4c08c8d65ff9c1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 05:24:03 +0000
+Subject: [PATCH 10/10] Spike: gather the crown's rows per knot
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01LFsPxk1yy62LrcCbtZUVeB
+---
+ inst/include/plant/models/ff16_strategy.h | 39 +++++++++++++----------
+ 1 file changed, 22 insertions(+), 17 deletions(-)
+
+diff --git a/inst/include/plant/models/ff16_strategy.h b/inst/include/plant/models/ff16_strategy.h
+index e0fce47f..b20dc1ca 100644
+--- a/inst/include/plant/models/ff16_strategy.h
++++ b/inst/include/plant/models/ff16_strategy.h
+@@ -1029,10 +1029,11 @@ void FF16_Strategy<S>::compute_rates(const FF16_Environment<S>& environment,
+ }
+ 
+ // The deep-crown integral at an active scalar as ONE tape statement: the value
+-// and its rows are taken in double and supplied. A light read is linear in its
+-// span's four coefficients, and the leaf rate a_p1 E / (E + a_p2) has the partials
+-// below, so the rows are the chain rule written once rather than recorded at
+-// every quadrature point. The value is the recorded loop's bit for bit. False,
++// and its rows are taken in double and supplied. A light read is linear in the
++// value and slope at its span's two knots, and the leaf rate a_p1 E / (E + a_p2)
++// has the partials below, so the rows are the chain rule written once rather
++// than recorded at every quadrature point. Neighbouring spans share a knot, so
++// rows are gathered per knot. The value is the recorded loop's bit for bit. False,
+ // leaving `out` alone, where a point reads outside the spline's interior.
+ template <typename S>
+ bool FF16_Strategy<S>::assimilation_deep_crown_rows(
+@@ -1043,13 +1044,12 @@ bool FF16_Strategy<S>::assimilation_deep_crown_rows(
+   const auto& spline = field.spline;
+   const double h = to_passive(height), top = field.max_height();
+   const double p1 = to_passive(pars.a_p1), p2 = to_passive(pars.a_p2);
+-  // Rows on each span's coefficients, gathered by span so a coefficient two
+-  // points share is one row.
+-  static std::vector<std::array<double, 4>> span_rows;
++  // Rows on each knot's value and slope.
++  static std::vector<std::array<double, 2>> knot_rows;
+   static std::vector<char> is_touched;
+   static std::vector<std::size_t> touched;
+-  span_rows.resize(spline.span_count());
+-  is_touched.resize(spline.span_count(), 0);
++  knot_rows.resize(spline.span_count() + 1);
++  is_touched.resize(spline.span_count() + 1, 0);
+   touched.clear();
+   double A = 0.0, dp1 = 0.0, dp2 = 0.0, dh = 0.0, dtop = 0.0;
+   bool ok = true;
+@@ -1064,11 +1064,16 @@ bool FF16_Strategy<S>::assimilation_deep_crown_rows(
+       if (0.0 < r.value) {
+         const double D = r.value + p2;
+         const double w = crown_weights[j] * (p1 * p2 / (D * D));
+-        if (!is_touched[r.span]) {
+-          is_touched[r.span] = 1;
+-          touched.push_back(r.span);
++        for (std::size_t k = r.span; k <= r.span + 1; ++k) {
++          if (!is_touched[k]) {
++            is_touched[k] = 1;
++            touched.push_back(k);
++          }
+         }
+-        for (int i = 0; i < 4; ++i) span_rows[r.span][i] += w * r.weight[i];
++        knot_rows[r.span][0] += w * r.weight[0];
++        knot_rows[r.span][1] += w * r.weight[1];
++        knot_rows[r.span + 1][0] += w * r.weight[2];
++        knot_rows[r.span + 1][1] += w * r.weight[3];
+         dh += w * r.slope * (s / top);
+         dtop -= w * r.slope * (u / top);
+       }
+@@ -1080,7 +1085,7 @@ bool FF16_Strategy<S>::assimilation_deep_crown_rows(
+   }
+   if (!ok) {
+     for (std::size_t k : touched) {
+-      span_rows[k] = {0.0, 0.0, 0.0, 0.0};
++      knot_rows[k] = {0.0, 0.0};
+       is_touched[k] = 0;
+     }
+     return false;
+@@ -1094,9 +1099,9 @@ bool FF16_Strategy<S>::assimilation_deep_crown_rows(
+   rows.push_back({height, al * dh});
+   rows.push_back({field.height_max_, al * dtop});
+   for (std::size_t k : touched) {
+-    const auto c = spline.span_coefficients(k);
+-    for (int i = 0; i < 4; ++i) rows.push_back({*c[i], al * span_rows[k][i]});
+-    span_rows[k] = {0.0, 0.0, 0.0, 0.0};
++    rows.push_back({spline.values()[k], al * knot_rows[k][0]});
++    rows.push_back({spline.slopes()[k], al * knot_rows[k][1]});
++    knot_rows[k] = {0.0, 0.0};
+     is_touched[k] = 0;
+   }
+   const odelia::record_report report =
+-- 
+2.43.0
+
