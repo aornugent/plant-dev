@@ -60,6 +60,9 @@ Four of these deserve a sentence each on why the match is exact, not loose.
   fold is the critical rate of climate change.
 - Chevin, Lande & Mace (2010) give the same structure with B, b, ω and r_max as
   free parameters. Here every one except M is computed.
+- The constant lag assumes fitness quadratic near θ*. Where it is not,
+  tracking can fail abruptly at a tipping point a constant lag misses (Osmond &
+  Klausmeier 2017). A fold of G in (θ, c, ċ) detects it.
 
 **The communal ideotype is the commons vector, in a stand metric.**
 - Donald's (1968) ideotype is a weak competitor that yields more as a crop.
@@ -140,12 +143,137 @@ land managers in south-eastern Australia ask now.
   - (g) calibration of physiology through the evolved outcome;
   - (h) the plastic and evolved partition of a trait's climate response;
   - (i) the solver's spectrum as the ecological classification.
+- **Unchanged and still standing:** (a), (d) and (e).
 
 ## 5. Verdicts on the new claims
 
-Pending the novelty search.
+A targeted search (web, Crossref, Europe PMC, the PSPManalysis manual; to
+21 Oct 2026) on ten claims. Absence of evidence is not proof of absence.
+
+| claim | closest prior work | verdict |
+|---|---|---|
+| dθ*/dc by implicit differentiation or adjoint, in a mechanistic model | analytic ESS along gradients (Dybzinski et al. 2011; Farrior et al. 2015); numerical continuation of singular points with finite-difference Jacobians in a constant environment (Dercole, Irisson & Rinaldi 2003; PSPManalysis's "ESS" curves, which detect limit and branching points) | partly novel: new with exact second derivatives, many inputs c and variable climate |
+| calibrating physiology through the evolved outcome | economics estimates structural equilibria as constrained optimisation (Su & Judd 2012); games' payoffs learned by differentiating through the equilibrium (Ling, Fang & Kolter 2018); in ecology, ESS predictions compared with data but not fitted (Dybzinski et al. 2011) | novel in ecology; the method exists elsewhere |
+| plastic and evolved parts of a trait's climate slope, in one model | Plant-FATE has acclimation and evolution but no partition; empirical partitions (Dong et al. 2020, Australian transect; Kumarathunge et al. 2019) | partly novel |
+| function-valued traits by adjoint in a forest model | optimal-control allocation (King & Roughgarden 1982; Iwasa & Roughgarden 1984); open- against closed-loop conditions under interaction (Avila, Priklopil & Lehmann 2021) | partly novel: the numerical realisation |
+| species limits as folds of the evolved outcome | gene-flow range limits (Kirkpatrick & Barton 1997); biophysical models with trait change (Kearney et al. 2009); evolutionary suicide as a fold (Gyllenberg & Parvinen 2001); PSPManalysis limit points | partly novel |
+| exact split of dy/dc into traits-fixed and evolved parts | chain-rule partitions along time series (Hairston et al. 2005; Ellner, Geber & Hairston 2011; Govaert, Pantel & De Meester 2016); by simulation (Sakschewski et al. 2016) | partly novel |
+| moving optimum and lag in a mechanistic plant model | Lynch & Lande 1993; Bürger & Lynch 1995; competition slows tracking (Johansson 2008); tipping points (Osmond & Klausmeier 2017); process-based tree models with quantitative genetics (Oddou-Muratorio & Davi 2014) | partly novel |
+| Caswell-type elasticities from a mechanistic forest model's adjoint | IPMs built from a mechanistic individual model (Smallegange et al. 2017); tree IPMs from plot data (Zuidema et al. 2010; Needham et al. 2018; COMPADRE) | partly novel |
+| classification from Newton–Krylov Ritz values | Newton–Krylov with Arnoldi stability analysis in fluid dynamics (Tuckerman & Barkley 2000; Sánchez et al. 2004); the recursive projection method (Shroff & Keller 1993); nothing in evolutionary games | novel as an application; the method is borrowed |
+| uncertainty and identifiability of an evolved prediction from the Hessian | CCDAS posteriors from the Hessian, for fluxes (Ziehn, Scholze & Knorr 2012); sloppy models (Gutenkunst et al. 2007) | novel as an application |
+
+**What is new is the combination** (*judgement*): exact second derivatives,
+implicit differentiation and adjoints over many inputs, and transpose solves
+for calibration and attribution, in a mechanistic model under variable
+climate. Each piece alone has precedent. **PSPManalysis is the reference to
+cite and to benchmark against** for comparative statics and folds.
+
+**Three corrections to claims made here and in `formulation.md`:**
+1. **The Krylov count is not the number of selection modes.** GMRES's count is
+   bounded by the number of eigenvalue clusters of the operator (Campbell et
+   al. 1996), not by its rank. It reads as modes only if M S is near a multiple
+   of the identity plus a low-rank part, which needs a preconditioner. Arnoldi
+   also finds the eigenvalues nearest zero slowly, and those are the
+   near-neutral directions; harmonic Ritz values (Morgan 2002) do better.
+2. **A fold is a niche limit at a site, not a range limit.** Gene flow along a
+   gradient can only pull the limit inward (Kirkpatrick & Barton 1997), so the
+   fold is an outer bound.
+3. **The linear lag needs quadratic fitness** (§1, Osmond & Klausmeier 2017).
+
+## 6. What the search adds to the design
+
+1. **Calibrate with the root as a constraint** (Su & Judd 2012). Minimise the
+   misfit over (x, c) subject to G(x; c) = 0, instead of solving the root
+   inside every step of a calibration. The transpose solve of `formulation.md`
+   §3 is this problem's adjoint.
+2. **A free sign check** (Echenique 2002, Samuelson's correspondence
+   principle). For one trait, dθ*/dc = −g_c/S, so at a convergence-stable
+   point the sign of dθ*/dc is the sign of g_c. Chord results that disagree
+   are wrong.
+3. **When evolution must amplify a response** (the Le Chatelier–Samuelson
+   principle; Milgrom 2006). Where a potential exists, letting traits adjust
+   can only strengthen a quantity's response to its own parameter. The s₁₂
+   symmetry test (`theory.md`) therefore also says when evolution amplifies.
+4. **Identifiability is the row space of dx*/dc.** Evolved-trait data identify
+   only the combinations of c in that row space. Under input uncertainty Σ_c
+   the outcome's covariance is about (dx*/dc) Σ_c (dx*/dc)ᵀ. If H1 holds, the
+   model is sloppy in exactly the directions selection ignores.
+5. **A ready test for the plastic and evolved partition:** Dong et al. (2020)
+   measured it along an Australian transect. Within-species variation is under
+   10% of geographic variation in leaf area, and over 90% for χ.
+6. **Height-dependent allocation is a closed-loop trait** (a function of
+   state, not of age). Open- and closed-loop conditions differ when
+   individuals interact (Avila, Priklopil & Lehmann 2021). For an invader in a
+   held field they should coincide (*judgement*, to check).
 
 ## References
+
+The search in §5–6 cites these, each resolved on Crossref; references
+already in `literature.md` are not repeated.
+
+- Avila, P., Priklopil, T. & Lehmann, L. (2021). *J. Theor. Biol.* 526:
+  110602. doi:10.1016/j.jtbi.2021.110602
+- Bürger, R. & Lynch, M. (1995). *Evolution* 49: 151. doi:10.2307/2410301
+- Campbell, S.L., Ipsen, I.C.F., Kelley, C.T. & Meyer, C.D. (1996). *BIT* 36:
+  664. doi:10.1007/BF01733786
+- Dercole, F., Irisson, J.-O. & Rinaldi, S. (2003). *SIAM J. Appl. Math.* 63:
+  1378–1391. doi:10.1137/S0036139902411612
+- de Roos, A.M. PSPManalysis (R package; CRAN reference manual, "ESS" curves).
+- Dong, N. et al. (2020). *New Phytol.* 228: 82–94. doi:10.1111/nph.16558
+- Echenique, F. (2002). *Econometrica* 70: 833–844.
+  doi:10.1111/1468-0262.00308
+- Ellner, S.P., Geber, M.A. & Hairston, N.G. (2011). *Ecol. Lett.* 14: 603.
+  doi:10.1111/j.1461-0248.2011.01616.x
+- Govaert, L., Pantel, J.H. & De Meester, L. (2016). *Ecol. Lett.* 19: 839.
+  doi:10.1111/ele.12632
+- Gutenkunst, R.N. et al. (2007). *PLoS Comput. Biol.* 3: e189.
+  doi:10.1371/journal.pcbi.0030189
+- Gyllenberg, M. & Parvinen, K. (2001). *Bull. Math. Biol.* 63: 981.
+  doi:10.1006/bulm.2001.0253
+- Hairston, N.G. et al. (2005). *Ecol. Lett.* 8: 1114.
+  doi:10.1111/j.1461-0248.2005.00812.x
+- Iwasa, Y. & Roughgarden, J. (1984). *Theor. Popul. Biol.* 25: 78.
+  doi:10.1016/0040-5809(84)90007-8
+- Johansson, J. (2008). *Evolution* 62: 421.
+  doi:10.1111/j.1558-5646.2007.00301.x
+- Kearney, M. et al. (2009). *Funct. Ecol.* 23: 528.
+  doi:10.1111/j.1365-2435.2008.01538.x
+- King, D. & Roughgarden, J. (1982). *Theor. Popul. Biol.* 22: 1.
+  doi:10.1016/0040-5809(82)90032-6
+- Kirkpatrick, M. & Barton, N.H. (1997). *Am. Nat.* 150: 1. doi:10.1086/286054
+- Kumarathunge, D.P. et al. (2019). *New Phytol.* 222: 768.
+  doi:10.1111/nph.15668
+- Ling, C.K., Fang, F. & Kolter, J.Z. (2018). IJCAI.
+  doi:10.24963/ijcai.2018/55
+- Lynch, M. & Lande, R. (1993). In Kareiva, Kingsolver & Huey (eds), *Biotic
+  Interactions and Global Change*, Sinauer. (Chapter; no DOI.)
+- Milgrom, P. (2006). In *Samuelsonian Economics*, OUP.
+  doi:10.1093/acprof:oso/9780199298839.003.0020
+- Morgan, R.B. (2002). *SIAM J. Sci. Comput.* 24: 20.
+  doi:10.1137/S1064827599364659
+- Needham, J. et al. (2018). *Proc. R. Soc. B* 285: 20172050.
+  doi:10.1098/rspb.2017.2050
+- Oddou-Muratorio, S. & Davi, H. (2014). *Evol. Appl.* 7: 453.
+  doi:10.1111/eva.12143
+- Osmond, M.M. & Klausmeier, C.A. (2017). *Evolution* 71: 2930–2941.
+  doi:10.1111/evo.13374
+- Sánchez, J., Net, M., García-Archilla, B. & Simó, C. (2004). *J. Comput.
+  Phys.* 201: 13. doi:10.1016/j.jcp.2004.04.018
+- Shroff, G.M. & Keller, H.B. (1993). *SIAM J. Numer. Anal.* 30: 1099.
+  doi:10.1137/0730057
+- Smallegange, I.M. et al. (2017). *Methods Ecol. Evol.* 8: 146.
+  doi:10.1111/2041-210X.12675
+- Su, C.-L. & Judd, K.L. (2012). *Econometrica* 80: 2213–2230.
+  doi:10.3982/ECTA7925
+- Tuckerman, L.S. & Barkley, D. (2000). IMA Vol. Math. Appl. 119: 453.
+  doi:10.1007/978-1-4612-1208-9_20
+- Ziehn, T., Scholze, M. & Knorr, W. (2012). *Global Biogeochem. Cycles* 26.
+  doi:10.1029/2011GB004185
+- Zuidema, P.A. et al. (2010). *J. Ecol.* 98: 345.
+  doi:10.1111/j.1365-2745.2009.01626.x
+
+Cited in §1–4:
 
 - Abrams, P.A. (1993). Does increased mortality favor the evolution of more
   rapid senescence? *Evolution* 47: 877–887. doi:10.2307/2410191

@@ -108,7 +108,7 @@ products. Read them:
 |---|---|
 | converges; the Ritz values of M S have negative real parts | a convergence-stable singular community |
 | converges; some have positive real parts | a repeller: a root evolution does not reach |
-| needs few Krylov iterations | G_x acts in a low-dimensional subspace: few selection modes, which is H1 measured by the solver |
+| needs few Krylov iterations | few eigenvalue clusters (Campbell et al. 1996), which is few selection modes only once preconditioned so that M S is near a multiple of the identity plus a low-rank part (`novelty-revisited.md` §5) |
 | converges slowly in some directions | small eigenvalues: near-neutral traits, which is Falster et al. 2017's evolved near-neutrality |
 | G_x singular or ill-conditioned along a path in c | a regime boundary: a species gained or lost, or branching |
 | deflation finds further distinct roots | alternative stable communities: founder control, expected under one-sided light competition (`lateral-games.md` §3) |
@@ -221,8 +221,9 @@ radius.
 
 1. **G_x v by chords agrees with differences of re-solved roots.** This is the
    smallest test in `opportunity.md` §6, dθ*/d(mean rainfall) for one trait.
-2. **Krylov iteration counts on G_x** for lma alone, then two traits, then all
-   traits on one climate. Their growth with k is H1's first number.
+2. **Krylov iteration counts on the preconditioned G_x** for lma alone, then
+   two traits, then all traits on one climate. Their growth with k is H1's
+   first number, read as clusters, not rank.
 3. **Ritz-value classification** agrees with regnans's classifier on its toy
    models, which have closed forms (`regnans.md` §2).
 4. **B with a few records** at a common b: whether the sensitivity's spread across
