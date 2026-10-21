@@ -1,0 +1,46 @@
+The first pass, transcribed from its logs before a container restart removed them
+(same script, the same plant #116 build in a library since deleted; times in seconds).
+
+dry: pilot J(1) 1.19837, b0 1.10829. Refine converged at level 0, 230 nodes, worst
+  bound 0.38 (a_l1); cpu first 33.7, level0 96.4 + sweep 204.9, replay 37.5 + 161.3;
+  refine 552.8. Newton from the refine's run: b 1.10829 F -4.403e-2 slope -1.20482;
+  b* 1.0863793 F -6.788e-5 slope -1.19528 secant -1.20143; 1 run, 306.7.
+  Sweep 264.6: d ln R'/d ln lma -23.20097. Landscape 551.1: 6.5684 4.6767 2.7662
+  1.0727 -6.8e-5 -1.2431 -5.6530 -19.1988 -46.2496. Central difference 236.6:
+  -23.20108 (h 1e-4), -23.20116 (h 1e-3). Hill: lma 0.304, Newton from 1.7709 to
+  b* 1.283268 in 4 runs, 1247.9; back invasion 58.6, ln R' -1.1741. Total 3255.0.
+long-drought: J(1) 12.7089, b0 4.23968. Refine converged at level 0; cpu first 49.5,
+  level0 129.7 + 302.8, replay 65.4 + 234.5; refine 805.4. Newton: 4.23968 F +0.1710
+  slope -0.73797; 4.677994 F -7.58e-4 slope -0.75245 secant -0.74567; b* 4.6759709
+  F +8.035e-5 slope -0.75277; 2 runs, 907.5. Sweep 361.5: -23.81080. Landscape 817.6:
+  6.1836 4.4544 2.6458 1.0570 8.0e-5 -1.3532 -6.5388 -26.2324 -49.4399. Central
+  difference 356.6: -23.81090, -23.81025. Hill: from 8.546 to b* 5.47688 in 3 runs,
+  1364.4; back 92.0, ln R' -1.3434. Total 4751.7.
+long-wet: J(1) 18.4669, b0 5.24254. Refine converged at level 0, 229 nodes, worst
+  bound 0.26 (a); cpu first 50.1, level0 136.7 + 340.7, replay 65.7 + 240.5; refine
+  858.4. Newton: 5.24254 F +0.4262 slope -0.57462; 6.8722 F -3.067e-3 slope -0.59424
+  secant -0.58595; b* 6.8590204 F +5.8e-5 slope -0.59575; 2 runs, 954.5. Sweep 415.1:
+  -26.99210. Landscape 890.9: 6.4026 4.6696 2.8249 1.1605 5.8e-5 -1.5632 -7.3975
+  -28.8659 -49.9423. Hill: from 14.19 to b* 8.21460 in 3 runs, 1478.9.
+seasonal: J(1) 15.0966, b0 4.67539. Refine converged at level 0, 234 nodes, worst
+  bound 0.29 (a_l1); cpu first 47.2, level0 128.9 + 295.7, replay 62.1 + 190.5;
+  refine 740.9. Central difference -24.02877, -24.02867 against the sweep's
+  -24.02872. Landscape (x1.05 up) -1.3536 -6.3897 -25.6677 -49.6871. Hill: from
+  10.525 to b* 6.5851 in 3 runs, 1361.4; back 91.8, ln R' -1.3600. Total 4684.2.
+constant: J(1) 0.516174, b0 0.686777. Refine unconverged at level 4, 354 nodes,
+  2 passes, worst bound 2.34 (a_l1); cpu first 17.2, level0 7.4 + 16.9, replay
+  3.9 + 9.9, level4 105.1 + 257.0; refine 426.2. Newton, 7 runs, 2706.7:
+  b 0.6868 F +6.058 slope +0.991; 1.8669 F +4.939 slope +0.023 secant -0.119;
+  5.0746 F +3.760 slope -1.275 secant -0.179; 13.794 F +2.884 slope -1.151
+  secant +0.124; 22.743 F +0.6467 slope -7.127 secant -3.475; 24.627 F -0.0598
+  slope -8.601 secant -7.879; 24.4737 F -3.34e-4 slope -8.493 secant -8.547;
+  b* 24.472882 F -1.3e-8 slope -8.49267 secant -8.49288. b*/b0 35.6: rebuilt;
+  the refine at b* unconverged at level 4, 257 nodes, worst bound 4.72 (a_f2),
+  323.9. Lost before its second Newton finished.
+episodic: J(1) 1.95217, b0 1.46240. Refine converged at level 0, 201 nodes, worst
+  bound 0.38 (a_l1); cpu first 30.5, level0 73.4 + 177.0, replay 31.7 + 112.1;
+  refine 433.2. Newton: 1.46240 F -0.1228 slope -1.19102; 1.38269 F -4.85e-4 slope
+  -1.16903 secant -1.18237; b* 1.382382 F -3.675e-5 slope -1.17050; 2 runs, 509.8.
+  Sweep 198.8: -17.87477. Landscape 470.3: 5.8826 4.0638 2.2857 0.8436 -3.7e-5
+  -0.9487 -4.6552 -16.4864 -44.8978. Lost during its central differences.
+dry-flat: not reached.
