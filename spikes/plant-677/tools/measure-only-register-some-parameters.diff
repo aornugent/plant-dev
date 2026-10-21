@@ -1,0 +1,32 @@
+diff --git a/inst/include/odelia/adjoint.hpp b/inst/include/odelia/adjoint.hpp
+index d8da9ac..eab9aed 100644
+--- a/inst/include/odelia/adjoint.hpp
++++ b/inst/include/odelia/adjoint.hpp
+@@ -440,8 +440,17 @@ std::size_t state_and_parameter_adjoints(
+     // is split back out by position.
+     std::vector<scalar> state_active(state.begin(), state.end());
+     tape.registerInputs(state_active);
+-    for (scalar* p : parameters) {
+-        tape.registerInput(*p);
++    // MEASUREMENT ONLY: register just the listed parameter indices.
++    static const std::vector<std::size_t> only = [] {
++      std::vector<std::size_t> v;
++      if (const char* e = std::getenv("ODELIA_ONLY_PARAMS")) {
++        std::string s(e); std::size_t a = 0;
++        while (a < s.size()) { std::size_t b = s.find(',', a); if (b == std::string::npos) b = s.size(); v.push_back(std::stoul(s.substr(a, b - a))); a = b + 1; }
++      }
++      return v;
++    }();
++    for (std::size_t i = 0; i < parameters.size(); ++i) {
++        if (only.empty() || std::find(only.begin(), only.end(), i) != only.end()) tape.registerInput(*parameters[i]);
+     }
+     tape.newRecording();
+ 
+@@ -466,6 +475,7 @@ std::size_t state_and_parameter_adjoints(
+             xad::derivative(state_active[i]) = 0.0;
+         }
+         for (std::size_t p = 0; p < n_parameter; ++p) {
++            if (parameters[p]->getSlot() == scalar::INVALID_SLOT) continue;
+             parameter_adjoint[m][p] += xad::derivative(*parameters[p]);
+             xad::derivative(*parameters[p]) = 0.0;
+         }

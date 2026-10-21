@@ -1,0 +1,23 @@
+suppressMessages(library(odelia))
+dyn.load(file.path(find.package("plant"), "libs", "plant.so"), local = FALSE)
+suppressMessages(library(plant))
+Sys.setenv(PKG_CPPFLAGS = "-DXAD_NO_THREADLOCAL -DXAD_USE_STRONG_INLINE")
+Rcpp::sourceCpp(file.path(Sys.getenv("S"), "tan", "probe_tangent.cpp"), cacheDir = file.path(Sys.getenv("S"), "tan", "cache"), rebuild = TRUE)
+tm <- function(expr, n = 5) { e <- substitute(expr); f <- parent.frame(); median(replicate(n, system.time(eval(e, f))[["elapsed"]])) }
+p <- scm_base_parameters("FF16"); p$max_patch_lifetime <- as.numeric(Sys.getenv("LT", "60"))
+p <- add_strategies(p, trait_matrix(0.0825, "lma"), birth_rate = list(1))
+ctrl <- Control(node_density_in_birth_date = TRUE)
+run <- tm(run_scm(p, NULL, ctrl))
+scm <- run_scm(p, NULL, ctrl, record_trajectory = TRUE)
+g <- stand_gradient(scm)
+d <- numeric(ncol(g$gradient)); d[1] <- 1
+tg <- tangent_ff16(scm, d)
+cat("metrics:", rownames(g$gradient), "\n")
+cat("reverse lma column:", format(g$gradient[, 1], digits = 12), "\n")
+cat("tangent           :", format(tg$tangent, digits = 12), "\n")
+cat("max rel diff      :", max(abs(tg$tangent - g$gradient[, 1]) / abs(g$gradient[, 1])), "\n")
+t_tan <- tm(tangent_ff16(scm, d))
+t_one <- tm(stand_gradient(scm, metrics = rownames(g$gradient)[1]))
+t_all <- tm(stand_gradient(scm), 3)
+cat(sprintf("forward %.4f | tangent, 1 trait x all %d metrics %.3f (%.1fx) | reverse 1 metric %.3f (%.1fx) | reverse all metrics %.3f (%.1fx)\n",
+    run, nrow(g$gradient), t_tan, t_tan / run, t_one, t_one / run, t_all, t_all / run))

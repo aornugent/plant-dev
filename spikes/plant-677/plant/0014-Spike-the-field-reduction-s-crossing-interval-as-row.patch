@@ -1,0 +1,225 @@
+From 63edf15aad500195e1176547a4c7cca82437dd3f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 07:25:24 +0000
+Subject: [PATCH] Spike: the field reduction's crossing interval as rows on the
+ two nodes
+
+---
+ inst/include/plant/canopy_shape.h         |  7 +++
+ inst/include/plant/individual.h           | 10 ++++
+ inst/include/plant/models/ff16_strategy.h | 46 +++++++++++++++
+ inst/include/plant/node.h                 |  5 ++
+ inst/include/plant/species.h              | 69 ++++++++++++++++++-----
+ 5 files changed, 123 insertions(+), 14 deletions(-)
+
+diff --git a/inst/include/plant/canopy_shape.h b/inst/include/plant/canopy_shape.h
+index 6593e5e7..d31b2f0d 100644
+--- a/inst/include/plant/canopy_shape.h
++++ b/inst/include/plant/canopy_shape.h
+@@ -194,6 +194,13 @@ public:
+   // competition by its leaf area and density. On the deep crown each half is one
+   // expression, the same operations in the same order, so where a value and its
+   // scaling would be three statements apiece they are one.
++  const S& eta() const { return eta_; }
++  // (z / H)^eta at double, rounded as the active chain rounds it.
++  double pow_eta_at(double z_over_height) const {
++    return odelia::util::to_passive(pow_eta(S(z_over_height)));
++  }
++  bool deep_crown() const { return shading_model_ == ShadingModel::DeepCrown; }
++
+   std::pair<S, S> Q_and_q_times(const S& z_over_height, const S& z,
+                                 const S& height_inverse, const S& k,
+                                 const S& a, const S& b) const {
+diff --git a/inst/include/plant/individual.h b/inst/include/plant/individual.h
+index fa927895..eaf71fed 100644
+--- a/inst/include/plant/individual.h
++++ b/inst/include/plant/individual.h
+@@ -106,6 +106,16 @@ public:
+     return strategy->compute_competition_and_slope(z, vars, scale);
+   }
+ 
++  template <class Rows>
++  bool competition_and_slope_rows(const value_type& z, const value_type& scale,
++                                  Rows& out) const
++    requires requires(const strategy_type& s, const Internals<value_type>& v) {
++      s.competition_and_slope_rows(z, v, scale, out);
++    }
++  {
++    return strategy->competition_and_slope_rows(z, vars, scale, out);
++  }
++
+   // d(leaf area)/d(height), for a caller pulling a leaf-area adjoint back.
+   value_type darea_leaf_dheight() const {
+     return strategy->darea_leaf_dheight(aux("competition_effect"));
+diff --git a/inst/include/plant/models/ff16_strategy.h b/inst/include/plant/models/ff16_strategy.h
+index 11cc911f..489b9c78 100644
+--- a/inst/include/plant/models/ff16_strategy.h
++++ b/inst/include/plant/models/ff16_strategy.h
+@@ -716,6 +716,52 @@ public:
+     return {std::move(scaled.first), std::move(scaled.second)};
+   }
+ 
++  // compute_competition_and_slope(z, vars, density) at double, with each half's
++  // rows on z, height_inverse, area_leaf, density and k_I.
++  struct competition_rows {
++    double value, slope;
++    std::array<const S*, 5> in;
++    std::array<double, 5> dvalue, dslope;
++  };
++  // False outside the deep crown's profile, where the caller records the pair.
++  bool competition_and_slope_rows(const S& z, const Internals<S>& vars,
++                                  const S& density, competition_rows& out) const {
++    using odelia::util::to_passive;
++    const S& area_leaf_ = vars.aux(COMPETITION_EFFECT_AUX_INDEX);
++    const S& height_inverse = vars.aux(HEIGHT_INVERSE_AUX_INDEX);
++    const double zd = to_passive(z), hinv = to_passive(height_inverse);
++    const double u = zd * hinv;
++    if (!canopy_shape.deep_crown() || zd <= 0.0) {
++      return false;
++    }
++    out.in = {&z, &height_inverse, &area_leaf_, &density, &pars.k_I};
++    if (u > 1.0) {
++      // Above the crown: an exact zero, with no rows.
++      out.value = out.slope = 0.0;
++      out.dvalue = out.dslope = {};
++      return true;
++    }
++    const double eta = to_passive(canopy_shape.eta());
++    const double w = canopy_shape.pow_eta_at(u);
++    const double k = to_passive(pars.k_I), a = to_passive(area_leaf_),
++                 b = to_passive(density);
++    // Rounded as Q_and_q_times rounds them.
++    out.value = b * ((k * a) * ((1.0 - w) * (1.0 - w)));
++    out.slope = b * (-((k * a) * (2.0 * eta * (1.0 - w) * w / zd)));
++    // value = c (1 - w)^2 and slope = -2 eta c (1 - w) w / z, with c = k a b and
++    // w = (z height_inverse)^eta.
++    const double c = k * a * b, Q = (1.0 - w) * (1.0 - w), g = (1.0 - w) * w / zd;
++    const double dw_dz = eta * w / zd, dw_dhinv = eta * w / hinv;
++    const double dvalue_dw = -2.0 * c * (1.0 - w);
++    const double dslope_dw = -2.0 * eta * c * (1.0 - 2.0 * w) / zd;
++    out.dvalue = {dvalue_dw * dw_dz, dvalue_dw * dw_dhinv, k * b * Q, k * a * Q,
++                  a * b * Q};
++    out.dslope = {dslope_dw * dw_dz + 2.0 * eta * c * g / zd,
++                  dslope_dw * dw_dhinv, -2.0 * eta * k * b * g,
++                  -2.0 * eta * k * a * g, -2.0 * eta * a * b * g};
++    return true;
++  }
++
+   // [      ] Inverse of Q: height above which fraction 'x' of leaf found
+   S Qp(const S& x, const S& height) const;
+ 
+diff --git a/inst/include/plant/node.h b/inst/include/plant/node.h
+index 2e92c7b2..751d9acc 100644
+--- a/inst/include/plant/node.h
++++ b/inst/include/plant/node.h
+@@ -34,6 +34,11 @@ public:
+   // weighted by density. The first entry equals compute_competition(z) exactly.
+   with_slope<value_type>
+   compute_competition_and_slope(const value_type& z) const;
++  // The same pair at double with its rows, where the strategy supplies them.
++  template <class Rows>
++  bool competition_and_slope_rows(const value_type& z, Rows& out) const {
++    return individual.competition_and_slope_rows(z, density, out);
++  }
+   value_type fecundity() const {return offspring_produced_survival_weighted;}
+ 
+   // The survival factor offspring_produced_survival_weighted_dt multiplies. It
+diff --git a/inst/include/plant/species.h b/inst/include/plant/species.h
+index 0e1e1aaf..9dce81f4 100644
+--- a/inst/include/plant/species.h
++++ b/inst/include/plant/species.h
+@@ -863,8 +863,8 @@ void Species<T,E>::split_with_rows(const value_type& height, const Moments& pref
+   const auto wc = shape.height_weight_curvatures(z);
+   // Rows: the moment prefix sums, the height, then the crossing interval's two
+   // ends. The value and the slope read the same inputs.
+-  std::array<const value_type*, 6> in;
+-  std::array<double, 6> dv, ds_rows;
++  std::array<const value_type*, 16> in;
++  std::array<double, 16> dv, ds_rows;
+   std::size_t n_rows = 0;
+   // In the recorded loop's order, so the numbers are its numbers.
+   double v = 0.0, s = 0.0, ds = 0.0;
+@@ -881,10 +881,59 @@ void Species<T,E>::split_with_rows(const value_type& height, const Moments& pref
+   in[n_rows] = &height;
+   dv[n_rows] = s;
+   ds_rows[n_rows++] = ds;
++  std::array<const value_type*, 16> in_slope = in;
++  auto record = [&](double value, const std::array<const value_type*, 16>& from,
++                    const std::array<double, 16>& d, value_type& into) {
++    const odelia::record_report report = odelia::record_with_derivatives<value_type>(
++        value, std::span<const value_type* const>(from.data(), n_rows),
++        std::span<const double>(d.data(), n_rows), into);
++    if (!report.whole) {
++      util::stop("field_splits: " + report.why);
++    }
++  };
++  c.x1 = abscissa[last];
++  const bool crossing = stop < nodes.size();
++  if constexpr (requires { typename strategy_type::competition_rows; }) {
++    typename strategy_type::competition_rows at_last, at_above;
++    if (nodes[last].competition_and_slope_rows(height, at_last) &&
++        (!crossing ||
++         nodes[stop - 1].competition_and_slope_rows(height, at_above))) {
++      if (crossing) {
++        const double width = abscissa[stop] - abscissa[stop - 1];
++        v += width * (at_above.value + at_last.value);
++        s += width * (at_above.slope + at_last.slope);
++        for (const auto* r : {&at_above, &at_last}) {
++          for (std::size_t j = 0; j < r->in.size(); ++j) {
++            in[n_rows] = r->in[j];
++            dv[n_rows] = width * r->dvalue[j];
++            ds_rows[n_rows++] = width * r->dslope[j];
++          }
++        }
++      }
++      record(v, in, dv, c.sum.value);
++      record(s, in, ds_rows, c.sum.slope);
++      c.closes = closes_on(value_type(at_last.value));
++      // Read only by the closing, and only where it closes.
++      if (c.closes) {
++        const auto rows = [](const std::array<double, 5>& d) {
++          std::array<double, 16> out{};
++          std::copy(d.begin(), d.end(), out.begin());
++          return out;
++        };
++        std::array<const value_type*, 16> last_in{};
++        std::copy(at_last.in.begin(), at_last.in.end(), last_in.begin());
++        n_rows = at_last.in.size();
++        record(at_last.value, last_in, rows(at_last.dvalue), c.at_x1.value);
++        record(at_last.slope, last_in, rows(at_last.dslope), c.at_x1.slope);
++      } else {
++        c.at_x1 = {value_type(at_last.value), value_type(at_last.slope)};
++      }
++      return;
++    }
++  }
+   with_slope<value_type> fs_last = nodes[last].compute_competition_and_slope(height);
+   with_slope<value_type> fs_above{value_type(0.0), value_type(0.0)};
+-  std::array<const value_type*, 6> in_slope = in;
+-  if (stop < nodes.size()) {
++  if (crossing) {
+     fs_above = nodes[stop - 1].compute_competition_and_slope(height);
+     const double width = abscissa[stop] - abscissa[stop - 1];
+     v += width * (to_passive(fs_above.value) + to_passive(fs_last.value));
+@@ -898,16 +947,8 @@ void Species<T,E>::split_with_rows(const value_type& height, const Moments& pref
+     dv[n_rows] = ds_rows[n_rows] = width;
+     ++n_rows;
+   }
+-  const odelia::record_report rv_report = odelia::record_with_derivatives<value_type>(
+-      v, std::span<const value_type* const>(in.data(), n_rows),
+-      std::span<const double>(dv.data(), n_rows), c.sum.value);
+-  const odelia::record_report rs_report = odelia::record_with_derivatives<value_type>(
+-      s, std::span<const value_type* const>(in_slope.data(), n_rows),
+-      std::span<const double>(ds_rows.data(), n_rows), c.sum.slope);
+-  if (!rv_report.whole || !rs_report.whole) {
+-    util::stop("field_splits: " + (rv_report.whole ? rs_report.why : rv_report.why));
+-  }
+-  c.x1 = abscissa[last];
++  record(v, in, dv, c.sum.value);
++  record(s, in_slope, ds_rows, c.sum.slope);
+   c.at_x1 = std::move(fs_last);
+   c.closes = closes_on(c.at_x1.value);
+ }
+-- 
+2.43.0
+

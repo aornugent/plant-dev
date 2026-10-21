@@ -1,0 +1,103 @@
+From 7adecb59f2c832cc3a7d637941078b44de8333c0 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 07:25:24 +0000
+Subject: [PATCH] Spike: one active System for a descent, re-seated at each
+ width
+
+---
+ inst/include/odelia/adjoint.hpp    | 14 ++++++++++++++
+ inst/include/odelia/ode_solver.hpp | 17 +++++++++--------
+ 2 files changed, 23 insertions(+), 8 deletions(-)
+
+diff --git a/inst/include/odelia/adjoint.hpp b/inst/include/odelia/adjoint.hpp
+index d8da9ac..319777e 100644
+--- a/inst/include/odelia/adjoint.hpp
++++ b/inst/include/odelia/adjoint.hpp
+@@ -261,6 +261,20 @@ struct active_system {
+     }
+   }
+ 
++  // `passive`'s width, state and records, in place where the rebound System can
++  // be assigned from its double form, and by a fresh rebind otherwise. The
++  // System is released first, so values dropped in place hand their slots back.
++  void reseat(const System& passive) {
++    if constexpr (requires(system_type& a) { a.assign_from(passive); }) {
++      release();
++      system.assign_from(passive);
++    } else {
++      release();
++      system = passive.template rebind_from<scalar>();
++    }
++    parameters = system.ad_parameters();
++  }
++
+   system_type system;
+   std::vector<scalar*> parameters;
+ };
+diff --git a/inst/include/odelia/ode_solver.hpp b/inst/include/odelia/ode_solver.hpp
+index 3572edc..3996d7b 100644
+--- a/inst/include/odelia/ode_solver.hpp
++++ b/inst/include/odelia/ode_solver.hpp
+@@ -525,6 +525,8 @@ public:
+     // where one tape per recording regrows it every time.
+     ode::adjoint_tape<double> tape(false);
+     ode::tape_scope<ode::adjoint_tape<double>> running{tape};
++    // One active System for the descent, re-seated at each width it reaches.
++    ode::active_system<System> active{system, tape};
+ 
+     // One range per width, highest first: the System is put at the range's top, so
+     // whoever narrows it is whoever rebinds on it and no descent inherits a width
+@@ -544,7 +546,7 @@ public:
+       // cohort: a step with no state has no output, so it carries no adjoint and
+       // adds nothing to any parameter's.
+       if (lo < hi && lambda.width() > 0) {
+-        sweep_range(tape, rec, lambda, parameter_adjoint, lo, hi);
++        sweep_range(active, rec, lambda, parameter_adjoint, lo, hi);
+         ++swept;
+       }
+     };
+@@ -574,9 +576,8 @@ public:
+       // The map that widened `at`, transposed at the width below it -- which is
+       // the width the range below runs at, and the width the row below holds.
+       //
+-      // Its active System is its own and dies with it, because applying the map is
+-      // what widens the System: what this records on cannot be swept at the width
+-      // it started from.
++      // Recorded on the descent's active System re-seated at the narrower width.
++      // Applying the map widens it, so the range below re-seats it again.
+       ode::be_at_step(system, rec, at - 1);
+       const double when = rec[at].time;
+       // A System that declares no map passes its state through, which is only a
+@@ -603,9 +604,9 @@ public:
+                         std::vector<scalar>& y) -> void {
+         ode::apply_insertion(sys, when, x, y);
+       };
+-      ode::active_system<System> widened{system, tape};
++      active.reseat(system);
+       ode::adjoint_rows narrowed;
+-      ode::state_and_parameter_adjoints(widened, rec[at - 1].state, lambda, insert,
++      ode::state_and_parameter_adjoints(active, rec[at - 1].state, lambda, insert,
+                                        narrowed, parameter_adjoint);
+       lambda = std::move(narrowed);
+       hi = at - 1;
+@@ -640,7 +641,7 @@ private:
+   //
+   // Every state visited has to be that width, so a range an insertion crossed is
+   // refused by the length check inside the loop rather than swept at one width.
+-  void sweep_range(ode::adjoint_tape<double>& tape,
++  void sweep_range(ode::active_system<System>& active,
+                    std::span<const ode::step_record<System>> rec,
+                    ode::adjoint_rows& lambda, ode::adjoint_rows& parameter_adjoint,
+                    size_t k_first, size_t k_last)
+@@ -648,7 +649,7 @@ private:
+     if (lambda.empty()) {
+       util::stop("solve_adjoint: needs at least one seed");
+     }
+-    ode::active_system<System> active{system, tape};
++    active.reseat(system);
+     // Asked of the System the recordings are taken on, which is the width every
+     // state below has to be loaded at. Named, because a bare length mismatch here
+     // is read as the caller's and says nothing about the seam it is really about:
+-- 
+2.43.0
+

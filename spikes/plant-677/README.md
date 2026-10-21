@@ -214,6 +214,101 @@ What is left, by size at five metrics:
 4. **Per-segment plumbing (8%).** Stop rebinding twice per segment, or make a
    rebind skip validation and the field build.
 
+## Fourth round: the asked-for levers, and a lateral one
+
+At lifetime 60. Instructions are callgrind collected inside the gradient;
+seconds are medians of three interleaved rounds against B.
+
+| arm | ratio, 1 metric | ratio, 5 metrics | seconds, 1 metric | seconds, 5 metrics |
+| --- | --- | --- | --- | --- |
+| B | 14.5x | 29.5x | 0.563 s | 1.041 s |
+| C2 | 5.24x | 8.62x | 0.202 s | 0.305 s |
+| D: + plant 13, 14 | 5.13x | 8.32x | — | — |
+| **E: + plant 15, odelia 11** | **4.80x** | **7.98x** | **0.183 s (4.8x)** | **0.277 s (7.3x)** |
+
+- **Plant 13: a node's parameter reads.** The three statements per node that
+  depend on parameters alone were copies:
+  - `dmass_leaf_darea_leaf` returned `lma` by value
+  - `dmass_root_darea_leaf` returned `a_r1` by value
+  - `mortality_growth_independent_dt` returned `d_I` by value
+
+  They now return references. Two more statements per node repeated work
+  already done: the growth fraction recomputed the reproduction fraction, and
+  heartwood area recomputed the sapwood area the production worker returned.
+  Node rates fell from 690.8M to 652.7M.
+- **Plant 14: the crossing interval as rows.** The two nodes' competition at
+  each knot becomes rows on z, h⁻¹, area_leaf, density and k_I.
+  `FF16_Strategy::competition_and_slope_rows` rounds the values as
+  `Q_and_q_times` does, so values stay bit-identical. A knot above a crown is
+  an exact zero with no rows; without that case the rows path declined it and
+  recorded instead, on 57,598 of 64,610 calls. The sweep falls from 274M to
+  257M per metric, but recording rises by about as much: computing the rows in
+  double costs more than XAD recording two small pairs. It pays only at several
+  metrics.
+- **Plant 15 and odelia 11: one active System per descent.** A segment ends
+  where the state widens, at an insertion, and a node is introduced at almost
+  every step. Each segment rebuilt the active patch from scratch twice, at
+  535k each. Now one `active_system` is held for the whole descent, and
+  `reseat(passive)` writes the double patch into it at each width through
+  `Patch::assign_from`. That drops or adds nodes at the newest end, then takes
+  the birth records, the state and the environment. A re-seat costs 69k, and
+  rebinds go from 237 to 2. Gradients are bit-identical to D on every entry. A
+  System without `assign_from` is rebound as before, which odelia's own test
+  Systems exercise.
+
+Memory does not set the segment size. Each step's tape is already recorded
+once, swept once per metric and discarded, which costs nothing extra, so
+taping more of the run would not remove anything. What was wasteful was
+rebuilding the active System per width, and that is what odelia 11 removes.
+
+Test files give the same failure sets as B: plant 315 tests with 4 failing,
+odelia 127 tests with 12 errors.
+
+### A lateral lever: tangents when few traits are asked for
+
+`stand_gradient` differentiates all 32 columns and subsets to `traits`
+afterwards. Under `hyperpar` it only needs the derived parameters. Reverse
+mode costs a sweep per metric; a forward tangent costs a pass per trait
+direction and yields every metric at once. Plant already has the tangent:
+`SCM::census_trait_tangent`, which the gradient ladder uses as its reference.
+
+From `tools/tangent/`, at lifetime 60, against the reverse gradient of all 5
+metrics × 32 traits at 7.1x in the same sitting:
+
+| tangent width | seconds | × forward | × forward per trait |
+| --- | --- | --- | --- |
+| 1 | 0.077 | 1.8x | 1.75x |
+| 2 | 0.097 | 2.2x | 1.10x |
+| **4** | **0.108** | **2.5x** | **0.61x** |
+| 8 | 0.279 | 6.3x | 0.79x |
+| 16 | 0.502 | 11.4x | 0.71x |
+| 32 | 1.355 | 30.8x | 0.96x |
+
+- Width 4 is bit-identical to width 1. Against the reverse gradient the
+  tangent agrees to ≤3e-10 on most entries and 1e-7 on `omega` against the
+  size metrics, at every width. That gap is between the two methods, not from
+  batching.
+- So **up to about 8 traits, tangents in batches of 4 beat the reverse sweep**,
+  for every metric at once. Under `hyperpar`, each fitted trait is one
+  direction (`d(params)/d(trait)`), so the total derivative needs no
+  per-parameter columns at all.
+
+Registering only the asked-for traits in the reverse sweep was also measured
+(`tools/measure-only-register-some-parameters.diff`). It is exact on the kept
+columns and saves 3.5% at one metric and 5.6% at five, the same whether 1 or
+4 traits are kept.
+
+### What else the tape shows
+
+The closing field build has 384 dead statements of 853:
+
+- 256 are the spline's span coefficients. Crowns now read knots, so nothing
+  reads the coefficients.
+- About 60 are knot positions.
+- One per knot is a two-operand statement.
+
+That is about 2.6% of the gradient, all in recording.
+
 ## What a statement costs (corrected)
 
 - **XAD's bookkeeping is about 106 instructions per recorded statement.** The

@@ -1,0 +1,89 @@
+From 0b523235c3a48c69f4b4a08e80305d55d7fe5688 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 21 Oct 2026 07:25:24 +0000
+Subject: [PATCH] Spike: no recorded copies or repeats among a node's parameter
+ reads
+
+---
+ inst/include/plant/models/ff16_strategy.h | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/inst/include/plant/models/ff16_strategy.h b/inst/include/plant/models/ff16_strategy.h
+index b9ad2816..11cc911f 100644
+--- a/inst/include/plant/models/ff16_strategy.h
++++ b/inst/include/plant/models/ff16_strategy.h
+@@ -594,7 +594,7 @@ public:
+     return 1.0 / dheight_darea_leaf(area_leaf);
+   }
+   // Mass of leaf needed for new unit area leaf, d m_s / d a_l
+-  S dmass_leaf_darea_leaf(const S& area_leaf) const;
++  const S& dmass_leaf_darea_leaf(const S& area_leaf) const;
+   // Mass of stem needed for new unit area leaf, d m_s / d a_l
+   S dmass_sapwood_darea_leaf(const S& area_leaf) const;
+   // Overloads taking a precomputed pow(area_leaf, a_l2): compute_rates needs
+@@ -608,7 +608,7 @@ public:
+   // Mass of bark needed for new unit area leaf, d m_b / d a_l
+   S dmass_bark_darea_leaf(const S& area_leaf) const;
+   // Mass of root needed for new unit area leaf, d m_r / d a_l
+-  S dmass_root_darea_leaf(const S& area_leaf) const;
++  const S& dmass_root_darea_leaf(const S& area_leaf) const;
+   // Growth rate of basal diameter_stem per unit stem area
+   S ddiameter_stem_darea_stem(const S& area_stem) const;
+   // Growth rate of components per unit time:
+@@ -636,7 +636,7 @@ public:
+ 
+ 
+   S mortality_dt(const S& productivity_area, const S& cumulative_mortality) const;
+-  S mortality_growth_independent_dt() const;
++  const S& mortality_growth_independent_dt() const;
+   S mortality_growth_dependent_dt(const S& productivity_area) const;
+ 
+   // The seed's height, written at birth. On double this is the height the
+@@ -1004,14 +1004,15 @@ void FF16_Strategy<S>::compute_rates(const FF16_Environment<S>& environment,
+     // both rates rather than paying it twice per node per step (issue #361).
+     const S area_leaf_pow_a_l2 = pow(area_leaf_, pars.a_l2);
+     const S darea_leaf_dmass_live_ = darea_leaf_dmass_live(area_leaf_, area_leaf_pow_a_l2);
+-    const S fraction_allocation_growth_ = fraction_allocation_growth(height);
++    const S fraction_allocation_growth_ = 1.0 - fraction_allocation_reproduction_;
+     const S area_leaf_dt = net_mass_production_dt_ * fraction_allocation_growth_ * darea_leaf_dmass_live_;
+ 
+     vars.set_rate(HEIGHT_INDEX, dheight_darea_leaf(area_leaf_, area_leaf_pow_a_l2) * area_leaf_dt);
+     vars.set_rate(FECUNDITY_INDEX,
+       fecundity_dt(net_mass_production_dt_, fraction_allocation_reproduction_));
+ 
+-    vars.set_rate(AREA_HEARTWOOD_INDEX, area_heartwood_dt(area_leaf_));
++    // area_heartwood_dt(area_leaf_), on the sapwood area the worker returned.
++    vars.set_rate(AREA_HEARTWOOD_INDEX, pars.k_s * area_sapwood_);
+     vars.set_rate(MASS_HEARTWOOD_INDEX, mass_heartwood_dt(mass_sapwood_));
+ 
+     if (this->collect_all_auxiliary) {
+@@ -1374,7 +1375,7 @@ S FF16_Strategy<S>::dheight_darea_leaf(const S& area_leaf,
+ 
+ // Mass of leaf needed for new unit area leaf, d m_s / d a_l
+ template <typename S>
+-S FF16_Strategy<S>::dmass_leaf_darea_leaf(const S& /* area_leaf */) const {
++const S& FF16_Strategy<S>::dmass_leaf_darea_leaf(const S& /* area_leaf */) const {
+   return pars.lma;
+ }
+ 
+@@ -1399,7 +1400,7 @@ S FF16_Strategy<S>::dmass_bark_darea_leaf(const S& area_leaf) const {
+ 
+ // Mass of root needed for new unit area leaf, d m_r / d a_l
+ template <typename S>
+-S FF16_Strategy<S>::dmass_root_darea_leaf(const S& /* area_leaf */) const {
++const S& FF16_Strategy<S>::dmass_root_darea_leaf(const S& /* area_leaf */) const {
+   return pars.a_r1;
+ }
+ 
+@@ -1528,7 +1529,7 @@ S FF16_Strategy<S>::mortality_dt(const S& productivity_area,
+ }
+ 
+ template <typename S>
+-S FF16_Strategy<S>::mortality_growth_independent_dt() const {
++const S& FF16_Strategy<S>::mortality_growth_independent_dt() const {
+   return pars.d_I;
+ }
+ 
+-- 
+2.43.0
+
