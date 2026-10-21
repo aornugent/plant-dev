@@ -158,62 +158,156 @@ end), not in the loop.
   measurements kept 53–66% of an invader's run at 0.17 ε
   (`../../../grid-dynamics.md` §14).
 
-## 7. The loop rethought around adjoints: one fixed point, followed
+## 7. The loop, rethought
 
-**Equilibrium is needed, but not solved.**
-- Fitness is defined in the field of the resident's attractor, and the field
-  matters. Along the trade-off, the stand's total elasticity in `lma` at `b*` is
-  −5.9 (`../../../design-workflows.md`, R5). The selection gradient, with the
-  field held, is −23.8. So neither can stand in for the other.
-- How accurately `b*` is needed is set by how fast the gradient moves with it
-  (E5). On long drought, `dg/d ln b = −6.0` and `dF/d ln b = −1.75`, so the
-  gradient's error is 3.4 × |F|. It stays within ε (0.20) for |F| < 0.06, and
-  within ε/3 for |F| < 0.02. The roadtest solved to 1e-4, 300 times tighter.
-- E5 also checks the domain claim directly: the invader at the resident's traits
-  has ln R′ = F, to every printed digit, at every birth rate tried.
+### Two unknowns, two conditions
 
-**The loop.** The state is the traits θ (all of them, or any subset) and ln b.
-Each iteration makes one resident run, at the predicted birth rate:
-1. **The forward run,** recorded. It gives `F = ln J − ln b`.
-2. **The resident's sweep of ln J,** with the field responding. It gives
-   `∂F/∂θ` for every trait and `∂F/∂ ln b` from the birth-rate column, 2.3
-   forwards.
-3. **The selection gradient for every trait, with the field held:**
-   - today, an invader at θ′ = θ and its sweep, 2.7 forwards;
-   - or a second adjoint pass over step 2's recording, with the field's adjoints
-     dropped. Recording is about 75% of a sweep's cost and the reverse pass about
-     10% (`../../perf-sweep.md` §2), so this lane is an estimated 0.3 forwards.
-     It is not built.
-4. **The step.** θ moves by Δθ: the canonical equation, or a Newton or Broyden
-   step on `g = 0`. Then `ln b ← ln b − (F + ∂_θF·Δθ)/∂_{ln b}F`.
+An evolutionary analysis on plant tracks two things:
+- the traits θ: one, as in the roadtest, or all of TF24's ~50;
+- the birth rate b, the seed rain the resident receives.
 
-There is no inner equilibrium loop. The predictor keeps |F| at O(|Δθ|²), and a
-gradient is accepted when |F| is under the tolerance E5 sets. A singular
-strategy becomes the joint root of `(g, F)` in `(θ, ln b)`. The co-design's
-classification needed equilibria at moved residents, and that cost dominated
-(`design-workflows.md`, *Curvatures as chords of sweeps*). Those equilibria
-become predictions instead: `d ln b*/dθ = −∂_θF/∂_{ln b}F` comes from step 2.
+It needs two conditions:
+- **Demographic equilibrium:** the stand returns the seed it receives,
+  `F(θ, b) = ln J − ln b = 0`. For each θ, one birth rate `b*(θ)` satisfies this.
+  Drawn in the (θ, ln b) plane, those birth rates trace a curve.
+- **Selection:** the selection gradient `g(θ, b)` is the slope of a rare
+  invader's ln R′ in its own traits, in the field the resident makes at (θ, b).
+  Evolution moves θ along `g`. A singular strategy is where `g = 0` on the curve.
 
-**What one iteration costs, in forwards at b*:**
+### What the roadtest does: walk to the curve, then step
 
-| | one trait | every trait |
+```
+ ln b                          o = a run
+  |        curve F = 0
+  |       /                    at each θ: Newton runs up and down
+  |  o   /                     until it sits on the curve,
+  |  o  o                      then one step sideways in θ
+  |  | / o
+  |  |/  o
+  |  o   o
+  +---------------- θ
+```
+
+At every θ, Newton runs until |F| < 1e-4. Each of its runs also does a full
+sweep, but only to read one number, the birth-rate slope.
+
+### What adjoints allow: step along the curve
+
+The curve's direction at any point follows from two slopes:
+`d ln b*/dθ = −(∂F/∂θ)/(∂F/∂ ln b)`. The resident's sweep of ln J, with the field
+responding, gives both in one pass, for every trait at once:
+- **∂F/∂ ln b, from the birth-rate column.** On long drought it is −1.75: 10%
+  more seed gives about 7.5% more offspring, because crowding absorbs the rest.
+- **∂F/∂θ, from the trait columns.** The stand's total elasticity in `lma`
+  along the trade-off is −5.9 (`../../../design-workflows.md`, R5, at 108
+  introductions).
+
+So a move in θ comes with a predicted move in ln b. The next run lands next to
+the curve, not somewhere far off it:
+
+```
+ ln b
+  |        curve F = 0
+  |       /
+  |      o            one run per step: θ and ln b move together,
+  |     o             along the curve's direction; what is left of F
+  |    o              is corrected on the next step
+  |   o
+  +---------------- θ
+```
+
+**Checked on the roadtest's own step uphill** (long drought; lma from 0.32 to
+0.304, so Δ ln lma = −0.051):
+- `d ln b*/d ln lma = −(−5.9)/(−1.75) = −3.37`, so ln b should rise by 0.173.
+- The predicted b* is 5.56. The true one, found by the roadtest's Newton, is
+  5.48. That is 0.015 off in ln b, which leaves |F| = 0.026.
+- E5 says a gradient read at |F| = 0.026 is 3.4 × 0.026 = 0.09 off, 0.4 ε. So
+  the first run at the new traits already gives a usable gradient, and one more
+  run brings |F| to O(0.026²).
+- The roadtest instead started from a guess built on the old resident's field,
+  b = 8.55, 0.44 off in ln b. It took 3 runs.
+
+### Why the equilibrium need not be solved
+
+- The field matters. Along the trade-off, the resident's total elasticity is
+  −5.9, while the selection gradient with the field held is −23.8.
+- But how close to the curve you must stand is set by how fast `g` changes with
+  b. On long drought it is `dg/d ln b = −6.0` (E5), so the gradient's error is
+  3.4 × |F|. It stays within ε (0.20) for |F| < 0.06, and within ε/3 for
+  |F| < 0.02. The roadtest solved to |F| < 1e-4.
+- E5 also checks the claim that at the resident's traits the invader is the
+  resident: its ln R′ equals F to every printed digit, at every birth rate tried.
+
+### One step of the loop, in full
+
+The state is (θ, ln b) and the last run's recording.
+1. **Run the resident** at (θ, b), recording it. Read F.
+2. **Sweep the resident's ln J,** with the field responding. This gives
+   ∂F/∂ ln b and ∂F/∂θ for every trait: 2.3 forwards.
+3. **Take the selection gradient g, with the field held.** Two ways:
+   - one trait: two invaders at θ e^{±0.001}, 1.24 forwards;
+   - every trait: one invader at θ and its sweep, 2.7 forwards. This works on the
+     #116 tip today.
+4. **Move:** θ ← θ + Δθ, then ln b ← ln b − (F + ∂F/∂θ · Δθ)/(∂F/∂ ln b).
+   Δθ can be an evolutionary step along g, or a step toward g = 0.
+
+Steps 2 and 3 read the same recording. A sweep's cost is about 75% recording the
+tape and about 10% the reverse pass (`../../perf-sweep.md` §2). So step 3, for
+every trait, could become a second reverse pass over step 2's tape with the
+field's adjoints dropped. That would cost an estimated 0.3 forwards, and needs no
+invader run. It is not built.
+
+### What becomes possible
+
+**A singular strategy found without nested equilibria.**
+- Finding where g = 0 becomes one root-find in (θ, ln b) together, not a
+  search with an equilibrium solved inside every candidate.
+- For one trait it is a secant on g along the curve. Each iteration is one run
+  and the gradient, about 2.2 forwards. A secant's error falls roughly as
+  0.3 → 0.1 → 0.02 → 0.001, so about five iterations from a start 30% off.
+- For several traits it is a Broyden iteration on the same pair.
+
+**Classification for almost nothing.**
+- *Convergence stability* is the sign of dg/dθ along the curve. The secant
+  iterations have already measured it.
+- *Evolutionary stability* is the sign of ln R′'s curvature in the invader's
+  traits. Two invaders at θ e^{±0.05} give it, since `ln R′(θ) = F` is already
+  known.
+
+**Every trait's selection gradient at every step.** In TF24 that is a vector of
+about 50. It says which traits are under selection and in which direction. It
+is also what a multi-trait canonical equation, or a search for which traits
+matter, needs.
+
+**Estimated budgets,** in forward runs at b* (about 77 s each at 201
+introductions, or 48 s if the looser absolute tolerance holds):
+
+| | today's loop | the loop above |
 |---|---:|---:|
-| differences, a warm secant | 2.2–3.2 | 1 + 1.24 per trait, about 60 for TF24's ~50 |
-| the loop above, with today's invader sweep | 6.0 | 6.0 |
-| the loop above, with a held-field lane | about 3.6 | about 3.6 |
+| one evolutionary step, one trait | 9.4 | 2.2 |
+| one evolutionary step, every trait | not practical (about 60 by differences) | 6.0, or about 3.6 with the second reverse pass |
+| a singular strategy and its classification, one trait | about 84 (the co-design's floor) | about 18: a cold start of about 4, grid verification of 1.1, five iterations of 2.2, and an ESS check of 1.2 |
 
-So adjoints lose at one trait, break even at two to three, and are the only
-practical route to every trait's selection gradient. With the predictor, the
-equilibrium is no longer the scarce resource: it costs nothing beyond the run
-the gradient needs anyway.
+The 18 is an estimate built from measured pieces, not a measured run.
 
-**Not yet shown for this loop:**
-- the tolerance on F on other climates (E5 is long drought only);
-- whether the predictor holds on constant rain, where `d ln J/d ln b` moves from
-  +0.99 to −8.5 across the birth rates Newton visited;
-- the cold start, which still needs a secant (about 6 runs) and, on constant
-  rain, introductions spaced where establishment happens;
-- the held-field lane's cost.
+### What it does not remove
+
+- **The cold start.** The first equilibrium still needs a secant from a pilot,
+  about 4 runs to |F| < 0.02. On constant rain the pilot needs its introductions
+  front-loaded: even spacing gives a J 570 times too small.
+- **The cost of one run.** About 8,500 steps of about a day, times about 200
+  introductions (E1, E2). Section 6's levers apply: the absolute tolerance, and
+  thinned invaders.
+- **Large steps.** The predictor is a straight line, accurate to O(Δθ²). Where the
+  curve bends sharply it needs shorter steps. On constant rain, Newton saw the
+  birth-rate slope run from +0.99 to −8.5, which is untested ground for this
+  loop.
+
+### Not yet shown for this loop
+- the tolerance on |F| on other climates (E5 is long drought only);
+- the predictor on constant rain, and over a sequence of steps rather than one;
+- the secant's iteration count toward a real singular strategy;
+- the second reverse pass's cost.
 
 ## Assumptions not yet checked
 
