@@ -163,11 +163,18 @@ A targeted search (web, Crossref, Europe PMC, the PSPManalysis manual; to
 | classification from Newton–Krylov Ritz values | Newton–Krylov with Arnoldi stability analysis in fluid dynamics (Tuckerman & Barkley 2000; Sánchez et al. 2004); the recursive projection method (Shroff & Keller 1993); nothing in evolutionary games | novel as an application; the method is borrowed |
 | uncertainty and identifiability of an evolved prediction from the Hessian | CCDAS posteriors from the Hessian, for fluxes (Ziehn, Scholze & Knorr 2012); sloppy models (Gutenkunst et al. 2007) | novel as an application |
 
-**What is new is the combination** (*judgement*): exact second derivatives,
-implicit differentiation and adjoints over many inputs, and transpose solves
-for calibration and attribution, in a mechanistic model under variable
-climate. Each piece alone has precedent. **PSPManalysis is the reference to
-cite and to benchmark against** for comparative statics and folds.
+**How to read "partly novel"** (*judgement*).
+- These ten are uses of the machinery, chosen because other fields already
+  ask them. Precedent for the question is expected, and is the evidence of
+  demand. What is new is answering them in a mechanistic model, in many traits
+  and inputs at once, under daily climate, by exact derivatives.
+- The machinery itself keeps its verdicts from `literature.md` §7: no study
+  found computes invasion-fitness derivatives by adjoint (c), in more than two
+  or three traits (a), or through an inner optimum (d).
+- The search found prior numerical continuation of singular points in
+  physiologically structured models, in constant environments with
+  finite-difference Jacobians. **PSPManalysis is the reference to cite and to
+  benchmark against** for comparative statics and folds.
 
 **Three corrections to claims made here and in `formulation.md`:**
 1. **The Krylov count is not the number of selection modes.** GMRES's count is
