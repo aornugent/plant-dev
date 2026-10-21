@@ -158,6 +158,63 @@ end), not in the loop.
   measurements kept 53–66% of an invader's run at 0.17 ε
   (`../../../grid-dynamics.md` §14).
 
+## 7. The loop rethought around adjoints: one fixed point, followed
+
+**Equilibrium is needed, but not solved.**
+- Fitness is defined in the field of the resident's attractor, and the field
+  matters. Along the trade-off, the stand's total elasticity in `lma` at `b*` is
+  −5.9 (`../../../design-workflows.md`, R5). The selection gradient, with the
+  field held, is −23.8. So neither can stand in for the other.
+- How accurately `b*` is needed is set by how fast the gradient moves with it
+  (E5). On long drought, `dg/d ln b = −6.0` and `dF/d ln b = −1.75`, so the
+  gradient's error is 3.4 × |F|. It stays within ε (0.20) for |F| < 0.06, and
+  within ε/3 for |F| < 0.02. The roadtest solved to 1e-4, 300 times tighter.
+- E5 also checks the domain claim directly: the invader at the resident's traits
+  has ln R′ = F, to every printed digit, at every birth rate tried.
+
+**The loop.** The state is the traits θ (all of them, or any subset) and ln b.
+Each iteration makes one resident run, at the predicted birth rate:
+1. **The forward run,** recorded. It gives `F = ln J − ln b`.
+2. **The resident's sweep of ln J,** with the field responding. It gives
+   `∂F/∂θ` for every trait and `∂F/∂ ln b` from the birth-rate column, 2.3
+   forwards.
+3. **The selection gradient for every trait, with the field held:**
+   - today, an invader at θ′ = θ and its sweep, 2.7 forwards;
+   - or a second adjoint pass over step 2's recording, with the field's adjoints
+     dropped. Recording is about 75% of a sweep's cost and the reverse pass about
+     10% (`../../perf-sweep.md` §2), so this lane is an estimated 0.3 forwards.
+     It is not built.
+4. **The step.** θ moves by Δθ: the canonical equation, or a Newton or Broyden
+   step on `g = 0`. Then `ln b ← ln b − (F + ∂_θF·Δθ)/∂_{ln b}F`.
+
+There is no inner equilibrium loop. The predictor keeps |F| at O(|Δθ|²), and a
+gradient is accepted when |F| is under the tolerance E5 sets. A singular
+strategy becomes the joint root of `(g, F)` in `(θ, ln b)`. The co-design's
+classification needed equilibria at moved residents, and that cost dominated
+(`design-workflows.md`, *Curvatures as chords of sweeps*). Those equilibria
+become predictions instead: `d ln b*/dθ = −∂_θF/∂_{ln b}F` comes from step 2.
+
+**What one iteration costs, in forwards at b*:**
+
+| | one trait | every trait |
+|---|---:|---:|
+| differences, a warm secant | 2.2–3.2 | 1 + 1.24 per trait, about 60 for TF24's ~50 |
+| the loop above, with today's invader sweep | 6.0 | 6.0 |
+| the loop above, with a held-field lane | about 3.6 | about 3.6 |
+
+So adjoints lose at one trait, break even at two to three, and are the only
+practical route to every trait's selection gradient. With the predictor, the
+equilibrium is no longer the scarce resource: it costs nothing beyond the run
+the gradient needs anyway.
+
+**Not yet shown for this loop:**
+- the tolerance on F on other climates (E5 is long drought only);
+- whether the predictor holds on constant rain, where `d ln J/d ln b` moves from
+  +0.99 to −8.5 across the birth rates Newton visited;
+- the cold start, which still needs a secant (about 6 runs) and, on constant
+  rain, introductions spaced where establishment happens;
+- the held-field lane's cost.
+
 ## Assumptions not yet checked
 
 - The absolute tolerance's effect on the gradients: only ln J was measured.

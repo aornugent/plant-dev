@@ -29,3 +29,11 @@ List of 6
    R = 1.001820; sweep -23.78595, tangent -23.78595, central difference (h 1e-3) -23.78594
      resident       invader         sweep       tangent cd_2_invaders 
        79.647        49.234       157.596       101.179        95.358 
+
+E5 the selection gradient against ln b around b*, 201 uniform nodes (b* row is E3)
+  dlnb        b           F      grad    lnR_self
+ -0.10 4.230993  0.17620854 -23.21386  0.17620854
+ -0.03 4.537775  0.05430778 -23.61044  0.05430778
+  0.03 4.818375 -0.05075510 -23.96821 -0.05075510
+  0.10 5.167747 -0.17419383 -24.41314 -0.17419383
+fits: dg/d ln b = -5.99, dF/d ln b = -1.75
