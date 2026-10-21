@@ -13,3 +13,4 @@ level4         85.822 231.458
    [refine: 366.6 s]
 2. Resident equilibrium by Newton, the schedule held
    newton  1  b = 0.68677706  F = +6.058e+00  d ln J/d ln b swept 0.99122, secant NA
+   newton  2  b = 1.8668536  F = +4.939e+00  d ln J/d ln b swept 0.02276, secant -0.11902
