@@ -216,3 +216,79 @@ Subtraction first; each PR is one change and states its leave-one-out effect.
 
 Not carried forward: `read_below` (finding 4), 0014, and 0011 unless Q2 says
 otherwise. The single clear per walk follows finding 6.
+
+## Triage: who carries each cost
+
+Two kinds of reader pay for these changes. An R user notices only speed. An
+odelia developer writing a System (plant's maintainers among them) pays for
+anything that changes how a model must be written to be fast or correct.
+
+| mechanism | worth now | who notices | what it asks of a System author |
+| --- | --- | --- | --- |
+| 12-byte operations; `copy_into` in XAD | 11% / 10% | nobody | nothing; one vendored define and one vendored edit to carry on XAD upgrades |
+| seed basis | 0 / 11% | nobody | nothing |
+| `sweep_each_seed` clears once | not measured alone | nobody | nothing; odelia-internal convention (finding 6) |
+| stage states moved in; `derivs` rvalue overloads | part of the copy work | nobody | nothing, but three new odelia entry points for one call site |
+| one active System per pass (`reseat`, `assign_from`) | 7% / 5% | nobody | optional `assign_from`, which must leave the System equal to a rebind |
+| span coefficients active, `read_linear` beside them | (see crown) | nobody | must know that coefficients are recorded and unread |
+| field-reduction rows, `read_below` | 2% / 6%, 1% | nobody | plant-internal duplicate paths |
+| no copies of active values | most of the gain | nobody | every value written as `const S&` or moved; no named active intermediates |
+| crown as supplied rows | 19% / 31% | nobody | hand-written partials, knot bookkeeping, and a second implementation kept equal bit for bit |
+
+The first seven rows cost a System author nothing, or only one optional hook.
+They are internal to odelia or plant and can land as written, after the
+simplifications above: finding 6, the minor findings, and Q1.
+
+The last two rows are where odelia's DX is at stake.
+
+### Copies are statements
+
+No change to odelia removes this: XAD records a statement whenever an active
+scalar is constructed from another. Some of the plant fixes are ordinary C++,
+such as `const S&` arguments and returns and `std::move` into `Internals`.
+Others are shaped by the tape: fusing expressions so an intermediate is never
+named (plant 0003, 0006), and the `Q_and_q_times(z_over_height, z,
+height_inverse, k, a, b)` signature that exists to fold three scale factors
+into one statement. The second kind should be kept only where measured, and
+written down as a rule a System author can check.
+
+The check exists: `tools/live*.cpp` is a tape report that counts, per region,
+statements, dead statements, parameter-only statements and one-operand
+statements. Folded into odelia as a diagnostic, it lets a System author see a
+copy cost in their own model without knowing XAD's rules first. That is
+cheaper to maintain than a list of idioms.
+
+### Supplied rows
+
+As built, the crown asks the System author for:
+
+- the leaf rate's derivative, by hand;
+- the knot bookkeeping (`read_linear`, `lo`/`hi`, per-knot row arrays);
+- a double value computed in the recorded loop's order, kept equal to the
+  forward path by hand.
+
+Each is a place for a silent error that only the guard script or a
+finite-difference test would catch.
+
+The same pattern appears four times: FF16's deep-crown and average-light
+assimilation, and TF24's crown assimilation and average radiation. Each
+integrates a function of the light spline over the crown's quadrature points.
+That is enough uses to justify one primitive. Its parts:
+
+- **odelia owns the knot bookkeeping.** `hermite_spline` turns a set of read
+  positions, with a weight on each read, into rows on its knot values and
+  slopes. `read_linear` stays internal to it.
+- **The integrand is written once, as a generic lambda.** The primitive
+  evaluates it at `tangent_scalar` in double, seeded on the light and on the
+  few parameters the integrand reads. That gives the value and its partials
+  exactly, so nothing is differentiated by hand. Forward mode is cheap here
+  because the integrand has two or three inputs.
+- **The forward run calls the same primitive at `double`.** That skips the
+  tangent, so the value is one implementation at both scalars by
+  construction.
+
+The primitive would retire `assimilation_deep_crown_rows`, the hand-written
+partials and the bit-identity convention, and give TF24's crown the same
+saving. Cost to measure before committing: the tangent evaluation per point
+against the hand-written partials. The crown currently spends about 4.6k
+instructions on its double arithmetic.
