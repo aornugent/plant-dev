@@ -1,0 +1,46 @@
+plant 2.0.0.9002 from /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/rt/lib/plant
+dry-flat: TF24 at lma 0.32, 40 years, tol 0.0001 / 1e-08, step max 0.0411 y
+0. Pilot forward at b = 1, 100 even introductions
+   [pilot: 50.3 s]
+   J(1) = 2.94374, so b0 = 1.8468
+1. Refine the schedule at b0
+   refine converged at level 0: 304 nodes, 1 passes, worst bound 0.32 (storage_relaxation_offset)
+              forward   sweep
+first          46.153   0.000
+level0        187.074 374.962
+level0_replay  84.372 305.636
+   [refine: 1048.7 s]
+2. Resident equilibrium by Newton, the schedule held
+   newton  1  b = 1.8468019  F = -3.661e-01  d ln J/d ln b swept -1.47405, secant NA
+   newton  2  b = 1.5927902  F = -2.954e-03  d ln J/d ln b swept -1.43747, secant -1.45408
+   newton  3  b = 1.5908608  F = -4.660e-06  d ln J/d ln b swept -1.43657, secant -1.43363
+   stopped: converged
+   [newton: 1197.1 s]
+   b* = 1.5908608 in 2 runs; d ln J/d ln b = -1.43657; d ln b*/d ln lma needs the lma column
+3. The invader at the resident's traits: ln R' and the selection gradient by the sweep
+   [sweep: 476.3 s]
+   ln R' = -4.660e-06; d ln R'/d ln lma = -28.61161
+4. Landscape: invaders at lma x 0.5 ... 2, together
+   [landscape: 1037.2 s]
+  factor   lma         log_R
+1   0.50 0.160  7.002642e+00
+2   0.70 0.224  5.182750e+00
+3   0.85 0.272  3.239294e+00
+4   0.95 0.304  1.300153e+00
+5   1.00 0.320 -4.660064e-06
+6   1.05 0.336 -1.561816e+00
+7   1.20 0.384 -7.690380e+00
+8   1.50 0.480 -2.655555e+01
+9   2.00 0.640 -4.852991e+01
+5. Central differences of invasions
+   [central_difference: 424.8 s]
+   h = 0.0001: -28.61170;  h = 0.001: -28.61164;  sweep -28.61161
+6. One step uphill: the invader alone at its equilibrium, then the old resident invading it
+   newton  1  b = 2.7125115  F = -9.283e-01  d ln J/d ln b swept -1.37427, secant NA
+   newton  2  b = 1.8347227  F = -3.849e-03  d ln J/d ln b swept -1.36517, secant -1.36442
+   newton  3  b = 1.8317395  F = -8.088e-07  d ln J/d ln b swept -1.36421, secant -1.36467
+   stopped: converged
+   [hill_equilibrium: 1791.0 s]
+   [back_invasion: 111.1 s]
+   invader alone: b* = 1.83174 in 3 runs; the old resident's ln R' = -1.5131 (replaced)
+Total 6136.4 s

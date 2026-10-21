@@ -1,16 +1,68 @@
 plant 2.0.0.9002 from /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/rt/lib/plant
 constant: TF24 at lma 0.32, 40 years, tol 0.0001 / 1e-08, step max 0.0411 y
 0. Pilot forward at b = 1, 100 even introductions
-   [pilot: 13.8 s]
+   [pilot: 14.9 s]
    J(1) = 0.516174, so b0 = 0.686777
 1. Refine the schedule at b0
    refine unconverged at level 4: 354 nodes, 2 passes, worst bound 2.34 (a_l1)
               forward   sweep
-first          14.020   0.000
-level0          5.895  13.874
-level0_replay   2.909   8.268
-level4         85.822 231.458
-   [refine: 366.6 s]
+first          14.043   0.000
+level0          6.414  13.308
+level0_replay   3.254   8.599
+level4         88.960 226.557
+   [refine: 373.5 s]
 2. Resident equilibrium by Newton, the schedule held
    newton  1  b = 0.68677706  F = +6.058e+00  d ln J/d ln b swept 0.99122, secant NA
    newton  2  b = 1.8668536  F = +4.939e+00  d ln J/d ln b swept 0.02276, secant -0.11902
+   newton  3  b = 5.0746342  F = +3.760e+00  d ln J/d ln b swept -1.27500, secant -0.17856
+   newton  4  b = 13.794286  F = +2.884e+00  d ln J/d ln b swept -1.15125, secant 0.12388
+   newton  5  b = 22.742933  F = +6.467e-01  d ln J/d ln b swept -7.12662, secant -3.47473
+   newton  6  b = 24.626762  F = -5.984e-02  d ln J/d ln b swept -8.60071, secant -7.87859
+   newton  7  b = 24.473743  F = -3.338e-04  d ln J/d ln b swept -8.49326, secant -8.54716
+   newton  8  b = 24.472882  F = -1.342e-08  d ln J/d ln b swept -8.49267, secant -8.49288
+   stopped: converged
+   [newton: 2398.4 s]
+   b* / b0 = 35.6: rebuild the schedule at b*
+   refine unconverged at level 4: 257 nodes, 2 passes, worst bound 4.72 (a_f2)
+              forward   sweep
+first          10.220   0.000
+level0          3.474   8.247
+level0_replay   1.697   5.217
+level4         72.493 187.064
+   [refine_again: 299.1 s]
+   newton  1  b = 24.472882  F = +2.387e+00  d ln J/d ln b swept -0.61012, secant NA
+   newton  2  b = 40.348962  F = +7.637e-01  d ln J/d ln b swept -4.93626, secant -2.24639
+   newton  3  b = 45.888765  F = -1.487e-01  d ln J/d ln b swept -7.30938, secant -6.09232
+   newton  4  b = 45.074694  F = -3.092e-03  d ln J/d ln b swept -6.96363, secant -7.13664
+   newton  5  b = 45.057196  F = -1.495e-06  d ln J/d ln b swept -6.95609, secant -6.95978
+   stopped: converged
+   [newton_again: 1361.9 s]
+   b* = 45.057196 in 6 runs; d ln J/d ln b = -6.95609; d ln b*/d ln lma needs the lma column
+3. The invader at the resident's traits: ln R' and the selection gradient by the sweep
+   [sweep: 210.7 s]
+   ln R' = -1.507e-06; d ln R'/d ln lma = -6319263.21418
+4. Landscape: invaders at lma x 0.5 ... 2, together
+   [landscape: 512.4 s]
+  factor   lma         log_R
+1   0.50 0.160  1.049095e+01
+2   0.70 0.224  9.732905e+00
+3   0.85 0.272  8.782516e+00
+4   0.95 0.304  7.401662e+00
+5   1.00 0.320 -1.507262e-06
+6   1.05 0.336 -3.985115e+01
+7   1.20 0.384 -4.495337e+01
+8   1.50 0.480 -4.868800e+01
+9   2.00 0.640 -5.169006e+01
+5. Central differences of invasions
+   [central_difference: 221.3 s]
+   h = 0.0001: -40197.12059;  h = 0.001: -8161.44455;  sweep -6319263.21418
+6. One step uphill: the invader alone at its equilibrium, then the old resident invading it
+   newton  1  b = 114.2338  F = -9.908e+00  d ln J/d ln b swept -10.19221, secant NA
+   newton  2  b = 47.135766  F = +8.925e-02  d ln J/d ln b swept -7.18431, secant -10.29304
+   newton  3  b = 47.652608  F = -1.167e-03  d ln J/d ln b swept -7.39814, secant -7.29133
+   newton  4  b = 47.645986  F = -1.917e-07  d ln J/d ln b swept -7.39541, secant -7.39676
+   stopped: converged
+   [hill_equilibrium: 839.8 s]
+   [back_invasion: 52.0 s]
+   invader alone: b* = 47.646 in 4 runs; the old resident's ln R' = -39.8491 (replaced)
+Total 6284.0 s

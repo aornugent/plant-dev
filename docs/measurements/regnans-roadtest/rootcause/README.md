@@ -309,6 +309,34 @@ The 18 is an estimate built from measured pieces, not a measured run.
 - the secant's iteration count toward a real singular strategy;
 - the second reverse pass's cost.
 
+## 8. Constant rain: no gradient at the resident
+
+The third pass (`../logs/roadtest-constant.log`) finished the constant climate,
+and its landscape jumps at the resident's own traits:
+
+| lma × | 0.85 | 0.95 | 1.00 | 1.05 | 1.20 |
+|---|---:|---:|---:|---:|---:|
+| ln R′ | +8.78 | +7.40 | 0 | −39.85 | −44.95 |
+
+- The central difference is −40 197 at h = 1e-4 and −8 161 at h = 1e-3. The sweep
+  gives −6.3 million. So ln R′ changes by about 8 within ±0.01% of `lma`: a
+  jump, not a steep slope.
+- The selection gradient does not exist there, and neither the loop above nor
+  regnans's differences can follow it.
+- The same climate's b* moved from 24.5 to 45.1 when its schedule was rebuilt,
+  and both refines ended unconverged.
+
+The cause is not yet known. Three candidates:
+- a real priority effect: an even-aged stand where a cohort a hair taller takes
+  the light;
+- a jump in the leaf model, such as the hydraulic shutdown in the kink inventory;
+- an artefact where an invader's crowns tie with the resident's in the light
+  field.
+
+A tiny trait change that moves ln R′ by 8 points away from a smooth priority
+effect. Episodic, dry-flat and the other climates have smooth landscapes, and
+their sweeps match central differences to 1e-6.
+
 ## Assumptions not yet checked
 
 - The absolute tolerance's effect on the gradients: only ln J was measured.
