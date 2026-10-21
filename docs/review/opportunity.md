@@ -113,6 +113,58 @@ sequence of related linear systems in G_x.
 - **Calendar-time climate couples patches only through the seed rain b(t),**
   which the sequence-space method handles with AD impulse responses.
 
+## 4a. What the economics, physics and climate review adds (`lateral-econ-physics.md`)
+
+- **The two-clock domain exists, and has a name: ecosystem demography.** Moorcroft,
+  Hurtt & Pacala (2001, doi:10.1890/0012-9615(2001)071[0557:AMFSVD]2.0.CO;2) write
+  plant density over size, gap age and calendar time, with weather shared by all
+  gaps in a cell.
+  - TF24 is the case where nothing depends on calendar time.
+  - Followed from each patch's disturbance date, the model splits into one
+    ordinary TF24 run per date. The runs are linked only through the regional
+    seed rain b(t).
+- **Three climate structures, three models.** Macroeconomics separates them:
+  - (A) age-locked weather: today's model;
+  - (B) independent weather per patch: a stationary region, needing only runs at
+    a common b;
+  - (C) shared calendar weather: aggregate shocks. Here it is linearised around a
+    steady climate with sequence-space Jacobians (Auclert et al. 2021).
+
+  The pulse-driven fitness post is (C) without disturbance. H2 is posed in (B) or
+  (C), never (A).
+- **The (S, I) pair for structured populations is published** (Szilágyi &
+  Meszéna 2009, doi:10.1016/j.jtbi.2008.12.001): sensitivity is demographic
+  rates weighted by frequency and reproductive value. That is our (F.1), and it
+  should be cited for it.
+- **H2's weak form is true by construction.** Each regulating factor counts again
+  at each moment (Barabás, Meszéna & Ostling 2012). Only the effective-rank form
+  of H2 is open.
+- **Dimension claims must not depend on how the field is written.**
+  - In climate science, the right metric depends on the purpose (Palmer et al.
+    1998).
+  - The pairings g = −⟨S, dE*/dθ⟩ and ⟨S_i, I_j⟩ do not depend on it; S's own
+    spectrum does.
+  - So H1 is posed in trait space: the trait × trait selection Jacobian, or the
+    active subspace of ∇_{θ′} ln R′ over a local analysis.
+  - H2 is posed in climate space, with sensitivities whitened by the climate's
+    covariance.
+  - dx*/dc in §1 is already in trait × climate coordinates.
+- **H1 has rivals that must be separated.**
+  - Observed trait syndromes are selection after passing through mutational or
+    genetic covariance. They could equally come from low-rank G (Schluter 1996),
+    from Pareto archetypes (Shoval et al. 2012), or from the trade-offs built into
+    TF24's hyperparameters.
+  - The test must control for TF24's own trade-offs, for example by comparing
+    the selection Jacobian's modes with and without them.
+- **Variability's mean effect is second order.** It is Jensen's inequality, and
+  the storage effect: ½ tr(H_EE C_E). Hutchinson's (1989) trace estimator gets it
+  with one Hessian-vector product per random field direction, drawn from the
+  climate's covariance. That is Chesson's small-variance expansion over the whole
+  field.
+- **Cheapest first step for H1, needing no field hook:** the active subspace,
+  ∇φ∇φᵀ averaged over invaders × 0.5 to × 2, from the invader sweeps we already
+  have.
+
 ## 5. Limits
 
 - dx*/dc exists only where the coalition is a non-degenerate, convergence-stable
@@ -123,7 +175,11 @@ sequence of related linear systems in G_x.
 - Calibration is only as good as the match between the model's traits and the
   measured ones.
 
-## 6. The smallest test
+## 6. The smallest tests
+
+- **H1's first look:** the active subspace of ∇_{θ′} ln R′ over invaders × 0.5 to
+  × 2 on long drought and episodic. It uses about ten invader sweeps per climate
+  and no new code.
 
 On long drought and episodic, with `lma` evolving alone:
 1. Find the singular strategy θ*.
