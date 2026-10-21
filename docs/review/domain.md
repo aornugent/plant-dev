@@ -66,50 +66,105 @@ invaders can read it, and not become the coordinate system of the analysis.
   reverse pass through a resident run that carries the n strategies at zero
   density. That trades invader runs for a wider resident run.
 
-## 2. What H2 asks, and why the current domain cannot answer it
+## 1a. H1 unrolled: the loop is assembly, so the dimension should come from it
+
+Unrolling the eco-evolutionary loop gives community assembly:
+- evolve the residents to a singular coalition;
+- find the strategy of greatest invasion fitness;
+- add it and re-equilibrate;
+- repeat.
+
+regnans's assembler already does this (`assembler_control(evolve = ...)`,
+`regnans.md`). The kernel α of §1 describes the result. Computing α separately,
+at about an hour per iteration, would duplicate work the loop does anyway.
+
+**The dimension is read from the loop's own outputs** (*derived and judgement*):
+- **The assembled community is the measurement.** How many species accumulate
+  before no invader has positive fitness, and the directions in trait space they
+  span, are H1's quantities directly: the number of limiting factors, and the
+  modes.
+- **Every iteration already computes the gradients that span the modes.**
+  - Each invader evaluation yields ∇_{θ′} ln R′ in every trait (an invader run
+    and one sweep).
+  - The span of the gradients gathered across iterations, with the curvature
+    estimates a quasi-Newton search builds, is the subspace the landscape varies
+    in.
+- **That subspace makes the search cheap.**
+  - Finding the best invader in 50 traits needs a gradient-based search: tens of
+    invader evaluations, not a grid.
+  - If H1 holds, later iterations can search within the subspace earlier ones
+    found, and need fewer evaluations still.
+  - So the loop measures H1 and, if H1 is true, gets cheaper because of it.
+- **Per iteration** (costs at absolute tolerance 1e-4, F ≈ 49 s; E7):
+  - the best-invader search: about 15–30 invader evaluations at 2.5 F each, so
+    40–75 F;
+  - re-equilibration: one resident sweep per species for the birth-rate
+    Jacobian, about 2 F each, or secant runs;
+  - evolving the coalition: following its equilibrium, about 2–6 F per step.
+- **The invader evaluation is the cost to shrink:**
+  - the five sweep issues (about 1.9 → 1.1 F);
+  - introductions thinned to those carrying R′ (about 0.5×; `grid-dynamics.md`
+    §14);
+  - batching several invaders into one sweep, once that is checked to work on
+    the #116 design.
+
+## 2. What H2 asks, and the domain it needs
 
 H2 says climate variability raises the number of limiting factors. The theory
 of fluctuation-dependent coexistence (Chesson 2000; Ellner, Snyder & Adler 2019)
-names what is needed for that:
-- species respond differently to the environment;
-- **the environment covaries with competition across patches or years;**
-- and growth is buffered.
+needs three things:
+- species that respond differently to the environment;
+- environment that covaries with competition;
+- buffered growth.
 
-In plant today (checked in `tf24_environment.h`), rainfall is evaluated at the
-patch's own time since disturbance. Every patch replays the same weather by age:
-a drought at age 8 happens in every patch, at age 8.
-- So climate is folded into succession. A drought becomes a fixed feature of the
-  successional sequence, as deterministic as canopy closure.
-- That can create a timing niche locked to patch age that no real forest has,
-  overstating H2.
-- And it cannot create the covariance between environment and competition across
-  patches of different ages that a real, region-wide drought creates, which
-  understates it.
-- So H2 is not well-posed in the one-clock domain: its answer there measures an
-  artefact of indexing weather by patch age.
+In plant today (`tf24_environment.h`) rainfall is evaluated at the patch's own
+time since disturbance, so every patch replays the same weather by age. That
+folds climate into succession. H2 is not well-posed there: the one-clock answer
+measures an artefact of indexing weather by patch age.
 
-**The domain H2 needs has two clocks** (*judgement*):
-- calendar time t, which carries the weather and is shared by every patch;
-- patch age a, which carries succession;
-- a patch disturbed at τ experiences the rain of τ + a.
+**The domain is already worked out for the semi-arid case** (Overstorey,
+"How to calculate fitness in pulse-driven environments", under review as
+overstorey PR #43).
+- **The principle.** Fitness is a seed's expected lifetime output, averaged over
+  the stationary distribution of the local states seeds land in (Metz &
+  Gyllenberg 2001). Patch age is that state only in a forest reset by
+  disturbance.
+- **The state.** Under pulsed rain with no reset, the local state is soil water
+  plus the stand in it. Climate is Westoby's (1980) distribution of "types of
+  time": just wetted, staying wet, drying out.
+- **The method.**
+  - One long run in calendar time, under one realisation of the rain, with the
+    residents settled to a stationary state.
+  - Mutant nodes introduced at every germinating rain in a window after the
+    burn-in, each running out its life.
+  - Fitness is the mean of their lifetime outputs.
+  - For annuals, the mean log of yearly multiplication. That is Cohen's
+    germination problem and the storage effect, computed directly.
+  - Landscape positions sharing one storm series give a matrix, whose largest
+    eigenvalue is fitness.
+- **Comparisons converge faster than levels.** On one shared rain series, the
+  toy needs 5–14 times fewer years for a difference between strategies than for
+  one strategy's fitness.
 
-The resident's regional seed rain b(t) then varies in calendar time, and
-invasion fitness is a long-run growth rate in that varying environment (Metz,
-Nisbet & Geritz 1992). Two levels of approximation:
-1. **Offsets at a common birth rate.** The resident's patches are run at n
-   disturbance dates τ_i under one long calendar record, at a common b. Fitness
-   is the mean of R′ over the offsets (`theory.md` D.3).
-   - It costs n runs, each today's run with the record shifted.
-   - It captures the drought hitting patches of all ages at once. It misses the
-     variation of seed rain in time.
-2. **A periodic regional equilibrium.** The record repeats with period P.
-   - b(t) is periodic, solved as a fixed point in the space of seed-rain
-     functions, with the per-time birth-rate columns of the sweeps as its
-     Jacobian. Fitness is a periodic renewal R₀ (Bacaër & Guernaoui 2006).
-   - It captures both effects, at n runs per Newton step.
+What this means for our machinery (*judgement*):
+- **Invaders reading a recorded field are the method's natural form.** The long
+  resident run is recorded once. Every mutant at every germinating rain reads its
+  field, so the recording is the shared rain series made concrete.
+- **A selection gradient from the sweep is the limit of a shared-series
+  comparison:** an infinitesimal difference between strategies on the same rain.
+  The post's variance result (comparisons are cheaper than levels) is therefore
+  an argument for adjoint gradients over differences of separate runs.
+- **What it needs from plant:**
+  - the continuous patch runner the post names (introductions as it goes,
+    starting from a saved state, history thinned);
+  - a recording long enough to cover the window, so memory and thinning matter;
+  - sweeps carried back through one lifetime per mutant cohort.
+- **With disturbance as well,** the forest and the semi-arid cases combine: two
+  clocks. Calendar time carries the weather, and patch age the succession, and
+  the local state is (patch age, soil water, stand).
 
-The kernel α is the same object in either. H2 becomes: does α's rank, or its
-spectrum, rise with variability at a fixed mean, in the two-clock domain?
+H2, posed in this domain: does the number of distinct types of time that
+strategies partition rise with rainfall variability at a fixed mean?
 
 ## 3. The other domain fix: variance
 
