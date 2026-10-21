@@ -1,0 +1,14 @@
+plant 2.0.0.9002 from /tmp/claude-0/-home-user-plant-dev/4608b090-1484-5285-a934-869426ca2db1/scratchpad/rt/lib/plant
+episodic: TF24 at lma 0.32, 40 years, tol 0.0001 / 1e-08, step max 0.0411 y
+0. Pilot forward at b = 1, 100 even introductions
+   [pilot: 26.2 s]
+   J(1) = 1.95217, so b0 = 1.4624
+1. Refine the schedule at b0
+   refine converged at level 0: 201 nodes, 1 passes, worst bound 0.38 (a_l1)
+              forward   sweep
+first          24.956   0.000
+level0         64.123 154.076
+level0_replay  25.865  88.095
+   [refine: 361.2 s]
+2. Resident equilibrium by Newton, the schedule held
+   newton  1  b = 1.4624031  F = -1.228e-01  d ln J/d ln b swept -1.19102, secant NA
