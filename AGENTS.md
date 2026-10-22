@@ -177,7 +177,7 @@ Each BAD below is the habit to suppress; write the GOOD form.
 ```cpp
 // GOOD
 // R holds only the double Solver; these helpers differentiate on the active
-// solver (the double System lifted via rebind_from) and return doubles.
+// solver (the double System lifted via rebind) and return doubles.
 ```
 
 **Documenting process instead of the thing.**
