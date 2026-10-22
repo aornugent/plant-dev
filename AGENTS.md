@@ -84,6 +84,8 @@ Work is tracked as issues in each package's `aornugent` tracker. Each issue gets
 
 These apply to every change in every package. The full text, with the reasoning behind each, is in `docs/principles.md`; read it before designing or reviewing a change.
 
+The project's skills put them to work: design a change with `system-design`, review one with `code-review`, and find the cause of a failure with `systematic-debugging`. Use these, not similarly named skills from elsewhere.
+
 - **Be lazy on the maintainer's behalf.** Writing code is cheap for you, which makes over-engineering easy. Aim for the most result with the least code; if a human would find the code exhausting to maintain, it is a bad solution.
 - **Subtract before you add.** Look for removals before additions, and remove before you build, because a simpler base makes the next addition smaller. Design for observed use, not speculative cases, and add no validator, guard or option the requirement doesn't demand.
 - **Minimise reader load.** Count the layers between a question and its answer, and the hidden state a reader must hold. Collapse wrappers with one caller and layers that pass arguments through unchanged; prefer returns to mutation and derived values to synchronised copies. The test: can a new reader answer "where does X come from?" and "what can change X?" in under 30 seconds?
