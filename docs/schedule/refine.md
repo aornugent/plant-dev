@@ -4,15 +4,22 @@
 It runs against plant's open TF24 stack (PLANT-117, plant#118, or later), not `develop`.
 What it does not yet guarantee is the invader's g; that is the next step (§ Next).
 
-It replaces tuning one schedule (E6, the schedule reached over the long tuning session)
-with an algorithm that refines a schedule until it converges and reports each run's own error.
-It was written after the root-cause rounds and revised after a Tier-3 review against a blind
-clean sheet. It is the node axis; the time axis (tolerances, the step controller) is
-`design-grid-controller.md`. The account for users is `node-schedules.Rmd`, beside this file.
+It replaces tuning one schedule (T0, the tuned schedule reached over the long tuning session;
+the evidence notes call it E6) with an algorithm that refines a schedule until it converges and
+reports each run's own error. It was written after the root-cause rounds and revised after a
+Tier-3 review against a blind clean sheet.
 
-**Sources.** Paths like `measurements/...`, `rootcause/...`, `design-*.md` and `OBJECTIVES.md`
-are on the tag `archive/trusting-curie`, under `docs/` (`OBJECTIVES.md` at the root; rootcause is
-`docs/measurements/schedule-search/rootcause/`):
+Beside this file:
+- `time-axis.md`: the time axis (tolerances, the step controller, the soil's substeps);
+- `validation.md`: the bank of cases, ε, the references, the acceptance suite and the error modes;
+- `rows-entries.md`: the extension to a table of sites × strategies, not built;
+- `dynamics.md`: why fate is not smooth in birth date where it is not;
+- `node-schedules.Rmd`: the account for users.
+
+The objectives are `../../OBJECTIVES.md`.
+
+**Sources.** Paths like `measurements/...`, `rootcause/...` and `design-*.md` are on the tag
+`archive/trusting-curie`, under `docs/` (rootcause is `docs/measurements/schedule-search/rootcause/`):
 <https://github.com/aornugent/plant-dev/tree/archive/trusting-curie/docs>.
 
 ## Triage: 3
@@ -23,27 +30,36 @@ call and its returned diagnostics are a public API.
 
 ## Requirements ledger
 
-From `OBJECTIVES.md`; ε_q per quantity from `measurements/eps-spread.md`: a tenth of the
+From `../../OBJECTIVES.md`; ε_q per quantity from `measurements/eps-spread.md`: a tenth of the
 quantity's spread across eight rainfall records, never under 0.01 (`harness/schedule/data/eps.csv`).
 As built, the loop meets R1 for the resident's `ln J` and elasticities, R2 and R5, and R3 in
 that a failed run returns the last complete pass, flagged. Curvatures, invaders and R4's radius
 are not built.
 
 - **R1 Accurate by default.** Each quantity's true error is within ε_q, with no knob. The
-  quantities are `ln J`, every elasticity and every curvature, for residents and for invaders
+  quantities are `ln J`, every elasticity and every curvature *(curvatures deleted by
+  rows-entries.md)*, for residents and for invaders
   from ×0.5 to ×2 of the resident.
 - **R1′ Any simulation length.** No rule names an absolute birth date or patch age.
 - **R2 Honest.** Every run reports its own estimate per quantity. The estimate does not depend
   on a second schedule being on the asymptotic law.
 - **R3 Never fails,** including near extinction.
 - **R4 Shared.** One schedule serves a local analysis around θ₀: invaders ×0.5–×2, the resident
-  within ±10%. A big step in θ rebuilds it.
-- **R5 Cheap.** The least runtime at ε. E6 costs its committed run plus a 1.55× check.
+  within ±10%. A big step in θ rebuilds it. *(The radius is deleted by rows-entries.md.)*
+- **R5 Cheap.** The least runtime at ε. T0 costs its committed run plus a 1.55× check.
 - **R6 Diagnosed.** Each run reports its estimate, where its error is, its distance from θ₀
   against the schedule's radius, and its failures.
 
-Left to `design-grid-controller.md`: the time axis (tolerances, splits, the soil stepped on its
-own), and Stable 1–3 as tested by its acceptance suite.
+Left to `time-axis.md`: the time axis (tolerances, the step controller, the soil's substeps).
+Stable 1–3 are tested by the acceptance suite in `validation.md`.
+
+**Scope against `rows-entries.md`.** That design (21 Oct, not built) keeps this loop's schedule,
+replay, corrected answer and bound, and deletes from this ledger: curvatures as a target; R4's
+radius in θ, replaced by holding a row's schedule across calibration steps; the resident's ~50
+elasticities as the judged set (kept on request), replaced by `ln J`, the balance F and the
+invader's g; invaders' spell ends among the breakpoints; and the stall boundary's bisection. Those
+deletions change `OBJECTIVES.md` and await the user. Until then, this ledger stands, and the items
+below that it deletes are marked *(deleted by rows-entries.md)*.
 
 **Scarce resource:** whole SCM runs, 1–7 minutes each.
 
@@ -57,7 +73,8 @@ date. Its error is local and adds over birth date:
 - a replay with every region removed equals the sum of the single removals (correlation 1.000).
 
 **Where the integrand is not smooth** (dense references and fate maps, evidence E1, R4, R13,
-R15):
+R15; the theory is `dynamics.md`: fate breaks in birth date only where a cohort's itinerary of
+net production's sign changes changes):
 - **At a spell's opening its slope jumps,** at all 22 openings on dry.
 - **At a spell's end it stays continuous,** but an interval across the end takes the gap's
   different curve, so its error is set by where its last node sits, not by the spacing. Fate's
@@ -116,7 +133,7 @@ no run exists only to be compared with.
      two intervals (≤ 0.22ε); after a doubled pass, the step changes between the pair's runs
      (up to 0.19ε, a third of it in e): 0.08ε.
    - The ODE tolerance's own error is not in this bound; the step controller holds it
-     (`design-grid-controller.md`). On dry-lma125 at 1e-4 it reaches 0.61ε in one quantity
+     (`time-axis.md`). On dry-lma125 at 1e-4 it reaches 0.61ε in one quantity
      and moves 0.42ε under a 5% tolerance nudge, which no node schedule can cover.
 5. **Otherwise refine by doubling:** run level k + j, with j the fewest doublings whose
    predicted bound 0.5|e_q|/4^j + 0.08 is under 0.9, and no level above 4. The rejected run is the new run's
@@ -133,12 +150,25 @@ analysis (invaders, the resident moved within ±10%, the two runs of each curvat
 unchanged and each reports its own replay estimate and its distance from θ₀. A run whose
 estimate is over its limit, or a step past the radius, rebuilds from step 1 at the new θ.
 
-**Invaders.** An invader establishes on its own P at seed height, so its spell ends can differ
+**When to rebuild is unresolved.** Three rules are on record:
+- *A radius in θ* (R4, R6 above): unmeasured, so it cannot be applied.
+- *A distance in ln J* (`design-grid-controller.md` item 8; built in plant's `diagnose_scm()`,
+  PLANT-110, as `grid_distance` against `distance_limit`): rebuild once
+  d = |ln J(θ) − ln J(θ₀)| > d* = 0.5. θ₀'s estimate transferred at d = 0.19 and misread at
+  0.73–1.11 (`round4/F/notes.md`), so 0.5 is a placeholder between them, measured on lma and
+  root_P50 on two records only.
+- *A move in the balance* (`rows-entries.md`, *judgement*): certify again once the resident's b
+  has moved by more than a tenth.
+
+The built one is d*; none has been tested on the loop's schedules or on invaders.
+
+**Invaders** *(spell ends deleted by rows-entries.md, which leaves them to each entry's own
+estimate)*. An invader establishes on its own P at seed height, so its spell ends can differ
 from the resident's, and libS walks invaders only at the resident's birth dates. The schedule's
 breakpoints are therefore the union of the resident's spell ends and those of the analysis's
 invaders, from one forward walk per invader set. Unmeasured: no run has covered θ′ ≠ θ.
 
-**A stall boundary** is placed from each run's own counts of P sign changes per node: bisect the
+**A stall boundary** *(deleted by rows-entries.md)* is placed from each run's own counts of P sign changes per node: bisect the
 pair whose counts differ. Today's runs do not record that count; a diagnostic build placed the
 stall to 0.0003 d in five rounds.
 
@@ -148,7 +178,7 @@ stall to 0.0003 d in five rounds.
 |---|---|---|---|
 | A [first thought] | Allocate by measured error density | count per spell from the node-drop map's ln J split and each node's cost | error density varies a lot across birth date within a case |
 | **B (chosen)** | Scale only | one scale N over a fixed density | the first density already has the right shape. Per-region allocation saved 4.1% of runtime on the bank, and ln J's split misplaces the elasticities' error |
-| C | Keep E6, replay instead of the check | E6's layout, insets held fixed | the insets' error is under ε/10 everywhere. It is not: +0.34ε in the spell-end strips on dry |
+| C | Keep T0, replay instead of the check | T0's layout, insets held fixed | the insets' error is under ε/10 everywhere. It is not: +0.34ε in the spell-end strips on dry |
 
 ## What the evidence settled
 
@@ -156,15 +186,48 @@ stall to 0.0003 d in five rounds.
 |---|---|
 | Slope jumps only at openings? | Yes, but spell ends need breakpoints too. With openings only, worst errors were 3.36ε (dry), 1.13ε (long-wet) and 3.24ε (episodic, lma ×1.25), and the replay estimated 0.2–0.44 of them |
 | Order 2 inside a spell at twice the spacing? | The interpolation part falls at order 1.6–2.0. With both ends as breakpoints and even counts, the replay estimated 0.75–0.87 of the error (cosine 0.88–0.97) |
-| Both ends as breakpoints, uniform density? | Worst 0.79ε (dry), 0.47ε (long-wet), 0.76ε (episodic-lma; E6 1.29). The replay missed a root_P50 / storage-offset component (±0.4–0.6ε) on dry and episodic-lma |
-| Graded before spell ends, two more intervals per replayed spell? | On dry: worst 0.36ε (E6 0.35), the replay estimated 0.97 of the error, 232 nodes against E6's 149 (+56%). At 1e-4, run plus replay ≈ E6 committed plus check (2.45 against 2.43) |
+| Both ends as breakpoints, uniform density? | Worst 0.79ε (dry), 0.47ε (long-wet), 0.76ε (episodic-lma; T0 1.29). The replay missed a root_P50 / storage-offset component (±0.4–0.6ε) on dry and episodic-lma |
+| Graded before spell ends, two more intervals per replayed spell? | On dry: worst 0.36ε (T0 0.35), the replay estimated 0.97 of the error, 232 nodes against T0's 149 (+56%). At 1e-4, run plus replay ≈ T0 committed plus check (2.45 against 2.43) |
 | The grading's width? | t_r, from parameters: within 26% on every case, ×2.2–2.4 when the storage offset doubles. The drought's length does not predict it |
 | Replay honest by region? | ×0.8–1.25 on the saved region replays; dry-flat's interiors ×1.9 |
 | Parity replay as a second estimate? | No: with even counts the even removal never merges a spell's end intervals; on dry it estimated 0.37 of the error |
 | Probe nodes between nodes? | Not today: the run refuses invaders born at dates it did not introduce |
-| The graded layout on five cases at 1e-4? | dry, long-wet, episodic-lma, dry-flat and a held-out episodic with a_dG2 ×0.8 (t_r 17.8 d): worst error 0.30–0.56ε, at or under E6 committed's (0.35–1.29) on every case; the spell-end component within 0.23ε (0.4–0.6 uniform). The bound on the worst quantity, from its error and the case's read, is 0.67–0.89ε, so each case stops at the first pass. Real rows 1.47–1.66× E6 committed; run plus replay 0.92–1.10× E6 committed plus check |
+| The graded layout on five cases at 1e-4? | dry, long-wet, episodic-lma, dry-flat and a held-out episodic with a_dG2 ×0.8 (t_r 17.8 d): worst error 0.30–0.56ε, at or under T0 committed's (0.35–1.29) on every case; the spell-end component within 0.23ε (0.4–0.6 uniform). The bound on the worst quantity, from its error and the case's read, is 0.67–0.89ε, so each case stops at the first pass. Real rows 1.47–1.66× T0 committed; run plus replay 0.92–1.10× T0 committed plus check |
 | Does the stop ever accept a run over ε? | No, on five cases started at half scale (`rootcause/refine2/`): every pass 1 was over ε (1.0–1.8) and rejected; every pass 2 accepted, worst 0.26–0.66ε. The pass-2 bound covered every quantity but epi-adG208's a_l1 (0.66 against 0.55): level 0 at half scale was short of the square law there (1.625 → 0.661 → 0.152 over three levels), so its estimates read low. Not spell ends, short spells or steps (R21) |
 | What does a reject cost? | Starting at half scale and doubling: 1.56–1.74× round 5's scale-1 run plus replay, which accepted every case at pass 1. Doubling beats rescaling by √, which is not nested and needs its own replay |
+
+## Mechanisms the design rests on
+
+Measured in the schedule search before the loop existed; each explains a choice above.
+- **Why grade, and how much.** A run's rows are about a·n + c·Σ(39.6 − b) over its nodes' birth
+  dates b (R² 0.9997; on dry a ≈ 150 and c ≈ 184 per node-year): a node born at 0 costs about four
+  times one born at 30. An interval's error goes as d(b)·h³, so the spacing that minimises rows at
+  a given error is h ∝ (cost per node / d)^(1/3) (*derived*). In the first-mover layer that is
+  about 2× finer than in the late background, and as coarse as allowed where d ≈ 0
+  (`harness/schedule/BRIEF_ANY.md`). The graded density follows from this; log|d| tracks the
+  pilot's offspring curve as about f^(1/3) (R² 0.6–0.9), but no pilot feature predicts the ×2.6
+  scatter around it.
+- **Why every dropped node must be central.** For a dropped node at fraction l of the panel it
+  merges, err = (C − P)·(l³ + (1 − l)³)/(3l(1 − l)): 1/3 at l = ½, and the move reads only about
+  3l of the panel's error as l → 0. Lopsided panels, where an edge lands beside another node,
+  carried most of an earlier map loop's shortfall (`measurements/estimate-shortfall.md`). Equal
+  shares and even counts keep every drop central.
+- **Why the levels nest.** Each run carries step-sequence jitter, rms about 0.04ε against a smooth
+  fit, one quantity in twenty near 0.25ε. A pair whose schedules do not nest carries the
+  difference amplified by 1/(1 − s), s = (h_fine/h_coarse)² (×3.6 for a 7/6 step); nested pairs
+  share it (`harness/schedule/BRIEF.md` 15).
+- **Why plant's current estimate cannot be kept.** Plant's `refine_schedule` drops one node at a
+  time and reads that node's own part of the error. It is blind to the field part: the light and
+  water a coarser node set changes for every other cohort. The two parts are of similar size and
+  usually opposite sign; the own part was always positive while the true error changed sign on 4
+  of 10 cases, and it correlates 0.64–0.69 with the error against a nested pair's 0.98
+  (`rootcause/synthesis.md`). Thinning nodes born after b = 10 moved ln J by 0.70ε through the
+  field although those births earn almost none of J (`design-schedule-building.md` W6).
+- **Why `rooting_depth_max` is left out.** Its default, 1.5 m, equals the soil column's depth,
+  and rooting depth is min(height, cap), so θ₀ sits on a model kink: the elasticity moves 0.3ε per
+  1% of the trait (`rootcause/error-modes.md` G2). No schedule fixes it. `recruitment_decay` is a
+  nuisance parameter (minus J's mean birth date), and `S_D` and `a_f3` have no spread by
+  construction.
 
 ## Guarantees, by construction
 
@@ -203,8 +266,8 @@ without reserves), its ε table, and its u_q. TF24's are above.
 
 ## What this makes hard
 
-- **Cost:** the graded layout has 38–68% more nodes than E6's committed run (1.47–1.66× its
-  rows); run plus replay is level with E6's run plus check (0.92–1.10×). The gain is an honest
+- **Cost:** the graded layout has 38–68% more nodes than T0's committed run (1.47–1.66× its
+  rows); run plus replay is level with T0's run plus check (0.92–1.10×). The gain is an honest
   estimate in one run, not fewer rows.
 - **The fixed term u_q:** 0.22ε of the budget goes to short spells after a replay. A bound for
   them that is not a worst case would return most of it.
@@ -230,10 +293,62 @@ than the 4.1% measured, candidate A (allocation by the node-drop map) takes over
 - Which of light or water carries the understory's error (the node-drop map says soil carries
   58–89%; not checked against a run that separates them).
 - The per-node count of P sign changes, which today's runs do not record.
+- **Scale 0.7 with the corrected answer (K2′).** It ran at 0.79–0.85 of the canonical CPU on three
+  held-out cases, worst 0.11–0.30ε, its bound covering 141 of 141 quantities. It is untested on
+  dry-flat and episodic-lma, which carry the most short spells, and scale 0.5 was dishonest on
+  dry-flat (a wrong-sign replay). Four runs would decide it (`rootcause/refine2/frontier.md`).
+  Scale is a weak lever: the even-plus-two counts and the spell-end nodes do not scale, so scale
+  0.7 keeps 0.80–0.90 of the rows.
+- **Cheaper runs.** A warm-started collar search plus roots solved to a relative 1e-10 save 6.8%
+  of a run plus replay (the forward −22%), and move answers by ≤ 0.13ε through changed steps and e
+  by ≤ 0.011ε. Patches are on the tag (`rootcause/refine2/perf/warmstart.patch`,
+  `root_tolerance.patch`); landing them means re-checking the reference tests and the bound's
+  constants. Taking the crown's light quadrature off the tape is worth up to 11.3% more, not
+  prototyped (`rootcause/refine2/perf.md`).
+- **The tolerance's own error,** which this bound leaves out (`time-axis.md`). With a per-run
+  estimate, 3e-4 would save 27% of CPU on episodic-lma.
 - The late spacing. `spacing_of()` caps node spacing at 100 d up to t50 and 280 d after it, so
   the replay merges late intervals well past the 45–80 d where the square law was measured to
   hold for elasticities. The five cases passed regardless, because late births carry little
   J; whether that holds for every quantity is not tested.
+
+## In plant
+
+**Where the pieces live today** (`map-schedule-building.md`, 9 Oct, before the spread was
+dropped):
+- *Exact counts:* each node holds its interval's establishment integral E and first moment M
+  (`interval_establishment`, `interval_establishment_moment` in `node.h`). `Node::interval_shares`
+  splits the interval between its two ends' hat functions, and
+  `Species::for_each_establishment_weight` gives each node's weight. Every sum over the population,
+  offspring included, is Σ w_j f(N_j). The interval exists only as the pair (N_j, N_j+1); no type
+  names it.
+- *Introductions:* `NodeSchedule` and `Parameters$node_schedule_times`; the solver sees them only
+  as insertion rows.
+- *Plant's `SCM::refine_schedule`:* leave-one-out per node, bisecting intervals over
+  `schedule_eps`, **on the height coordinate only**; it refuses the birth-date coordinate.
+- *The tolerance over time:* R's `control_window`, into `Control`'s `ode_tol_factor_times` and
+  `_values`, then `Patch`.
+- *The estimate:* R's `diagnose_scm`, Richardson from runs at every other and every fourth
+  introduction, per quantity; it measures and refines nothing.
+- *What the loop reads:* the first run's establishment rate and T(t). `refine.R` decodes them from
+  `store_trajectory()` rows by state offsets (`stand_run`). In plant they should be recorded by
+  the run, not decoded.
+
+**Other strategies are unmeasured.** FF16 and K93 run on the height coordinate, where plant's
+current loop lives and where this loop's replay estimate was never measured. "One spell [0,
+horizon]" (*What a strategy supplies*) is a design, not a result. Whether the height coordinate
+keeps its own loop or this one replaces it is open (`map-schedule-building.md` §6).
+
+**The code review's items not applied** (`rootcause/review/code/review.md`):
+- *S2, one strategy table.* TF24's facts sit in eight places in `refine.R`: `grade`,
+  `reserve_time`, `spacing_of`'s constants, the unestimated terms, the ε source, the excluded
+  quantities, the setting and the runner's controls. They wait for a second strategy; in plant
+  they are *What a strategy supplies*.
+- *Q1, one runner.* `refine.R`'s `stand_run` is a second runner beside `harness/run_record.R`.
+- *Q3, trait moves.* The cases move one raw parameter after the strategy is built, so lma's
+  derived parameters are not re-derived (`validation.md`).
+- *Nesting is kept by arithmetic plus rounding* (`round(S, 10)`), not by structure. The clean sheet
+  took the replay's nodes by index from the run's own times instead.
 
 ## Next: the invader's g under the guarantees
 
@@ -292,7 +407,8 @@ fit$status     # converged | unconverged | failed (then fit$error says why)
 ```
 
 `harness/schedule/refine_case.R` runs one of the five cases at the setting they were
-measured on (1e-4 relative, the soil's factor 10, control_window's weights, the 15-day cap).
+measured on (1e-4 relative, the soil's factor 10, control_window's weights, the 15-day cap;
+`time-axis.md`). The cases are defined in `validation.md`.
 
 The quantities are `ln J` and the elasticities the bound's constants were measured on:
 `S_D`, `a_f3`, `recruitment_decay` and `rooting_depth_max` are left out. Not yet built:

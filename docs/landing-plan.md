@@ -187,9 +187,11 @@ tag, breaks them once GitHub prunes the commits.
 
 ## Unsure
 
-- **Whether the splits are DROP or HOLD.** `residual.md` and `residual-B.md` put the splits on
-  HOLD pending an 18-run measurement. `measurements.md` then says "the splits are dropped",
-  and no record of that measurement exists. Confirm with the user before closing #102, #103 and
-  odelia#53 and #54.
+- **The splits: settled as DROP.** `residual.md` and `residual-B.md` put the splits on HOLD
+  pending an 18-run measurement, and no record of that measurement exists. But the user's
+  decisions of 19 October drop them: they buy ≤ 0.07ε in the refine loop's answer, and their
+  reproducibility gain was measured before the soil substeps (`design-grid-controller.md`,
+  *The user's decisions*; `schedule/time-axis.md`). Closing #102, #103 and odelia#53 and #54 is
+  still **action: user**.
 - **Whether plant#116 supersedes PLANT-99 and closes #99.** This is inferred from #116's text,
   not tested.

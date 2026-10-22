@@ -217,7 +217,7 @@ Why it can be trusted:
 - **Measured:** with both spell ends as breakpoints and the grading before them, the
   estimate was 0.82–1.17 of the error on dry, long-wet, episodic with lma ×1.25, dry-flat
   and episodic with a_dG2 ×0.8 (cosine 0.95–1.00 once short spells are set aside). The
-  worst errors were 0.30–0.56ε, at or under those of E6, the tuned schedule the loop
+  worst errors were 0.30–0.56ε, at or under those of T0, the tuned schedule the loop
   replaces, on every case.
 - **Cost:** 0.51–0.66 of a run.
 
@@ -340,7 +340,7 @@ Settled so far:
 - fate's slope jumps only at openings, but spell ends need breakpoints as well;
 - with even counts every interval is merged, and the replay costs 0.51–0.66 of a run;
 - the last weeks of a spell need a graded density with more intervals, not a breakpoint
-  of their own: on dry that took the worst error from 0.79 to 0.36ε (E6, the tuned
+  of their own: on dry that took the worst error from 0.79 to 0.36ε (T0, the tuned
   schedule: 0.35) and the estimate to 0.97 of the error;
 - the grading's width is t_r, from the traits, not from the drought's length;
 - spell ends taken once from the first run serve every level;
