@@ -85,7 +85,13 @@ arithmetic mean overstates fitness. Metz & Gyllenberg (2001) define R_m only at 
 point equilibrium; under rates that fluctuate in common, fitness is the Lyapunov exponent of
 the linear mutant equations run beside the residents. On the Overstorey toy, a strategy scaled to a mean output of 1 has
 a growth rate of −0.13 to −0.39 per year when followed through its seed bank, and persists
-only at mean outputs of 4.7–10.8 (`harness/renewal_toy.R`). The right quantity is a renewal growth rate, built
+only at mean outputs of 4.7–10.8 (`harness/renewal_toy.R`). Both results are classical.
+- With every seed germinating, any chance of a year with no yield sends the long-run growth
+  rate to −∞ (Cohen 1966, eq. 18). The toy's lethal droughts are such years.
+- An average over outcomes, like the mean matrix's eigenvalue, grows faster than a typical
+  population. ln N_t is asymptotically normal, N(at, σ²t), and the modal growth rate falls
+  below a by σ²/2 (Tuljapurkar & Orzack 1980). The mean output over landing dates is that
+  kind of average. The right quantity is a renewal growth rate, built
 from each cohort's offspring by date. For trees, generations are about as long as the record,
 so a history row reads one generation, and the mean over landing dates is the quantity. The
 renewal matters where generations are much shorter than the record: annuals, and the
@@ -111,6 +117,20 @@ offspring by date, not only their sum,** so both can be formed without a second 
   establish is about N·2r/σ_D², with r the per-time rate and σ_D² the demographic variance
   (their eq. 18, a diffusion approximation). The sign says whether a strategy can
   re-establish eventually; the size says whether a given planting will.
+- **Under shared weather, an entry needs its log variance too.** Tuljapurkar & Orzack (1980)
+  describe growth and extinction by the pair (a, σ²): ln N_t ~ N(at, σ²t). Treating ln N as a
+  Wiener process, a lineage starting from N₀ ever falls below one individual with
+  probability exp(−2a ln N₀/σ²) if a > 0, and with certainty if a ≤ 0. A strategy with
+  lower a and lower σ² can be the safer planting; they call into question ranking life
+  histories by one growth rate. Both numbers come from the renewal on the row:
+  - a from ln N over the window;
+  - σ² from the variance of ln N over blocks, which also gives a's sampling error,
+    σ/√T over a window of length T.
+
+  In their example a hardly moves with the environment's autocorrelation, while σ² rises
+  steeply with it. The distribution converged in about 100 intervals at autocorrelation
+  under 0.5, and needed up to 1,000 near 0.9. So multi-year droughts set the window.
+  Their theory assumes no secular trend, and it excludes semelparous life histories.
 - **Parameter uncertainty is a third error.** With calibrated physiology, an entry's sign can
   flip across the posterior (Jensen's inequality). Each entry's sweep already gives ∂A/∂c,
   so a first-order spread ∇_c A · Σ_c · ∇_c Aᵀ costs nothing more. Where it is comparable
@@ -155,7 +175,7 @@ discretisation estimate and, for regime rows, its sampling estimate, reported se
 |---|---|---|
 | S1 | each resident's g within the invader's ε, and F to 0.02 | `lma` 0.20, `a_dG2` 0.050, at least 0.01 |
 | S2 | each Δ_ij within ε, with its own estimate | 0.025 |
-| S3 | every number reports discretisation, sampling (regime rows) and parameter error, apart; entries report T_r | per number |
+| S3 | every number reports discretisation, sampling (regime rows) and parameter error, apart; entries report T_r and, under shared weather, σ² | per number |
 | S4 | a row is held across calibration steps while its estimate passes; its answers are smooth in c on the held grid | 1–3 Gauss–Newton steps |
 | S5 | throughput, not latency: rows and entries are independent | 100 sites × 300 strategies × M recordings |
 | S6 | no throw for any pool strategy, including hydraulics and phenology unlike the residents | 30,000 entries per record |
@@ -380,6 +400,11 @@ Nothing below is started; each step is small and testable.
 
 - Chesson, P. (2017). AEDT: a new concept for ecological dynamics in the ever-changing world.
   *PLoS Biol.* 15: e2002634. doi:10.1371/journal.pbio.2002634
+- Cohen, D. (1966). Optimizing reproduction in a randomly varying environment. *J. Theor.
+  Biol.* 12: 119–129. doi:10.1016/0022-5193(66)90188-3
+- Tuljapurkar, S.D. & Orzack, S.H. (1980). Population dynamics in variable environments I.
+  Long-run growth rates and extinction. *Theor. Popul. Biol.* 18: 314–342.
+  doi:10.1016/0040-5809(80)90057-X
 - Gyllenberg, M. & Metz, J.A.J. (2001). On fitness in structured metapopulations. *J. Math.
   Biol.* 43: 545–560. Read as IIASA IR-99-037.
 - Meszéna, G., Gyllenberg, M., Pásztor, L. & Metz, J.A.J. (2006). Competitive exclusion and
