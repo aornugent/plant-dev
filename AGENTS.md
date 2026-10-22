@@ -17,8 +17,11 @@ code, but issue/PR access is a separate grant:
 - `plant/`: Submodule pointing to `https://github.com/aornugent/plant.git`, tracks `develop` (pinned via `branch = develop` in `.gitmodules`)
 - `phylloptim/`: Submodule pointing to `https://github.com/aornugent/phylloptim.git`, default branch `master`
 - `odelia/`: Submodule pointing to `https://github.com/aornugent/odelia.git`, default branch `master`
-- `docs/schedule/`: the TF24 node-schedule refine loop, its design and vignette; the code is `harness/schedule/`
-- `docs/review/`: the derivatives of the eco-evolutionary loop, and selection read at observed sites. Their sources and measurements are on the tag `archive/trusting-curie`
+- `OBJECTIVES.md`: the requirements TF24's schedule and step controller are judged against
+- `docs/schedule/`: the TF24 node-schedule refine loop (`refine.md`), its time axis, validation bank and vignette; the code is `harness/schedule/`
+- `docs/review/`: the derivatives of the eco-evolutionary loop, selection read at observed sites, the theory behind them and the annotated literature
+- `docs/findings.md`: what the measurements found, with E1–E8 defined; `docs/landing-plan.md`: how the open PRs and unlanded branches land
+- `harness/`: the reusable R drivers (see `harness/README.md`). Raw measurements, PR drafts and one-off drivers are on the tag `archive/trusting-curie`, which open PRs' figures link to: keep it
 
 Each submodule also has an `upstream` remote configured pointing to the official `traitecoevo` repository (`traitecoevo/plant`, `traitecoevo/phylloptim`, `traitecoevo/odelia`, `traitecoevo/logpile`).
 
