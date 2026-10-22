@@ -11,8 +11,20 @@ This note distils the last three reviews of 21 October 2026, on the tag
 `archive/trusting-curie` under `docs/review/`: `weaknesses.md` (the case against solving
 for the outcome), `rebuild.md` (the residual) and `representation.md` (the table). Numbers
 are measured unless marked *estimated* (E1–E8 are
-`docs/measurements/regnans-roadtest/rootcause/` there); F is one TF24 forward run, about
-49 s on long drought at an absolute tolerance of 1e-4 (E7).
+`docs/measurements/regnans-roadtest/rootcause/` there, defined in `../findings.md`); F is
+one TF24 forward run, about 49 s on long drought at an absolute tolerance of 1e-4 (E7).
+
+**Two hypotheses recur** (`frontier.md` §3 on the tag). **H1, trait syndromes as few
+modes:** plant traits covary along a few axes (the leaf economics spectrum; Díaz et al.
+2016) because selection on fifty traits acts through a few directions of environmental
+feedback. **H2, variability raises the dimension:** at equal mean rainfall, variable
+records raise that number of directions, and with it the number of strategies that can
+coexist.
+
+**Not yet checked against the literature.** The reviews' novelty searches covered the
+forward programme; no search was run on the residual reformulation itself. The closest
+prior work they found elsewhere is constrained estimation of structural equilibria (Su &
+Judd 2012) and ESS predictions compared with data but not fitted (Dybzinski et al. 2011).
 
 ## 1. Why the forward problem is the wrong target
 
@@ -51,10 +63,11 @@ At an observed site, G(x_obs; c) is a measurement, not an equation. Per species 
    over the days of the record.
 
 **Scale, from the one number measured.** On long drought at TF24's defaults, g in `lma`
-along the trade-off is −23.8: a variant with 1% lower `lma` has R′ about 1.27. Field
-estimates of standardised selection gradients are mostly 0.1–0.2 per standard deviation
-(Kingsolver et al. 2001). A residual that large at a real site would point at the trade-off
-or the model before it pointed at selection (*judgement*). The defaults are not an observed
+along the trade-off is −23.8: a variant with 1% lower `lma` has ln R′ higher by 0.24, R′
+about 1.27. Field estimates of standardised selection gradients are mostly 0.1–0.2 per
+standard deviation (Kingsolver et al. 2001). A within-species spread in ln `lma` of 0.2
+would turn −23.8 into about 5 per standard deviation. A residual that large at a real site
+would point at the trade-off or the model before it pointed at selection (*judgement*). The defaults are not an observed
 community, so this says only that they are far from singular on that record.
 
 **A nonzero residual has four readings,** separated across sites, not at one:
@@ -70,6 +83,24 @@ community, so this says only that they are far from singular on that record.
 since dg/d ln b = −6.0, E5; recently disturbed sites are out), and that the record
 represents the climate regime. **Not assumed:** evolutionary equilibrium, the trade-off, the
 mutational covariance M.
+
+**Calibration needs no iteration over hypotheses** (`rebuild.md` §5, *derived*). With
+the run held at the observed point, a trade-off's slopes enter g only through the chain
+rule applied after the sweep, so **the residual is linear in the slopes**: one pass over
+the sites, then least squares. Physiology constants are not linear: take one Gauss–Newton
+step from the defaults, using g's Jacobian in the measured directions (two displaced
+sweeps each), rerun at the fitted constants to check, and iterate only where the check
+fails. Per species, site and record that is about 11 F for the residual and its
+calibration gradient, and 25–50 F with 5–10 measured directions. For 100 sites and 8
+records, about 40,000 F, 550 core-hours (*estimated*). An optimiser iterating over all
+sites would cost about 440,000 F, 6,000 core-hours: the forward problem's cost by another
+route. On the table (§3), each entry's sweep with the physiology on the tape gives
+∂A_ij/∂c in every constant at once, and a Gauss–Newton step uses the whole table.
+
+**Nash against planner, decided by data.** Do observed traits satisfy g = 0
+(uninvadable), or F_θ = 0 (the stand optimum)? Each is one sweep per species. That tests
+whether nature follows an optimisation principle, which Metz, Mylius & Diekmann (2008)
+say exists only when the feedback is one-dimensional.
 
 **The precedents.** EEO's successful models already make this move for physiology: the
 P-model uses the least-cost condition algebraically and never simulates evolution (Wang et
@@ -127,6 +158,8 @@ table is cheaper to fill. That reverses the objection that few modes weaken the 
 spacing of observed traits; a race between cohorts (E8) is a value there, not an infinite
 derivative. Derivatives are used only at residents, and checked against neighbours: where
 A_ij differs from A_ii + g_i · (p_j − p_i) by more than ε, the value is what is reported.
+Races are still possible on real weather: a species where one cohort carries most of R′ is
+routed to one-sided invader runs, not a gradient (`rebuild.md` §5).
 
 ## 4. Cost
 
@@ -140,7 +173,8 @@ A_ij differs from A_ii + g_i · (p_j − p_i) by more than ε, the value is what
 | total | | | about 19,500 F, 265 core-hours |
 
 There is no iteration: runs are made once, and every question is linear algebra on a table
-of doubles. Entries are 92% of the cost, so the levers are an entry's nodes and its row's
+of doubles. If the rank is small, filling a fifth of the entries brings the total to about
+70 core-hours. Entries are 92% of the cost, so the levers are an entry's nodes and its row's
 steps. The schedule design for the table (`design-schedule.md` on the tag) gives each row a
 refined, certified schedule and each entry a thinned one with a free estimate from a sub-sum
 of its own per-node offspring, bringing the total to about 170 core-hours. Records per site
@@ -161,10 +195,16 @@ multiply the cost; how many are needed is set by the spread of A across records.
 - **Separating model error from disequilibrium:** calibrate on sites whose climate has been
   stable, and read disequilibrium where it has moved.
 
+**The fallback: demographic assimilation** (`rebuild.md` §3, candidate C). Fit the
+physiology to remeasured plots' growth and mortality by size, over short runs. It is cheap
+and needs no fitness at all, but it says nothing about selection. It is the route for the
+physiology if the residual fit fails.
+
 **Kill conditions** (`rebuild.md` §7). If trade-offs become well constrained independently,
 the forward prediction becomes trustworthy and this shrinks to its validation. If no shared
 physiology makes the residuals small at stable-climate sites, the model is wrong, not the
-equilibrium; fit the physiology to remeasured plots' growth and mortality first.
+equilibrium; demographic assimilation takes over the physiology before the residual is
+tried again.
 
 ## 6. Where it starts
 
@@ -186,6 +226,8 @@ Each was resolved against Crossref in the original reviews unless marked.
   doi:10.1111/j.1468-0262.2007.00796.x
 - Candès, E.J. & Recht, B. (2009). *Found. Comput. Math.* 9: 717–772.
   doi:10.1007/s10208-009-9045-5
+- Dybzinski, R., Farrior, C., Wolf, A., Reich, P.B. & Pacala, S.W. (2011). *Am. Nat.* 177:
+  153–166. doi:10.1086/657992
 - de Mazancourt, C. & Dieckmann, U. (2004). Trade-off geometries and frequency-dependent
   selection. *Am. Nat.* 164: 765–778. doi:10.1086/424762
 - Díaz, S. et al. (2016). The global spectrum of plant form and function. *Nature* 529:
@@ -194,7 +236,11 @@ Each was resolved against Crossref in the original reviews unless marked.
 - Hotz, V.J. & Miller, R.A. (1993). *Rev. Econ. Stud.* 60: 497–529. doi:10.2307/2298122
 - Kingsolver, J.G. et al. (2001). *Am. Nat.* 157: 245–261. doi:10.1086/319193
 - Levin, S.A. (1970). *Am. Nat.* 104: 413–423. doi:10.1086/282676
+- Metz, J.A.J., Mylius, S.D. & Diekmann, O. (2008). When does evolution optimize? *Evol.
+  Ecol. Res.* 10: 629–654. No DOI.
 - Meszéna, G., Gyllenberg, M., Pásztor, L. & Metz, J.A.J. (2006). *Theor. Popul. Biol.*
   69: 68–87. doi:10.1016/j.tpb.2005.07.001
+- Su, C.-L. & Judd, K.L. (2012). Constrained optimization approaches to estimation of
+  structural models. *Econometrica* 80: 2213–2230. doi:10.3982/ECTA7925
 - Varian, H.R. (1984). *Econometrica* 52: 579–597. doi:10.2307/1913466
 - Wang, H. et al. (2017). *Nature Plants* 3: 734–741. doi:10.1038/s41477-017-0006-8
