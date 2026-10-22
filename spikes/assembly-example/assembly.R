@@ -376,6 +376,36 @@ fitmax <- function(m, eps = 1e-5, fit_eps = 1e-4, N0 = 1e-3, max_rounds = 20) {
        g = max(abs(unlist(lapply(thetas, function(t) fitness(m, t, R)$g)))))
 }
 
+## Field-space route, for impacts equal to minus sensitivities: the community's
+## field is the projection of the supply K onto the set where no strategy grows,
+## the residents are the active cuts and their densities the multipliers. Cutting
+## planes: project K onto the cuts so far, price in that field, add the best
+## strategy's cut, until nothing grows. No resident runs.
+project_field <- function(m, tol = 1e-12, max_it = 100, trace = TRUE) {
+  reset_counts(); cuts <- list(); R <- m$K
+  for (it in seq_len(max_it)) {
+    from <- c(starts(m, if (length(cuts)) 5 else 13), cuts)
+    pr <- price(m, R, from = from)
+    top <- which.max(pr$phi)
+    if (trace) cat(sprintf("  cut %2d: field (%s), best phi %.2e\n", it,
+                           paste(sprintf("%.6f", R), collapse = ", "), pr$phi[top]))
+    if (pr$phi[top] < tol) break
+    cuts <- merge_close(c(cuts, list(pr$theta[[top]])))
+    f <- lapply(cuts, function(th) fitness(m, th, R))
+    S <- t(vapply(f, `[[`, numeric(m$d), "S"))
+    b <- vapply(f, function(z) sum(z$S*R) - z$phi, 0)  # cut: S.R' <= b
+    lam <- lcp(drop(-(b - S %*% m$K)), -S %*% t(S), m$d, integer(0))
+    R <- drop(m$K - t(S) %*% lam)
+  }
+  f <- lapply(cuts, function(th) fitness(m, th, R))
+  S <- t(vapply(f, `[[`, numeric(m$d), "S"))
+  b <- vapply(f, function(z) sum(z$S*R) - z$phi, 0)
+  lam <- lcp(drop(-(b - S %*% m$K)), -S %*% t(S), m$d, integer(0))
+  on <- lam > 0
+  list(theta = cuts[on], N = lam[on], R = R, cuts = length(cuts), iterations = it,
+       resident = count$resident, invader = count$invader, wall = count$wall)
+}
+
 schur <- function(A, i = 1) A[i, i] - A[i, -i] %*% solve(A[-i, -i], A[-i, i])
 
 ## ---- the symmetric two-resource case, by hand and by the three routes ----
