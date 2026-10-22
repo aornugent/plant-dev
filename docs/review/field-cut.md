@@ -23,6 +23,14 @@ selection gradients from one recording, does assembly still need its equilibrium
 - **No second derivatives.** regnans's planned joint Newton (#53) needs ∂g/∂n and ∂g/∂x,
   which its roadmap calls the hardest quantities. This needs only first derivatives, all of
   them from the one recording.
+- **In equations** (§8). The frequency-dependent part of the selection Jacobian factors
+  through the field, so its rank is at most d. That bounds what many traits can do (§9):
+  - lineages split only along a ≤ d-dimensional subspace U of the trait space;
+  - at most d species coexist;
+  - every other trait is a held-field best response, the EEO problem, given a species'
+    position in U.
+- **Faster assembly** (§10): find U first; price a whole candidate pool at once and solve one
+  rank-d complementarity problem; then refine only the survivors, one-shot.
 
 ## 1. What one recording returns
 
@@ -214,7 +222,178 @@ root. Refinement mid-solve would put a discrete jump into G.
 - **Plant's cut cost** is unmeasured; odelia's stepwise sweep keeps each step's tape small,
   which is where the toy measured 0.99 of a kept sweep.
 
-## 8. Experiments, in order
+## 8. In equations
+
+**Objects.**
+- Species i = 1…m carry traits θ_i ∈ ℝᵏ and seed rain b_i, with β_i = ln b_i.
+- The field is E = 𝓔(θ, β): light by height and patch age, and water by layer and time.
+- Invader fitness φ(θ′; E) = ln R′ is computed in a held field. A resident is an invader at
+  its own traits: F_i(θ, β) = φ(θ_i; 𝓔(θ, β)).
+- The local quantities:
+
+  | Symbol | Meaning | Meszéna's name |
+  |---|---|---|
+  | g_i = ∂_θ′ φ(θ_i; E) | selection gradient | — |
+  | S_i = δφ(θ_i; E)/δE | sensitivity | S_i |
+  | C_j = ∂𝓔/∂β_j | impact | C_j |
+  | H_i = ∂²_θ′θ′ φ | held-field Hessian | s₁₁ in `theory.md` A |
+  | G_i = ∂_E g_i = ∂²φ/∂θ′∂E | how selection on i depends on the field | — |
+
+**The chain rule**, with ⟨·,·⟩ the pairing of a sensitivity with a field perturbation:
+
+  ∂F_i/∂β_j = ⟨S_i, C_j⟩,  ∂F_i/∂θ_j = δ_ij g_i + ⟨S_i, ∂𝓔/∂θ_j⟩.
+
+The first is Meszéna's a_ij = S_i·C_j, so |det ∂F/∂β| is the robustness of coexistence.
+
+**The cut.** Reverse mode sums ∂F/∂(input) over paths in the recorded graph. Partition the
+paths by whether they pass through a field node. Zeroing each field node's adjoint, once all
+of its readers have been swept, deletes exactly the paths through the field. The rest are the
+derivative with E held, so ∂_θ_i φ(θ_i; E) = g_i, and 0 for β. Sweeping last to first, the
+adjoint a field node holds when zeroed counts only paths that avoid later field nodes; that
+is S. And since F_j does not reach θ_i with E held for j ≠ i, a single cut sweep of Σ_j F_j
+returns every g_i.
+
+**The root.** The assembled community is x* = (β*, θ*) with
+
+  F(x*) = 0,  g(x*) = 0,  and  max_θ′ φ(θ′; E*) ≤ 0,
+
+and b_i ≥ 0, F_i ≤ 0, b_i F_i = 0 over any candidate pool (`assembly.md` §4).
+
+**The one-shot step.** Record at x_k; read F, F_β, F_θ, g; then
+
+  θ_{k+1} = θ_k + δ_k,  δ_k = −B_k⁻¹ g_k,
+  β_{k+1} = β_k − F_β⁻¹ (F_k + F_θ δ_k),
+
+with B_k Broyden's estimate of the reduced Jacobian.
+
+Let β*(θ) solve F(θ, β) = 0, and define the reduced gradient and its Jacobian, the Schur
+complement of the full Jacobian:
+
+  ĝ(θ) = g(θ, β*(θ)),  J = ∂ĝ/∂θ = g_θ − g_β F_β⁻¹ F_θ.
+
+Taylor's theorem gives:
+- F(x_{k+1}) = O(|Δ_k|²);
+- β_{k+1} − β*(θ_{k+1}) = O(|Δ_k|²);
+- g(x_{k+1}) = ĝ(θ_{k+1}) + O(|Δ_k|²).
+
+The perturbation is o(|δ|), so Broyden on ĝ keeps its local superlinear convergence
+(Dennis–Moré). The fixed points are δ = 0 ⇔ g = 0 and Δβ = 0 ⇔ F = 0: the same root as the
+nested route. No second derivative is formed; g_θ and g_β appear only inside J, which B_k
+learns.
+
+**Classification at the root,** for one resident (`theory.md` A.3):
+
+  J = H + M,  M = G · dE*/dθ,  dE*/dθ = ∂𝓔/∂θ − C F_β⁻¹ F_θ.
+
+- **ESS:** H ≺ 0.
+- **Strongly convergence stable:** J + Jᵀ ≺ 0 (Leimar 2009; Geritz, Metz & Rueffler 2016).
+- **Branching:** strongly convergence stable and not ESS.
+
+## 9. What fifty traits can separate
+
+*Derived, not yet tested beyond k = 2.*
+
+**1. M has rank at most d.** M = G · dE*/dθ factors through the field. If the field is
+effectively d-dimensional (the modes in which sensitivities differ), then rank M ≤ d,
+whatever k is.
+
+**2. Branching needs the field.** Let v be a disruptive direction (vᵀHv > 0) at a strongly
+convergence-stable point (vᵀJv < 0). Then
+
+  vᵀMv = ⟨Gᵀv, (dE*/dθ) v⟩ < 0.
+
+A trait direction can split a lineage only if moving along it does two things:
+1. it changes which parts of the field the strategy depends on (Gᵀv ≠ 0);
+2. it changes the field the strategy makes ((dE*/dθ) v ≠ 0).
+
+The two must have opposite sign: negative frequency dependence. On null(M), which has at
+least k − d dimensions, J = H, so convergence stability implies ESS there. Those directions
+never split.
+
+**3. At most d species** (Meszéna et al. 2006). Each resident is a zero-height peak of one
+landscape φ(·; E*). Given E, the peak conditions g = 0 fix θ, and φ = 0 is then one more
+condition on E. m residents put m independent conditions on the field, and they can hold
+robustly only if the field has m independent directions that move the S_i. So m ≤ d, with
+robustness |det⟨S_i, C_j⟩|.
+
+**4. The rest are slaved.** Split θ = (u, w):
+- u ∈ U, at most d dimensions, is where M acts: the separating coordinates;
+- w is the rest.
+
+Every resident has g = 0 in the common field, so w_i = w*(u_i; E*): its held-field best
+response, given its niche coordinate. Within a community, species differ along at most
+m − 1 ≤ d − 1 directions in u, and the other traits follow as syndromes.
+
+**5. EEO and assembly divide the traits.** w*(u; E) is exactly what an EEO model computes:
+optimality in a given environment. It is right for the slaved traits when given the right u
+and E*. It cannot predict u or E*; those come from frequency dependence, that is from
+assembly. This is the formal version of "EEO is a held-field best response" (`theory.md`).
+
+**6. Neutral directions** are null(H) ∩ null(M). They are undetermined, drift, and should be
+reported as such.
+
+**What U should contain in TF24** (*hypotheses*, one per field component):
+
+| Field component | Separating direction | Precedent |
+|---|---|---|
+| light by height | height at maturity, allocation to reproduction | Falster et al. 2017 |
+| light by patch age (succession) | growth against shade survival: LMA, wood density | Pacala & Rees 1998; Falster et al. 2017 |
+| water by depth | rooting depth and allocation | — |
+| water by time (episodic) | hydraulic safety, stomatal strategy, storage | needs the non-additivity of Johnson & Hastings 2022 |
+
+The rest of the 51 (Vcmax/Jmax coordination, leaf N, leaf size, many hydraulic constants)
+should be slaved. Most likely d is small (2–4). Two global axes of plant form and function
+(Díaz et al. 2016, from memory) would be what d ≈ 3 looks like across communities.
+
+**How to measure U.**
+- M = G · dE*/dθ is a rank-d product, and both factors come from machinery already planned.
+- **G along the field modes:** g in fields perturbed along each mode, d invader sweeps.
+- **dE*/dθ projected on the modes:** d resident reverse passes, each seeded with one mode
+  as the field's cotangent. This is the two-stage adjoint's seed.
+- **The modes:** the leading principal directions of the sensitivities S over the residents
+  and a candidate pool.
+- **Cost:** about 2d sweeps for U, against k² for a dense M.
+
+## 10. Faster to an assembled community
+
+From what the derivation buys, roughly in order of gain:
+
+1. **Separating coordinates first.** Find U (§9), then search for coexistence and branching
+   in ≤ d dimensions, not k. The slaved traits are k − d per-species best responses in a
+   held field: the EEO problem, parallel across species. Pricing, the non-convex step,
+   becomes a d-dimensional search that a coarse grid can cover globally.
+2. **Price the whole pool at once; solve one low-rank complementarity problem.**
+   - One invader run and sweep per candidate l gives φ_l and S_l. Its per-capita trajectory
+     also gives its direct impact C_l.
+   - Linearise the field about the current community, projected on the d modes:
+
+       F_l ≈ φ_l + ⟨s_l, y⟩,  y = y₀ + Σ_j c_j b_j,  b ≥ 0, F ≤ 0, bF = 0.
+
+   - Its matrix [⟨s_l, c_j⟩] has rank d, so its solution has at most d positive b
+     (Meszéna's bound, as linear algebra). It is a d-dimensional problem in the field
+     coordinates y.
+   - Solve it, re-record the survivors, relinearise. A few rounds replace FitMax's one
+     species per round.
+   - *Untested.* The direct impact misses the residents' response; relinearising corrects
+     it.
+3. **Refine only the survivors,** one-shot (§3), in U, with entry and exit handled
+   semismoothly in the same iteration.
+4. **Warm starts along climate.** E* moves smoothly between nearby sites. The adjoint of the
+   root predicts each next community (`assembly.md` §5).
+5. **When d = 1, no assembly at all.** The ESS is a single optimisation through a scalar
+   environment, such as the PPA's z* (Metz, Mylius & Diekmann 2008). The C.2 angle test
+   (`assembly.md` §8) is the cheap check.
+
+**Cost** (*estimated*, TF24, k = 50, d = 3):
+- U: about 6 sweeps;
+- a pool of 200 candidates in U: 120 F of invader runs, parallel;
+- 3–5 relinearisations;
+- a one-shot refine of ≤ 3 survivors: 15–50 steps at about 4 F.
+
+That is a few hundred F of CPU and tens of F of wall time. regnans spends about 608 F per
+singular strategy (`assembly.md` §1).
+
+## 11. Experiments, in order
 
 1. **The cut in plant:** g_cut = g_invader to about 1e-12 on long drought and episodic, with
    its cost.
@@ -225,3 +404,18 @@ root. Refinement mid-solve would put a discrete jump into G.
 4. **Coalitions with a regularised birth-rate step:** split at a branching point, one-shot to
    the pair, and classify. This is the refine step of `assembly.md` §4; the toy's unregularised
    version works but has no margin.
+5. **§9 on a toy with many traits.** Give the toy stand a few dozen traits, most of them
+   physiology that changes neither field use nor field making. Measure M's rank and U. Check:
+   - branching only along U;
+   - assembled species differing only in U;
+   - the rest at w*(u).
+6. **§10's pool linearisation** on regnans's toys and then this stand: how many
+   relinearisations to the FitMax community.
+
+## References
+
+Beyond `assembly.md`'s and `theory.md`'s lists:
+- Dennis, J.E. & Moré, J.J. (1974) *Math. Comp.* 28: 549–560;
+- Díaz, S. et al. (2016) *Nature* 529: 167–171 (from memory);
+- Geritz, S.A.H., Metz, J.A.J. & Rueffler, C. (2016) *J. Math. Biol.* 72: 1081–1099;
+- Leimar, O. (2009) *Evol. Ecol. Res.* 11: 191–208.
