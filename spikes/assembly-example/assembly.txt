@@ -18,7 +18,7 @@ round 1: pricing finds 2 strategies, 2 with phi > 0 not resident (best 2.09e+00)
   9    [x 0.060134 v 0.500000 N 2.898648] [x 0.939866 v 0.500000 N 2.898648] |F| 3e-08 |g| 4e-08 
   10   [x 0.060134 v 0.500000 N 2.898648] [x 0.939866 v 0.500000 N 2.898648] |F| 4e-15 |g| 4e-15 
 round 2: pricing finds 2 strategies, 0 with phi > 0 not resident (best 3.94e-15)
-  2 rounds, 10 passes: 9 resident runs; 3472 invader evaluations, 1772 of them pricing; certificate max phi 3.9e-15
+  2 rounds, 10 passes: 9 resident runs; 2674 invader evaluations, 1772 of them pricing; certificate max phi 3.9e-15
 
 One-shot route:
   monomorphic: 182 steps to x = 0.500000, v = 0.500000, N = 6.351437
@@ -66,6 +66,6 @@ round 2: pricing finds 3 strategies, 2 with phi > 0 not resident (best 4.14e-01)
   14   [x 0.500000 v 0.500000 N 1.606457] [x 0.056608 v 0.500000 N 3.061451] [x 0.943392 v 0.500000 N 0.993919] |F| 1e-16 |g| 2e-15 
 round 3: pricing finds 3 strategies, 0 with phi > 0 not resident (best 5.55e-17)
   lean end: [x 0.500000 v 0.500000 N 1.606457] [x 0.056608 v 0.500000 N 3.061451] [x 0.943392 v 0.500000 N 0.993919] 
-  lean: 3 rounds, 28 passes, 27 resident runs; 6308 invader evaluations, 2851 of them pricing; certificate 5.6e-17
+  lean: 3 rounds, 28 passes, 27 resident runs; 5456 invader evaluations, 2851 of them pricing; certificate 5.6e-17
   FitMax end: [x 0.039190 v 2.135853 N 0.419460] [x 0.500620 v 1.535484 N 0.457798] 
   FitMax: 3 rounds, 20 resident runs, 3269 invader evaluations; max |g| 1.0e+00

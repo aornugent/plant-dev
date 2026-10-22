@@ -30,7 +30,7 @@ All routes call two primitives, and the script counts both:
 
 | route | d = 2 (vs hand algebra) | d = 3, unequal supply |
 |---|---|---|
-| lean: column generation, one rank-d complementarity problem per pass | 9 resident runs, 3,472 invader evaluations; exact to 3.5e-14 | 27 runs, 6,308 evaluations; 3 species |
+| lean: column generation, one rank-d complementarity problem per pass | 9 resident runs, 2,674 invader evaluations; exact to 3.5e-14 | 27 runs, 5,456 evaluations; 3 species |
 | one-shot (`field-cut.md`): to the branching point, split, the pair | 2,182 runs; pair unconverged after 2,000 steps (\|g\| 9e-4) | — |
 | FitMax with Newton equilibria, residents not evolved | 20 runs; residents off their peaks (\|g\| ≈ 1) | 20 runs; 2 species, \|g\| ≈ 1 |
 

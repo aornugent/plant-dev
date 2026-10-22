@@ -26,8 +26,16 @@ field <- function(m, thetas, N) {
   R
 }
 
+## Wall time on `cores` cores, in F (one single-species TF24 run): a resident run
+## of m species with its sweeps takes 2m + 2, an invader gradient 2.5, and
+## invader work in one batch runs in waves of `cores`.
+machine <- list(cores = 16, invader_F = 2.5, resident_F = function(m) 2*m + 2)
 count <- new.env()
-reset_counts <- function() { count$resident <- 0; count$invader <- 0 }
+reset_counts <- function() {
+  count$resident <- 0; count$invader <- 0; count$wall <- 0
+  count$wall_resident <- 0; count$wall_pricing <- 0
+}
+waves <- function(n) ceiling(n/machine$cores)
 
 ## Invader fitness, selection gradient and field sensitivity in a held field R.
 fitness <- function(m, th, R) {
@@ -56,6 +64,10 @@ curvature <- function(m, th, R) {
 ## cut) and S (the adjoints the cut zeroes), dR/dN_j and dR/dtheta_j (sweeps).
 resident <- function(m, thetas, N) {
   count$resident <- count$resident + 1
+  if (!isTRUE(count$side_by_side)) {
+    count$wall <- count$wall + machine$resident_F(length(N))
+    count$wall_resident <- count$wall_resident + machine$resident_F(length(N))
+  }
   R <- field(m, thetas, N)
   f <- lapply(thetas, fitness, m = m, R = R)
   list(R = R, F = vapply(f, `[[`, 0, "phi"), g = lapply(f, `[[`, "g"),
@@ -85,13 +97,26 @@ negative_definite <- function(H, floor = 1e-3) {
 cap_step <- function(s, cap) s*min(1, cap/max(abs(s)))
 
 ## Ascent of invader fitness in a held field: the pricing primitive. The
-## curvature is probed once and then carried by BFGS updates; a step that
-## loses fitness is undone, the step cap halved and the curvature probed again.
-ascend <- function(m, th, R, tol = 1e-10, cap0 = 0.25, max_it = 500) {
-  f <- invader(m, th, R); H <- NULL; cap <- cap0
+## curvature is probed once and then carried by BFGS updates (or, with `newton`,
+## probed every step); a step that loses fitness is undone, the step cap halved
+## and the curvature probed again. `depth` counts its sequential waves.
+## With `sign_stop` an ascent ends once its peak's sign is settled: the predicted
+## remaining gain cannot lift it above zero, or it is above zero and located to a
+## thousandth of its height.
+ascend <- function(m, th, R, tol = 1e-10, cap0 = 0.25, max_it = 500, newton = FALSE,
+                   sign_stop = FALSE) {
+  f <- invader(m, th, R); H <- NULL; cap <- cap0; depth <- 1
   for (i in seq_len(max_it)) {
     if (max(abs(f$g)) < tol) break
-    if (is.null(H)) H <- negative_definite(curvature(m, th, R)$H)
+    if (newton) H <- NULL
+    if (is.null(H)) {
+      H <- negative_definite(curvature(m, th, R)$H); depth <- depth + waves(m$k)
+    }
+    if (sign_stop) {
+      gain <- -sum(f$g*solve(H, f$g))/2
+      if (f$phi + gain < -1e-9 || (f$phi > 0 && gain < 1e-3*f$phi)) break
+    }
+    depth <- depth + 1
     s <- tryCatch(-solve(H, f$g), error = function(e) NULL)
     if (is.null(s)) { H <- NULL; next }
     s <- cap_step(s, cap)
@@ -105,7 +130,7 @@ ascend <- function(m, th, R, tol = 1e-10, cap0 = 0.25, max_it = 500) {
     }
     th <- th + s; f <- fn
   }
-  list(theta = th, phi = f$phi)
+  list(theta = th, phi = f$phi, depth = depth)
 }
 merge_close <- function(thetas, tol = 1e-4) {
   keep <- list()
@@ -118,9 +143,15 @@ starts <- function(m, n = 13) {
   lapply(seq(min(m$z) - 0.25, max(m$z) + 0.25, length.out = n),
          function(x) c(x, 1, rep(0, m$k - 2)))
 }
-price <- function(m, R) {
-  peaks <- lapply(starts(m), function(th) ascend(m, th, R))
-  th <- merge_close(lapply(peaks, `[[`, "theta"))
+## Ascents run side by side: wall time is the longer of the total work spread over
+## the cores and the deepest single ascent.
+price <- function(m, R, from = starts(m), newton = FALSE, sign_stop = FALSE) {
+  before <- count$invader
+  peaks <- lapply(from, function(th) ascend(m, th, R, newton = newton, sign_stop = sign_stop))
+  spent <- machine$invader_F *
+    max(waves(count$invader - before), max(vapply(peaks, `[[`, 0, "depth")))
+  count$wall <- count$wall + spent; count$wall_pricing <- count$wall_pricing + spent
+  th <- merge_close(lapply(peaks, `[[`, "theta"), if (sign_stop) 0.02 else 1e-4)
   list(theta = th, phi = vapply(th, function(t) fitness(m, t, R)$phi, 0))
 }
 
@@ -164,25 +195,43 @@ report <- function(label, thetas, N, extra = "") {
 ## units; `feedback` keeps the residents' trait steps in the predicted field;
 ## curvature is probed every `reprobe` passes and reused between, or with
 ## `reprobe = 0` probed in full once a round and then only along the last step and
-## the best-response shifts H^-1 G.
+## the best-response shifts H^-1 G. `start` (theta, N) begins from a community
+## instead of pricing the empty field; `newton` probes curvature at every pricing
+## step instead of carrying it by BFGS.
 lean <- function(m, tol_F = 1e-10, tol_g = 1e-8, trust = 0.2, feedback = TRUE,
-                 reprobe = 1, max_pass = 100, max_round = 10, trace = TRUE) {
-  reset_counts(); pricing <- 0; passes <- 0
-  peaks <- list(); N <- numeric(0); R <- m$K
+                 reprobe = 1, start = NULL, newton = FALSE, speculate = FALSE,
+                 warm_price = FALSE, sign_stop = FALSE, max_pass = 100, max_round = 10,
+                 trace = TRUE) {
+  reset_counts(); pricing <- 0; passes <- 0; best <- Inf
+  peaks <- start$theta %||% list(); N <- start$N %||% numeric(0); R <- m$K
+  kept_H <- list(); next_rec <- NULL
   for (round in seq_len(max_round)) {
-    before <- count$invader; pr <- price(m, R); pricing <- pricing + count$invader - before
-    near <- vapply(pr$theta, function(t)
-      any(vapply(peaks, function(p) max(abs(p - t)) < 1e-4, TRUE)), TRUE)
-    new <- which(pr$phi > 1e-9 & !near)
-    if (trace) cat(sprintf("round %d: pricing finds %d strategies, %d with phi > 0 not resident (best %.2e)\n",
-                           round, length(pr$theta), length(new), max(pr$phi)))
-    if (!length(new)) break
-    peaks <- c(peaks, pr$theta[new]); N <- c(N, numeric(length(new)))
+    if (round > 1 || is.null(start)) {
+      from <- starts(m)
+      if (warm_price && length(kept_H)) {  # either side of each resident along its most disruptive direction
+        from <- c(starts(m, 5), unlist(Map(function(th, H) {
+          v <- eigen(H, symmetric = TRUE)$vectors[, 1]; v <- 0.05*v/max(abs(v))
+          list(th + v, th - v)
+        }, peaks, kept_H), recursive = FALSE))
+      }
+      before <- count$invader
+      pr <- price(m, R, from = from, newton = newton, sign_stop = sign_stop)
+      pricing <- pricing + count$invader - before
+      near <- vapply(pr$theta, function(t)
+        any(vapply(peaks, function(p) max(abs(p - t)) < 1e-4, TRUE)), TRUE)
+      new <- which(pr$phi > 1e-9 & !near); best <- max(pr$phi)
+      if (trace) cat(sprintf("round %d: pricing finds %d strategies, %d with phi > 0 not resident (best %.2e)\n",
+                             round, length(pr$theta), length(new), best))
+      if (!length(new)) break
+      peaks <- c(peaks, pr$theta[new]); N <- c(N, numeric(length(new)))
+    }
     for (pass in seq_len(max_pass)) {
       passes <- passes + 1
       A <- which(N > 0)
-      rec <- if (length(A)) resident(m, peaks[A], N[A]) else list(R = m$K, F = 0, g = list(0))
-      R <- rec$R; P <- length(peaks)
+      rec <- if (!is.null(next_rec)) next_rec else
+        if (length(A)) resident(m, peaks[A], N[A]) else list(R = m$K, F = 0, g = list(0))
+      next_rec <- NULL
+      R <- rec$R; P <- length(peaks); work <- count$invader
       f <- lapply(seq_len(P), function(p) {
         if (p %in% A) {
           i <- match(p, A); list(phi = rec$F[i], g = rec$g[[i]], S = rec$S[[i]])
@@ -205,6 +254,7 @@ lean <- function(m, tol_F = 1e-10, tol_g = 1e-8, trust = 0.2, feedback = TRUE,
           directional(m, peaks[[p]], R, cv[[p]], cbind(moved[[p]], HG[[p]]))
         })
       }
+      count$wall <- count$wall + machine$invader_F*waves(count$invader - work)
       Hn <- lapply(cv, function(c) negative_definite(c$H))
       Hg <- Map(function(H, f) solve(H, f$g), Hn, f)
       HG <- Map(function(H, c) solve(H, c$G), Hn, cv)
@@ -226,17 +276,36 @@ lean <- function(m, tol_F = 1e-10, tol_g = 1e-8, trust = 0.2, feedback = TRUE,
       dth <- lapply(seq_len(P), function(p) -drop(Hg[[p]] + HG[[p]] %*% dR))
       gain <- max(vapply(seq_len(P), function(p) -sum(dth[[p]]*(Hn[[p]] %*% dth[[p]]))/2, 0))
       alpha <- min(1, sqrt(trust/gain))  # one factor for densities and traits
+      if (speculate) {  # resident runs at several step lengths side by side; keep the best
+        alphas <- unique(pmin(1, alpha*c(4, 2, 1, 0.5)))
+        count$side_by_side <- TRUE
+        trial <- lapply(alphas, function(a) {
+          pk <- Map(function(t, s) t + a*s, peaks, dth); Nt <- N + a*(Nn - N)
+          At <- which(Nt > 1e-12)
+          if (!length(At)) return(list(merit = Inf))
+          r <- resident(m, pk[At], Nt[At])
+          list(merit = sum(r$F^2) + sum(unlist(r$g)^2), rec = r)
+        })
+        count$side_by_side <- FALSE
+        count$wall <- count$wall + machine$resident_F(length(A) + 1)
+        count$wall_resident <- count$wall_resident + machine$resident_F(length(A) + 1)
+        pick <- which.min(vapply(trial, `[[`, 0, "merit"))
+        alpha <- alphas[pick]; next_rec <- trial[[pick]]$rec
+      }
       for (p in seq_len(P)) peaks[[p]] <- peaks[[p]] + alpha*dth[[p]]
       moved <- lapply(dth, `*`, alpha)
       N <- N + alpha*(Nn - N)
       N[N < 1e-12] <- 0
     }
     keep <- N > 0; peaks <- peaks[keep]; N <- N[keep]
+    kept_H <- if (exists("cv", inherits = FALSE) && length(cv) == length(keep))
+      lapply(cv[keep], `[[`, "H") else list()
+    next_rec <- NULL
   }
-  cert <- price(m, R)
   list(theta = peaks, N = N, R = R, rounds = round, passes = passes,
        resident = count$resident, invader = count$invader, pricing = pricing,
-       certificate = max(cert$phi))
+       certificate = best, wall = count$wall, wall_resident = count$wall_resident,
+       wall_pricing = count$wall_pricing)
 }
 
 ## The one-shot route of field-cut.md: one resident run per step, Broyden on g,

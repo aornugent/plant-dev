@@ -184,7 +184,7 @@ the specialists' lines, which is why they invade it.
 | Pass 1 | the complementarity matrix has rank 2, so both specialists can enter | no residents and no run; both enter at N = 0.27 (trust-limited) |
 | Passes 2–8 | x stays at x̄; v* = a(x̄)·R/c falls with R; w exact from the first step | resident runs 1–7: v 1.47 → 0.906 → 0.730 → 0.577 → 0.527 → 0.502 → 0.50006; N → 2.898; \|F\| 1 → 7e-5 |
 | Passes 9–10 | Newton's quadratic tail | \|F\|, \|g\| 3e-8, then 4e-15; the algebra to 3.5e-14 |
-| Round 2, pricing in R* | $\hat\varphi(\cdot;R^*)$ peaks at exactly 0 at the residents | the best φ is 3.9e-15, so nothing enters. Totals: 9 resident runs, 3,472 invader evaluations (1,772 of them pricing) |
+| Round 2, pricing in R* | $\hat\varphi(\cdot;R^*)$ peaks at exactly 0 at the residents | the best φ is 3.9e-15, so nothing enters. Totals: 9 resident runs, 2,674 invader evaluations (1,772 of them pricing) |
 
 The run never visits the branching point. Evolving one resident first means climbing to
 x = ½, detecting the branching, splitting and resolving a nearly singular pair.
@@ -209,7 +209,7 @@ traits, and it is exact only for a finite-dimensional field.
 
 | Route | d = 2: resident runs | invader evaluations | reaches the community? | d = 3: resident runs |
 |---|---|---|---|---|
-| **Lean** | **9** | 3,472 | yes, to 3.5e-14; certified | **27** (3 species) |
+| **Lean** | **9** | 2,674 | yes, to 3.5e-14; certified | **27** (3 species) |
 | One-shot: to the branching point, split, then the pair | 2,182 | 1,822 | not within 2,000 steps (\|g\| 9e-4) | — |
 | FitMax mock, Newton equilibria, residents not evolved | 20 | 2,749 | no: residents keep their birth traits (\|g\| ≈ 1) | 20 (2 species) |
 
@@ -229,7 +229,7 @@ The FitMax row is a mock, not regnans:
 | Broyden over all mk traits | redundant, and fragile | per-strategy curvature plus the rank-d field term | 2,182 runs unconverged against 9 |
 | Full curvature every pricing iteration | redundant | BFGS seeded by one probe | pricing 8,951 → 1,772 evaluations |
 | Pricing every pass | redundant | pricing when the master converges | 2–3 rounds |
-| Full curvature every pass | a trade, not redundant | directional update: one full probe a round, then d + 1 probes along the last step and the best-response shifts | d = 2: master evaluations 1,700 → 932 at the same 9 runs; d = 3: 3,457 → 1,446, but 27 → 44 runs |
+| Full curvature every pass | a trade, not redundant | directional update: one full probe a round, then d + 1 probes along the last step and the best-response shifts | d = 2: master evaluations 902 → 134 at the same 9 runs; d = 3: 2,605 → 594, but 27 → 44 runs |
 
 **Kept, because removing them failed:**
 - **The residents' trait-to-field feedback,** Q and r. At the same trust radius, d = 2 takes
@@ -278,9 +278,13 @@ Projection onto modes approximates only the Jacobian; the residual stays exact.
 | Curvature probes at about 2.5 F each (parallel) | full: tracked × k, 500 F of CPU at 4 × 50; directional: tracked × (d + 1), 40 F |
 | Passes to the community | 9 (d = 2) and 27–44 (d = 3) on the example |
 
-- **Wall time** is about 27 passes × (8 + 2.5) F ≈ 280 F, roughly 4–5 hours at 1 min per F.
-- **CPU** is about 13,000 F with full probes. With directional probes it falls to a few
-  thousand F, mostly the first full probe each round, at the cost of more passes.
+- **Wall time on 16 cores,** modelled from the example's counts (`assembly-throughput.md`):
+  - for d = 3, 1,061 F with full probes;
+  - 647 F with directional probes, speculative step lengths and warm pricing starts.
+
+  That is about 11–18 hours at 1 min per F. Pricing, not the resident runs, is about half of
+  it.
+- **CPU** is about 14,000 F with full probes, and 7,000–9,000 F with directional probes.
 - **Comparison:** the roadtest's single regnans step took 54–79 minutes, and one regnans
   singular strategy in one trait costs about 608 F.
 
