@@ -11,7 +11,7 @@ This note distils the last three reviews of 21 October 2026, on the tag
 `archive/trusting-curie` under `docs/review/`: `weaknesses.md` (the case against solving
 for the outcome), `rebuild.md` (the residual) and `representation.md` (the table). Numbers
 are measured unless marked *estimated* (E1–E8 are
-`docs/measurements/regnans-roadtest/rootcause/` there, defined in `../findings.md`); F is
+`docs/measurements/regnans-roadtest/rootcause/` there: `README.md` reads them, `results.txt` has the numbers); F is
 one TF24 forward run, about 49 s on long drought at an absolute tolerance of 1e-4 (E7).
 
 **Two hypotheses recur** (`frontier.md` §3 on the tag). **H1, trait syndromes as few
