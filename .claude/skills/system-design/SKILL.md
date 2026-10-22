@@ -15,6 +15,9 @@ quantity, a mechanism, or a decoration.
 ## Files in this skill
 
 - `framing-moves.md` — read before Step 3, Tier 2 and above.
+- `../../../docs/principles.md` — the workspace's engineering principles.
+  Read before Step 2 at Tier 2 and above: the floor and the deletion pass
+  are where they bite.
 - `deep-search.md` — read only at Tier 3, and only if the stakes justify
   its cost.
 - `examples.md` — one full search, one floor-win, one annotated failure.
@@ -148,6 +151,11 @@ when"; point at it, so the next search starts from the map.
 - Every "faster", "simpler", "scales" appears as a number or dies.
 
 ## Output contract
+
+The report is read by people who were not in your session. Write each
+requirement, candidate and elimination as complete sentences that say what the
+design does and what that causes. The R-numbers, move numbers and the floor are working labels: keep them as headings, but don't make a reader
+decode them to follow a sentence.
 
 ```
 ## Triage: 1 | 2 | 3 — <why>
