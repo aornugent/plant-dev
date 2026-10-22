@@ -52,7 +52,7 @@ forward-mode tangents and mutants at 0.02–0.1 of a run. On TF24:
 | F_i = ln J_i − ln b_i | the tape's value | built |
 | ∂F_i/∂ln b_j, m × m (regnans's f_n, E3) | rows `"<i>.offspring_production"` × columns `"<j>.birth_rate"` of one sweep per output | measured for m = 1 (−0.7525, against the secant's −0.7457). The multi-species tape is supported (`test-gradient-ladder-two-species.R`: TF24, census metrics, record once and sweep many); cross-species fitness columns are unmeasured |
 | F_θ, every trait of every species, field kept (f_x, E4) | the same sweeps | measured, 51 columns, 2.14 F |
-| g_i, every trait, field held (E2) | a second sweep with the field's adjoints cut | *derived*; the toy is in §7. Today: an invader walk and sweep, 0.6 + 1.94 F |
+| g_i, every trait, field held (E2) | a second sweep with the field's adjoints cut | **proved on a toy** (`spikes/field-cut/`): equals the invader's gradient bit for bit; not yet in plant. Today: an invader walk and sweep, 0.6 + 1.94 F |
 | The commons, F_θ − g | the difference | follows |
 | Costates: reproductive-value gradients ℓ∇V by cohort and age | on the tape | not exposed |
 | Field sensitivities δφ/δE (Meszéna's S) | the field hook | spike, not merged |
@@ -212,8 +212,29 @@ The feasible problem tracks d + m and each resident's selected rank r, not m²k.
 - **Multi-species tapes: supported.** Columns are per species; the `"<j>.birth_rate"` columns
   give the m × m Jacobian; a TF24 two-species test records once and sweeps many. Unmeasured on
   TF24 at m ≥ 2: cross-species fitness columns against finite differences, and cost.
-- **The field cut:** a C++ toy against odelia's XAD (`spikes/field-cut/`). See its README for
-  the result and what plant would need.
+- **The field cut: proved on a toy** (`spikes/field-cut/`, C++ against odelia's XAD; 24
+  cohorts, a light field and soil water, 1.08 million statements).
+  - The cut pass's g equals the invader's at θ′ = θ to 0.0 in every trait.
+  - The adjoints it zeroes are the invader's field sensitivities, all 67,559 to 0: the field
+    hook comes free.
+  - Stepwise, as odelia sweeps, it costs 0.99 of a kept pass, against 4.6–5.4× for the
+    invader route.
+  - It uses only XAD's public calls, in the pattern of odelia's `implicit_value`: mark the
+    position and the field's slots after each field build; sweep to each mark, zero, and
+    truncate. The cut pass must be a recording's last.
+  - **In plant:**
+    - marks in `Patch::compute_environment` (`patch.h:1350`), after
+      `compute_environment_excl_capturing()` and `compute_environment_closing()` (:1424,
+      :1426), only when the scalar carries adjoints;
+    - a visitor listing the field values: TF24's light spline knots, slopes and
+      `height_max_`, plus soil water and `psi_soil_`, but not `water_flux`;
+    - cut seeds carried beside the kept ones through odelia's `sweep_each_seed`
+      (`adjoint.hpp:279`), `state_and_parameter_adjoints` (:386) and the step adjoints
+      (`ode_solver.hpp`, `ode_step_rkck.hpp`);
+    - the SCM seeds it at `scm.h:1657`.
+
+    Today's invader gradient becomes the tripwire for a missing or misplaced mark. Plant's
+    cost ratio is unmeasured. (Line numbers checked against the local checkouts, 22 Oct.)
 - **Pricing is non-convex.** It needs several starts, and races (constant rain, set aside)
   make it jump.
 - **Several complementarity solutions** (alternative attractors): regnans's hysteresis sweep
@@ -229,7 +250,7 @@ The feasible problem tracks d + m and each resident's selected rank r, not m²k.
 
 ## 8. Experiments, in order
 
-1. **The field cut on the toy, then on plant:** g_tape = g_invader to about 1e-12 on long
+1. **The field cut in plant** (the toy passed, §7): g_tape = g_invader to about 1e-12 on long
    drought and episodic; its cost against 4.7 F.
 2. **The C.2 angle,** g against F_θ on two climates (about 5 F each). If they are parallel,
    the ESS is a single optimisation.
