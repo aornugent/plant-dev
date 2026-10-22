@@ -310,11 +310,12 @@ window.MathJax = {
 <tr><td>Broyden over all mk traits</td><td>redundant, and fragile</td><td>per-strategy curvature plus the rank-d field term</td><td>2,182 runs unconverged against 9; diverged at scale 1</td></tr>
 <tr><td>Full curvature at every pricing iteration</td><td>redundant</td><td>BFGS seeded by one probe batch</td><td>pricing 8,951 → 1,772 evaluations</td></tr>
 <tr><td>Pricing every pass</td><td>redundant</td><td>pricing when the master converges</td><td>2–3 rounds in both cases</td></tr>
+<tr><td>Full curvature every pass</td><td>a trade, not redundant</td><td>directional update: one full probe a round, then d + 1 probes along the last step and the best-response shifts</td><td>d = 2: master evaluations 1,700 → 932 at the same 9 runs; d = 3: 3,457 → 1,446, but 27 → 44 runs</td></tr>
 </tbody></table></div>
 <div class="note keep"><strong>Kept, because removing them failed:</strong>
 <ul>
   <li><strong>The residents' trait-to-field feedback</strong>, the \(Q\) and \(r\) terms. Without them, at the same trust radius, d = 2 needs 17 runs instead of 11, and d = 3 diverges to 29 spurious species.</li>
-  <li><strong>Fresh curvature along the directions that move.</strong> Reusing curvature across passes is harmless at d = 2, where x never moves, and diverges at d = 3, where x travels from 0.05 to 0.5.</li>
+  <li><strong>Fresh curvature along the directions that move.</strong> Reusing curvature across passes is harmless at d = 2, where x never moves, and diverges at d = 3, where x travels from 0.05 to 0.5. The directional update keeps it fresh at (d + 1)/k of the cost.</li>
   <li><strong>A trust region in fitness units</strong>, capping \(\tfrac12\delta\theta^\top(-H)\delta\theta\). A cap in trait units let x jump 4.5σ and diverged.</li>
   <li><strong>An exact residual every pass.</strong> Every Jacobian above may be approximate, but F and g come from a real run each pass, so the converged point is the true root.</li>
 </ul></div>
@@ -352,7 +353,7 @@ window.MathJax = {
 <tr><td>Curvature probes: tracked × k invader gradients (parallel)</td><td>about 2.5 F each, so 4 × 50 × 2.5 = 500 F of CPU per pass; one batch deep</td><td><span class="tag estimated">estimated</span></td></tr>
 <tr><td>Passes to the community</td><td>9 (d = 2) and 27 (d = 3) on the example</td><td><span class="tag measured">measured</span> on the example</td></tr>
 </tbody></table></div>
-<p>Wall time is about 27 passes × (8 + 2.5) F ≈ 280 F, roughly 4–5 hours at 1 min per F. The CPU is dominated by curvature probes, about 13,000 F. The obvious cut is to probe only along the d + 1 directions that move (the best-response shifts and the step) and carry the rest forward. That would bring probes to about (d + 1)/k of today's cost. It is untested, and the d = 3 result above says those directions must stay fresh. For comparison, the roadtest's single regnans step took 54–79 minutes, and one regnans singular strategy in one trait costs about 608 F.</p>
+<p>Wall time is about 27 passes × (8 + 2.5) F ≈ 280 F, roughly 4–5 hours at 1 min per F. With full probes the CPU is dominated by curvature, about 13,000 F. Probing only along the d + 1 directions that move (the last step and the best-response shifts), after one full probe a round, cuts the master's probes by 45–58% on the example. The cost is more passes when traits travel far: 27 → 44 at d = 3. For comparison, the roadtest's single regnans step took 54–79 minutes, and one regnans singular strategy in one trait costs about 608 F.</p>
 
 <h2 id="open">9. What is not yet shown</h2>
 <ul>

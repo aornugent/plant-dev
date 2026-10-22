@@ -64,6 +64,19 @@ resident <- function(m, thetas, N) {
        Eth = Map(function(th, n) -n*consumption_jacobian(m, th), thetas, N))
 }
 
+## Curvature carried forward and corrected along the columns of U: one gradient
+## probe per direction gives H u and, from the change in S, G' u. H is updated
+## symmetrically to match H U, and G to match G' U.
+directional <- function(m, th, R, old, U) {
+  U <- U[, colSums(U^2) > 1e-24, drop = FALSE]
+  q <- qr(U); U <- qr.Q(q)[, seq_len(q$rank), drop = FALSE]
+  count$invader <- count$invader + ncol(U)
+  n <- count$invader; now <- curvature(m, th, R); count$invader <- n
+  D <- now$H %*% U - old$H %*% U
+  list(H = old$H + D %*% t(U) + U %*% t(D) - U %*% (t(U) %*% D) %*% t(U),
+       G = old$G + U %*% (t(U) %*% (now$G - old$G)))
+}
+
 negative_definite <- function(H, floor = 1e-3) {
   e <- eigen(H, symmetric = TRUE)
   lam <- pmin(e$values, -floor*max(1, abs(e$values)))
@@ -149,7 +162,9 @@ report <- function(label, thetas, N, extra = "") {
 ## response in the field those densities are predicted to make.
 ## `trust` caps each strategy's predicted gain, (1/2) dth' (-H) dth, in fitness
 ## units; `feedback` keeps the residents' trait steps in the predicted field;
-## curvature is probed every `reprobe` passes and reused between.
+## curvature is probed every `reprobe` passes and reused between, or with
+## `reprobe = 0` probed in full once a round and then only along the last step and
+## the best-response shifts H^-1 G.
 lean <- function(m, tol_F = 1e-10, tol_g = 1e-8, trust = 0.2, feedback = TRUE,
                  reprobe = 1, max_pass = 100, max_round = 10, trace = TRUE) {
   reset_counts(); pricing <- 0; passes <- 0
@@ -182,7 +197,14 @@ lean <- function(m, tol_F = 1e-10, tol_g = 1e-8, trust = 0.2, feedback = TRUE,
                                                           length(cand), top) else ""))
       if (length(A) && gF < tol_F && gg < tol_g && top < 0) break
 
-      if ((pass - 1) %% reprobe == 0) cv <- lapply(peaks, curvature, m = m, R = R)
+      if (reprobe > 0) {
+        if ((pass - 1) %% reprobe == 0) cv <- lapply(peaks, curvature, m = m, R = R)
+      } else {
+        cv <- lapply(seq_len(P), function(p) {
+          if (pass == 1) return(curvature(m, peaks[[p]], R))
+          directional(m, peaks[[p]], R, cv[[p]], cbind(moved[[p]], HG[[p]]))
+        })
+      }
       Hn <- lapply(cv, function(c) negative_definite(c$H))
       Hg <- Map(function(H, f) solve(H, f$g), Hn, f)
       HG <- Map(function(H, c) solve(H, c$G), Hn, cv)
@@ -205,6 +227,7 @@ lean <- function(m, tol_F = 1e-10, tol_g = 1e-8, trust = 0.2, feedback = TRUE,
       gain <- max(vapply(seq_len(P), function(p) -sum(dth[[p]]*(Hn[[p]] %*% dth[[p]]))/2, 0))
       alpha <- min(1, sqrt(trust/gain))  # one factor for densities and traits
       for (p in seq_len(P)) peaks[[p]] <- peaks[[p]] + alpha*dth[[p]]
+      moved <- lapply(dth, `*`, alpha)
       N <- N + alpha*(Nn - N)
       N[N < 1e-12] <- 0
     }
