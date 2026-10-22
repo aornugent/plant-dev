@@ -81,17 +81,17 @@ these is a rethink, however clean its lines are.
 
 Order is load-bearing. See `lenses.md` for each procedure.
 
-1. **Cold Reader** (predict-then-verify) — must be first contact with
+1. **Predict, then read** — must be first contact with
    the bodies: predictions from the public surface, then verification.
    Misses become findings verbatim.
-2. **Alternative Implementer** (decision reopening) — extract the ≤5
+2. **Reopen the decisions** — extract the ≤5
    largest decisions as "chose X over <simplest live alternative Y>".
    Per decision the null hypothesis is Y; a ledger line settles it for X,
    or it becomes a question with a default.
-3. **Time Traveler** (change simulation) — walk 1–2 plausible next
+3. **Simulate the next change** — walk 1–2 plausible next
    changes through the code; list every edit site; classify one-place /
    leaky / shotgun.
-4. **Keeper** (what must always be true) — one sentence; kept true by
+4. **Name the invariant** (what must always be true) — one sentence; kept true by
    structure | convention | nothing; convention-or-nothing with a
    structural option available is a structural finding. Trivial diffs:
    "none — <reason>".
@@ -108,18 +108,14 @@ a rethink verdict are one line each, marked [conditional].
 
 ## Hard rules
 
-- Per reopened decision, the simpler alternative is the default winner;
-  the diff's choice must cite the ledger line that pays for the
-  difference. No citation → question with a default, not silence.
-- Every question states its default and the conversion rule: unanswered,
-  the default becomes a finding in the next review of this code.
-- Predictions are written before bodies are read — reordering this is
-  falsifying the experiment.
+These hold across every step; the lens procedures carry the rest.
+
+- Every question states its default, and unanswered, the default becomes a
+  finding in the next review of this code.
 - Never suggest an abstraction with one call site; name the second
   witnessed use or don't suggest it. If you suggest adding code, first
   state why deleting or reusing fails.
-- Every finding passes the finding test and shows a simpler alternative;
-  every lens reports or declares empty; silence on style is approval.
+- Every finding shows a simpler alternative. Silence on style is approval.
 
 ## Output contract
 
