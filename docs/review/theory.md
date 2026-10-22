@@ -9,6 +9,21 @@
 > - E.1's ranking predates the reformulation in `site-selection.md`, which drops the
 >   second-order programme (roots, classification, continuation) in favour of residuals at
 >   observed sites.
+> - Read against Johnson & Hastings (2022, arXiv:2201.07926 v1, the only version; 22 Oct):
+>   - B.1's description of Ellner et al. ("removed and others retained", E shuffled) is not
+>     in that preprint. It is probably from their companion, arXiv:2201.07960; unchecked.
+>   - B.1 omits their replacement for scaling factors: the simple comparison (each resident
+>     weighted 1/(S − 1)) or speed conversion factors a_i/a_s, a_j = 1/generation time.
+>   - D.1's third ingredient, "buffered (subadditive) growth", is the reading they dispute.
+>     The ingredient is non-additivity, ζ ≠ 0 of either sign; greater buffering lowers most
+>     species' storage effect. So D.3's "a buffer, such as a seed-bank state" is not needed
+>     for a temporal storage effect; what TF24 lacks is the covariance of environment and
+>     competition across calendar time, which D.3's (2) supplies.
+>   - B.2's "fitness–density covariance at landing: absent" holds in its landing-indexed,
+>     per-generation bookkeeping. In their per-time bookkeeping over patches, a successional
+>     niche is fitness–density covariance: their competition–colonization case, where the
+>     colonist ends up in recently disturbed patches (their §4.5). Their §5.17 makes the same
+>     point: which mechanism a process lands in depends on the scale of the bookkeeping.
 
 A theory note on what TF24 in plant, with all-trait reverse-mode adjoints and
 invaders that read a recorded field, can and cannot compute for adaptive

@@ -87,6 +87,30 @@ renewal matters where generations are much shorter than the record: annuals, and
 semi-arid perennials of the Overstorey post. **Either way, an entry returns its per-node
 offspring by date, not only their sum,** so both can be formed without a second walk.
 
+**What an entry's number is, and is not** (Johnson & Hastings 2022, §§2.2–2.5, 5.6, 5.13):
+- **An invasion growth rate needs a limiting distribution.** It is a Lyapunov exponent: the
+  environment, residents included, must settle to a long-run distribution. A regime row has
+  one. A history row on a trending record does not, and its ln R′ is the fitness of one
+  generation landing across the record's dates. Report it as that, never as an invasion
+  growth rate. They warn that a tree's invasion growth rate may converge only over
+  timescales that no fixed model represents.
+- **Per generation, not per time.** ln R′ is per generation; the Lyapunov exponent is per
+  time, ρ ≈ ln R′/T_r, with T_r the mean age at reproduction (`theory.md` A.1). Strategies
+  with different generation times rank differently on the two. T_r comes from the
+  offspring by date that every entry returns, so the entry reports it too.
+- **It is establishment when rare, not the community that follows.** Mutual invasibility is
+  neither necessary nor sufficient for coexistence: an invader can win and then be excluded
+  as the residents settle ("the resident strikes back"). Whether a strategy persists after
+  invading needs a new row with it among the residents.
+- **Its size matters to a planting decision.** The chance that N introduced individuals
+  establish is about N·2r/σ_D², with r the per-time rate and σ_D² the demographic variance
+  (their eq. 18, a diffusion approximation). The sign says whether a strategy can
+  re-establish eventually; the size says whether a given planting will.
+- **Parameter uncertainty is a third error.** With calibrated physiology, an entry's sign can
+  flip across the posterior (Jensen's inequality). Each entry's sweep already gives ∂A/∂c,
+  so a first-order spread ∇_c A · Σ_c · ∇_c Aᵀ costs nothing more. Where it is comparable
+  to |A|, the sign is reported as unresolved.
+
 ## 3. Site selection
 
 The applied workflow (`site-selection.md`). Its outputs are within-row readings, and a
@@ -122,7 +146,7 @@ discretisation estimate and, for regime rows, its sampling estimate, reported se
 |---|---|---|
 | S1 | each resident's g within the invader's ε, and F to 0.02 | `lma` 0.20, `a_dG2` 0.050, at least 0.01 |
 | S2 | each Δ_ij within ε, with its own estimate | 0.025 |
-| S3 | every number reports discretisation and, on regime rows, sampling error, apart | per number |
+| S3 | every number reports discretisation, sampling (regime rows) and parameter error, apart; entries report T_r | per number |
 | S4 | a row is held across calibration steps while its estimate passes; its answers are smooth in c on the held grid | 1–3 Gauss–Newton steps |
 | S5 | throughput, not latency: rows and entries are independent | 100 sites × 300 strategies × M recordings |
 | S6 | no throw for any pool strategy, including hydraulics and phenology unlike the residents | 30,000 entries per record |
@@ -186,8 +210,8 @@ answer on the held grid against a rebuilt one, as a function of the distance mov
 ## Requirements ledger
 
 - **R1 Accurate:** S1, S2; E4. Each number within its ε per quantity (`eps.csv`).
-- **R2 Honest:** S3. Discretisation and sampling are each estimated per number, and reported
-  apart.
+- **R2 Honest:** S3. Discretisation, sampling and parameter error are each estimated per
+  number, and reported apart.
 - **R3 Calendar weather:** history rows place the record's droughts at their dates; regime
   rows draw independent records. Quantity: about 130 years of record per site (*unchecked*),
   40-year horizons.
@@ -347,6 +371,8 @@ Nothing below is started; each step is small and testable.
 
 - Chesson, P. (2017). AEDT: a new concept for ecological dynamics in the ever-changing world.
   *PLoS Biol.* 15: e2002634. doi:10.1371/journal.pbio.2002634
+- Johnson, E.C. & Hastings, A. (2022). Resolving conceptual issues in Modern Coexistence
+  Theory. arXiv:2201.07926 (v1, the only version).
 - Overstorey: How to calculate fitness in pulse-driven environments. Unmerged post, PR #43,
   12 October 2026 (shared artifact).
 - `../review/theory.md` D.3 (independent records per patch), A.3 (the loop's Jacobians);
