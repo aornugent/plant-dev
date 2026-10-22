@@ -8,6 +8,9 @@ Measurements cited from the tag `archive/trusting-curie` are the regnans roadtes
 (`docs/measurements/regnans-roadtest/rootcause/`, E1–E8) and the regnans review
 (`docs/review/regnans.md`).
 
+The field cut and the one-shot solve at the centre of this plan are worked up, with a toy,
+in `field-cut.md`.
+
 **The answer.**
 - **One recording carries every derivative regnans takes at the residents.** Record the m
   residents once and sweep each species' ln J twice, with the field's adjoints kept and then
@@ -129,7 +132,7 @@ the reduced cost.
 |---|---|
 | Viable bounds | pricing on the empty field; domain refusals set the edges |
 | Birth (FitMax) | pricing, exact all-trait gradients |
-| Equilibrium, deaths | inside the master's Newton; leaving the active set |
+| Equilibrium, deaths | no inner loop: each master step moves b with θ, b by Newton predicted through F_θ (`field-cut.md` §3); deaths leave the active set |
 | Evolve, merge, daughter | refine |
 | Label | the size of the active set |
 | Boundaries (#60) | active-set events along a parameter path, by complementarity continuation |

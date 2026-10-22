@@ -1,0 +1,38 @@
+One species, traits alloc_repro and leaf_area evolving; leaf cost 0.40.
+Stop when |F| < 1e-10 and |g| < 1e-08 at one point.
+
+route                              step  runs   rec sweep  seconds   theta*, ln b*
+nested, iteration (regnans)          13   280    13    26    2.778   0.1352999178 1.0686135462 -0.8611580807   |F| 6e-11 |g| 3e-10
+nested, Newton on taped dF/dlnb      13     0    46    92    3.712   0.1352999178 1.0686135462 -0.8611580809   |F| 0e+00 |g| 2e-10
+one recording per step               14     0    14    28    1.159   0.1352999179 1.0686135461 -0.8611580805   |F| 3e-16 |g| 6e-10
+  same, without the F_theta term     62     0    62   124    5.002   0.1352999191 1.0686135482 -0.8611580654   |F| 2e-16 |g| 8e-09
+largest difference between routes' answers: 1.5e-08
+the singular strategy:
+  invader Hessian, field held          eigenvalues -4.446, 12.53
+  Jacobian of g, equilibrium re-solved eigenvalues -4.712, -0.7676
+  not an ESS, convergence stable: a branching point
+
+Two residents split by 0.10 from it along (0.953, 0.303):
+route                              step  runs   rec sweep  seconds   theta*_1, theta*_2, ln b*
+nested, iteration (regnans)          48 19080    48   144  411.478   0.2310167237 1.2077292240 0.1873228892 1.1539785936 -0.0712278866 -2.8659355813   |F| 1e-10 |g| 3e-09
+nested, Newton on taped dF/dlnb       2     0   716  2148  184.124   0.1457066252 1.0990371822 0.1278959763 1.0726023196 -nan -nan   |F| 0e+00 |g| 0e+00
+one recording per step               47     0    47   141   15.102   0.2310167236 1.2077292234 0.1873228893 1.1539785926 -0.0712278883 -2.8659355663   |F| 4e-16 |g| 1e-09
+nested, Newton on taped dF/dlnb: failed, birth rates not finite
+largest difference between the finished routes' answers: 1.5e-08
+
+Two species, traits held: the equilibrium both ways, then one recording at it.
+  iteration ln b <- ln b + F: 264 runs, b = (0.0502898605, 1.5365102020)
+  Newton with the taped dF/d ln b: 8 recordings, b = (0.0502898605, 1.5365102020), |F| 1e-13
+  dF_i/d ln b_j, taped against central differences:
+    i=0 j=0  -1.181805e-01  -1.181805e-01  rel 2.3e-09
+    i=1 j=0  -2.795907e-02  -2.795907e-02  rel 4.5e-09
+    i=0 j=1  -9.639937e-01  -9.639937e-01  rel 2.1e-10
+    i=1 j=1  -7.577082e-01  -7.577082e-01  rel 8.6e-11
+  det dF/d ln b = 0.0626
+  g from one cut sweep of F_1 + F_2, against each species' invader:
+    species 1 alloc_repro  cut -1.671928e-01  invader -1.671928e-01  rel 0.0e+00
+    species 1 leaf_area    cut -5.406517e-01  invader -5.406517e-01  rel 0.0e+00
+    species 1 ln R' -1.290e-13 against F -1.290e-13; ln b in the cut sweep 0.0e+00
+    species 2 alloc_repro  cut  8.197982e-02  invader  8.197982e-02  rel 0.0e+00
+    species 2 leaf_area    cut -1.121710e+00  invader -1.121710e+00  rel 0.0e+00
+    species 2 ln R' -4.297e-14 against F -4.297e-14; ln b in the cut sweep 0.0e+00

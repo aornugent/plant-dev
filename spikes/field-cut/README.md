@@ -2,11 +2,15 @@
 
 A toy that proves the claim of `docs/review/assembly.md` §2: one recording of the resident,
 swept twice, gives F_θ (field kept) and g (field cut). g equals the invader's gradient at
-θ′ = θ, bit for bit.
+θ′ = θ, bit for bit. `one_shot` then uses that recording to find singular strategies without
+an equilibrium loop (`docs/review/field-cut.md`).
 
 ```
-make CXX=g++ ODELIA=/home/a/dev/plant-dev/odelia && ./field_cut
+make CXX=g++ ODELIA=/home/a/dev/plant-dev/odelia && ./field_cut && ./one_shot
 ```
+
+`toy.hpp` holds the stand (m species) and the cut sweep. `one_shot.txt` is `one_shot`'s output
+(about 10 minutes, almost all of it the nested iteration on two species).
 
 `ODELIA` points at an odelia checkout (this worktree's submodule is not initialised).
 `CXX=g++` because the environment's default compiler is not installed. The Makefile compiles
@@ -57,6 +61,23 @@ This is the pattern odelia's `implicit_value` already uses
 - **The mark must sit after the field's last definition and before its first read,** and must
   list everything readers touch.
 - **A reader keeps its own position;** only the field's values are cut.
+
+## One recording per evolutionary step (`one_shot`)
+
+A leaf cost on the leaf-area trait (`Setup::leaf_cost`, 0 in `field_cut`) gives an interior
+singular strategy. Allocation and leaf area evolve; the routes are compared to |F| < 1e-10,
+|g| < 1e-8:
+
+| route | one species | two species, split at the branching point |
+|---|---|---|
+| nested, iteration ln b ← ln b + F | 280 runs + 13 recordings | 19,080 runs + 48 recordings |
+| nested, Newton on taped ∂F/∂ln b | 46 recordings | failed: ∂F/∂ln b near-singular after the split |
+| one recording per step, b predicted along δθ by F_θ | **14 recordings** | **47 recordings** |
+| the same without F_θ | 62 recordings | — |
+
+- The routes agree to about 1e-8.
+- The one-species point is a convergence-stable branching point.
+- One cut sweep of F₁ + F₂ gives both species' g, equal to each invader's to 0.0.
 
 For what plant and odelia would change (`patch.h`'s `compute_environment`, a field-value
 visitor, cut seeds in odelia's sweeps), see `docs/review/assembly.md` §7.
