@@ -1,15 +1,19 @@
 # Refining a TF24 node schedule until it converges
 
-> Finalised for the table of sites and strategies in `design-schedule.md`, which
-> changes what the loop judges and adds the entries' schedule.
+**Status.** Built and tested in the harness (`harness/schedule/refine.R`), not yet in plant.
+It runs against plant's open TF24 stack (PLANT-117, plant#118, or later), not `develop`.
+What it does not yet guarantee is the invader's g; that is the next step (§ Next).
 
-A design under `.claude/skills/system-design/SKILL.md`, written after the root-cause rounds
-(`docs/measurements/schedule-search/rootcause/`, evidence in `rootcause/evidence/notes.md`) and
-revised after a Tier-3 review (`rootcause/review/design-review.md`, against a blind clean sheet,
-`review/clean-sheet.md`). It replaces tuning one schedule (E6, today's tuned schedule) with an
-algorithm that refines a schedule until it converges and reports each run's own error. It is the
-node axis of `docs/design-grid-controller.md`, which holds the time axis and the arc. The
-account for users is `docs/vignettes/node-schedules.Rmd`.
+It replaces tuning one schedule (E6, the schedule reached over the long tuning session)
+with an algorithm that refines a schedule until it converges and reports each run's own error.
+It was written after the root-cause rounds and revised after a Tier-3 review against a blind
+clean sheet. It is the node axis; the time axis (tolerances, the step controller) is
+`design-grid-controller.md`. The account for users is `node-schedules.Rmd`, beside this file.
+
+**Sources.** Paths like `measurements/...`, `rootcause/...`, `design-*.md` and `OBJECTIVES.md`
+are on the tag `archive/trusting-curie`, under `docs/` (`OBJECTIVES.md` at the root; rootcause is
+`docs/measurements/schedule-search/rootcause/`):
+<https://github.com/aornugent/plant-dev/tree/archive/trusting-curie/docs>.
 
 ## Triage: 3
 
@@ -19,7 +23,11 @@ call and its returned diagnostics are a public API.
 
 ## Requirements ledger
 
-From `OBJECTIVES.md`; ε_q per quantity from `docs/measurements/eps-spread.md`.
+From `OBJECTIVES.md`; ε_q per quantity from `measurements/eps-spread.md`: a tenth of the
+quantity's spread across eight rainfall records, never under 0.01 (`harness/schedule/data/eps.csv`).
+As built, the loop meets R1 for the resident's `ln J` and elasticities, R2 and R5, and R3 in
+that a failed run returns the last complete pass, flagged. Curvatures, invaders and R4's radius
+are not built.
 
 - **R1 Accurate by default.** Each quantity's true error is within ε_q, with no knob. The
   quantities are `ln J`, every elasticity and every curvature, for residents and for invaders
@@ -222,30 +230,75 @@ than the 4.1% measured, candidate A (allocation by the node-drop map) takes over
 - Which of light or water carries the understory's error (the node-drop map says soil carries
   58–89%; not checked against a run that separates them).
 - The per-node count of P sign changes, which today's runs do not record.
+- The late spacing. `spacing_of()` caps node spacing at 100 d up to t50 and 280 d after it, so
+  the replay merges late intervals well past the 45–80 d where the square law was measured to
+  hold for elasticities. The five cases passed regardless, because late births carry little
+  J; whether that holds for every quantity is not tested.
 
-## The tool
+## Next: the invader's g under the guarantees
+
+The loop judges the resident's `ln J` and elasticities. Everything the reviews went on to
+use rests on a different number, g: the invader's elasticities at the resident's traits,
+read in the resident's recorded field. g is not in the judged set, and it needs more nodes
+than `ln J` does. On long drought at 108 introductions g is 5.4ε off while `ln J` is 0.3ε off
+(regnans roadtest, `measurements/regnans-roadtest/rootcause/` E2). Nothing in a run would say so.
+
+**The design** (`design-schedule.md` §The algorithm, step 4):
+- Judge g on the replay the loop already pays for. The replay is the coarse half's recording.
+  An invader walk and sweep on it give the coarse g, and (g_coarse − g)/3 is g's estimate, in
+  every trait at once.
+- The coarse invader has the coarse half's members, so its walk and sweep cost about half a
+  fine one's: about 0.3 + 1.0 F, where F is one forward run (roadtest E7: 0.59 and 1.94 F at
+  201 nodes). That is g's whole certificate, about 1.3 F per schedule.
+- A rejected pass pays nothing more: the rejected run's g is the next run's coarse g, as for
+  every other quantity.
+- g depends on the resident's balance: dg/d ln b = −6.0 on long drought (E5), so |F| < 0.02
+  keeps g within ε/3. Runs on a held schedule certify again once b has moved by more than a
+  tenth (*judgement*).
+- Stop as for every quantity: report g − e, accept when 0.5|e| + u_q < ε. The constants 0.5
+  and u_q were measured on the resident's quantities and must be re-checked on g.
+
+**Why it cannot be cheaper.** g's node error has two parts. The *own* part is the invader's
+quadrature in birth date, and a second seed in the fine sweep could read it. The *field*
+part is the coarse light and water the invader would read, a mixed derivative
+∂² ln R′/∂θ′∂E along the coarsening's defect, and it is not small: +0.380 in `lma` from 108 to
+215 introductions, 1.9ε, almost all through light (`measurements/field-adjoint-map.md`).
+Spreading each panel's leaf area over its members' heights took it to −0.034
+(`measurements/canopy-spread.md`), but the spread was dropped on 2026-10-19. With it back, the certificate
+would be the own part alone, at a few percent of a sweep.
+
+**Build:** add g to `judged()`, and run the invader walk and sweep on the replay. Then
+measure, on the five cases, whether the bound covers g as it covers `ln J`.
+
+`design-schedule.md` (on the tag) goes further, to many strategies read on one site's
+recording: each strategy's ln R′ is estimated by a free sub-sum of its own per-node
+offspring. That serves the reformulation in `../review/site-selection.md`, and it waits on
+this step.
+
+## The tool, as built
 
 ```r
-fit <- refine_schedule(p)
-fit$answer     # ln J, elasticities and curvatures: the last run corrected by its estimate
-fit$estimate   # each quantity's estimate e_q, and its bound 0.5|e_q| + u_q
-fit$run        # the last run's own values
-fit$schedule   # breakpoints, counts at the final level, node times, t_r, ages
-fit$where      # ln J's error by spell, from the node-drop map (+5-8% of a sweep)
-fit$history    # each pass: level, nodes, answer, estimate, worst bound
+source("harness/long_drought.R"); source("harness/schedule/refine.R")
+fit <- refine_schedule(p, env, ctrl, scale = 1)
+fit$answer     # ln J and elasticities: the last run corrected by its estimate, Q − e
+fit$estimate   # each quantity's estimate e_q, in units of its ε
+fit$bound      # 0.5|e_q| + u_q; converged when every one is under 1
+fit$run        # the last run's own values, Q
+fit$schedule   # breakpoints, panels and their counts, spells, t_r
+fit$level      # the final level; node times are nodes_of(fit$schedule, fit$level)
+fit$history    # each pass: level, nodes, answer, estimate, worst quantity and bound
 fit$costs      # CPU per run: forward and sweep
-fit$status     # converged | unconverged
+fit$status     # converged | unconverged | failed (then fit$error says why)
 ```
 
-Later runs on the fixed schedule report `estimate`, `where` and their distance from θ₀.
+`harness/schedule/refine_case.R` runs one of the five cases at the setting they were
+measured on (1e-4 relative, the soil's factor 10, control_window's weights, the 15-day cap).
 
-It replaces, in one change: the C++ `SCM::refine_schedule` and the `run_scm(refine_schedule =)`
-argument in plant; and logpile's `refine_schedule` key in `resolve_control`, `manifest.R` and
-`solver.R` (this changes request fingerprints).
+The quantities are `ln J` and the elasticities the bound's constants were measured on:
+`S_D`, `a_f3`, `recruitment_decay` and `rooting_depth_max` are left out. Not yet built:
+g, curvatures, invaders' spell ends, the stall boundary, `where` (ln J's error by spell
+from the node-drop map, +5–8% of a sweep), and the distance from θ₀.
 
-Built so far in the harness, not yet in plant: `answer`, `estimate`, `bound`, `extrapolated`
-(Q − e, reported, not the answer), `schedule` and `level` (node times are
-`nodes_of(schedule, level)`), `history`, `costs`, `status` and `error`. The quantities are ln J
-and the elasticities the bound's constants were measured on: `S_D`, `a_f3`,
-`recruitment_decay` and `rooting_depth_max` are left out. Not yet built: curvatures, invaders'
-spell ends, the stall boundary, `where`, and the distance from θ₀.
+In plant it would replace, in one change, the C++ `SCM::refine_schedule` and the
+`run_scm(refine_schedule =)` argument, and logpile's `refine_schedule` key in
+`resolve_control`, `manifest.R` and `solver.R` (this changes request fingerprints).
