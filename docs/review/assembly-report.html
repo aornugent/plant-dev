@@ -1,0 +1,375 @@
+<title>Assembly Through the Field</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,500;0,600;1,500&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column; the worked example widens to a two-column algebra | algorithm grid. */
+:root {
+  --bg: #f6f8f6; --surface: #ffffff; --fg: #18211d; --muted: #59655f; --rule: #d5ddd8;
+  --accent: #1f6f58; --accent-soft: #e3efe9; --second: #4650a6; --second-soft: #e8e9f6;
+  --warn: #9a5b12;
+  --display: "Spectral", "Iowan Old Style", Georgia, serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121715; --surface: #1a211e; --fg: #e2e9e5; --muted: #9aa7a0; --rule: #2e3833;
+    --accent: #63c7a4; --accent-soft: #1c3029; --second: #a3abf2; --second-soft: #24263d;
+    --warn: #e0a55a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121715; --surface: #1a211e; --fg: #e2e9e5; --muted: #9aa7a0; --rule: #2e3833;
+  --accent: #63c7a4; --accent-soft: #1c3029; --second: #a3abf2; --second-soft: #24263d;
+  --warn: #e0a55a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px;
+  line-height: 1.6; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main { max-width: 46rem; margin: 0 auto; padding-block: 3rem 5rem; }
+.wide { width: min(64rem, calc(100vw - 32px)); position: relative; left: 50%; transform: translateX(-50%); }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.2; text-wrap: balance; }
+h1 { font-size: 2.6rem; margin: 0 0 0.5rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; margin: 3rem 0 0.75rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); }
+h3 { font-size: 1.2rem; margin: 2rem 0 0.5rem; }
+p { margin: 0 0 1rem; }
+a { color: var(--accent); }
+.lede { font-size: 1.15rem; color: var(--muted); margin-bottom: 1.5rem; }
+.meta { font-size: 0.85rem; color: var(--muted); letter-spacing: 0.02em; display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; }
+.label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.findings { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
+.findings ul { margin: 0.5rem 0 0; padding-left: 1.2rem; display: grid; gap: 0.5rem; }
+ul, ol { padding-left: 1.3rem; }
+li { margin-bottom: 0.35rem; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+.math-block { overflow-x: auto; overflow-y: hidden; margin: 0.5rem 0 1.25rem; }
+.note { border-left: 3px solid var(--second); background: var(--second-soft); padding: 0.75rem 1rem; margin: 1rem 0 1.25rem; border-radius: 0 4px 4px 0; font-size: 0.97rem; }
+.note.keep { border-left-color: var(--accent); background: var(--accent-soft); }
+.tag { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.1rem 0.45rem; border-radius: 3px; white-space: nowrap; }
+.tag.measured { background: var(--accent-soft); color: var(--accent); }
+.tag.derived { background: var(--second-soft); color: var(--second); }
+.tag.estimated { background: transparent; color: var(--warn); border: 1px solid var(--warn); }
+.table-wrap { overflow-x: auto; margin: 0.75rem 0 1.5rem; }
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; vertical-align: top; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+td.num { text-align: right; white-space: nowrap; }
+tr.lean td { background: var(--accent-soft); }
+.side { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--surface); margin: 1rem 0 1.5rem; }
+.side > div { padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--rule); min-width: 0; }
+.side > div:nth-child(odd) { border-right: 1px solid var(--rule); }
+.side .head { background: var(--bg); font-weight: 600; }
+.side .step { grid-column: 1 / -1; background: var(--bg); font-family: var(--display); font-weight: 600; padding: 0.5rem 1.1rem; }
+.side p:last-child { margin-bottom: 0; }
+pre { font-family: var(--mono); font-size: 0.84rem; line-height: 1.55; background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem 1.2rem; overflow-x: auto; margin: 0.75rem 0 1.5rem; }
+pre .c { color: var(--muted); }
+pre .k { color: var(--accent); font-weight: 600; }
+figure { margin: 1rem 0 1.5rem; }
+figure svg { width: 100%; height: auto; max-width: 30rem; display: block; margin: 0 auto; }
+figcaption { font-size: 0.9rem; color: var(--muted); margin-top: 0.5rem; }
+.fig svg line.iso { stroke: var(--muted); stroke-width: 1; opacity: 0.45; }
+.fig svg line.iso.res { stroke: var(--accent); stroke-width: 2.2; opacity: 1; }
+.fig svg line.iso.gen { stroke: var(--second); stroke-width: 1.8; stroke-dasharray: 6 4; opacity: 1; }
+.fig svg line.tick { stroke: var(--muted); }
+.fig svg line.axis { stroke: var(--fg); stroke-width: 1; }
+.fig svg text { fill: var(--muted); font-family: var(--body); font-size: 12px; }
+.fig svg text.lab { fill: var(--fg); font-size: 13px; }
+.fig svg line.cons { stroke: var(--accent); stroke-width: 1.5; }
+.fig svg line.supply { stroke: var(--fg); stroke-width: 1.3; stroke-dasharray: 2 3; }
+.fig svg circle.star { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
+.fig svg circle.gen { fill: var(--surface); stroke: var(--second); stroke-width: 2; }
+.fig svg .arrfill { fill: var(--accent); }
+.fig svg .arrfill2 { fill: var(--fg); }
+.legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; justify-content: center; font-size: 0.85rem; color: var(--muted); margin-top: 0.4rem; }
+.legend span::before { content: ""; display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--muted); vertical-align: middle; margin-right: 0.4rem; }
+.legend .l-res::before { border-top-color: var(--accent); border-top-width: 3px; }
+.legend .l-gen::before { border-top: 2px dashed var(--second); }
+.legend .l-oth::before { opacity: 0.5; }
+footer { margin-top: 3rem; font-size: 0.85rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 1rem; }
+@media (max-width: 640px) {
+  h1 { font-size: 2rem; }
+  .side { grid-template-columns: 1fr; }
+  .side > div:nth-child(odd) { border-right: none; }
+}
+mjx-container[display="true"] { margin: 0.4rem 0 !important; }
+</style>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]] },
+  svg: { fontCache: "global" },
+  options: { enableMenu: false }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+
+<main>
+<header>
+  <div class="label">plant-dev · eco-evolutionary assembly</div>
+  <h1>Assembly Through the Field</h1>
+  <p class="lede">How to find an evolutionarily stable community when one recorded run of the residents differentiates: the mathematics, a worked example with 50 traits checked against algebra, and the lean algorithm that survived refactoring.</p>
+  <div class="meta"><span>22 October 2026</span><span>branch <code>worktree-workflows</code></span><span>code <code>spikes/assembly-example/</code>, <code>spikes/field-cut/</code></span></div>
+</header>
+
+<section class="findings" aria-label="Findings">
+  <div class="label">Findings</div>
+  <ul>
+    <li><strong>Species interact only through a shared field</strong> (light, water). So the Jacobian of the assembly problem is each species' own curvature plus a field term of rank at most <em>d</em>, the field's effective dimension. A Newton step reduces to a <em>(d + m)</em>-sized system in field coordinates. <span class="tag derived">derived</span></li>
+    <li><strong>Fifty traits separate along at most <em>d</em> directions.</strong> Lineages can split only where a trait both changes what the plant depends on in the field and changes the field it makes. At most <em>d</em> species coexist. Every other trait is a best response in the shared field: the problem EEO models already solve. <span class="tag derived">derived</span></li>
+    <li><strong>The lean algorithm is column generation with structured Newton passes.</strong> Each pass makes one resident run, probes curvature in parallel, and solves one rank-<em>d</em> complementarity problem. It has no equilibrium loop and no separate birth, death, split or merge steps. <span class="tag measured">measured</span></li>
+    <li><strong>The worked example:</strong> a consumer–resource model with 50 traits.
+      <ul>
+        <li>With 2 resources it reaches the algebra's community in 9 resident runs, exact to 3.5e-14.</li>
+        <li>With 3 resources it assembles all three species in 27 resident runs.</li>
+        <li>The one-shot route of the field-cut proposal needs 2,182 runs and still hasn't converged.</li>
+      </ul>
+      <span class="tag measured">measured</span></li>
+    <li><strong>The refactor removed six kinds of work and kept four.</strong> The four that stayed are the residents' trait-to-field feedback, fresh curvature along the separating directions, a trust region in fitness units, and an exact residual every pass. Removing any one of them made the example diverge or slow down.</li>
+  </ul>
+</section>
+
+<h2 id="objects">1. The objects</h2>
+<p>A community has species \(i = 1,\dots,m\), each with traits \(\theta_i \in \mathbb{R}^k\) and density (seed rain) \(N_i\). The residents make a field \(E = \mathcal{E}(\theta, N)\): light by height and patch age, water by layer and time. Invader fitness \(\varphi(\theta'; E)\) is computed in a held field. A resident is an invader at its own traits:</p>
+<div class="math-block">\[ F_i(\theta, N) = \varphi\big(\theta_i;\ \mathcal{E}(\theta, N)\big). \]</div>
+<div class="table-wrap"><table>
+<thead><tr><th>Symbol</th><th>Meaning</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>\(g_i = \partial_{\theta'}\varphi(\theta_i; E)\)</td><td>selection gradient, field held</td><td>the field-cut sweep of the residents' recording</td></tr>
+<tr><td>\(S_i = \delta\varphi(\theta_i;E)/\delta E\)</td><td>sensitivity: what the species depends on in the field</td><td>the adjoints the cut zeroes</td></tr>
+<tr><td>\(c_j = \partial\mathcal{E}/\partial N_j\)</td><td>impact: what one more individual does to the field</td><td>sweeps of the recording</td></tr>
+<tr><td>\(E_{\theta_j} = \partial\mathcal{E}/\partial\theta_j\)</td><td>how a resident's traits change the field</td><td>sweeps of the recording</td></tr>
+<tr><td>\(H_i = \partial^2_{\theta'\theta'}\varphi\)</td><td>curvature of invader fitness, field held</td><td>\(k\) gradient probes in the held field</td></tr>
+<tr><td>\(G_i = \partial g_i/\partial E\)</td><td>how selection depends on the field</td><td>the same probes (each returns \(S\) too)</td></tr>
+</tbody></table></div>
+
+<h2 id="recording">2. What one recording returns</h2>
+<p>The chain rule splits every resident derivative into a held-field part and a part through the field:</p>
+<div class="math-block">\[ \frac{\partial F_i}{\partial \ln N_j} = \langle S_i,\, c_j\rangle N_j, \qquad \frac{\partial F_i}{\partial \theta_j} = \delta_{ij}\, g_i + \langle S_i,\, E_{\theta_j}\rangle . \]</div>
+<p>The first is Meszéna's \(a_{ij} = S_i \cdot C_j\), whose determinant measures how robustly the species coexist.</p>
+<p><strong>The field cut.</strong> Reverse mode sums derivatives over paths through the recorded computation. If the adjoint of each field value is zeroed once all its readers have been swept, every path through the field is deleted. What remains is the derivative with the field held: \(g_i\) on the traits, and zero on \(N\). The adjoint each field value held when it was zeroed is \(S\). With the field held, \(F_i\) reaches no other species' inputs, so one cut sweep of \(\sum_i F_i\) returns every \(g_i\). <span class="tag measured">measured</span> on a C++ toy against odelia's XAD: bit-for-bit equal to the invader's gradient, at 0.99 the cost of an ordinary sweep (<code>spikes/field-cut/</code>).</p>
+
+<h2 id="target">3. The assembled community</h2>
+<p>Over residents and every candidate strategy \(p\), the evolutionarily stable community satisfies</p>
+<div class="math-block">\[ N_p \ge 0,\qquad \varphi(\theta_p; E^*) \le 0,\qquad N_p\, \varphi(\theta_p; E^*) = 0,\qquad g_i = 0 \ \text{for residents}, \]</div>
+<p>with \(E^* = \mathcal{E}(\theta, N)\). Residents sit at zero-height peaks of one fitness landscape \(\varphi(\cdot\,; E^*)\), and nothing else in trait space is above zero. Births, deaths, equilibrium, evolution, splits and merges are all moves toward this one set of conditions.</p>
+
+<h2 id="newton">4. A Newton step in field coordinates</h2>
+<p>Linearise about the current point. Every tracked strategy \(p\) takes a Newton step toward its best response in the field \(E + \delta E\), and the field responds to density changes and to the residents' trait steps:</p>
+<div class="math-block">\[ \delta\theta_p = -H_p^{-1}\big(g_p + G_p\,\delta E\big), \qquad \delta E = \sum_p c_p\, \delta N_p + \sum_{j \in \text{res}} E_{\theta_j}\, \delta\theta_j . \]</div>
+<p>Substituting the first into the second leaves a \(d \times d\) system for the field:</p>
+<div class="math-block">\[ Q\, \delta E = C\, \delta N + r, \qquad Q = I + \sum_{j} E_{\theta_j} H_j^{-1} G_j, \qquad r = -\sum_j E_{\theta_j} H_j^{-1} g_j . \]</div>
+<p>The quadratic model of each strategy's fitness after its step predicts a peak height that is linear in the field change:</p>
+<div class="math-block">\[ \tilde\varphi_p + \tilde s_p \cdot \delta E, \qquad \tilde\varphi_p = \varphi_p - \tfrac12\, g_p^{\top} H_p^{-1} g_p, \qquad \tilde s_p = S_p - G_p^{\top} H_p^{-1} g_p . \]</div>
+<p>The new densities then solve one linear complementarity problem:</p>
+<div class="math-block">\[ N^{+} \ge 0,\quad w = q + M N^{+} \le 0,\quad N^{+}_p\, w_p = 0, \qquad M = \tilde S\, Q^{-1} C,\quad q = \tilde\varphi + \tilde S\, Q^{-1}(r - C N). \]</div>
+<p>\(M\) has rank at most \(d\), so at most \(d\) strategies take positive density. That is Meszéna's bound expressed as linear algebra. At the root \(g = 0\), so \(\tilde s = S\), and \(M\) is the sensitivity–impact product. The traits then step by \(\delta\theta_p\), and everything is scaled by one trust factor (§7). This is an exact Newton step when \(H\), \(G\), \(S\), \(c\) and \(E_\theta\) are exact. Nothing in it is a dense \(mk \times mk\) Jacobian.</p>
+
+<h2 id="traits">5. What fifty traits can separate</h2>
+<p>For one resident, the Jacobian of the selection gradient with the equilibrium re-solved is</p>
+<div class="math-block">\[ J = H + M_\theta, \qquad M_\theta = G \,\frac{dE^*}{d\theta}, \qquad \frac{dE^*}{d\theta} = E_\theta - c\, F_N^{-1} F_\theta . \]</div>
+<ol>
+  <li><strong>\(\operatorname{rank} M_\theta \le d\).</strong> It factors through the field, whatever \(k\) is.</li>
+  <li><strong>Lineages split only through the field.</strong> At a strongly convergence-stable point (\(J + J^\top \prec 0\)), a disruptive direction \(v\) (\(v^\top H v &gt; 0\)) needs
+    <div class="math-block">\[ v^\top M_\theta v = \big\langle G^\top v,\ \tfrac{dE^*}{d\theta} v \big\rangle &lt; 0 . \]</div>
+    Moving along \(v\) must change what the strategy depends on in the field and change the field it makes, with opposite sign. On \(\operatorname{null}(M_\theta)\), at least \(k - d\) dimensions, \(J = H\): convergence stability implies ESS, and those directions never split.</li>
+  <li><strong>At most \(d\) species.</strong> Each resident is a zero-height peak of one landscape. \(m\) peaks at height zero are \(m\) conditions on the field, which has \(d\) robust directions.</li>
+  <li><strong>The other traits follow from niche position.</strong> Every resident has \(g = 0\) in the same field, so its non-separating traits are its best response given its position on the separating axes. Within a community, species differ along at most \(d - 1\) directions, and the rest follow as coordinated syndromes.</li>
+  <li><strong>EEO and assembly divide the work.</strong> A best response in a given field is exactly what an EEO model computes. It is right for the traits that follow from niche position once it is given the niche position and \(E^*\), and it cannot supply either.</li>
+</ol>
+
+<h2 id="example">6. A worked example</h2>
+<p>MacArthur competition for \(d\) resources has the same structure, with every quantity in closed form. Resources sit at positions \(z_r\) with supply \(K_r\). A strategy has \(k = 50\) traits:</p>
+<ul>
+  <li>\(x\), where its uptake sits on the resource axis, \(a_r(x) = e^{-(x - z_r)^2/2\sigma^2}\);</li>
+  <li>\(v\), uptake capacity at cost \(c v^2/2\);</li>
+  <li>48 physiological traits \(w_l\) with optimum \(\omega_l x\) and stiffness \(q_l\).</li>
+</ul>
+<div class="math-block">\[ R = K - \sum_j N_j\, v_j\, a(x_j), \qquad \varphi(\theta; R) = v\, a(x)\cdot R - \mu - \tfrac{c}{2} v^2 - \tfrac12 \sum_l q_l\, (w_l - \omega_l x)^2 . \]</div>
+<p>Parameters: \(\mu = 0.125\), \(c = 1\); \(\omega_l\) and \(q_l\) are drawn once from \([-1, 1]\) and \([0.5, 5]\). The field is exactly \(d\)-dimensional and linear in density. Here \(S = v\,a(x)\), \(c_j = -v_j a(x_j)\), and \(G\) has non-zero rows only for \(x\) and \(v\).</p>
+
+<h3>By hand, two resources (z = 0, 1; K = 2, 2; σ = 0.4)</h3>
+<p><strong>The other traits come first.</strong> Setting \(g = 0\) in \(w\) and \(v\) gives</p>
+<div class="math-block">\[ w^* = \omega x \ \ (\text{a fixed syndrome}), \qquad v^* = a(x)\cdot R / c \ \ (\text{set by the field, as in EEO}). \]</div>
+<p>What is left is a landscape in \(x\) alone:</p>
+<div class="math-block">\[ \hat\varphi(x; R) = \frac{\big(a(x)\cdot R\big)^2}{2c} - \mu . \]</div>
+<p>A strategy breaks even on the line \(a(x)\cdot R = \sqrt{2c\mu} = 0.5\), its zero-net-growth isocline. At break-even \(v^* = \sqrt{2\mu/c} = 0.5\) in every resident.</p>
+<p><strong>The generalist, \(x = 1/2\).</strong></p>
+<ul>
+  <li>Its equilibrium is \(R = c v^*/2a_0\) with \(a_0 = e^{-1/8\sigma^2}\): \(R = 0.546050\) and \(N = 6.351437\).</li>
+  <li>Its curvature in \(x\), with the other traits eliminated, is \(H = 2 v R a_0 (1/4\sigma^4 - 1/\sigma^2) = 0.879 &gt; 0\).</li>
+  <li>The field term is \(M = -N v^2 a_0^2 / 2\sigma^4 = -6.501\), so \(J = -5.622\).</li>
+</ul>
+<p>It attracts, and it is a fitness minimum: a branching point.</p>
+<p><strong>The pair.</strong> In a symmetric field \(R_1 = R_2\), the condition \(g_x = 0\) does not involve \(R\):</p>
+<div class="math-block">\[ \ln\frac{x}{1-x} + \frac{1 - 2x}{2\sigma^2} = 0 \ \Rightarrow\ \bar x = 0.060134,\ \ 1 - \bar x = 0.939866 . \]</div>
+<p>Break-even gives \(R = c v^*/\bar s = 0.475274\), with \(\bar s = a_1(\bar x) + a_2(\bar x)\). Densities follow from supply: \(N = (K - R)/(v^* \bar s) = 2.898648\) each. The landscape \(\hat\varphi(\cdot; R)\) peaks at exactly zero at \(\bar x\) and \(1 - \bar x\), so no invader can enter.</p>
+
+<figure class="fig" aria-labelledby="fig1cap">
+<svg viewBox="0 0 460 420" role="img" aria-label="Resource plane with break-even lines for strategies along the resource axis">
+<defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrfill" d="M0,0 L10,5 L0,10 z"/></marker>
+  <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrfill2" d="M0,0 L10,5 L0,10 z"/></marker>
+  <clipPath id="plot"><rect x="56" y="16" width="388" height="354"/></clipPath>
+</defs>
+<g clip-path="url(#plot)">
+<line class="iso" x1="217.7" y1="370.0" x2="200.6" y2="16.0"/>
+<line class="iso" x1="229.4" y1="370.0" x2="185.9" y2="16.0"/>
+<line class="iso" x1="252.5" y1="370.0" x2="171.2" y2="16.0"/>
+<line class="iso" x1="293.1" y1="370.0" x2="141.1" y2="16.0"/>
+<line class="iso" x1="56.0" y1="153.7" x2="444.0" y2="292.3"/>
+<line class="iso" x1="56.0" y1="190.7" x2="444.0" y2="264.9"/>
+<line class="iso" x1="56.0" y1="211.8" x2="444.0" y2="251.5"/>
+<line class="iso" x1="56.0" y1="222.5" x2="444.0" y2="238.1"/>
+<line class="iso gen" x1="56.0" y1="47.8" x2="409.1" y2="370.0"/>
+<line class="iso res" x1="219.5" y1="370.0" x2="194.7" y2="16.0"/>
+<line class="iso res" x1="56.0" y1="220.8" x2="444.0" y2="243.5"/>
+<line class="cons" x1="209.7" y1="229.8" x2="345.2" y2="221.9" marker-end="url(#arr)"/>
+<line class="cons" x1="209.7" y1="229.8" x2="218.3" y2="106.1" marker-end="url(#arr)"/>
+<line class="supply" x1="209.7" y1="229.8" x2="351.4" y2="100.5" marker-end="url(#arr2)"/>
+<circle class="gen" cx="232.6" cy="208.9" r="4.5"/>
+<circle class="star" cx="209.7" cy="229.8" r="5.5"/>
+</g>
+<line class="axis" x1="56" y1="370" x2="444" y2="370"/>
+<line class="axis" x1="56" y1="16" x2="56" y2="370"/>
+<line class="tick" x1="56.0" y1="370.0" x2="56.0" y2="375.0"/><text x="56.0" y="388.0" text-anchor="middle">0.0</text>
+<line class="tick" x1="51.0" y1="370.0" x2="56.0" y2="370.0"/><text x="48.0" y="374.0" text-anchor="end">0.0</text>
+<line class="tick" x1="120.7" y1="370.0" x2="120.7" y2="375.0"/><text x="120.7" y="388.0" text-anchor="middle">0.2</text>
+<line class="tick" x1="51.0" y1="311.0" x2="56.0" y2="311.0"/><text x="48.0" y="315.0" text-anchor="end">0.2</text>
+<line class="tick" x1="185.3" y1="370.0" x2="185.3" y2="375.0"/><text x="185.3" y="388.0" text-anchor="middle">0.4</text>
+<line class="tick" x1="51.0" y1="252.0" x2="56.0" y2="252.0"/><text x="48.0" y="256.0" text-anchor="end">0.4</text>
+<line class="tick" x1="250.0" y1="370.0" x2="250.0" y2="375.0"/><text x="250.0" y="388.0" text-anchor="middle">0.6</text>
+<line class="tick" x1="51.0" y1="193.0" x2="56.0" y2="193.0"/><text x="48.0" y="197.0" text-anchor="end">0.6</text>
+<line class="tick" x1="314.7" y1="370.0" x2="314.7" y2="375.0"/><text x="314.7" y="388.0" text-anchor="middle">0.8</text>
+<line class="tick" x1="51.0" y1="134.0" x2="56.0" y2="134.0"/><text x="48.0" y="138.0" text-anchor="end">0.8</text>
+<line class="tick" x1="379.3" y1="370.0" x2="379.3" y2="375.0"/><text x="379.3" y="388.0" text-anchor="middle">1.0</text>
+<line class="tick" x1="51.0" y1="75.0" x2="56.0" y2="75.0"/><text x="48.0" y="79.0" text-anchor="end">1.0</text>
+<line class="tick" x1="444.0" y1="370.0" x2="444.0" y2="375.0"/><text x="444.0" y="388.0" text-anchor="middle">1.2</text>
+<line class="tick" x1="51.0" y1="16.0" x2="56.0" y2="16.0"/><text x="48.0" y="20.0" text-anchor="end">1.2</text>
+<text class="lab" x="250" y="410" text-anchor="middle">resource 1, R₁</text>
+<text class="lab" x="16" y="193" text-anchor="middle" transform="rotate(-90 16 193)">resource 2, R₂</text>
+<text class="lab" x="180" y="248" text-anchor="end">community R*</text>
+<text class="lab" x="240" y="200">generalist's R</text>
+<text x="356" y="96">toward supply K = (2, 2)</text>
+</svg>
+<div class="legend"><span class="l-res">the pair's break-even lines</span><span class="l-gen">the generalist's</span><span class="l-oth">other strategies'</span></div>
+<figcaption id="fig1cap"><strong>Figure 1.</strong> The resource plane. Every strategy along the resource axis breaks even on one line; it grows above its line and declines below it. The community sits at the corner where the two specialists' lines meet, below every other line. Green arrows show the pair's consumption directions, reversed; supply lies inside the cone they span. The generalist's equilibrium (open circle) sits above the specialists' lines, which is why they invade it. Drawn from the model's own numbers.</figcaption>
+</figure>
+
+<h3>The algorithm beside the algebra</h3>
+<p>The lean route on the same model, with every number taken from <code>assembly.txt</code>:</p>
+<div class="side wide" role="table" aria-label="Algebra and algorithm, pass by pass">
+  <div class="head" role="columnheader">Algebra</div><div class="head" role="columnheader">Algorithm</div>
+  <div class="step" role="row">Round 1, pricing in the empty field R = K</div>
+  <div role="cell"><p>In a symmetric field the condition for \(x\) does not involve \(R\), so \(\bar x\) is already final. The other traits are at their best response in \(K\): \(v^* = a(\bar x)\cdot K / c = 2.09\) and \(w^* = \omega\bar x\). The peak height is \(\hat\varphi = 2.09\).</p></div>
+  <div role="cell"><p>13 BFGS ascents from starts along the resource axis, each seeded with one curvature probe, merge to two peaks: x = 0.060134 and 0.939866, φ = 2.09. Both are candidates.</p></div>
+  <div class="step" role="row">Pass 1: who enters</div>
+  <div role="cell"><p>The complementarity matrix \(\tilde S Q^{-1} C\) has rank 2, so both specialists can take positive density.</p></div>
+  <div role="cell"><p>No residents yet, so no resident run. The complementarity problem gives both N &gt; 0. The trust region scales the step, so N = 0.27 each.</p></div>
+  <div class="step" role="row">Passes 2–8: the field falls; v follows it</div>
+  <div role="cell"><p>\(x\) stays at \(\bar x\). The traits that follow the field track it: \(v^* = a(\bar x)\cdot R/c\) falls as \(R\) falls, and \(w = \omega\bar x\) is exact from the first step.</p></div>
+  <div role="cell"><p>Resident runs 1–7. v goes 1.47 → 0.906 → 0.730 → 0.577 → 0.527 → 0.502 → 0.50006. N rises to 2.898. |F| falls from 1 to 7e-5.</p></div>
+  <div class="step" role="row">Passes 9–10: Newton's quadratic tail</div>
+  <div role="cell"><p>Near the root, the step solves the linearised conditions exactly.</p></div>
+  <div role="cell"><p>|F|, |g|: 3e-8, then 4e-15. Final: x = 0.060134 / 0.939866, v = 0.500000, N = 2.898648, R = 0.475274. That is the algebra to 3.5e-14.</p></div>
+  <div class="step" role="row">Round 2, pricing in R*</div>
+  <div role="cell"><p>\(\hat\varphi(\cdot; R^*)\) peaks at exactly 0 at the residents and is negative everywhere else.</p></div>
+  <div role="cell"><p>Ascents find only the residents. The best φ is 3.9e-15, so nothing enters and the run stops. Totals: 9 resident runs and 3,472 invader evaluations (1,772 of them pricing).</p></div>
+</div>
+<p>The run never visits the generalist branching point. Pricing in the first field already finds both specialists. A route that evolves a single resident first must climb to \(x = 1/2\), detect that it is a branching point, split it, and resolve a nearly singular pair.</p>
+
+<h3>Three resources, unequal supply (z = 0, 0.5, 1; K = 2, 1.5, 1; σ = 0.22)</h3>
+<ul>
+  <li><strong>Round 1.</strong> Pricing in the empty field finds one peak. That resident climbs to its singular point in the field it makes, x = 0.2087, over 14 passes.</li>
+  <li><strong>Round 2.</strong> Pricing finds two entrants with φ = 0.41. For three passes the active set churns while the linear model is far from the root: one entrant leaves and re-enters, and another briefly reaches x = −0.25. Then the passes converge quadratically. The round-1 resident ends as the middle specialist.</li>
+  <li><strong>Round 3</strong> certifies the result. Three species, d of them: x = 0.0566, 0.5000, 0.9434, all with v = 0.5. 27 resident runs.</li>
+</ul>
+<div class="note"><strong>The field does not depend on supply when m = d.</strong> The residents' break-even and selection conditions are d + dk equations in the d field coordinates and dk traits, and supply appears in none of them. Supply sets only the densities. Rerunning with K = (1, 1.5, 2) and K = (1.5, 1.5, 1.5) gives R* = (0.458364, 0.430719, 0.458364) and the same three species to six decimals; only N changes. This is Tilman's R* rule, extended to many traits. It is exact only when the field is finite-dimensional. <span class="tag measured">measured</span></div>
+
+<h3>The routes compared</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Route</th><th>d = 2: resident runs</th><th>invader evaluations</th><th>reaches the community?</th><th>d = 3: resident runs</th></tr></thead>
+<tbody>
+<tr class="lean"><td>Lean: column generation with structured Newton passes</td><td class="num">9</td><td class="num">3,472</td><td>yes, to 3.5e-14; certified</td><td class="num">27 (3 species)</td></tr>
+<tr><td>One-shot (field-cut proposal): evolve to the branching point, split, evolve the pair</td><td class="num">2,182</td><td class="num">1,822</td><td>not within 2,000 steps (|g| 9e-4)</td><td>—</td></tr>
+<tr><td>FitMax mock with Newton equilibria, residents not evolved</td><td class="num">20</td><td class="num">2,749</td><td>no: residents keep the traits they were born with (|g| ≈ 1)</td><td class="num">20 (2 species)</td></tr>
+</tbody></table></div>
+<p>The FitMax row is a mock of regnans's default, not regnans. Its birth threshold and its refusal of near-copies are assumed. regnans's own iteration, ln N ← ln N + F, oscillates on this model, so the mock uses regnans's Newton solver. FitMax is cheap here because it never evolves its residents. Reaching the evolutionarily stable community that way means nesting equilibria inside evolution, which the C++ toy priced at 280 runs for one species against 14 for the one-shot.</p>
+
+<h2 id="refactor">7. Where the work was redundant</h2>
+<p>Each row starts from a step in regnans as built, in the one-shot proposal, or in last session's assembly sketch. It then states what the example showed and what replaces the step.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Step</th><th>Verdict</th><th>Replaced by</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td>Equilibrium solved to tolerance before each evolutionary step</td><td>redundant</td><td>densities move with traits, predicted through \(F_\theta\)</td><td>C++ toy: 14 runs against 46 (nested Newton) and 280 (iteration)</td></tr>
+<tr><td>Separate birth, death, split, merge, label and classify steps</td><td>redundant</td><td>one complementarity problem over the tracked peaks, plus pricing between rounds</td><td>the pair found without visiting the branching point; entries and exits handled within passes</td></tr>
+<tr><td>A separate step to find the separating subspace</td><td>redundant</td><td>emerges as the differences between peaks; \(G\) comes from the curvature probes</td><td>species differ in x only; v and w follow to 1e-15</td></tr>
+<tr><td>Broyden over all mk traits</td><td>redundant, and fragile</td><td>per-strategy curvature plus the rank-d field term</td><td>2,182 runs unconverged against 9; diverged at scale 1</td></tr>
+<tr><td>Full curvature at every pricing iteration</td><td>redundant</td><td>BFGS seeded by one probe batch</td><td>pricing 8,951 → 1,772 evaluations</td></tr>
+<tr><td>Pricing every pass</td><td>redundant</td><td>pricing when the master converges</td><td>2–3 rounds in both cases</td></tr>
+</tbody></table></div>
+<div class="note keep"><strong>Kept, because removing them failed:</strong>
+<ul>
+  <li><strong>The residents' trait-to-field feedback</strong>, the \(Q\) and \(r\) terms. Without them, at the same trust radius, d = 2 needs 17 runs instead of 11, and d = 3 diverges to 29 spurious species.</li>
+  <li><strong>Fresh curvature along the directions that move.</strong> Reusing curvature across passes is harmless at d = 2, where x never moves, and diverges at d = 3, where x travels from 0.05 to 0.5.</li>
+  <li><strong>A trust region in fitness units</strong>, capping \(\tfrac12\delta\theta^\top(-H)\delta\theta\). A cap in trait units let x jump 4.5σ and diverged.</li>
+  <li><strong>An exact residual every pass.</strong> Every Jacobian above may be approximate, but F and g come from a real run each pass, so the converged point is the true root.</li>
+</ul></div>
+
+<h2 id="lean">8. The lean algorithm</h2>
+<pre><span class="k">round</span> r = 1, 2, …
+  <span class="c"># pricing, parallel: invader ascents in the current field</span>
+  peaks ← BFGS ascents of φ(·; E) from starts along the separating axes and near residents
+  <span class="k">if</span> no peak has φ &gt; 0 that is not a resident: <span class="k">stop</span>        <span class="c"># the certificate</span>
+  tracked ← residents ∪ new peaks (N = 0)
+  <span class="k">pass</span> t = 1, 2, …
+    <span class="c"># sequential: one taped run of the residents</span>
+    record residents → F, g and S (cut sweep), c and E_θ (sweeps)
+    <span class="c"># parallel: curvature of every tracked strategy in the recorded field</span>
+    probe → H_p, G_p, and S_p, φ_p for candidates
+    <span class="c"># one small solve in field coordinates</span>
+    Q, r, φ̃, s̃ → LCP for N⁺ (rank d) → δE → δθ_p for every tracked strategy
+    scale (δN, δθ) by one trust factor; apply
+    <span class="k">if</span> |F|, |g| small and every candidate below zero: <span class="k">end pass</span>
+  drop strategies with N = 0</pre>
+
+<p><strong>In plant.</strong> The primitives map one to one:</p>
+<ul>
+  <li><strong>The resident run</strong> is one recording of the m residents. The cut sweep gives g and S; mode-seeded sweeps give c and \(E_\theta\) projected on the field's leading modes.</li>
+  <li><strong>The modes</strong> are the leading directions of the tracked strategies' sensitivities, which every invader sweep already returns.</li>
+  <li><strong>Probes</strong> are invader gradients in the recorded field, or Hessian–vector products.</li>
+  <li><strong>Pricing</strong> is invader ascent in a held field. That is the same primitive EEO models need, so one routine serves EEO, pricing and the per-species best responses.</li>
+</ul>
+<p>Projection onto modes approximates only the Jacobian. The residual stays exact, so the answer does not depend on how many modes are kept.</p>
+
+<div class="table-wrap"><table>
+<thead><tr><th>Per pass, TF24</th><th>Cost</th><th></th></tr></thead>
+<tbody>
+<tr><td>Recording of m residents plus d′ + 1 sweeps (sequential)</td><td>about 2m + 0.5(d′ + 1) F; 8 F at m = d′ = 3</td><td><span class="tag estimated">estimated</span></td></tr>
+<tr><td>Curvature probes: tracked × k invader gradients (parallel)</td><td>about 2.5 F each, so 4 × 50 × 2.5 = 500 F of CPU per pass; one batch deep</td><td><span class="tag estimated">estimated</span></td></tr>
+<tr><td>Passes to the community</td><td>9 (d = 2) and 27 (d = 3) on the example</td><td><span class="tag measured">measured</span> on the example</td></tr>
+</tbody></table></div>
+<p>Wall time is about 27 passes × (8 + 2.5) F ≈ 280 F, roughly 4–5 hours at 1 min per F. The CPU is dominated by curvature probes, about 13,000 F. The obvious cut is to probe only along the d + 1 directions that move (the best-response shifts and the step) and carry the rest forward. That would bring probes to about (d + 1)/k of today's cost. It is untested, and the d = 3 result above says those directions must stay fresh. For comparison, the roadtest's single regnans step took 54–79 minutes, and one regnans singular strategy in one trait costs about 608 F.</p>
+
+<h2 id="open">9. What is not yet shown</h2>
+<ul>
+  <li><strong>Plant's field is not finite-dimensional.</strong> Modes are a projection of a function of height, patch age and time. The supply-independence result of §6 holds only to the extent that d modes capture it. d itself is unmeasured in TF24.</li>
+  <li><strong>Pricing is a global search.</strong> The certificate is "no peak found above zero among the ascents". In 50 traits that is credible only if starts cover the separating directions, which §5 says are few.</li>
+  <li><strong>Curvature probes dominate CPU.</strong> The directional update is the next experiment.</li>
+  <li><strong>Discrete schedules.</strong> In TF24 the node schedule must be held through a solve and certified at the root (<code>docs/schedule/workflows.md</code> §6). Otherwise refinement puts jumps into F and g.</li>
+  <li><strong>The field cut in plant</strong> is not built. Its cost there is unmeasured; the toy measured 0.99 of a sweep.</li>
+</ul>
+
+<footer>
+  <p>Sources in the repository:</p>
+  <ul>
+    <li><code>spikes/assembly-example/assembly.R</code> and its output <code>assembly.txt</code>;</li>
+    <li><code>spikes/field-cut/</code>, the cut and the one-shot toy;</li>
+    <li><code>docs/review/field-cut.md</code> and <code>assembly.md</code>.</li>
+  </ul>
+  <p>Theory: Meszéna et al. 2006 (regulating dimension); Leimar 2009 (strong convergence stability); Metz, Mylius &amp; Diekmann 2008 (optimisation principles); Tilman 1982 (resource competition); MacArthur 1970 (consumer–resource).</p>
+</footer>
+</main>

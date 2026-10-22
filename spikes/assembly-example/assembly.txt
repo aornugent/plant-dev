@@ -1,0 +1,71 @@
+d = 2 resources, k = 50 traits, sigma = 0.40
+
+By hand:
+  generalist x = 1/2, v = 0.500000, R = 0.546050, N = 6.351437
+  its curvature in x: H = 0.8789 (field held), M = -6.5007, J = H + M = -5.6217
+  the pair: x = 0.060134 and 0.939866, v = 0.500000, R = 0.475274, N = 2.898648 each
+
+Lean route, pass by pass (residents in brackets):
+round 1: pricing finds 2 strategies, 2 with phi > 0 not resident (best 2.09e+00)
+  1    |F| 0e+00 |g| 0e+00  tracking 2, best phi 2.09e+00 
+  2    [x 0.060134 v 1.471596 N 0.271594] [x 0.939866 v 1.471596 N 0.271594] |F| 1e+00 |g| 2e-01 
+  3    [x 0.060134 v 0.906077 N 0.839911] [x 0.939866 v 0.906077 N 0.839911] |F| 6e-01 |g| 4e-01 
+  4    [x 0.060134 v 0.729957 N 1.533505] [x 0.939866 v 0.729957 N 1.533505] |F| 2e-01 |g| 1e-01 
+  5    [x 0.060134 v 0.577060 N 2.211316] [x 0.939866 v 0.577060 N 2.211316] |F| 1e-01 |g| 1e-01 
+  6    [x 0.060134 v 0.526578 N 2.663398] [x 0.939866 v 0.526578 N 2.663398] |F| 3e-02 |g| 3e-02 
+  7    [x 0.060134 v 0.502435 N 2.870283] [x 0.939866 v 0.502435 N 2.870283] |F| 4e-03 |g| 6e-03 
+  8    [x 0.060134 v 0.500062 N 2.898042] [x 0.939866 v 0.500062 N 2.898042] |F| 7e-05 |g| 7e-05 
+  9    [x 0.060134 v 0.500000 N 2.898648] [x 0.939866 v 0.500000 N 2.898648] |F| 3e-08 |g| 4e-08 
+  10   [x 0.060134 v 0.500000 N 2.898648] [x 0.939866 v 0.500000 N 2.898648] |F| 4e-15 |g| 4e-15 
+round 2: pricing finds 2 strategies, 0 with phi > 0 not resident (best 3.94e-15)
+  2 rounds, 10 passes: 9 resident runs; 3472 invader evaluations, 1772 of them pricing; certificate max phi 3.9e-15
+
+One-shot route:
+  monomorphic: 182 steps to x = 0.500000, v = 0.500000, N = 6.351437
+  its curvature in x, w and v eliminated: H 0.8789, J -5.6217
+  pair: [x 0.938285 v 0.500000 N 2.898716] [x 0.061666 v 0.500000 N 2.898600]  after 2000 steps, |F| 2e-08 |g| 9e-04 
+  2182 resident runs, 1822 invader evaluations; certificate max phi 1.3e-06
+
+regnans FitMax (Newton equilibrium, residents not evolved):
+  end: [x 0.060134 v 2.104052 N 0.428487] [x 0.973989 v 1.983536 N 0.475277] 
+  3 rounds, 20 resident runs, 2749 invader evaluations; residents' max |g| 9.9e-01
+
+Lean against by hand: largest difference in x, v, N, R: 3.5e-14
+Slaved traits: largest |w - omega x| 6.9e-18, |v - a(x).R/c| 4.2e-15
+
+d = 3, K = (2, 1.5, 1), sigma = 0.22, k = 50
+round 1: pricing finds 1 strategies, 1 with phi > 0 not resident (best 2.16e+00)
+  1    |F| 0e+00 |g| 0e+00  tracking 1, best phi 2.16e+00 
+  2    [x 0.054448 v 1.514361 N 0.296556] |F| 1e+00 |g| 2e-01 
+  3    [x 0.094820 v 0.924846 N 0.960192] |F| 7e-01 |g| 4e-01 
+  4    [x 0.184914 v 0.759797 N 1.972700] |F| 4e-01 |g| 3e-01 
+  5    [x 0.200295 v 0.698459 N 2.838420] |F| 1e-01 |g| 1e-01 
+  6    [x 0.207115 v 0.548942 N 3.934592] |F| 8e-02 |g| 1e-01 
+  7    [x 0.207498 v 0.528040 N 4.457235] |F| 2e-02 |g| 8e-03 
+  8    [x 0.208564 v 0.501150 N 4.798672] |F| 3e-03 |g| 5e-03 
+  9    [x 0.208705 v 0.500047 N 4.832352] |F| 4e-05 |g| 3e-05 
+  10   [x 0.208731 v 0.500000 N 4.833207] |F| 1e-07 |g| 5e-06 
+  11   [x 0.208736 v 0.500000 N 4.833238] |F| 5e-09 |g| 1e-06 
+  12   [x 0.208737 v 0.500000 N 4.833244] |F| 1e-10 |g| 2e-07 
+  13   [x 0.208737 v 0.500000 N 4.833244] |F| 5e-12 |g| 3e-08 
+  14   [x 0.208737 v 0.500000 N 4.833245] |F| 1e-13 |g| 5e-09 
+round 2: pricing finds 3 strategies, 2 with phi > 0 not resident (best 4.14e-01)
+  1    [x 0.208737 v 0.500000 N 4.833245] |F| 1e-13 |g| 5e-09  tracking 2, best phi 4.14e-01 
+  2    [x 0.285159 v 0.500000 N 0.906762] [x 0.090412 v 0.500097 N 3.690482] [x 0.964823 v 0.639398 N 0.388347] |F| 2e-01 |g| 9e-01 
+  3    [x 0.941235 v 0.577394 N 0.801970] |F| 1e-01 |g| 6e-01  tracking 2, best phi 1.27e+00 
+  4    [x 0.432418 v 0.955069 N 0.097452] [x -0.246471 v 1.795920 N 0.575701] [x 0.705628 v 0.905215 N 0.423949] |F| 7e-01 |g| 7e+00 
+  5    [x 0.485663 v 0.867208 N 0.666814] [x -0.007555 v 1.622328 N 0.309054] [x 0.843355 v 0.720078 N 0.227589] |F| 9e-01 |g| 1e+00 
+  6    [x 0.465575 v 0.742312 N 0.925297] [x -0.003214 v 1.062595 N 0.689121] [x 0.951177 v 0.670224 N 0.514304] |F| 6e-01 |g| 4e-01 
+  7    [x 0.464507 v 0.621375 N 1.253120] [x 0.009471 v 0.735887 N 1.362145] [x 0.936273 v 0.532691 N 0.848970] |F| 3e-01 |g| 2e-01 
+  8    [x 0.486643 v 0.545148 N 1.486225] [x 0.025260 v 0.615543 N 2.072358] [x 0.933820 v 0.507054 N 0.997931] |F| 1e-01 |g| 9e-02 
+  9    [x 0.494423 v 0.508421 N 1.633184] [x 0.040325 v 0.531147 N 2.660754] [x 0.942844 v 0.500293 N 0.996475] |F| 4e-02 |g| 5e-02 
+  10   [x 0.498864 v 0.500938 N 1.628912] [x 0.051484 v 0.506239 N 2.969146] [x 0.943218 v 0.500026 N 0.993749] |F| 8e-03 |g| 1e-02 
+  11   [x 0.499969 v 0.500019 N 1.609130] [x 0.056140 v 0.500260 N 3.055430] [x 0.943390 v 0.500000 N 0.993744] |F| 6e-04 |g| 9e-04 
+  12   [x 0.500000 v 0.500000 N 1.606479] [x 0.056604 v 0.500001 N 3.061413] [x 0.943392 v 0.500000 N 0.993917] |F| 3e-06 |g| 5e-06 
+  13   [x 0.500000 v 0.500000 N 1.606457] [x 0.056608 v 0.500000 N 3.061451] [x 0.943392 v 0.500000 N 0.993919] |F| 2e-10 |g| 3e-10 
+  14   [x 0.500000 v 0.500000 N 1.606457] [x 0.056608 v 0.500000 N 3.061451] [x 0.943392 v 0.500000 N 0.993919] |F| 1e-16 |g| 2e-15 
+round 3: pricing finds 3 strategies, 0 with phi > 0 not resident (best 5.55e-17)
+  lean end: [x 0.500000 v 0.500000 N 1.606457] [x 0.056608 v 0.500000 N 3.061451] [x 0.943392 v 0.500000 N 0.993919] 
+  lean: 3 rounds, 28 passes, 27 resident runs; 6308 invader evaluations, 2851 of them pricing; certificate 5.6e-17
+  FitMax end: [x 0.039190 v 2.135853 N 0.419460] [x 0.500620 v 1.535484 N 0.457798] 
+  FitMax: 3 rounds, 20 resident runs, 3269 invader evaluations; max |g| 1.0e+00

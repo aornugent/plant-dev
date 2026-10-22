@@ -9,7 +9,10 @@ Measurements cited from the tag `archive/trusting-curie` are the regnans roadtes
 (`docs/review/regnans.md`).
 
 The field cut and the one-shot solve at the centre of this plan are worked up, with a toy,
-in `field-cut.md`.
+in `field-cut.md`. `assembly-report.html` has:
+- the mathematics as a report;
+- a worked example with the algebra beside the algorithm;
+- the lean algorithm that replaces the master/pricing/refine loop of §4.
 
 **The answer.**
 - **One recording carries every derivative regnans takes at the residents.** Record the m

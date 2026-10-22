@@ -5,6 +5,20 @@ measured on the toy unless marked *estimated*. F is one single-species TF24 forw
 (49–77 s). It sharpens `assembly.md` §2 and §4 and answers one question: with birth-rate and
 selection gradients from one recording, does assembly still need its equilibrium step?
 
+**Superseded in part (22 Oct)** by `assembly-report.html`, on a 50-trait consumer–resource
+example (`spikes/assembly-example/`).
+- **The field cut and §8–9 stand.**
+- **The one-shot step's Broyden over all mk traits does not scale.** It took 2,182 resident
+  runs and did not converge at k = 50.
+- **The lean algorithm replaces it:**
+  - per-strategy curvature probes;
+  - a rank-d complementarity problem per pass;
+  - column generation between rounds.
+
+  It took 9 runs at d = 2, exact against the algebra, and 27 runs for 3 species at d = 3.
+- **§10 is refactored there.** It finds which of its steps were redundant and which were
+  load-bearing.
+
 **The answer.**
 - **The field cut.** Sweep a resident's recording a second time with the field's adjoints
   zeroed wherever the field is built. That pass returns the selection gradient g, exactly the
