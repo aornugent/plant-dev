@@ -17,6 +17,7 @@ Most need plant's open TF24 stack (PLANT-117, plant#118, or later), not `develop
 | `regnans_solvers.R` | regnans's equilibrium solvers (nleqslv, dfsane) on TF24 with node times held, for comparison with the secant | the open stack and a regnans checkout |
 | `spot_check.R`, `node_parts.R` | convergence checks over saved `run_record.R` outputs in units of ε, and the split of a node error into its field and quadrature parts with a Richardson ratio | saved runs only |
 | `ark436.R`, `stability.R` | Butcher tableaus (ARK4(3)6L, Cash–Karp, DP5), order conditions, stability boundaries and stage positivity on y′ = −y/T: the reference for any stepper choice | nothing (pure R) |
+| `renewal_toy.R` | the Overstorey post's pulsed-rain toy: its mean lifetime output against a rare lineage's growth through its seed bank on the same series (`docs/schedule/workflows.md` §2) | nothing (base R, about 3 minutes) |
 | `profile_forward.R`, `../scripts/profile-gradient.sh` | gperftools profiling of a gradient, guarding against LD_PRELOAD onto the R binary and pkgload unlinking the .so | gperftools |
 
 Data: `schedule/data/eps.csv` is ε per quantity; `schedule/data/weights/` holds

@@ -18,7 +18,7 @@ code, but issue/PR access is a separate grant:
 - `phylloptim/`: Submodule pointing to `https://github.com/aornugent/phylloptim.git`, default branch `master`
 - `odelia/`: Submodule pointing to `https://github.com/aornugent/odelia.git`, default branch `master`
 - `OBJECTIVES.md`: the requirements TF24's schedule and step controller are judged against
-- `docs/schedule/`: the TF24 node-schedule refine loop (`refine.md`), its time axis, validation bank and vignette; the code is `harness/schedule/`
+- `docs/schedule/`: the TF24 node-schedule refine loop (`refine.md`), its time axis, validation bank and vignette; the code is `harness/schedule/`. `workflows.md` defines what the scheduler serves: site selection and the eco-evolutionary loop
 - `docs/review/`: the derivatives of the eco-evolutionary loop, selection read at observed sites, the theory behind them and the annotated literature
 - `harness/`: the reusable R drivers (see `harness/README.md`). Raw measurements, PR drafts and one-off drivers are on the tag `archive/trusting-curie`, which open PRs' figures link to: keep it
 
