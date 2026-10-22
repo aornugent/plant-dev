@@ -1,7 +1,7 @@
 # Fitness, coexistence and optimality as derivatives of one map
 
-> Brought verbatim from `archive/trusting-curie` (21 October 2026). Paths like
-> `docs/measurements/...` are on that tag. Two notes from later reviews:
+> Brought verbatim from `archive/trusting-curie` (21 October 2026). Paths under `docs/` that
+> are not in this repository are on that tag. Two notes from later reviews:
 > - C.4's envelope result (the leaf's implicit-function term drops out of the invader's
 >   g at λ_o = 0) contradicts `literature.md` §7(d), which says g includes the operating
 >   point's plastic response. C.4 is the more careful reading; it is untested.

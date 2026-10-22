@@ -49,10 +49,11 @@ What `refine_case.R` sets for every refine run (the five cases' setting, "round 
 | `node_density_in_birth_date` | TRUE | the birth-date coordinate |
 
 The stepper is Cash–Karp 4(5). The rain's knots are not step targets: a step that spans one
-substeps the soil, and the substeps stop at the knot (aornugent/plant#111). The leaf solve and the
-newborn's height stop once the bracket's ends agree to 4 DBL_EPSILON relative
-(aornugent/phylloptim#17, aornugent/plant#100). phylloptim must be 0.9.3 or later (§ Failure modes still
-worth guarding, F).
+substeps the soil, and the substeps stop at the knot (aornugent/plant#111). On the stack the leaf
+solve and the newborn's height stopped once the bracket's ends agreed to 4 DBL_EPSILON relative;
+that work was dropped (phylloptim#17 and plant#100, closed 22 Oct), because on phylloptim 0.10 the
+replay noise is already 4.0e-13 rms in `ln J`. phylloptim must be 0.9.3 or later (§ Failure modes
+still worth guarding, F).
 
 `control_tf24(tol = 3e-5, base = Control())` (aornugent/plant#104) names the same setting once:
 the relative tolerance, the absolute at 1e-4 of it, the soil's factor 10, the bound 100 and the
@@ -253,6 +254,32 @@ From `rootcause/error-modes.md`:
   stages against the domain.
 - **E3, a weight frees stages as well as errors:** the soil ×10 times the window's 100 put stages
   at the 1000 MPa ceiling. Hence the bound of 100.
+
+## Landing it: the tolerance factors first
+
+Of the time axis, only the soil substeps are in an open PR (plant#115, odelia#57). The per-state
+tolerance factors and `control_tf24()` are the next piece, and the refine loop's evidence assumes
+them. The 19 Oct stack review (`prs/residual-A.md`, PR B) set what lands:
+- **odelia:** commit 30f9a7b from the `state-weights` branch. A System fills one positive factor
+  per component at the start of a step, and `adjust_step_size` scales each component's error level
+  by it, under both the GSL max rule and Hairer's RMS rule, at the outer error test only. A System
+  without factors steps bit for bit as before.
+- **plant:** the PLANT-100 branch without `ode_tol_factor_accumulator`, plus PLANT-104
+  (`control_tf24()`, plant#104). That gives `ode_tol_factor_soil`, the `_times`/`_values` schedule
+  and `ode_tol_factor_max`. Port them fresh onto the landed stack, on PLANT-105; do not rebase the
+  PLANT-96…110 chain.
+- **What it bought** (`prs/measurements.md`, M1, on the substepped soil): a quarter to a third of
+  a gradient run, with accuracy unchanged against a 1e-5 reference.
+- **Before it opens:** M1 ran on odelia 0.5.0 under GSL's max-norm rule, and odelia now defaults
+  to Hairer's RMS norm, so re-time it on one case under that rule. The soil's factor and the time
+  schedule were never measured apart; measure each alone, so the PR can say what each buys.
+- **The window's weights stay outside plant for now.** `control_window()` was dropped (plant#106,
+  closed), so rule A's table is harness data (`harness/schedule/data/weights/`). If the window
+  stays, it belongs with the refine loop, built from the loop's own first run, and it must cover
+  invaders (above).
+- **With the refine loop, later:** about 30 lines of PLANT-110's `diagnose_scm` (each run's
+  distance from its grid's run, invaders' ln(θ′/θ), failures) move into the scheduling PR
+  (plant#110 stays open for them).
 
 ## Open
 
