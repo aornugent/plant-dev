@@ -76,9 +76,14 @@ residual reads.
 
 **What fitness is on a row** (*derived*, checked on a toy). Seeds land on patches of every
 disturbance date. When drivers are independent (regime), the invader's fitness is the
-arithmetic mean of R′ over recordings at a common b, which is exact (`theory.md` D.3). When
-recordings share one calendar record (history), cohorts share droughts, and the arithmetic
-mean overstates fitness. On the Overstorey toy, a strategy scaled to a mean output of 1 has
+arithmetic mean of R′ over recordings at a common b, which is exact (`theory.md` D.3): each
+patch's record is part of its birth state (Gyllenberg & Metz 2001). That needs weather
+independent across the patches that share a seed pool, which holds only where the pool spans
+more than the weather's correlation length. Within one site's landscape, weather is shared.
+When recordings share one calendar record (history), cohorts share droughts, and the
+arithmetic mean overstates fitness. Metz & Gyllenberg (2001) define R_m only at a resident
+point equilibrium; under rates that fluctuate in common, fitness is the Lyapunov exponent of
+the linear mutant equations run beside the residents. On the Overstorey toy, a strategy scaled to a mean output of 1 has
 a growth rate of −0.13 to −0.39 per year when followed through its seed bank, and persists
 only at mean outputs of 4.7–10.8 (`harness/renewal_toy.R`). The right quantity is a renewal growth rate, built
 from each cohort's offspring by date. For trees, generations are about as long as the record,
@@ -126,7 +131,11 @@ calibration that pools rows.
    the resident, with its estimate, plus the per-node offspring by date.
 3. **Readings,** all linear algebra on the table: balance (A_ii ≈ 0), the ESS test against
    the pool (A_ij ≤ 0), selection (g_i), its split along and across the observed spectrum,
-   home advantage, and who could invade.
+   home advantage, and who could invade. On a row of several residents, the demographic
+   Jacobian a_ij = −∂F_i/∂ln b_j (m resident sweeps) adds two readings: |det a|, the
+   robustness of the residents' coexistence, and −a⁻¹ ∂F/∂c, the first-order shift of each
+   resident's seed rain with climate (Meszéna et al. 2006, eqs. 17 and 49). A small |det a|
+   says the community is fragile and that shift is ill-conditioned.
 4. **Calibration.** The trade-off slopes enter linearly after the sweep, so a fit holds the
    rows. Physiology constants take a Gauss–Newton step on the entries' values, with ∂A/∂c
    from each entry's sweep (first order), not on g (which needs chords). Rows are re-recorded
@@ -371,6 +380,14 @@ Nothing below is started; each step is small and testable.
 
 - Chesson, P. (2017). AEDT: a new concept for ecological dynamics in the ever-changing world.
   *PLoS Biol.* 15: e2002634. doi:10.1371/journal.pbio.2002634
+- Gyllenberg, M. & Metz, J.A.J. (2001). On fitness in structured metapopulations. *J. Math.
+  Biol.* 43: 545–560. Read as IIASA IR-99-037.
+- Meszéna, G., Gyllenberg, M., Pásztor, L. & Metz, J.A.J. (2006). Competitive exclusion and
+  limiting similarity: a unified theory. *Theor. Popul. Biol.* 69: 68–87. Read as IIASA
+  IR-05-040.
+- Metz, J.A.J. & Gyllenberg, M. (2001). How should we define fitness in structured
+  metapopulation models? *Proc. R. Soc. B* 268: 499–508. doi:10.1098/rspb.2000.1373. Read
+  as IIASA IR-99-019.
 - Johnson, E.C. & Hastings, A. (2022). Resolving conceptual issues in Modern Coexistence
   Theory. arXiv:2201.07926 (v1, the only version).
 - Overstorey: How to calculate fitness in pulse-driven environments. Unmerged post, PR #43,

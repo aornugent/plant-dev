@@ -24,6 +24,32 @@
 >     niche is fitness–density covariance: their competition–colonization case, where the
 >     colonist ends up in recently disturbed patches (their §4.5). Their §5.17 makes the same
 >     point: which mechanism a process lands in depends on the scale of the bookkeeping.
+> - Read against the full texts of Metz & Gyllenberg (IIASA IR-99-019), Gyllenberg & Metz
+>   (IR-99-037) and Meszéna et al. (IR-05-040), 22 Oct:
+>   - A.1 and D.3 hold. R_m is defined only when the residents reach a point equilibrium;
+>     where rates fluctuate ergodically, fitness is the dominant Lyapunov exponent of the
+>     linear mutant equations, run beside the residents after they reach their attractor
+>     (Metz & Gyllenberg §2.3–2.4). Their Appendix B builds the equilibrium colony-age
+>     distribution from catastrophe survival: plant's p(a). D.3's (1) is exact because each
+>     patch's record is part of its birth state (Gyllenberg & Metz §2: R is the spectral
+>     radius of the next-generation operator over birth states). It assumes weather
+>     independent across the patches that share a seed pool; weather shared across them is
+>     D.3's (2).
+>   - R_m(S, S) = 1 is "born out by numerical work … but we have not been able to prove it
+>     in general" (Metz & Gyllenberg §2.4). plant's invader at θ′ = θ reproducing J/b to
+>     1e-12 is that check, measured.
+>   - Their R_m counts the dispersers of the whole local colony a disperser founds. plant's
+>     per-seed R′ equals it only because no offspring stay in their parent's patch. Local
+>     seed retention would need the colony's descendants counted.
+>   - B.1's paraphrase of Meszéna et al. is right. Two things it leaves out: robust
+>     coexistence needs both the impact and the sensitivity niches to differ,
+>     |J| ≤ V_S·V_C with J = det a and a_ij = S_i·C_j, so B.3's "niche difference means
+>     non-collinear sensitivity functions" is half the condition. And external parameters
+>     (here the record c) do not count toward the regulating dimension. Here a_ij is the
+>     demographic Jacobian −∂F_i/∂ln b_j (A.3), C_j is the field's response to ln b_j (I3),
+>     and their eq. 49, ∂n/∂E = a⁻¹ ∂r/∂E, is the climate sensitivity of the residents'
+>     seed rains. Their theory is for fixed points in a constant environment; §5.5 leaves
+>     fluctuating environments open.
 
 A theory note on what TF24 in plant, with all-trait reverse-mode adjoints and
 invaders that read a recorded field, can and cannot compute for adaptive

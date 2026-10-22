@@ -154,6 +154,17 @@ measured on real sites; H2 asks whether it rises with rainfall variability. A lo
 is also recovered from a fraction of its entries (Candès & Recht 2009), so if H1 holds the
 table is cheaper to fill. That reverses the objection that few modes weaken the adjoint.
 
+*Read against Meszéna et al. (2006) in full, 22 Oct (derived).* Linearising about one field,
+A_ij ≈ a_j + ⟨S_j, ΔE_i⟩, with S_j strategy j's sensitivity to the field and ΔE_i site i's
+field difference. So rank A ≤ 1 + min(rank{ΔE_i}, rank{S_j}). With sites diverse enough to
+span the field's directions, the rank of A less one is the pool's sensitivity dimension,
+which is H1's object: g = −⟨φ_E, dE*/dθ⟩ acts through it. The offset a_j adds one, and
+nonlinearity across a wide gradient adds more. The rank does not see impacts, how each
+resident moves the field. Meszéna et al. need both to differ for robust coexistence
+(|J| ≤ V_S·V_C), so the table bounds the number of coexisting strategies from the
+sensitivity side only. Rainfall is an external parameter in their sense: it changes the
+field but adds no regulating dimension of its own.
+
 **Non-smoothness is carried by values.** Off the diagonal the table holds values at the
 spacing of observed traits; a race between cohorts (E8) is a value there, not an infinite
 derivative. Derivatives are used only at residents, and checked against neighbours: where
