@@ -14,18 +14,22 @@ sparingness by per-decision defaults. The diff is a proposal, not a fact;
 every choice is open until a requirement closes it. A review that cannot
 fail the diff is not a review.
 
-For this workspace's C++/comment conventions — the "never" comment rules,
-the exemplar, and the invariant that only `double` crosses the R boundary —
-judge against the project code style:
-[AGENTS.md → Code style](../../../AGENTS.md#code-style). It is admissible
-evidence under Lens 1, not a source of opinions.
+Two documents are admissible evidence in every lens, not sources of
+opinion: the workspace code style, including its naming rules
+([AGENTS.md → Code style](../../../AGENTS.md#code-style)), and the
+engineering principles ([docs/principles.md](../../../docs/principles.md)).
+They apply to every package and win where a package guide differs. A
+finding may cite either one in its mechanism; neither replaces the
+finding test.
 
 ## Files in this skill
 
 - `lenses.md` — the four lens procedures. Read before your first review
   under this skill and whenever running Tier 2+.
+- `examples.md` — a bad and a good review of the same diff, and a naming
+  review. Read before your first review under this skill.
 
-## The finding test (unchanged, load-bearing)
+## The finding test
 
 A finding must complete: "This makes <specific future change or debugging
 task> harder/riskier because <mechanism>." Can't fill it in → not a
@@ -65,6 +69,13 @@ size, new names (≤5 lines). Tier 3: subagent, blind to the diff. The
 sketch is a yardstick, not the answer — where the diff knows something
 the ledger didn't say, that is a finding against the ledger's wording,
 and worth sending upward.
+
+Then judge the shape against the sketch, before any detail:
+(a) can the requirement be met by deleting code? (b) does an existing
+abstraction already solve it? (c) is any of the diff handling a
+requirement that doesn't exist yet? (d) does every concept the sketch
+didn't need justify itself against a ledger line? A diff that fails
+these is a rethink, however clean its lines are.
 
 ## Step 3 — Run the lenses, in this order
 
@@ -111,6 +122,12 @@ a rethink verdict are one line each, marked [conditional].
   every lens reports or declares empty; silence on style is approval.
 
 ## Output contract
+
+The report is read by people who were not in your session. Write each
+finding, decision and question as complete sentences that say what the
+code does and what that causes. The R-numbers, lens names and the clean
+sheet are working labels: keep them as headings, but don't make a reader
+decode them to follow a sentence.
 
 ```
 ## Verdict: approve | approve with changes | rethink approach

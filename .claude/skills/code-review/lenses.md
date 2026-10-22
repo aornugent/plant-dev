@@ -22,6 +22,15 @@ You are the new developer the code will be read by. Use that.
    a side effect — chosen because it ends the miss, not because of
    taste.
 
+5. **Vocabulary pass.** List every name the diff introduces or renames.
+   For each, search the packages for the concept it names. A second name
+   for a concept that already has one, one name used for two concepts, a
+   library's word reused with a different meaning, or a name whose
+   direction or action the body contradicts is a finding under the
+   workspace naming rules (AGENTS.md → Naming). The cost sentence is
+   usually: "makes every reader and caller learn that X and Y are one
+   thing (or that X is two)".
+
 Empty state: "no misses — checked N." Honesty rule: predictions come
 before bodies; if you've already read the bodies (long session), say so
 — the experiment is weakened and its misses are a lower bound.
@@ -66,6 +75,13 @@ not* a reason for X.
    nobody has witnessed; that is the YAGNI trap running in reverse.
 
 Empty state: "simulated <change>: one-place."
+
+Signals worth chasing in any lens, each a finding only when it passes
+the finding test: the same fact written in more than one place; a side
+effect the name and signature don't predict; understanding one function
+needs more than two others; nesting deeper than three levels, or
+interacting mutable state the reader must simulate; an error path that
+behaves differently from the happy path without saying so.
 
 ## Lens 4 — Keeper (what must always be true)
 
