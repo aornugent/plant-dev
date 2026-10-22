@@ -1,5 +1,9 @@
 # Derivatives of the eco-evolutionary loop, in a mechanistic model
 
+> 22 Oct: `assembly.md` supersedes §2's row 6 and §3's outcome costs. One recording gives F,
+> ∂F/∂ln b, F_θ and (with the field cut) g. Assembly becomes column generation. The outcome's
+> derivative in every input comes from one adjoint of the root.
+
 **The finding.** We have, possibly for the first time, the derivatives of the canonical
 eco-evolutionary assembly loop for multitrait selection, in a mechanistic forest model,
 under variable climate. A resident community makes a field of light and water. A rare

@@ -228,6 +228,48 @@ tried again.
    read g with `hyperpar = NULL`, and apply two trade-off slopes after the sweep, checking
    that linearity against a rerun built at the second slope.
 
+## 7. Taken apart (22 Oct)
+
+The chain is: observe a site's species, traits and weather; balance each resident (F_i = 0);
+read the residual g_i along a trade-off T; fit T and the physiology c; read what remains.
+Each link was checked against Meszéna et al. (2006), Metz & Gyllenberg (2001) and Johnson &
+Hastings (2022). Two links break.
+
+- **Balancing usually fails** (*derived*). A joint F_i = 0 for m observed species needs a
+  well-conditioned community matrix ∂F_i/∂ln b_j, which means species whose sensitivities and
+  impacts both differ. Species built from AusTraits differ in a few measured traits and are
+  identical in every hydraulic and allocation default, so the matrix is near singular. Real
+  sites have 5–30 woody species. TF24's coexistence capacity is untested; FF16's successional
+  coexistence holds a handful (from memory). If most species can't be balanced, the residual
+  only says the model can't hold the community.
+- **A per-site residual is the wrong equilibrium.** A species has one trait value across its
+  sites, so g_is ≠ 0 at a given site is expected even at equilibrium: migration load. The
+  equilibrium condition is range-wide, Σ_s w_is g_is = 0, weighted by where the species'
+  offspring come from. The four-readings table (§2) cannot separate its readings site by
+  site.
+- **The fit is weakly identified, and H1 makes it worse.** T is identified only by how
+  g_partial varies across species and sites. If selection has few modes, T is pinned only
+  along them.
+- **The circularity stands:** fitting T to small residuals assumes the equilibrium being
+  tested. And "linear in the slopes" holds only by not applying T to the residents.
+- **Timescales.** A 130-year record is one to three tree generations. A nonzero residual
+  measures maladaptation under recent climate, which is applied-useful, but it is not a test
+  of the model.
+
+**Restructure.**
+1. **Calibrate on occurrence and abundance, not on g = 0.** A likelihood over the signs of A
+   (present: A_ii ≥ 0; absent: A_ij < 0), plus unbalanced rows: seed rains from observed
+   relative abundance, with F_i read as a residual. Both use values, first order and robust to
+   races.
+2. **Read selection out afterwards:** g_is per site, and Σ_s w_is g_is per species. Then
+   calibration never used g, and the circularity goes.
+3. **Test on synthetic truth first.** Evolve one or two traits to their ESS on a few climates
+   with the forward loop, call that the observation, and check the pipeline recovers T and
+   finds an imposed disequilibrium.
+
+The calibration's ∂A_ij/∂c from each entry's own sweep omits the field-mediated term (the
+residents' field moves with c). `assembly.md` §5 gives it: λ_F and the two-stage adjoint.
+
 ## References
 
 Each was resolved against Crossref in the original reviews unless marked.

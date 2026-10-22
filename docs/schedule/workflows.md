@@ -190,17 +190,20 @@ tolerance (V1).
 
 ## 4. The eco-evolutionary loop
 
-The forward programme (`eeo-derivatives.md`). It is a regime workflow: an ESS is defined
-under a climate, not under one history.
+The forward programme (`eeo-derivatives.md`), rebuilt as assembly by column generation
+(`../review/assembly.md`). It is a regime workflow: an ESS is defined under a climate, not
+under one history.
 
-1. **A path** holds the drivers (M records) and a row's schedule.
-2. **A step** at θ: balance b to |F| < 0.02, warm-started from the last step; record; read g
-   (an invader sweep on each recording, averaged); optionally F_θ (a resident sweep).
-3. **Move** θ along M g (the canonical equation), or by Newton toward g = 0 using J_g.
-4. **Classify** a singular point by chords: the invader Hessian, and J_g as a fixed-b
-   Jacobian plus a rank-one correction in b (`theory.md` A.3).
-5. **Continue** in c: dθ*/dc by the implicit function theorem, checked against roots
-   re-solved at ±5% mean rainfall.
+1. **A path** holds the drivers (M records) and each resident's schedule.
+2. **Master:** one taped run of the active residents per iterate gives F, the m × m
+   ∂F/∂ln b, g (field cut) and F_θ (field kept). A semismooth Newton on the complementarity
+   conditions moves b, and the residents' traits along g. A resident whose b → 0 leaves.
+3. **Pricing:** invaders in the master's held field climb ln R′(θ′; E) in all traits from
+   several starts. A positive maximum enters as a resident.
+4. **Refine:** a resident at a fitness minimum splits along its held-field Hessian's leading
+   direction (Lanczos on invader chords).
+5. **The outcome's adjoint:** dL/dc for every parameter and day of rain, from one small solve
+   and one seeded resident reverse pass. Checked against roots re-solved at ±5% rainfall.
 
 **Its requirements of the scheduler:**
 
@@ -210,12 +213,13 @@ under a climate, not under one history.
 | E2 | a chord's two ends share drivers and grid, so the curvature's error is set by the difference of g, not by its level | at r = 1e-2 and \|H\| ≈ 193, 10% in curvature needs δg ≈ 0.27, about ε |
 | E3 | a rebuild is an explicit event on the path, with the offset between grids measured at the switch | the rule is open: d\* = 0.5 in ln J is a placeholder |
 | E4 | g in absolute terms near g = 0, so the root is located to δθ ≈ ε_g/\|J_g\| | ε_g 0.20 |
-| E5 | latency: steps are sequential; the M recordings of a step run in parallel | about 150 F per root per record (*estimated*) |
-| E6 | a race or cliff stops gradient-following and reports one-sided values | constant rain (E8) |
+| E5 | latency in the master; throughput in pricing, which is parallel | about 100–200 F per root at m = 3 (*estimated*, `assembly.md` §6) |
+| E6 | a race or cliff stops gradient-following and reports one-sided values | set aside with constant rain |
+| E7 | the sign of F at the active set's margins is certified | §6 |
 
-**Scarce resource: wall-clock per step.** A root takes tens of sequential steps. The ensemble
-does not lengthen a step if its M recordings run on M cores, since they couple only through
-the shared b's secant.
+**Scarce resource: wall-clock in the master.** Pricing runs in parallel in a held field. The
+ensemble's M recordings and the pricing starts don't lengthen an iterate if they run on
+separate cores.
 
 ## 5. The two side by side
 
@@ -226,15 +230,81 @@ the shared b's secant.
 | what is read | values and within-row differences; g at residents | g near zero; its chords |
 | held | the row's grid and drivers across c | the path's grid and drivers across θ |
 | error that matters | per number, certified | smooth in θ; differences along chords |
-| curvatures | none | needed to classify |
-| entries | hundreds per row, far from the residents | the diagonal and its neighbours |
-| bound by | throughput | latency |
+| curvatures | none | as tools (chords for branching and preconditioning), not as judged quantities |
+| entries | hundreds per row, far from the residents | pricing invaders, far from the residents, climbing |
+| bound by | throughput | latency in the master; throughput in pricing |
 
 **The same property under two names.** Both hold a grid and its drivers while an outer
 variable moves, and need the answers smooth in that variable: c for calibration, θ for the
 loop. `rows-entries.md` deleted R4's radius in θ and kept a hold across c. The loop needs the
 radius back, and calibration needs its counterpart in c. Both are measured the same way: an
 answer on the held grid against a rebuilt one, as a function of the distance moved.
+
+## 6. What assembly with adjoints asks of the scheduler
+
+Constant rain stays set aside. The scheduler's mechanics stand: the nested graded density,
+breakpoints at spell ends, the replay estimate, the corrected answer Q − e, and the time axis
+(`refine.md`, `time-axis.md`). What changes is what it judges, when it certifies, and what it
+holds.
+
+1. **Judge the outcome, not every quantity** (*derived*: goal-oriented error estimation).
+   - At a root, a discretisation error e_G in the conditions moves an outcome L by
+     δL = −λᵀ e_G, with λ the adjoint of §5 of `assembly.md`.
+   - The replay already gives e_q for each F_i and each component of g_i. So the outcome's
+     error estimate is λᵀe, free once λ exists.
+   - Stopping on |λᵀe| + u < ε_L, instead of on every quantity's own ε, spends nodes only
+     where the answer's error lives. At k = 50 that is the difference between certifying 50
+     gradient components and certifying one weighted sum. Per-quantity estimates stay as
+     diagnostics.
+   - This changes `OBJECTIVES.md`'s R1.
+2. **g's certificate comes from the same replay.** The planned certificate is a coarse
+   invader walk and sweep on the replay (`refine.md`, Next: about 1.3 F). With the field-cut
+   pass, the replay's own tape gives coarse g directly. The coarse replay has both the coarse
+   field and the coarse quadrature, so it reads both of g's error parts, as the coarse invader
+   would. The replay must be taped: a forward replay now costs 0.51–0.66 of a run, and taping
+   roughly doubles that. Cost to be measured once the cut exists.
+3. **Hold the grid inside a solve; certify at convergence.**
+   - The master moves b and every resident's traits at each iterate. The answers must be
+     smooth in all of them on a held grid (E1). b moves the field, which moves spell edges,
+     so breakpoints taken from the first run drift out of place.
+   - Certifying every iterate wastes runs. Solve on a held grid, certify once at the
+     converged point, and if that fails, refine by doubling and re-solve from the converged
+     state. The levels nest, so it is a warm start.
+   - This replaces `rows-entries.md`'s "certify again once b moves by a tenth" within a
+     solve.
+4. **Schedules per species, entering and leaving.**
+   - Each resident keeps its own breakpoints and graded density (`rows-entries.md` step 2),
+     and the replay halves every species at once.
+   - A new resident's schedule is seeded from its pricing invader's per-node offspring, which
+     is the offspring curve the grading needs, so no pilot run.
+   - A leaving resident's nodes are dropped. The other residents' grids are held through the
+     change, so the master's iterates stay comparable.
+5. **Pricing climbs on a fixed node set.**
+   - Gradient ascent needs ln R′(θ′) and its gradient from one discretisation along the
+     whole climb. The entry schedule must not switch to a re-walk mid-ascent (candidate C's
+     `refined` flag). The sub-sum estimate is read at the end.
+   - Far invaders may earn in other windows (`rows-entries.md`'s kill question). Pricing
+     needs a sign at the margin, not every value to ε, which favours cheap entries plus
+     refinement only for maxima near zero.
+6. **Certify signs at the active set's margins.** The master's decisions are signs: a
+   resident whose F_i stays above zero as b_i → 0, and a priced maximum near zero. Each F used
+   in a decision carries its bound. A decision inside its bound is refined, or reported as
+   unresolved, never taken on a coin flip. This is the scheduler's part of handling a
+   degenerate complementarity problem.
+7. **One field-error estimate serves every entry.**
+   - The replay gives the field's discretisation error δE: the fine field less the coarse.
+     The field hook gives each entry's sensitivity S_j.
+   - So each entry's field part of the error is ⟨S_j, δE⟩, at +12% of its sweep. That closes
+     `rows-entries.md`'s open item, "the field's error in a far entry is the row's,
+     unestimated per entry", and covers pricing invaders too.
+8. **Chords are tools, not judged quantities.** Hessian chords for branching and for
+   preconditioning the master, and field-coupling products, need a held grid and r ≈ 1e-2.
+   Their accuracy is judged through the outcome (item 1), not by a curvature ε. This revises
+   "curvatures return" below.
+9. **What doesn't change.** Ensembles of records (§2) multiply rows as before. The time axis's
+   tolerance error (D1) stays the step controller's. Member-steps stay the scarce resource;
+   they now sit in pricing sweeps rather than entry walks, so entry thinning (candidate C)
+   pays more, since a sweep costs about three walks.
 
 ## Requirements ledger
 
@@ -255,10 +325,12 @@ answer on the held grid against a rebuilt one, as a function of the distance mov
    reported beside it, never folded in. Default: adopt.
 2. **The judged quantity is the difference, where the reading is one.** Δ_ij, not A_ij;
    levels only for readings across rows. Default: adopt for entries.
-3. **Curvatures return, for the loop only.** `rows-entries.md` deleted them; E2 needs them.
-   Default: return them to the loop's judged set.
+3. **Curvatures return as tools, not as judged quantities** (§6 item 8). Default: adopt.
 4. **The radius in θ returns, for the loop only** (E3), with a counterpart in c for
-   calibration (S4). Default: adopt.
+   calibration (S4). Within one solve it is replaced by holding the grid and certifying at
+   convergence (§6 item 3). Default: adopt.
+5. **The judged quantity becomes the outcome,** through λᵀe (§6 item 1), with per-quantity
+   estimates kept as diagnostics. Default: adopt once λ exists.
 
 **Scarce resource:** for the table, invader member-steps × M; for the loop, sequential
 wall-clock per step. Both are set by M, so M is the first number to measure.
