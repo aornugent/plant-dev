@@ -5,10 +5,12 @@
 ## primitives, counted: a resident run and an invader evaluation in a held field.
 ## Base R, under a minute. docs/review/assembly-algorithm.md cites its output.
 
-model <- function(z, K, sigma, mu = 0.125, cc = 1, nw = 48, seed = 1) {
+## `making`: "linear" depletes resources by what is consumed; "exp" by Beer-Lambert,
+## R = K exp(-sum N consumption / K), which saturates as a canopy does.
+model <- function(z, K, sigma, mu = 0.125, cc = 1, nw = 48, seed = 1, making = "linear") {
   set.seed(seed)
   list(z = z, K = K, s2 = sigma^2, mu = mu, cc = cc, d = length(z), k = 2 + nw,
-       om = runif(nw, -1, 1), q = runif(nw, 0.5, 5))
+       om = runif(nw, -1, 1), q = runif(nw, 0.5, 5), making = making)
 }
 
 uptake <- function(m, x) {
@@ -21,9 +23,15 @@ consumption_jacobian <- function(m, th) {  # d x k
   cbind(th[2]*u$a1, u$a, matrix(0, m$d, m$k - 2))
 }
 field <- function(m, thetas, N) {
-  R <- m$K
-  for (j in seq_along(N)) R <- R - N[j]*consumption(m, thetas[[j]])
-  R
+  used <- numeric(m$d)
+  for (j in seq_along(N)) used <- used + N[j]*consumption(m, thetas[[j]])
+  if (identical(m$making, "exp")) m$K*exp(-used/m$K) else m$K - used
+}
+## dR/dN of one more individual of `th` in field R (d), and of its traits (d x k) per
+## individual.
+impact <- function(m, th, R) {
+  s <- if (identical(m$making, "exp")) R/m$K else 1
+  list(c = -s*consumption(m, th), D = -s*consumption_jacobian(m, th))
 }
 
 ## Wall time on `cores` cores, in F (one single-species TF24 run): a resident run
@@ -72,8 +80,8 @@ resident <- function(m, thetas, N) {
   f <- lapply(thetas, fitness, m = m, R = R)
   list(R = R, F = vapply(f, `[[`, 0, "phi"), g = lapply(f, `[[`, "g"),
        S = lapply(f, `[[`, "S"),
-       C = matrix(vapply(thetas, function(th) -consumption(m, th), m$K), m$d),
-       Eth = Map(function(th, n) -n*consumption_jacobian(m, th), thetas, N))
+       C = matrix(vapply(thetas, function(th) impact(m, th, R)$c, m$K), m$d),
+       Eth = Map(function(th, n) n*impact(m, th, R)$D, thetas, N))
 }
 
 ## Curvature carried forward and corrected along the columns of U: one gradient
@@ -200,11 +208,12 @@ report <- function(label, thetas, N, extra = "") {
 ## step instead of carrying it by BFGS.
 lean <- function(m, tol_F = 1e-10, tol_g = 1e-8, trust = 0.2, feedback = TRUE,
                  reprobe = 1, start = NULL, newton = FALSE, speculate = FALSE,
-                 warm_price = FALSE, sign_stop = FALSE, max_pass = 100, max_round = 10,
-                 trace = TRUE) {
+                 warm_price = FALSE, sign_stop = FALSE, inner = FALSE, max_pass = 100,
+                 max_round = 10, trace = TRUE) {
   reset_counts(); pricing <- 0; passes <- 0; best <- Inf
   peaks <- start$theta %||% list(); N <- start$N %||% numeric(0); R <- m$K
   kept_H <- list(); next_rec <- NULL
+  lin <- NULL; lin_due <- FALSE; since <- 0
   for (round in seq_len(max_round)) {
     if (round > 1 || is.null(start)) {
       from <- starts(m)
@@ -225,13 +234,35 @@ lean <- function(m, tol_F = 1e-10, tol_g = 1e-8, trust = 0.2, feedback = TRUE,
       if (!length(new)) break
       peaks <- c(peaks, pr$theta[new]); N <- c(N, numeric(length(new)))
     }
+    lin <- NULL
     for (pass in seq_len(max_pass)) {
       passes <- passes + 1
-      A <- which(N > 0)
-      rec <- if (!is.null(next_rec)) next_rec else
-        if (length(A)) resident(m, peaks[A], N[A]) else list(R = m$K, F = 0, g = list(0))
+      A <- which(N > 0); P <- length(peaks); work <- count$invader
+      exact <- TRUE
+      if (!is.null(next_rec)) {
+        rec <- next_rec
+      } else if (!length(A)) {
+        rec <- list(R = m$K, F = 0, g = list(0))
+      } else if (!inner || is.null(lin) || lin_due || since >= 25) {
+        rec <- resident(m, peaks[A], N[A])
+        # the making map, linearised at this run: impacts of every tracked strategy
+        # and the residents' trait terms
+        im <- lapply(peaks, impact, m = m, R = rec$R)
+        lin <- list(R0 = rec$R, N0 = N, th0 = peaks,
+                    C = matrix(vapply(im, `[[`, m$K, "c"), m$d),
+                    Eth = Map(function(i, n) n*i$D, im, N))
+        lin_due <- FALSE; since <- 0
+      } else {
+        # an inner pass: the field from the linearised making map, invaders only
+        exact <- FALSE; since <- since + 1
+        Rl <- drop(lin$R0 + lin$C %*% (N - lin$N0))
+        for (p in A) Rl <- Rl + drop(lin$Eth[[p]] %*% (peaks[[p]] - lin$th0[[p]]))
+        fr <- lapply(peaks[A], function(th) invader(m, th, Rl))
+        rec <- list(R = Rl, F = vapply(fr, `[[`, 0, "phi"), g = lapply(fr, `[[`, "g"),
+                    S = lapply(fr, `[[`, "S"), Eth = lin$Eth[A])
+      }
       next_rec <- NULL
-      R <- rec$R; P <- length(peaks); work <- count$invader
+      R <- rec$R
       f <- lapply(seq_len(P), function(p) {
         if (p %in% A) {
           i <- match(p, A); list(phi = rec$F[i], g = rec$g[[i]], S = rec$S[[i]])
@@ -244,7 +275,10 @@ lean <- function(m, tol_F = 1e-10, tol_g = 1e-8, trust = 0.2, feedback = TRUE,
                         sprintf(" |F| %.0e |g| %.0e%s", gF, gg,
                                 if (length(cand)) sprintf("  tracking %d, best phi %.2e",
                                                           length(cand), top) else ""))
-      if (length(A) && gF < tol_F && gg < tol_g && top < 0) break
+      if (length(A) && gF < tol_F && gg < tol_g && top < 0) {
+        if (exact) break
+        lin_due <- TRUE; next  # converged on the linearised map: check with a run
+      }
 
       if (reprobe > 0) {
         if ((pass - 1) %% reprobe == 0) cv <- lapply(peaks, curvature, m = m, R = R)
@@ -267,7 +301,8 @@ lean <- function(m, tol_F = 1e-10, tol_g = 1e-8, trust = 0.2, feedback = TRUE,
       phit <- vapply(seq_len(P), function(p) f[[p]]$phi - sum(f[[p]]$g*Hg[[p]])/2, 0)
       St <- t(vapply(seq_len(P), function(p) f[[p]]$S - drop(t(HG[[p]]) %*% f[[p]]$g),
                      numeric(m$d)))
-      Cm <- matrix(vapply(peaks, function(th) -consumption(m, th), m$K), m$d)
+      Cm <- if (!is.null(lin)) lin$C else
+        matrix(vapply(peaks, function(th) impact(m, th, R)$c, m$K), m$d)
       M <- St %*% Qi %*% Cm
       q0 <- phit + St %*% Qi %*% (r0 - Cm %*% N)
       Nn <- lcp(drop(q0), M, m$d, A)
@@ -381,11 +416,30 @@ fitmax <- function(m, eps = 1e-5, fit_eps = 1e-4, N0 = 1e-3, max_rounds = 20) {
 ## the residents are the active cuts and their densities the multipliers. Cutting
 ## planes: project K onto the cuts so far, price in that field, add the best
 ## strategy's cut, until nothing grows. No resident runs.
-project_field <- function(m, tol = 1e-12, max_it = 100, trace = TRUE) {
-  reset_counts(); cuts <- list(); R <- m$K
+## With `track`, pricing after the first cut follows the peaks already found instead of
+## searching again: each moves by its best-response shift -H^-1 G dR, then takes at
+## most three ascent steps. The full search returns only to certify the last field.
+## Cuts move the field too far for the shift to hold, so `track` loses peaks and is
+## slower here; it suits small steps along a path, not cuts.
+project_field <- function(m, tol = 1e-12, max_it = 100, trace = TRUE, track = FALSE) {
+  reset_counts(); cuts <- list(); R <- m$K; peaks <- list(); R_was <- NULL
   for (it in seq_len(max_it)) {
-    from <- c(starts(m, if (length(cuts)) 5 else 13), cuts)
-    pr <- price(m, R, from = from)
+    if (track && length(peaks)) {
+      before <- count$invader
+      moved <- lapply(peaks, function(th) {
+        cv <- curvature(m, th, R_was)
+        th - drop(solve(negative_definite(cv$H), cv$G %*% (R - R_was)))
+      })
+      asc <- lapply(moved, function(th) ascend(m, th, R, max_it = 3))
+      count$wall <- count$wall + machine$invader_F *
+        max(waves(count$invader - before), max(vapply(asc, `[[`, 0, "depth")))
+      th <- merge_close(lapply(asc, `[[`, "theta"))
+      pr <- list(theta = th, phi = vapply(th, function(t) fitness(m, t, R)$phi, 0))
+      if (max(pr$phi) < tol) pr <- price(m, R, from = c(starts(m, 5), th))  # certify
+    } else {
+      pr <- price(m, R, from = c(starts(m, if (length(cuts)) 5 else 13), cuts))
+    }
+    peaks <- pr$theta; R_was <- R
     top <- which.max(pr$phi)
     if (trace) cat(sprintf("  cut %2d: field (%s), best phi %.2e\n", it,
                            paste(sprintf("%.6f", R), collapse = ", "), pr$phi[top]))
