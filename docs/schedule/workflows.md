@@ -262,7 +262,11 @@ holds.
    pass, the replay's own tape gives coarse g directly. The coarse replay has both the coarse
    field and the coarse quadrature, so it reads both of g's error parts, as the coarse invader
    would. The replay must be taped: a forward replay now costs 0.51–0.66 of a run, and taping
-   roughly doubles that. Cost to be measured once the cut exists.
+   roughly doubles that.
+   - *Measured since* (`spikes/field-cut/plant_pilot_066.R`, odelia 0.9.0):
+     - g_cut equals the invader's g to 8e-12 on long drought;
+     - the cut adds about one sweep at long lifetimes;
+     - the invader route's certificate costs 1.9–2.2 F (`spikes/refine-judged/`).
 3. **Hold the grid inside a solve; certify at convergence.**
    - The master moves b and every resident's traits at each iterate. The answers must be
      smooth in all of them on a held grid (E1). b moves the field, which moves spell edges,
@@ -303,8 +307,51 @@ holds.
    "curvatures return" below.
 9. **What doesn't change.** Ensembles of records (§2) multiply rows as before. The time axis's
    tolerance error (D1) stays the step controller's. Member-steps stay the scarce resource;
-   they now sit in pricing sweeps rather than entry walks, so entry thinning (candidate C)
-   pays more, since a sweep costs about three walks.
+   they now sit in pricing sweeps rather than entry walks. Entry thinning (candidate C) is
+   ruled out: an invader on every third of its resident's introductions moved ln R′ by
+   0.5–1 on TF24 (`spikes/field-dimension-066/`), and `OBJECTIVES.md` now runs invaders on
+   every introduction.
+
+## 7. The compute both workflows share
+
+Both workflows reduce to six operations on a held, certified schedule. What differs is which
+of them must be accurate.
+
+| Operation | Site selection uses it for | Assembly uses it for | Accuracy needed |
+|---|---|---|---|
+| a resident run, recorded: F and the field | the balance at each row | the residual of every pass | certified: it is the answer |
+| the cut sweep: g, and the field adjoints S | g at observed strategies | the selection residual; S for the Jacobian | g certified; S approximate |
+| kept sweeps: F_θ, F_b, parameter and rain columns | the gradient of a misfit | the predictor and the Jacobian | approximate, or as λᵀe |
+| mode-seeded sweeps: impacts c and E_θ | the calibration term through the field | Q, the residents' feedback | approximate |
+| invader evaluations in a recorded field | entries; landscapes around observed traits | curvature probes; pricing | approximate, except signs at the margin |
+| the certificate: a replay on the coarse half | per row, once | once, at the root | as above |
+
+**What the refine loop was paying for** (`spikes/refine-judged/`, odelia 0.9.0, four bank
+cases):
+- At the canonical density, judging {ln J, g} and judging {ln J, the resident's
+  elasticities} stop at the same pass on the same schedule. Neither comes near ε.
+- So the elasticities are not what costs; the graded spell-end layer is set by the density.
+- What costs is the certificate itself. A run plus its replay is 5.1–5.6 F judging the
+  elasticities, and 5.9–7.3 F judging g by the invader route.
+- On a coarsened schedule, g is what binds. Judging the elasticities accepted runs with g
+  2.2ε and 7.5ε off on long-wet; judging g refined to within 0.21ε.
+
+So judge g for correctness (`OBJECTIVES.md` now does). Get cost from three places:
+1. **Fewer certificates:** hold the schedule through a solve and certify once at the root
+   (§6 item 3).
+2. **A cheaper certificate:** g from the cut on the replay's own recording (§6 item 2).
+3. **Jacobian ingredients on the coarse level.** The replay schedule exists anyway, so the
+   approximate rows of the table can be computed there. Only the certified rows need the fine
+   schedule.
+
+**Which error sets the tolerance.**
+- For a history question, the record is the data, so discretisation is the error and ε
+  stands.
+- For a regime question, sampling across the row's records dominates discretisation by about
+  10× (§2): ε was set as a tenth of the spread between records. A regime answer's resolution
+  is therefore the row's sampling error, and discretisation only needs to stay under a tenth
+  of it.
+- That includes which species an assembly can resolve and the signs at its margins.
 
 ## Requirements ledger
 
