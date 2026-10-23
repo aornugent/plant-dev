@@ -1,0 +1,13 @@
+plant 2.0.0.9002 from /home/a/.claude/jobs/9d586e52/tmp/breakeven/rlib/plant
+        a_y         r_l         r_b        r_s         r_r    vcmax_25
+1 4897.0767 -1766.65434 -20.9687771 -61.672874 -498.037676 1563.894786
+2   30.6721   -25.92491  -0.4830535  -1.420746   -5.832594    1.857927
+  row        lnR dlnR_dlnP_AD
+1   1  0.9961334  2549.743000
+2   2 -1.1114848    -2.989196
+$`1.net_reproduction_ratio`
+NULL
+
+$`2.net_reproduction_ratio`
+NULL
+
