@@ -140,8 +140,15 @@ height. Only doubles cross the R boundary.
    - **`run_mutant` re-runs the resident at every call,** re-solving every leaf: 4.1 M solves,
      about 39 s of each call's 54 s. Replaying the resident's recording instead would be the
      largest single saving for pricing.
-   - **One case needs looking into:** the closed-canopy identity invader's ln R′ moves 0.07 for a
-     1e-5 change in P. Fitness that sensitive near break-even affects every method here.
+   - **One case needed looking into:** the closed-canopy identity invader's ln R′ moved 0.07 for
+     a 1e-5 change in P. It was an artefact of the node schedule (`spikes/break-even/`):
+     - the uniform schedule lumps a boundary layer at patch age 0, about 0.05 yr wide, into one
+       node holding 63% of R;
+     - resolving it with geometric early introductions brings the gain from 6.5e3 to about 100.
+
+     The node schedule must resolve the leaders' boundary layer wherever an early cohort takes
+     the canopy. Closed-canopy results on the uniform schedule are suspect: the equilibrium,
+     the selection gradients at the resident, and the spectra.
 2. **The first TF24 reference community** (`spikes/reference-community/`, in progress). A
    singular strategy in lma, rho and vcmax_25 on the closed canopy, by the one-shot step with
    the cut on a held schedule; classified by H and J; the coalition if it branches. Nothing like

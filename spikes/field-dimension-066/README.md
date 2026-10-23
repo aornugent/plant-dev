@@ -1,5 +1,17 @@
 # Field dimension, on the odelia 0.9.0 stack
 
+**Caveat (24 Oct), from `spikes/break-even/`:** the closed-stand results use a uniform
+108-introduction schedule, which does not resolve a boundary layer in birth date about 0.05
+yr wide at the start of the patch.
+- The t = 0 node holds 63% of R.
+- Resolving the start moves pool fitness on the closed stand by O(1), and leaves the resident
+  off equilibrium (F ≈ +0.17 at this ln b\*).
+- So the closed-stand spectrum and its d ≈ 4–5 are limited by the schedule, especially in
+  directions near the resident.
+
+The open stands are less affected (their identity gain moved from 49 to 61), but were not
+re-measured.
+
 A re-measurement of d, the rank of how invader fitness responds to the field changes a
 TF24 resident can make (`docs/review/field-cut.md` §9). It continues the pilot in
 `spikes/field-dimension/` (on the `workflows` worktree): same stand, same seven
