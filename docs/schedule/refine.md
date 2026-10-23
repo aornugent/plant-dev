@@ -57,9 +57,10 @@ Stable 1–3 are tested by the acceptance suite in `validation.md`.
 replay, corrected answer and bound, and deletes from this ledger: curvatures as a target; R4's
 radius in θ, replaced by holding a row's schedule across calibration steps; the resident's ~50
 elasticities as the judged set (kept on request), replaced by `ln J`, the balance F and the
-invader's g; invaders' spell ends among the breakpoints; and the stall boundary's bisection. Those
-deletions change `OBJECTIVES.md` and await the user. Until then, this ledger stands, and the items
-below that it deletes are marked *(deleted by rows-entries.md)*.
+invader's g; invaders' spell ends among the breakpoints; and the stall boundary's bisection.
+`OBJECTIVES.md` adopted those deletions on 23 Oct (`spikes/refine-judged/`: judging g is what
+holds a coarsened schedule); the items below that they delete are marked *(deleted by
+rows-entries.md)*.
 
 **Scarce resource:** whole SCM runs, 1–7 minutes each.
 
