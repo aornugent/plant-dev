@@ -123,8 +123,25 @@ height. Only doubles cross the R boundary.
 
 ## 5. Tests, in order
 
-1. **The leaf profile and table** (`spikes/leaf-table/`, in progress): the share of runtime in
-   the leaf optimisation, whether soil water compresses, and the table's error in P and in ln R′.
+1. **The leaf profile and table** (`spikes/leaf-table/`, done 24 Oct, closed canopy):
+   - **The leaf optimisation is 91% of a TF24 run.** One invader evaluation makes 1.5 M leaf
+     solves at 8.8 µs, 71% of it in the root-collar potential's root-finder.
+   - **Soil compresses to two numbers:** the top layer and a conductance-weighted mean of the
+     deeper ones. Error in P is 0.004 rms, against 0.29 for one weighted mean.
+   - **A table cannot replace the leaf where the answer must be exact.** The finest table
+     (32 × 32 × 16 × 32, 0.1% rms in P) still moves ln R′ by −0.007 to −0.86, because its small
+     bias meets a large sensitivity, ∂ ln R′/∂ ln P of 49 to 7.6e3. Holding 1e-3 needs P's bias
+     below about 1.6e-5 relative.
+   - **The table suits the approximate roles:** the reduced plant's production for the dynamic
+     program, and screening invader signs where |ln R′| is well above 0.05. It would make an
+     invader 5–10× faster.
+   - **The exact route:** seed the root-finder from a small table of the solved potential, an
+     estimated 2–4× with P exact.
+   - **`run_mutant` re-runs the resident at every call,** re-solving every leaf: 4.1 M solves,
+     about 39 s of each call's 54 s. Replaying the resident's recording instead would be the
+     largest single saving for pricing.
+   - **One case needs looking into:** the closed-canopy identity invader's ln R′ moves 0.07 for a
+     1e-5 change in P. Fitness that sensitive near break-even affects every method here.
 2. **The first TF24 reference community** (`spikes/reference-community/`, in progress). A
    singular strategy in lma, rho and vcmax_25 on the closed canopy, by the one-shot step with
    the cut on a held schedule; classified by H and J; the coalition if it branches. Nothing like
