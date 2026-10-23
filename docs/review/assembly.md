@@ -284,6 +284,76 @@ The feasible problem tracks d + m and each resident's selected rank r, not m²k.
   - the commons vector and Caswell attribution in every report;
   - climate, which regnans leaves out of scope.
 
+## 10. Under variable climate
+
+Which climate a run lives in is set by the question (`../schedule/workflows.md` §2) and by what
+the model can represent (`theory.md` D.2–D.3). The machinery above holds in two of the three
+worlds.
+
+**1. Every patch replays one record from its disturbance (plant today).**
+- A drought on day d hits every patch at age d. Climate varies along succession, which is
+  spatial in Chesson's terms. The regional state is stationary, with one scalar b*.
+- Each record is a separate deterministic world, with its own b*, its own field and its own
+  evolutionarily stable community. The spread across records measures sensitivity to the
+  realised record; it is not stochastic fitness.
+- Everything here applies unchanged: F, g, the cut, the lean step and the projection. The
+  measured field dimensions (d ≈ 3 open, ≈ 4–5 closed; `spikes/field-dimension-066/`) are per
+  world.
+- It cannot represent a regional drought hitting all ages at once, a fluctuating b(t), or a
+  seed bank, so it has no temporal storage effect.
+
+**2. A regime row: independent records per patch at a common b** (`theory.md` D.3.1). This is
+where the eco-evolutionary loop lives, since the evolutionarily stable community is a regime
+question.
+- Fitness is the arithmetic mean of R′ over the row's records, exact because each patch's
+  record is part of its birth state (Gyllenberg & Metz 2001). It is not the mean of ln R′.
+  The equilibrium is E_ω J(b, ω) = b.
+- **The machinery carries over:**
+  - F = ln E_ω J_ω − ln b;
+  - g = Σ_ω R′_ω g_ω / Σ_ω R′_ω, each g_ω from the cut on its own recording;
+  - the field is the set of per-record fields, all driven by one b;
+  - impacts and sensitivities are per record, and the competition kernel is their R′-weighted
+    sum.
+- **Convexity survives** (*derived*). Fitness is ln of a mean of exp of per-record fitnesses.
+  If each is affine in its own record's field, that is log-sum-exp of affine maps, which is
+  convex, so the non-invadable set stays convex.
+- **Recordings are independent,** so a row's M resident runs and M invader runs go in parallel:
+  up to 16 at the wall cost of one.
+- **The row's sampling error, not discretisation, sets the resolution.**
+  - One 41-year record carries an sd of about 2.0 in the invader's lma gradient, against
+    ε = 0.20. Differences between strategies on shared records need about 7–20 of them
+    (*estimated* on a toy).
+  - So which species an assembly can resolve, and every sign at a margin, is judged against
+    the row's standard error. Discretisation only needs to stay under a tenth of it
+    (`workflows.md` §7).
+- **d can grow on a row** (*derived*, untested). Environment and competition now covary across
+  patches of the same age, so a spatial storage effect can arise. It needs non-additivity
+  (Johnson & Hastings 2022), not buffering as such. Each distinguishable environmental state
+  can then act as a regulating factor, so d(row) ≥ d(record). Measure it by repeating the
+  field-dimension spike on a row.
+
+**3. A history row: one site's calendar record, sliced at disturbance dates.** This serves the
+site residual.
+- The world it approximates has calendar-time climate (`theory.md` D.3.2): b(t) varies, and
+  fitness is a Lyapunov exponent of a renewal process in disturbance date. The row
+  approximates it with recordings at one held b.
+- For trees, a generation is about as long as the record. ln R′ is then the fitness of one
+  generation landing across the record's dates, not an invasion growth rate: a trending
+  record has no limiting distribution.
+- For short generations, the renewal growth rate and its log-variance are the quantities
+  (`workflows.md` §2).
+- **There is no equilibrium,** so the root-finding here does not apply. The observed
+  community is read as the point its weather history has brought it to (Chesson 2017), and the
+  residual reads evolutionary lag. The cut, the per-entry field error and the calibration term
+  through the field all still apply, as derivatives on the held row.
+
+**Per generation against per time.** ln R′ is per generation; the long-run rate is about
+ρ ≈ ln R′/T_r.
+- They share signs and zeros, so invasion decisions and evolutionarily stable conditions
+  agree.
+- Rankings among strategies with different generation times differ, and so do evolutionary
+  paths. Every entry reports T_r from its offspring by date.
+
 ## References
 
 Beyond `theory.md`'s list: Dybzinski, R. et al. (2011) *Am. Nat.* 177: 153–166; Farrior, C.E.

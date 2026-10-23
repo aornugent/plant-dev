@@ -136,6 +136,13 @@ offspring by date, not only their sum,** so both can be formed without a second 
   so a first-order spread ∇_c A · Σ_c · ∇_c Aᵀ costs nothing more. Where it is comparable
   to |A|, the sign is reported as unresolved.
 
+**How the assembly machinery fares in each climate world** is
+`../review/assembly.md` §10:
+- with one record replayed by every patch, everything applies per record;
+- on a regime row, F and g average over records, convexity survives, recordings run in
+  parallel, and the row's sampling error sets the resolution;
+- on a history row there is no equilibrium, so only the derivatives apply.
+
 ## 3. Site selection
 
 The applied workflow (`site-selection.md`). Its outputs are within-row readings, and a
