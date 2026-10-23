@@ -30,7 +30,7 @@ for (split in c(FALSE, TRUE)) {
   ct$ode_tol_abs <- atol * tol
   ct$node_density_in_birth_date <- TRUE
   ct$ode_split_sign_changes <- split
-  scm <- run_scm(stand(b), env, ct, events = ev, record_trajectory = TRUE)
+  scm <- run_scm(stand(b), env, ct, events = ev, keep_states = TRUE)
   R <- sum(scm$offspring_production) / b
   splits <- sum(scm$ode_splits)
   scm$run_mutant(stand(1))

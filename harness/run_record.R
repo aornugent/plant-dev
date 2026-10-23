@@ -165,7 +165,7 @@ per_node <- function(scm) {
 # The creation probability averaged over each accepted step: the growth over
 # the step of the newest node's establishment integral, the only one still open.
 creation_record <- function(scm) {
-  rows <- scm$store_trajectory()
+  rows <- scm$store_recording()
   sp <- scm$patch$species[[1]]
   per <- length(sp$ode_state) / sp$size
   at <- which(sp$new_node$ode_names == "interval_establishment")
@@ -194,7 +194,7 @@ gradient_of <- function(scm, q) {
 # The soil layers at every recorded state: the environment's ten states close the
 # patch's state, the five layers ahead of the five accumulators.
 soil_record <- function(scm) {
-  rows <- scm$store_trajectory()
+  rows <- scm$store_recording()
   list(time = vapply(rows, `[[`, 0, "time"),
        theta = t(vapply(rows, function(r) head(tail(r$state, 10), 5), numeric(5))))
 }
@@ -207,7 +207,7 @@ soil_clamps <- function(reader) tryCatch(
   error = function(e) NA)
 
 scm <- phase("stand_run", function() {
-  run_scm(p, mkenv(scen), ct, events = ev, record_trajectory = TRUE)
+  run_scm(p, mkenv(scen), ct, events = ev, keep_states = TRUE)
 })
 if (!is.null(scm)) {
   out$stand <- list(J = sum(scm$offspring_production), times = scm$ode_times,

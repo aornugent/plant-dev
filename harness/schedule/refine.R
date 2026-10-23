@@ -19,7 +19,7 @@ PREDICTED_BOUND_MAX <- 0.9
 PASSES <- 4
 MAX_LEVEL <- 4
 # Quantities the bound's constants were not measured on.
-UNMEASURED <- c(EXCLUDED, "rooting_depth_max")
+UNMEASURED <- c(EXCLUDED, "rooting_depth_max", "birth_rate")
 
 judged <- function(x) {
   if (!is.null(x$refusal)) stop("gradient refused: ", x$refusal)
@@ -39,8 +39,9 @@ stand_run <- function(p, env, ctrl, times, base = NULL, gradient = TRUE, records
   }
   cpu <- function() sum(proc.time()[c("user.self", "sys.self")])
   types <- plant:::extract_RcppR6_template_types(p, "Parameters")
-  scm <- do.call(plant:::SCM, types)(p, env, events(events_default(p)), ctrl)
-  scm$record_trajectory <- TRUE
+  # Empty events: with defaults, a replay's recorded steps become a plain grid of times.
+  scm <- do.call(plant:::SCM, types)(p, env, events(), ctrl)
+  scm$keep_states <- TRUE
   c0 <- cpu(); scm$run(); sp <- scm$patch$species[[1]]
   x <- list(node_times = times, stand = list(J = sum(scm$offspring_production), times = scm$ode_times,
             sizes = scm$ode_step_sizes, input_slopes = scm$ode_soil_input_slopes,
@@ -48,7 +49,7 @@ stand_run <- function(p, env, ctrl, times, base = NULL, gradient = TRUE, records
             nodes = list(birth = sp$node_times, nrr = sp$net_reproduction_ratio_by_node)),
             cpu = c(forward = cpu() - c0, sweep = 0))
   if (records) {
-    rows <- scm$store_trajectory(); per <- length(sp$ode_state) / sp$size; nm <- sp$new_node$ode_names
+    rows <- scm$store_recording(); per <- length(sp$ode_state) / sp$size; nm <- sp$new_node$ode_names
     len <- lengths(lapply(rows, `[[`, "state")); held <- (len - (tail(len, 1) - per * sp$size)) / per
     t <- vapply(rows, `[[`, 0, "time"); w <- sp$establishment_weights
     at <- function(i, j, name) rows[[i]]$state[per * (j - 1) + which(nm == name)]
@@ -59,11 +60,13 @@ stand_run <- function(p, env, ctrl, times, base = NULL, gradient = TRUE, records
     x$remaining <- list(time = t, share = 1 - O / tail(O, 1))
   }
   if (gradient) {
-    c0 <- cpu(); g <- plant:::census_trait_gradient_tf24(scm, "offspring_production"); x$cpu[["sweep"]] <- cpu() - c0
-    grad <- setNames(g$gradient[[1]], plant:::census_trait_names_tf24(scm)); pars <- p$strategies[[1]]$pars
+    metric <- "1.offspring_production"
+    c0 <- cpu(); g <- plant:::census_trait_gradient_tf24(scm, metric); x$cpu[["sweep"]] <- cpu() - c0
+    grad <- setNames(g$gradient[[1]], plant:::census_trait_names_tf24(scm))
+    pars <- c(p$strategies[[1]]$pars, birth_rate = p$strategies[[1]]$birth_rate_y[[1]])
     theta <- vapply(names(grad), function(n) pars[[sub("^1\\.", "", n)]], 0)
     x$stand$elasticity <- ifelse(theta == 0, 1, theta) * grad / x$stand$J
-    x$refusal <- g$refusal[["offspring_production"]]
+    x$refusal <- g$refusal[[metric]]
   }
   x
 }

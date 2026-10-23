@@ -77,7 +77,7 @@ phase <- function(name, f) {
 # One forward run at birth rate b, kept as a row of out$runs under `role`.
 forward <- function(b, role, lma_rel = 0, record = FALSE) {
   t0 <- clock()
-  scm <- run_scm(stand(b, lma_rel), env, ct, events = ev, record_trajectory = record)
+  scm <- run_scm(stand(b, lma_rel), env, ct, events = ev, keep_states = record)
   J <- sum(scm$offspring_production)
   row <- list(role = role, b = b, lma_rel = lma_rel, J = J, f = log(J) - log(b),
               secs = clock() - t0, steps = length(scm$ode_times),
