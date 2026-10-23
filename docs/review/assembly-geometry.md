@@ -179,6 +179,115 @@ predictable from the trait values. In TF24 the crown-shape parameter is the knob
 
    Precision beyond what stabilisation supports buys nothing.
 
+## 4b. The formalism behind both workflows: niche and field as a dual pair
+
+*Derived. The table tests are measured on `spikes/field-dimension-066/`; the rest is untested.*
+
+The projection of §1 is the equilibrium case of a structure that does not need equilibrium.
+
+**The embedding.** Invader fitness is read as φ(θ, y) ≈ a(θ) + ⟨S(θ), y⟩, with y ∈ ℝᵈ the field
+in a shared basis of modes.
+- On TF24, 48 invaders × 45 fields across three regimes is rank 2–4: 98.7% of the variance in
+  two components, after each strategy's intercept is removed.
+- An open regime held out is predicted from 10 observed strategies to an rmse of 0.45 in ln R′,
+  against a spread of 11.8.
+- The closed canopy held out fails: it has field directions the open stands never visit.
+
+**The frontier and its conjugate.** Collapse each strategy to its niche σ = S(θ).
+- A(σ) = max{ a(θ) : S(θ) = σ } is the best baseline fitness that niche allows. The
+  non-niche traits are at their best response, which is the EEO problem.
+- Ψ(y) = max_σ [A(σ) + ⟨y, σ⟩] is the best invasion fitness in field y. It is convex.
+- This is Levins' fitness set (1962) in field coordinates, computed from a mechanistic model.
+
+What follows:
+- the non-invadable set {Ψ ≤ 0} is convex;
+- the favoured niche is ∇Ψ(y);
+- coexistence is a kink in Ψ, from a dent in A;
+- the strategies that can ever win are the vertices of the upper hull of (σ_j, a_j). On TF24,
+  2 strategies win across the 45 fields, both vertices; the hull predicts the winner in 39–40 of
+  45.
+
+**Both workflows read Ψ.** Selection depends on a site only through its field.
+- Site selection takes y_make from the history row's making map. No equilibrium is needed.
+- Assembly takes y as a fixed point of the making map at Ψ's kink. The projection is its
+  aligned case.
+
+**A resident's selection deficit splits exactly:**
+
+  Ψ(y_s) − φ(θ_j, y_s) = [A(σ_j) − a(θ_j)] + [Ψ(y_s) − A(σ_j) − ⟨y_s, σ_j⟩].
+
+- The first term is EEO inefficiency. It does not depend on the field.
+- The second term is a Fenchel–Young gap: niche mismatch, a Bregman divergence between the
+  field the strategy lives in and the field it is adapted to.
+
+The field a site's observed traits imply, y_sense = argmin_y [m Ψ(y) − Σ_j ⟨y, σ_j⟩], is a
+convex problem.
+
+**Computation** (*estimated*):
+- One invader run and sweep gives a strategy's whole row, a(θ) and S(θ), at about 2.5 F.
+- Pricing results are cuts of Ψ that belong to the physiology, so one atlas serves every site
+  and every assembly. About 20 anchors cost about 4,000 F of CPU, built once in parallel.
+- Each site then needs only its making runs plus geometry in d ≈ 3.
+- The atlas predicts; exact runs refine near margins.
+- New engineering is needed: invaders that return S on the modes, and a recorded field that
+  can be perturbed on its held schedule.
+
+**The curvature of fitness along resident inputs changes sign with canopy closure.** It is
+mostly concave on the open stands and convex on the closed one, consistent with Beer–Lambert
+making the field nonlinear while sensing stays near affine. Perturbing the field directly would
+settle it.
+
+## 4c. Response conservation: supply moves traits or abundances, not both
+
+*Derived; checked on the worked example.*
+
+On the frontier a strategy is its niche σ, with fitness A(σ) + ⟨σ, y⟩. The residents in field y
+are the maximisers at height zero. The making map is K = y + Σ_j N_j ĉ_j, with K the supply
+and ĉ_j each resident's per-capita depletion. Alignment is not needed.
+
+**Counting.** Let Y_m be the fields where exactly m niches tie at zero. That is d unknowns,
+Ψ = 0, and m − 1 ties, so Y_m is a manifold of dimension d − m. The supplies settling onto
+one of its fields form the m-dimensional cone y + cone{ĉ_j}, so every community size m fills a
+d-dimensional region of supply space.
+
+**Response.** Differentiating, dK = dy + Σ dN_j ĉ_j, with dy tangent to Y_m. A change of supply
+splits uniquely:
+- the tangent part moves the field, and with it the traits, since σ_j(y) = ∇Ψ on branch j;
+- the part in the cone of impacts moves only abundances.
+
+So
+
+  rank(∂traits/∂supply) = d − m,  rank(∂abundances/∂supply) = m.
+
+Climate's d degrees of freedom are conserved. Each species added moves one of them from traits
+to abundances.
+
+**Consequences:**
+1. **A saturated community (m = d) has field and traits pinned across its whole supply cone.**
+   Traits jump only at turnover. A single species tracks supply in d − 1 directions.
+2. **Climate acting directly on physiology** (temperature, VPD, CO₂) reshapes A itself and
+   moves traits at every m. Supply (rain into soil water, nutrients) moves them only in d − m
+   directions. In diverse communities, then, trait–climate relationships should come from
+   direct drivers, not from resource supply, apart from turnover.
+3. **An estimator of d from observations:** d = species richness + rank of the community's
+   trait response to supply, at an ESS within one community type. Lag on history rows adds noise.
+4. **How far traits move when they move** is set by the frontier's curvature on each branch:
+   a flat frontier gives a large response.
+5. **A species persists over its supply cone.** The cone's width is both its robustness and
+   the steepness of its abundance response, so in a saturated community the species absorbing
+   the most change are the nearest to exclusion.
+
+**Check** (the 3-resource example, d = 3, k = 10, resource 3's supply swept from 2.4 to 0.2;
+projection cuts then the lean master; every step certified):
+- **K3 from 2.4 to 0.6, m = 3:**
+  - traits fixed at x = 0.05661, 0.50000 and 0.94339;
+  - field fixed at R = (0.45836, 0.43072, 0.45836), both to five decimals;
+  - abundances exactly linear (the third: −0.418 per 0.2 of supply).
+- **Below about 0.56, the third species is excluded (m = 2).** Traits drift smoothly along one
+  direction: x = 0.0586 → 0.0615 and 0.477 → 0.452 between K3 = 0.4 and 0.2.
+- The lean route alone, started cold, diverged on this model, and warm-starting from the
+  diverged state spread the failure along the sweep. Projection first was robust at every step.
+
 ## 5. Tests, in order
 
 1. **A on TF24.** Compute A from one recording of two or three residents (S from the cut, C
