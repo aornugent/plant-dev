@@ -21,11 +21,11 @@ instead of riding along in the resident run.
   Relative σ is 1, 0.055, 0.034, 0.021, … On the full schedule (8 invaders) it is 1,
   0.043, 0.041, then 0.0055: a 7.5× gap after σ₃. So d ≈ 3, with one mode carrying
   almost everything.
-- **Closed canopy (wetter record, lma halved twice): much richer.** Ground light is 0.38
-  (patch-weighted), against 0.65 on the open stands. Relative σ is 1, 0.17, 0.13, 0.11,
-  0.10, 0.047, 0.023, so five modes sit above 10%. The secants are strongly nonlinear
-  here, though (second difference / slope·δ is 0.35–0.56, and 1.24 for vcmax). See the
-  full-schedule check below.
+- **Closed canopy (wetter record, lma 0.32·e⁻¹ = 0.118): much richer.** Ground light is
+  0.38 (patch-weighted), against 0.65 on the open stands. Relative σ is 1, 0.17, 0.13,
+  0.11, 0.10, 0.047, 0.023, so five modes sit above 10%. A full-schedule sub-pool
+  reproduces this spectrum to 5%, so d ≈ 4–5 here. The secants are strongly nonlinear,
+  though: second difference / slope·δ is 0.35–0.56, and 1.24 for vcmax.
 - **Two species: monotone (convex) on the closed stand, marginal on the open one.**
   - On the closed stand a pair reached a joint equilibrium (|F| < 0.005). There
     λ(A_s) = (1.48, 0.104), so A_s is positive definite with λ_min/λ_max = 0.07. The
@@ -121,7 +121,7 @@ Other views:
 |---|---|---|---|---|---|
 | long drought | 1 | 3 | 5 | 7 | 1 by Weyl's bound; 3 empirically |
 | seasonal | 1 | 3 | 5 | 7 | 1 by Weyl's bound; 3 empirically (gap after σ₃) |
-| closed | 5 | 6 | 7 | 7 | see the full-schedule check |
+| closed | 5 | 6 | 7 | 7 | 4–5: thinning moves σ by < 5%; 3.6× gap after σ₄ on 8 invaders |
 
 ## The thinned invader schedule
 
@@ -274,8 +274,9 @@ The skew ratio is ‖A − Aᵀ‖_F / ‖A + Aᵀ‖_F.
   spectrum decay to σ₃ (it holds on both schedules and both records).
 - **Moderate.**
   - The open stands' gap after σ₃ (8 invaders on the full schedule only).
-  - The closed stand's richer spectrum: five modes above 10%, but the secants are
-    nonlinear at δ = 0.2, and the full-schedule check covers 8 invaders.
+  - The closed stand's richer spectrum: five modes above 10%, and it survives the
+    full-schedule check. But the secants are nonlinear at δ = 0.2, so the values are
+    those of finite moves.
   - The identity of modes 2–3: they are near-degenerate, so only their span is
     determined.
 - **Moderate.** The closed-stand pair's positive-definite A_s at a converged equilibrium.
