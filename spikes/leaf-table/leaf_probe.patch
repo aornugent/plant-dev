@@ -1,0 +1,230 @@
+diff --git a/inst/include/plant/models/leaf_probe.h b/inst/include/plant/models/leaf_probe.h
+new file mode 100644
+index 00000000..f41f8112
+--- /dev/null
++++ b/inst/include/plant/models/leaf_probe.h
+@@ -0,0 +1,137 @@
++// Pilot instrumentation for spikes/leaf-table: counts and times TF24 leaf
++// solves, and writes the leaf's inputs and outputs at a sampled fraction of
++// calls. Inert unless PLANT_LEAF_STATS / PLANT_LEAF_LOG are set.
++#ifndef PLANT_PLANT_LEAF_PROBE_H_
++#define PLANT_PLANT_LEAF_PROBE_H_
++
++#include <algorithm>
++#include <chrono>
++#include <cmath>
++#include <cstdio>
++#include <cstdlib>
++#include <string>
++#include <unistd.h>
++#include <vector>
++
++namespace plant {
++namespace leaf_probe {
++
++struct Stats {
++  unsigned long long solved = 0, replayed = 0;
++  double solved_ns = 0, replayed_ns = 0;
++  unsigned long long logged = 0, seen = 0;
++  long every = 1;
++  FILE* log = nullptr;
++  bool replay_flag = false;
++  Stats() {
++    if (const char* p = std::getenv("PLANT_LEAF_LOG")) {
++      std::string f = std::string(p) + "." + std::to_string(getpid()) + ".bin";
++      log = std::fopen(f.c_str(), "wb");
++    }
++    if (const char* e = std::getenv("PLANT_LEAF_LOG_EVERY")) every = std::atol(e);
++  }
++  ~Stats() {
++    if (log) std::fclose(log);
++    if (const char* p = std::getenv("PLANT_LEAF_STATS")) {
++      std::string f = std::string(p) + "." + std::to_string(getpid()) + ".txt";
++      if (FILE* o = std::fopen(f.c_str(), "w")) {
++        std::fprintf(o, "solved %llu %.6e\nreplayed %llu %.6e\n", solved,
++                     solved_ns * 1e-9, replayed, replayed_ns * 1e-9);
++        std::fclose(o);
++      }
++    }
++  }
++};
++
++inline Stats& stats() {
++  static Stats s;
++  return s;
++}
++
++// A P table over (light, asinh(psi_1/psi0), asinh(psi_deep/psi0), log h),
++// read multilinearly, standing in for the solved P of the one species whose
++// vcmax_25 equals PLANT_LEAF_KEY. PLANT_LEAF_PSCALE instead scales that
++// species' solved P.
++struct Table {
++  bool on = false, scale_on = false;
++  double key = 0, psi0 = 1, scale = 1;
++  std::vector<int> n;
++  std::vector<std::vector<double>> axes;
++  std::vector<double> P;
++  Table() {
++    const char* k = std::getenv("PLANT_LEAF_KEY");
++    if (!k) return;
++    key = std::atof(k);
++    if (const char* sc = std::getenv("PLANT_LEAF_PSCALE")) {
++      scale_on = true;
++      scale = std::atof(sc);
++    }
++    const char* f = std::getenv("PLANT_LEAF_TABLE");
++    if (!f) return;
++    FILE* in = std::fopen(f, "rb");
++    if (!in) return;
++    std::vector<double> x;
++    double v;
++    while (std::fread(&v, sizeof(double), 1, in) == 1) x.push_back(v);
++    std::fclose(in);
++    size_t i = 1;
++    psi0 = x[i++];
++    const int nd = static_cast<int>(x[i++]);
++    for (int j = 0; j < nd; ++j) n.push_back(static_cast<int>(x[i++]));
++    for (int j = 0; j < nd; ++j) {
++      axes.emplace_back(x.begin() + i, x.begin() + i + n[j]);
++      i += n[j];
++    }
++    P.assign(x.begin() + i, x.end());
++    on = true;
++  }
++  bool matches(double vcmax) const { return vcmax == key; }
++  double operator()(const double* X) const {
++    const int nd = static_cast<int>(n.size());
++    int lo[8];
++    double fr[8];
++    for (int j = 0; j < nd; ++j) {
++      const std::vector<double>& a = axes[j];
++      const double x = std::min(std::max(X[j], a.front()), a.back());
++      int k = static_cast<int>(std::upper_bound(a.begin(), a.end(), x) - a.begin()) - 1;
++      k = std::max(0, std::min(k, n[j] - 2));
++      lo[j] = k;
++      fr[j] = (x - a[k]) / (a[k + 1] - a[k]);
++    }
++    double out = 0;
++    for (int c = 0; c < (1 << nd); ++c) {
++      size_t idx = 0, stride = 1;
++      double w = 1;
++      for (int j = 0; j < nd; ++j) {
++        const int b = (c >> j) & 1;
++        idx += (lo[j] + b) * stride;
++        stride *= n[j];
++        w *= b ? fr[j] : 1 - fr[j];
++      }
++      out += w * P[idx];
++    }
++    return out;
++  }
++};
++
++inline Table& table() {
++  static Table t;
++  return t;
++}
++
++// Rows of 32 doubles: written by the caller, padded with NaN.
++constexpr int ROW = 32;
++inline void write_row(const double* x, int n) {
++  Stats& s = stats();
++  if (!s.log) return;
++  if ((s.seen++ % s.every) != 0) return;
++  double row[ROW];
++  for (int i = 0; i < ROW; ++i) row[i] = i < n ? x[i] : std::nan("");
++  std::fwrite(row, sizeof(double), ROW, s.log);
++  ++s.logged;
++}
++
++}  // namespace leaf_probe
++}  // namespace plant
++
++#endif
+diff --git a/inst/include/plant/models/tf24_strategy.h b/inst/include/plant/models/tf24_strategy.h
+index 5b85373f..9972ae70 100644
+--- a/inst/include/plant/models/tf24_strategy.h
++++ b/inst/include/plant/models/tf24_strategy.h
+@@ -12,6 +12,7 @@
+ #include <plant/leaf_model.h>
+ #include <plant/canopy_shape.h>
+ #include <plant/stem_hydraulics.h>
++#include <plant/models/leaf_probe.h>
+ #include <odelia/implicit_node.hpp>
+ #include <plant/with_slope.h>
+ #include <array>
+@@ -2368,6 +2369,51 @@ S TF24_Strategy<S>::net_mass_production_dt(const TF24_Environment<S>& environmen
+                           environment.get_atm_kpa());
+     }
+     solve_leaf();
++    if constexpr (std::is_same_v<S, double>) {
++      const leaf_probe::Table& tab = leaf_probe::table();
++      if ((tab.on || tab.scale_on) && tab.matches(pars.vcmax_25)) {
++        if (tab.on) {
++          double wsum = 0, psum = 0;
++          for (size_t a = 1; a < root_network_.r_R_H_min.size(); ++a) {
++            const double g =
++                1.0 / (root_network_.r_R_H_min[a] + root_network_.r_R_V_sum[a]);
++            wsum += g;
++            psum += g * psi_soil[a];
++          }
++          const double psi_deep = wsum > 0 ? psum / wsum : psi_soil[0];
++          const double X[4] = {radiation / (pars.k_I * environment.get_PPFD()),
++                               std::asinh(psi_soil[0] / tab.psi0),
++                               std::asinh(psi_deep / tab.psi0), std::log(height)};
++          leaf.profit_ = tab(X) - leaf.shadow_cost();
++        }
++        if (tab.scale_on) {
++          leaf.profit_ = (leaf.profit_ + leaf.shadow_cost()) * tab.scale -
++                         leaf.shadow_cost();
++        }
++      }
++      leaf_probe::Stats& ps = leaf_probe::stats();
++      if (ps.log) {
++        double r[leaf_probe::ROW];
++        for (int i = 0; i < leaf_probe::ROW; ++i) r[i] = std::nan("");
++        r[0] = environment.time; r[1] = pars.lma; r[2] = height;
++        r[4] = radiation;
++        for (size_t a = 0; a < psi_soil.size() && a < 5; ++a) r[5 + a] = psi_soil[a];
++        r[10] = leaf_specific_conductance_max;
++        r[11] = environment.get_atm_vpd(); r[12] = environment.get_ca();
++        r[13] = environment.get_leaf_temp(); r[14] = environment.get_PPFD();
++        r[3] = radiation / (pars.k_I * r[14]);
++        r[15] = leaf.profit_; r[16] = leaf.shadow_cost();
++        r[17] = leaf.transpiration_; r[18] = leaf.E_up_;
++        for (size_t a = 0; a < leaf.soil_consumption_.size() && a < 5; ++a)
++          r[19 + a] = leaf.soil_consumption_[a];
++        r[24] = leaf.opt_root_psi_; r[25] = leaf.opt_psi_stem_;
++        r[26] = static_cast<double>(leaf.operating_point_kind());
++        r[27] = ps.replay_flag ? 1.0 : 0.0;
++        r[28] = pars.hmat; r[29] = pars.K_s; r[30] = pars.rooting_depth_max;
++        r[31] = pars.vcmax_25;
++        leaf_probe::write_row(r, leaf_probe::ROW);
++      }
++    }
+   };
+ 
+   // Convert canopy openness (0-1) into absorbed radiation: PPFD attenuated by
+@@ -2515,6 +2561,9 @@ S TF24_Strategy<S>::net_mass_production_dt(const TF24_Environment<S>& environmen
+ template <typename S>
+ void TF24_Strategy<S>::solve_leaf() {
+   const leaf_solved_point recorded = leaf_points->load();
++  leaf_probe::Stats& ps = leaf_probe::stats();
++  const auto probe_t0 = std::chrono::steady_clock::now();
++  ps.replay_flag = recorded.kind != Leaf::OperatingPointKind::Unsolved;
+   try {
+     if (recorded.kind == Leaf::OperatingPointKind::Unsolved) {
+       // ⚠️ THE CURVE-TYPED FORM. find_root_collar_psi() is the TF24 SHORTHAND
+@@ -2532,6 +2581,12 @@ void TF24_Strategy<S>::solve_leaf() {
+   } catch (const phylloptim::util::infeasible_error& e) {
+     odelia::util::stop_domain(std::string("leaf solve infeasible: ") + e.what());
+   }
++  {
++    const double ns = std::chrono::duration<double, std::nano>(
++        std::chrono::steady_clock::now() - probe_t0).count();
++    if (ps.replay_flag) { ++ps.replayed; ps.replayed_ns += ns; }
++    else { ++ps.solved; ps.solved_ns += ns; }
++  }
+   leaf_points->store({leaf.opt_root_psi_, leaf.operating_point_kind()});
+   // The classification is decided by the branch taken and then overwritten by
+   // the next plant, so without a tally the only route to its incidence is a

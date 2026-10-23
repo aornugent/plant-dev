@@ -1,0 +1,80 @@
+Total: 13744 samples
+       0   0.0%   0.0%    13744 100.0% R_ParseString
+       0   0.0%   0.0%    13744 100.0% R_execMethod
+       0   0.0%   0.0%    13744 100.0% Rf_NewFrameConfirm
+       0   0.0%   0.0%    13744 100.0% Rf_eval
+       0   0.0%   0.0%    13744 100.0% Rf_removeTaskCallbackByIndex
+       0   0.0%   0.0%    13744 100.0% SCM___TF24__TF24_Env__run_mutant
+       0   0.0%   0.0%    13744 100.0% __libc_start_call_main
+       0   0.0%   0.0%    13744 100.0% __libc_start_main_impl
+       0   0.0%   0.0%    13744 100.0% _plant_SCM___TF24__TF24_Env__run_mutant
+       0   0.0%   0.0%    13744 100.0% _start
+       0   0.0%   0.0%    13744 100.0% main
+       0   0.0%   0.0%    13744 100.0% plant::SCM::run_mutant
+       0   0.0%   0.0%    13744 100.0% run_Rmainloop
+       0   0.0%   0.0%    13726  99.9% plant::SCM::run_schedule
+       0   0.0%   0.0%    13720  99.8% plant::SCM::run_next
+       0   0.0%   0.0%    13720  99.8% plant::SCM::step_leg
+       0   0.0%   0.0%    13693  99.6% plant::SCM::integrate_to
+       0   0.0%   0.0%    13690  99.6% odelia::ode::Solver::advance_schedule
+       1   0.0%   0.0%    13690  99.6% odelia::ode::SolverInternal::step_by
+       0   0.0%   0.0%    13678  99.5% odelia::ode::Step::step
+       0   0.0%   0.0%    13611  99.0% odelia::ode::derivs
+      21   0.2%   0.2%    13406  97.5% plant::TF24_Strategy::compute_rates
+      35   0.3%   0.4%    13289  96.7% plant::TF24_Strategy::net_mass_production_dt
+       0   0.0%   0.4%    13025  94.8% plant::Patch::ode_rates
+       2   0.0%   0.4%    13022  94.7% plant::Patch::compute_rates
+       0   0.0%   0.4%    12990  94.5% plant::Species::compute_rates
+       6   0.0%   0.5%    12532  91.2% plant::TF24_Strategy::net_mass_production_dt::{lambda#1}::operator
+       0   0.0%   0.5%    12512  91.0% plant::Node::compute_rates (inline)
+       0   0.0%   0.5%    12483  90.8% plant::Individual::compute_rates (inline)
+       8   0.1%   0.5%    12362  89.9% plant::TF24_Strategy::solve_leaf
+       4   0.0%   0.6%    12288  89.4% phylloptim::Leaf::find_root_collar_psi_for
+       0   0.0%   0.6%    11352  82.6% odelia::ode::Step::step::{lambda#1}::operator (inline)
+     529   3.8%   4.4%     9825  71.5% boost::math::tools::toms748_solve (inline)
+       6   0.0%   4.5%     9814  71.4% phylloptim::Leaf::maximise_profit_over_collar
+       6   0.0%   4.5%     9436  68.7% phylloptim::Leaf::maximise_profit_over_collar::{lambda#1}::operator (inline)
+     251   1.8%   6.3%     9430  68.6% phylloptim::Leaf::dprofit_at_collar_psi
+     577   4.2%  10.5%     8850  64.4% boost::math::tools::detail::bracket
+       6   0.0%  10.6%     8772  63.8% phylloptim::util::uniroot_smooth (inline)
+    2569  18.7%  29.3%     4431  32.2% phylloptim::MultiLayerRoots::uptake_impl
+     104   0.8%  30.0%     3918  28.5% phylloptim::Leaf::psi_stem_to_ci
+     101   0.7%  30.7%     3616  26.3% phylloptim::util::uniroot_smooth
+       1   0.0%  30.8%     3229  23.5% odelia::ode::Step::take_substepped_step
+       1   0.0%  30.8%     2364  17.2% phylloptim::Leaf::dE_from_soil_dpsi_collar (inline)
+       5   0.0%  30.8%     2354  17.1% phylloptim::MultiLayerRoots::duptake_dpsi (inline)
+      23   0.2%  31.0%     2119  15.4% phylloptim::MultiLayerRoots::uptake_at (inline)
+      12   0.1%  31.1%     1621  11.8% phylloptim::Leaf::find_psi_stem_from_psi_root
+     143   1.0%  32.1%     1591  11.6% odelia::interpolator::hermite_spline::value_at (inline)
+     536   3.9%  36.0%     1518  11.0% phylloptim::Leaf::psi_stem_to_ci::{lambda#1}::operator (inline)
+      10   0.1%  36.1%     1466  10.7% phylloptim::Leaf::E_from_Soil_to_Root_Collar (inline)
+       7   0.1%  36.1%     1441  10.5% phylloptim::Leaf::prepare_collar_solve
+       0   0.0%  36.1%     1428  10.4% odelia::interpolator::hermite_spline::eval (inline)
+     767   5.6%  41.7%     1270   9.2% phylloptim::Leaf::assim_colimited_kernel (inline)
+     194   1.4%  43.1%     1239   9.0% phylloptim::MultiLayerRoots::root_vuln_integral_at (inline)
+       6   0.0%  43.2%     1186   8.6% phylloptim::Leaf::find_root_psi
+     148   1.1%  44.2%     1036   7.5% __pow
+    1017   7.4%  51.6%     1017   7.4% odelia::interpolator::hermite_spline::Span::value (inline)
+       0   0.0%  51.6%     1011   7.4% phylloptim::Leaf::assim_colimited (inline)
+       1   0.0%  51.6%      930   6.8% plant::Node::compute_initial_conditions
+       0   0.0%  51.6%      885   6.4% phylloptim::Leaf::hydraulic_cost_TF_kernel (inline)
+     864   6.3%  57.9%      864   6.3% boost::math::tools::detail::cubic_interpolate
+       2   0.0%  57.9%      840   6.1% phylloptim::Leaf::cost_deriv (inline)
+      79   0.6%  58.5%      816   5.9% phylloptim::Leaf::transpiration_to_psi_stem (inline)
+      12   0.1%  58.6%      738   5.4% phylloptim::Leaf::E_from_Soil_to_Root_Collar
+      28   0.2%  58.8%      704   5.1% phylloptim::Leaf::stem_curve_integral_inverse (inline)
+       3   0.0%  58.8%      678   4.9% phylloptim::Leaf::E_column (inline)
+     426   3.1%  61.9%      676   4.9% phylloptim::Leaf::invert_stem_curve
+      83   0.6%  62.5%      654   4.8% phylloptim::MultiLayerRoots::uptake_impl::{lambda#2}::operator (inline)
+       0   0.0%  62.5%      614   4.5% xad::UnaryExpr::UnaryExpr (inline)
+       0   0.0%  62.5%      604   4.4% odelia::ode::internal::set_ode_state (inline)
+       4   0.0%  62.6%      578   4.2% phylloptim::Leaf::proportion_of_conductivity_kernel (inline)
+     530   3.9%  66.4%      530   3.9% exp_inline
+       4   0.0%  66.4%      519   3.8% phylloptim::Leaf::find_root_psi::{lambda#1}::operator (inline)
+      93   0.7%  67.1%      512   3.7% odelia::interpolator::hermite_spline::value_and_slope
+       2   0.0%  67.1%      497   3.6% phylloptim::Leaf::profit_psi_stem_TF24_floor (inline)
+       0   0.0%  67.1%      497   3.6% phylloptim::Leaf::profit_psi_stem_for (inline)
+     148   1.1%  68.2%      460   3.3% phylloptim::MultiLayerRoots::root_vuln_integral_deriv_at (inline)
+       0   0.0%  68.2%      454   3.3% plant::Patch::compute_boundary_nodes
+       0   0.0%  68.2%      454   3.3% plant::Species::compute_boundary_node (inline)
+      75   0.5%  68.8%      441   3.2% phylloptim::Leaf::stem_curve_integral
