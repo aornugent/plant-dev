@@ -1,0 +1,18 @@
+plant 2.0.0.9002 from /home/a/.claude/jobs/9d586e52/rlib-leaf/plant
+$F
+[1] 0.1646034
+
+$steps
+[1] 12695
+
+$secs_resident
+[1] 121.33
+
+$secs_invade
+[1] 111.471
+
+$lnR
+[1] 0.06337798
+
+List of 1
+ $ : num [1:120] 927 911 893 856 775 ...
