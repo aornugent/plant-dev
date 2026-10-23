@@ -38,3 +38,10 @@ for (s in res) {
               s$status, s$level, s$passes, s$nodes, s$runs, s$cpu / 60, s$wall / 60))
   if (!is.null(s$by_group)) print(s$by_group, digits = 3)
 }
+
+# Every run's quantities and costs, and each case's reference rungs, without the recordings.
+runs <- lapply(setNames(nm = cases), function(case) {
+  files <- list.files(file.path(out, case), "^(level|u).*\\.rds$", full.names = TRUE)
+  lapply(setNames(files, sub("\\.rds$", "", basename(files))), function(f) {
+    x <- readRDS(f); list(nodes = length(x$node_times), quantities = all_quantities(x), cost = x$cost) }) })
+saveRDS(runs, sub("\\.rds$", "-runs.rds", a[2]))
