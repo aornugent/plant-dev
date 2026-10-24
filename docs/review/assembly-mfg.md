@@ -4,8 +4,8 @@
 - **Derived from** TF24's rates (`plant/inst/include/plant/models/tf24_strategy.h`,
   `compute_rates`, `net_mass_production_dt` and the shading aggregation) and from the reverse
   mode we already have.
-- **Being built:** the reference community it must be checked against
-  (`spikes/reference-community/`, in progress).
+- **Checked against:** the reference community (`spikes/reference-community/`): one ESS
+  strategy, no branching.
 - **Being measured:** the leaf profile it depends on (`spikes/leaf-table/`, in progress).
 - **Builds on:** `assembly-geometry.md` §4b–4c (the duality between niche and field, and
   response conservation).
@@ -149,11 +149,23 @@ height. Only doubles cross the R boundary.
      The node schedule must resolve the leaders' boundary layer wherever an early cohort takes
      the canopy. Closed-canopy results on the uniform schedule are suspect: the equilibrium,
      the selection gradients at the resident, and the spectra.
-2. **The first TF24 reference community** (`spikes/reference-community/`, in progress). A
-   singular strategy in lma, rho and vcmax_25 on the closed canopy, by the one-shot step with
-   the cut on a held schedule; classified by H and J; the coalition if it branches. Nothing like
-   it exists yet: regnans's plant singularity tests are FF16, and the roadtest only projected a
-   one-trait case.
+2. **The first TF24 reference community** (`spikes/reference-community/`, done 24 Oct).
+   - **The result.** One ESS strategy in (lma, hmat, vcmax_25), the same in both regimes:
+
+     | regime | lma | hmat | vcmax_25 | ln b* |
+     |---|---|---|---|---|
+     | closed long-wet | 0.0278 | 10.1 | 112.5 | 6.00 |
+     | seasonal | 0.0283 | 9.3 | 112.2 | 5.98 |
+
+   - **Classification.** H and J have all eigenvalues negative: an ESS that is convergence
+     stable, with no branching and no coalition. J − H is small except in the hmat column
+     (+6.6, +12.0).
+   - **Pricing.** Local only: 45 invaders within ±0.4 in ln trait.
+   - **Schedule.** 108 uniform introductions plus 40 geometric from 3.6e-4 yr; certified on 256.
+   - **Cost.** A recording (run plus kept and cut sweeps) takes 6.5 min unloaded. The master
+     took 14–16 recordings per regime.
+   - **rho could not be a trait:** at the default hyperparameters it has no singular strategy
+     and runs away.
 3. **The reduced plant:** does it reproduce the 48-invader pool's ln R′ in recorded fields to
    about 0.05? If not, the dynamic program is out, and the exact function-space best response
    carries the game alone.
