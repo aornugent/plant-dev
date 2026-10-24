@@ -13,14 +13,21 @@ RUN <- Sys.getenv("RUN", "closed")
 RUN_DIR <- file.path(TMP, "runs", RUN)
 H_STEP <- as.numeric(Sys.getenv("H_STEP", "0.01"))
 CORES <- as.integer(Sys.getenv("CORES", "8"))
-OUT <- file.path(RUN_DIR, sprintf("classify_h%g", H_STEP))
-dir.create(OUT, showWarnings = FALSE)
 k <- length(EVOLVE)
 
-st <- readRDS(file.path(RUN_DIR, "state.rds"))
-root <- st$log[[length(st$log)]]
+# The root is the recording of step STEP (default: the last saved).
+steps <- sort(list.files(RUN_DIR, "^step_[0-9]+\\.rds$"))
+STEP <- Sys.getenv("STEP")
+root_file <- if (nzchar(STEP)) sprintf("step_%03d.rds", as.integer(STEP)) else tail(steps, 1)
+root_step <- as.integer(sub("step_([0-9]+)\\.rds", "\\1", root_file))
+root <- readRDS(file.path(RUN_DIR, root_file))
+OUT <- file.path(RUN_DIR, sprintf("classify_h%g_s%d", H_STEP, root_step))
+dir.create(OUT, showWarnings = FALSE)
+root$g <- drop(root$g)
+root$F_theta <- drop(root$F_theta)
+root$F_lnb <- root$F_lnb[1, 1]
 lnb <- root$lnb
-x <- root$x
+x <- drop(root$x)
 cat(sprintf("root: lnb %.6f x %s F %.2e |g| %.3e\n", lnb,
             paste(sprintf("%+.5f", x), collapse = " "), root$F, max(abs(root$g))))
 
@@ -92,7 +99,7 @@ out <- list(run = RUN, h = H_STEP, lnb = lnb, x = x, traits = traits_at(x),
                          tol = list(dF = tl$F - root$F, dg = drop(tl$g) - root$g)),
             J_F = sapply(res[vapply(jobs, function(j) j$kind == "J", TRUE)], `[[`, "F"),
             secs = sapply(res, `[[`, "secs"))
-saveRDS(out, file.path(HERE, sprintf("classify_%s_h%g.rds", RUN, H_STEP)))
+saveRDS(out, file.path(HERE, sprintf("classify_%s_h%g_s%d.rds", RUN, H_STEP, as.integer(root_step))))
 print(out[c("H", "H_sym_eigen", "H_asym", "H_diag_from_lnR", "J", "J_eigen",
             "JJt_eigen", "noise", "J_F")])
 v <- function(m) {

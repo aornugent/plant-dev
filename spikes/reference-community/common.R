@@ -20,10 +20,12 @@ NODES <- as.integer(Sys.getenv("NODES", "108"))
 # EARLY extra introductions halve the first interval EARLY times over: the
 # cohort born into the bare patch tops the canopy, and lumping its first
 # interval into one crown puts a step in invader fitness at theta' = theta.
+# EARLY_RATIO is the geometric ratio between successive early introductions.
 EARLY <- as.integer(Sys.getenv("EARLY", "0"))
+EARLY_RATIO <- as.numeric(Sys.getenv("EARLY_RATIO", "2"))
 TIMES <- local({
   t <- seq(0, LIFETIME * (NODES - 1) / NODES, length.out = NODES)
-  sort(c(t, t[2] * 2^-seq_len(EARLY)))
+  sort(c(t, t[2] * EARLY_RATIO^-seq_len(EARLY)))
 })
 EVOLVE <- strsplit(Sys.getenv("EVOLVE", "lma,rho,vcmax_25"), ",")[[1]]
 METRIC <- function(i) paste0(i, ".net_reproduction_ratio")

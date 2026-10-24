@@ -74,7 +74,7 @@ while (st$n < MAX_STEPS) {
               if (b$restart) "SD" else "  ", st$radius,
               r$secs_run + r$secs_sweep))
   if (done) { saveRDS(st, state_file); break }
-  st <- b$st
+  st$B <- b$st$B  # keep the log: b$st predates this step's entry
   st$s <- d
   st$g <- g
   st$x <- st$x + d
