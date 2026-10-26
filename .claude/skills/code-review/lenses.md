@@ -7,7 +7,7 @@ context buys independent looks. Run them in order — Lens 1 is ruined by
 reading bodies first. Each lens either reports or declares its empty
 state; each can fail the diff outright.
 
-## Lens 1 — Cold Reader (comprehensibility as experiment)
+## Lens 1 — Predict, then read (comprehensibility as an experiment)
 
 You are the new developer the code will be read by. Use that.
 
@@ -22,11 +22,20 @@ You are the new developer the code will be read by. Use that.
    a side effect — chosen because it ends the miss, not because of
    taste.
 
+5. **Vocabulary pass.** List every name the diff introduces or renames.
+   For each, search the packages for the concept it names. A second name
+   for a concept that already has one, one name used for two concepts, a
+   library's word reused with a different meaning, or a name whose
+   direction or action the body contradicts is a finding under the
+   workspace naming rules (AGENTS.md → Naming). The cost sentence is
+   usually: "makes every reader and caller learn that X and Y are one
+   thing (or that X is two)".
+
 Empty state: "no misses — checked N." Honesty rule: predictions come
 before bodies; if you've already read the bodies (long session), say so
 — the experiment is weakened and its misses are a lower bound.
 
-## Lens 2 — Alternative Implementer (reopening decisions)
+## Lens 2 — Reopen the decisions
 
 1. Extract the decisions the diff made — forks, not lines. Worth
    reopening: what is stored vs derived; where state lives; which
@@ -46,7 +55,7 @@ This lens is where pushback lives. Its failure mode is deference —
 treating the diff's choice as evidence for itself. The diff chose X *is
 not* a reason for X.
 
-## Lens 3 — Time Traveler (durability as experiment)
+## Lens 3 — Simulate the next change (durability as an experiment)
 
 1. Pick 1–2 plausible next changes, in priority order: explicitly
    planned work (tickets, roadmap, "next we'll…" in the PR); the
@@ -67,7 +76,14 @@ not* a reason for X.
 
 Empty state: "simulated <change>: one-place."
 
-## Lens 4 — Keeper (what must always be true)
+Signals worth chasing in any lens, each a finding only when it passes
+the finding test: the same fact written in more than one place; a side
+effect the name and signature don't predict; understanding one function
+needs more than two others; nesting deeper than three levels, or
+interacting mutable state the reader must simulate; an error path that
+behaves differently from the happy path without saying so.
+
+## Lens 4 — Name the invariant (what must always be true)
 
 One sentence: the property that must hold for this code to be correct.
 Classify its protection: **structure** (breaking it cannot be

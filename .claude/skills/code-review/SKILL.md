@@ -14,18 +14,22 @@ sparingness by per-decision defaults. The diff is a proposal, not a fact;
 every choice is open until a requirement closes it. A review that cannot
 fail the diff is not a review.
 
-For this workspace's C++/comment conventions — the "never" comment rules,
-the exemplar, and the invariant that only `double` crosses the R boundary —
-judge against the project code style:
-[AGENTS.md → Code style](../../../AGENTS.md#code-style). It is admissible
-evidence under Lens 1, not a source of opinions.
+Two documents are admissible evidence in every lens, not sources of
+opinion: the workspace code style, including its naming rules
+([AGENTS.md → Code style](../../../AGENTS.md#code-style)), and the
+engineering principles ([docs/principles.md](../../../docs/principles.md)).
+They apply to every package and win where a package guide differs. A
+finding may cite either one in its mechanism; neither replaces the
+finding test.
 
 ## Files in this skill
 
 - `lenses.md` — the four lens procedures. Read before your first review
   under this skill and whenever running Tier 2+.
+- `examples.md` — a bad and a good review of the same diff, and a naming
+  review. Read before your first review under this skill.
 
-## The finding test (unchanged, load-bearing)
+## The finding test
 
 A finding must complete: "This makes <specific future change or debugging
 task> harder/riskier because <mechanism>." Can't fill it in → not a
@@ -66,21 +70,28 @@ sketch is a yardstick, not the answer — where the diff knows something
 the ledger didn't say, that is a finding against the ledger's wording,
 and worth sending upward.
 
+Then judge the shape against the sketch, before any detail:
+(a) can the requirement be met by deleting code? (b) does an existing
+abstraction already solve it? (c) is any of the diff handling a
+requirement that doesn't exist yet? (d) does every concept the sketch
+didn't need justify itself against a ledger line? A diff that fails
+these is a rethink, however clean its lines are.
+
 ## Step 3 — Run the lenses, in this order
 
 Order is load-bearing. See `lenses.md` for each procedure.
 
-1. **Cold Reader** (predict-then-verify) — must be first contact with
+1. **Predict, then read** — must be first contact with
    the bodies: predictions from the public surface, then verification.
    Misses become findings verbatim.
-2. **Alternative Implementer** (decision reopening) — extract the ≤5
+2. **Reopen the decisions** — extract the ≤5
    largest decisions as "chose X over <simplest live alternative Y>".
    Per decision the null hypothesis is Y; a ledger line settles it for X,
    or it becomes a question with a default.
-3. **Time Traveler** (change simulation) — walk 1–2 plausible next
+3. **Simulate the next change** — walk 1–2 plausible next
    changes through the code; list every edit site; classify one-place /
    leaky / shotgun.
-4. **Keeper** (what must always be true) — one sentence; kept true by
+4. **Name the invariant** (what must always be true) — one sentence; kept true by
    structure | convention | nothing; convention-or-nothing with a
    structural option available is a structural finding. Trivial diffs:
    "none — <reason>".
@@ -97,20 +108,22 @@ a rethink verdict are one line each, marked [conditional].
 
 ## Hard rules
 
-- Per reopened decision, the simpler alternative is the default winner;
-  the diff's choice must cite the ledger line that pays for the
-  difference. No citation → question with a default, not silence.
-- Every question states its default and the conversion rule: unanswered,
-  the default becomes a finding in the next review of this code.
-- Predictions are written before bodies are read — reordering this is
-  falsifying the experiment.
+These hold across every step; the lens procedures carry the rest.
+
+- Every question states its default, and unanswered, the default becomes a
+  finding in the next review of this code.
 - Never suggest an abstraction with one call site; name the second
   witnessed use or don't suggest it. If you suggest adding code, first
   state why deleting or reusing fails.
-- Every finding passes the finding test and shows a simpler alternative;
-  every lens reports or declares empty; silence on style is approval.
+- Every finding shows a simpler alternative. Silence on style is approval.
 
 ## Output contract
+
+The report is read by people who were not in your session. Write each
+finding, decision and question as complete sentences that say what the
+code does and what that causes. The R-numbers, lens names and the clean
+sheet are working labels: keep them as headings, but don't make a reader
+decode them to follow a sentence.
 
 ```
 ## Verdict: approve | approve with changes | rethink approach
