@@ -40,7 +40,7 @@ stand_run <- function(p, env, ctrl, times, base = NULL, gradient = TRUE, records
   cpu <- function() sum(proc.time()[c("user.self", "sys.self")])
   types <- plant:::extract_RcppR6_template_types(p, "Parameters")
   scm <- do.call(plant:::SCM, types)(p, env, events(events_default(p)), ctrl)
-  scm$record_trajectory <- TRUE
+  scm$keep_states <- TRUE
   c0 <- cpu(); scm$run(); sp <- scm$patch$species[[1]]
   x <- list(node_times = times, stand = list(J = sum(scm$offspring_production), times = scm$ode_times,
             sizes = scm$ode_step_sizes, input_slopes = scm$ode_soil_input_slopes,
@@ -48,7 +48,7 @@ stand_run <- function(p, env, ctrl, times, base = NULL, gradient = TRUE, records
             nodes = list(birth = sp$node_times, nrr = sp$net_reproduction_ratio_by_node)),
             cpu = c(forward = cpu() - c0, sweep = 0))
   if (records) {
-    rows <- scm$store_trajectory(); per <- length(sp$ode_state) / sp$size; nm <- sp$new_node$ode_names
+    rows <- scm$store_recording(); per <- length(sp$ode_state) / sp$size; nm <- sp$new_node$ode_names
     len <- lengths(lapply(rows, `[[`, "state")); held <- (len - (tail(len, 1) - per * sp$size)) / per
     t <- vapply(rows, `[[`, 0, "time"); w <- sp$establishment_weights
     at <- function(i, j, name) rows[[i]]$state[per * (j - 1) + which(nm == name)]
@@ -59,11 +59,11 @@ stand_run <- function(p, env, ctrl, times, base = NULL, gradient = TRUE, records
     x$remaining <- list(time = t, share = 1 - O / tail(O, 1))
   }
   if (gradient) {
-    c0 <- cpu(); g <- plant:::census_trait_gradient_tf24(scm, "offspring_production"); x$cpu[["sweep"]] <- cpu() - c0
-    grad <- setNames(g$gradient[[1]], plant:::census_trait_names_tf24(scm)); pars <- p$strategies[[1]]$pars
+    c0 <- cpu(); g <- plant:::census_trait_gradient_tf24(scm, "1.offspring_production"); x$cpu[["sweep"]] <- cpu() - c0
+    grad <- setNames(g$gradient[[1]], plant:::census_trait_names_tf24(scm)); grad <- grad[names(grad) != "1.birth_rate"]; pars <- p$strategies[[1]]$pars
     theta <- vapply(names(grad), function(n) pars[[sub("^1\\.", "", n)]], 0)
     x$stand$elasticity <- ifelse(theta == 0, 1, theta) * grad / x$stand$J
-    x$refusal <- g$refusal[["offspring_production"]]
+    x$refusal <- g$refusal[["1.offspring_production"]]
   }
   x
 }
@@ -134,19 +134,25 @@ nodes_of <- function(sch, k, half = FALSE) {
 nested <- function(coarse, fine) all(round(coarse, 10) %in% round(fine, 10))
 
 refine_schedule <- function(p, env, ctrl, scale = 1) {
-  history <- list(); costs <- list(); level <- 0; q <- e <- unestimated <- sch <- NULL
+  history <- list(); costs <- list(); level <- 0; q <- e <- unestimated <- sch <- NULL; unpinned <- NULL
   fit <- function(status, error = NULL) list(
     answer = if (is.null(e)) q else q - e * eps_vec(names(q)), estimate = e,
     bound = if (is.null(e)) NULL else CORRECTED_SHARE * abs(e) + unestimated, run = q,
     schedule = sch, level = level, history = history, costs = do.call(rbind, costs),
-    status = status, error = error)
+    status = status, error = error, replay_unpinned = unpinned)
   tryCatch({
     first <- stand_run(p, env, ctrl, seq(0, HORIZON, length.out = 100), gradient = FALSE, records = TRUE)
     costs$first <- first$cpu
     sch <- schedule_of(first, p$strategies[[1]]$pars, scale)
     S <- nodes_of(sch, 0); half <- nodes_of(sch, 0, half = TRUE); stopifnot(nested(half, S))
     x <- stand_run(p, env, ctrl, S); costs$level0 <- x$cpu; q <- judged(x)
-    r <- stand_run(p, env, ctrl, half, base = x); costs$level0_replay <- r$cpu
+    # On crown-integral a replay pinned to the run's steps is refused where the coarser node set
+    # would substep the soil at a time the fine run did not; then replay on the coarse run's own
+    # steps, which adds step-sequence noise to the estimate (refine.md: rms ~0.04 eps), and say so.
+    r <- tryCatch(stand_run(p, env, ctrl, half, base = x), error = function(e) {
+      if (!grepl("would substep", conditionMessage(e))) stop(e)
+      y <- stand_run(p, env, ctrl, half); y$replay_unpinned <- conditionMessage(e); y })
+    unpinned <- r$replay_unpinned; costs$level0_replay <- r$cpu
     e <- (judged(r)[names(q)] - q) / 3 / eps_vec(names(q)); unestimated <- UNESTIMATED_REPLAY
     repeat {
       bound <- CORRECTED_SHARE * abs(e) + unestimated

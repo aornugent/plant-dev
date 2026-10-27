@@ -17,17 +17,12 @@ p <- scm_base_parameters("TF24")
 p$max_patch_lifetime <- LIFETIME
 p <- add_strategies(p, trait_matrix(LMA0, "lma"))
 for (n in names(case$trait)) p$strategies[[1]]$pars[[n]] <- p$strategies[[1]]$pars[[n]] * case$trait[[n]]
-ctrl <- control()
-ctrl$ode_tol_rel <- 1e-4
-ctrl$ode_tol_abs <- 1e-8
+# crown-integral's TF24 preset (plant 98f29a0f): rel 1e-4, abs 1e-8, soil substepped alone with its
+# tolerance scaled by 10, steps capped at 15 days. The old window weights (control_window's rule A,
+# ode_tol_factor_*) and ode_soil_substep_max_uptake are not Control fields on this stack, so they
+# are not set; the bound's constants were measured with them (time-axis.md).
+ctrl <- control_tf24(1e-4)
 ctrl$node_density_in_birth_date <- TRUE
-ctrl$ode_tol_factor_soil <- 10
-w <- readRDS(file.path(WEIGHTS, sprintf("weight_%s.rds", case$weight)))
-ctrl$ode_tol_factor_times <- w$t
-ctrl$ode_tol_factor_values <- w$weight
-ctrl$ode_tol_factor_max <- 100
-ctrl$ode_step_size_max <- 15 / 365
-ctrl$ode_soil_substep_max_uptake <- 0.1
 
 fit <- refine_schedule(p, mkenv(case$regime), ctrl, scale)
 saveRDS(fit, a[2])
